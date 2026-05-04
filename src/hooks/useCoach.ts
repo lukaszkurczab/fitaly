@@ -18,6 +18,7 @@ const COACH_MUTATION_REFRESH_DELAY_MS = 1_000;
 type UseCoachParams = {
   uid: string | null | undefined;
   dayKey?: string | null;
+  active?: boolean;
 };
 
 type UseCoachResult = {
@@ -42,20 +43,25 @@ function resolveDayKey(dayKey?: string | null): string {
 export function useCoach({
   uid,
   dayKey,
+  active: isActive = true,
 }: UseCoachParams): UseCoachResult {
   const resolvedDayKey = resolveDayKey(dayKey);
   const [coach, setCoach] = useState<CoachResponse>(() =>
     createFallbackCoachResponse(resolvedDayKey),
   );
-  const [loading, setLoading] = useState<boolean>(!!uid);
-  const [enabled, setEnabled] = useState<boolean>(true);
-  const [source, setSource] = useState<CoachResponseSource>("fallback");
-  const [status, setStatus] = useState<CoachResultStatus>("no_user");
+  const [loading, setLoading] = useState<boolean>(!!uid && isActive);
+  const [enabled, setEnabled] = useState<boolean>(isActive);
+  const [source, setSource] = useState<CoachResponseSource>(
+    isActive ? "fallback" : "disabled",
+  );
+  const [status, setStatus] = useState<CoachResultStatus>(
+    isActive ? "no_user" : "disabled",
+  );
   const [isStale, setIsStale] = useState<boolean>(true);
   const [error, setError] = useState<unknown | null>(null);
   const requestIdRef = useRef(0);
   const mutationRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const requestScopeKey = `${uid ?? ""}:${resolvedDayKey}`;
+  const requestScopeKey = `${uid ?? ""}:${resolvedDayKey}:${isActive ? "active" : "inactive"}`;
   const requestScopeKeyRef = useRef(requestScopeKey);
 
   useEffect(() => {
@@ -108,18 +114,18 @@ export function useCoach({
   useEffect(() => clearPendingMutationRefresh, [clearPendingMutationRefresh, requestScopeKey]);
 
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    if (!uid) {
+    if (!uid || !isActive) {
       setCoach(createFallbackCoachResponse(resolvedDayKey));
       setLoading(false);
-      setEnabled(true);
-      setSource("fallback");
-      setStatus("no_user");
+      setEnabled(isActive);
+      setSource(uid ? "disabled" : "fallback");
+      setStatus(uid ? "disabled" : "no_user");
       setIsStale(true);
       setError(null);
       return () => {
-        active = false;
+        mounted = false;
       };
     }
 
@@ -129,7 +135,7 @@ export function useCoach({
 
     void getCoach(uid, { dayKey: resolvedDayKey }).then((result) => {
       if (
-        !active ||
+        !mounted ||
         requestIdRef.current !== requestId ||
         requestScopeKeyRef.current !== requestScope
       ) {
@@ -141,12 +147,12 @@ export function useCoach({
     });
 
     return () => {
-      active = false;
+      mounted = false;
     };
-  }, [applyResult, requestScopeKey, uid, resolvedDayKey]);
+  }, [applyResult, isActive, requestScopeKey, uid, resolvedDayKey]);
 
   useEffect(() => {
-    if (!uid) {
+    if (!uid || !isActive) {
       return () => undefined;
     }
 
@@ -180,13 +186,27 @@ export function useCoach({
       clearPendingMutationRefresh();
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [clearPendingMutationRefresh, requestScopeKey, runRefreshRequest, uid]);
+  }, [clearPendingMutationRefresh, isActive, requestScopeKey, runRefreshRequest, uid]);
 
   const refresh = useCallback(async () => {
     clearPendingMutationRefresh();
+    if (!isActive) {
+      const fallbackCoach = createFallbackCoachResponse(resolvedDayKey);
+      applyResult({
+        coach: fallbackCoach,
+        enabled: false,
+        source: "disabled",
+        status: "disabled",
+        isStale: true,
+        error: null,
+      });
+      setLoading(false);
+      return fallbackCoach;
+    }
+
     setLoading(true);
     return runRefreshRequest();
-  }, [clearPendingMutationRefresh, runRefreshRequest]);
+  }, [applyResult, clearPendingMutationRefresh, isActive, resolvedDayKey, runRefreshRequest]);
 
   return {
     coach,

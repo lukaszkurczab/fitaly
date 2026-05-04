@@ -131,11 +131,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: theme.spacing.lg,
       gap: theme.spacing.md,
       borderWidth: 1,
-      backgroundColor: theme.surfaceElevated,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 2,
+      backgroundColor: theme.surface,
     },
     containerNeutral: {
       borderColor: theme.border,
@@ -151,7 +147,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       fontFamily: theme.typography.fontFamily.bold,
       textTransform: "uppercase",
-      letterSpacing: 0.8,
+      letterSpacing: 0,
     },
     eyebrowPositive: {
       color: theme.success.text,

@@ -18,6 +18,7 @@ const mockUsePremiumContext = jest.fn();
 const mockUseAccessContext = jest.fn();
 const mockUseMealAddMethodState = jest.fn();
 const mockUseWeeklyReport = jest.fn();
+const mockUseCoach = jest.fn();
 
 jest.mock("@/hooks/useMeals", () => ({
   useMeals: (uid: string | null | undefined) => mockUseMeals(uid),
@@ -45,6 +46,10 @@ jest.mock("@/feature/Meals/hooks/useMealAddMethodState", () => ({
 
 jest.mock("@/hooks/useWeeklyReport", () => ({
   useWeeklyReport: (params: unknown) => mockUseWeeklyReport(params),
+}));
+
+jest.mock("@/hooks/useCoach", () => ({
+  useCoach: (params: unknown) => mockUseCoach(params),
 }));
 
 jest.mock("react-i18next", () => ({
@@ -255,6 +260,26 @@ jest.mock("../components/WeeklyReportCard", () => ({
     ),
 }));
 
+jest.mock("../components/CoachInsightCard", () => ({
+  __esModule: true,
+  default: ({
+    insight,
+    onPressCta,
+  }: {
+    insight: { title: string; actionType: string };
+    onPressCta?: () => void;
+  }) =>
+    mockReact.createElement(
+      mockPressable,
+      { onPress: onPressCta },
+      mockReact.createElement(
+        mockText,
+        null,
+        `coach-insight-card:${insight.title}:${insight.actionType}`,
+      ),
+    ),
+}));
+
 type NavigationMock = {
   navigate: jest.Mock;
 };
@@ -280,6 +305,39 @@ function createMeal(overrides: Record<string, unknown> = {}) {
     source: "manual",
     totals: { kcal: 500, protein: 25, fat: 15, carbs: 45 },
     ...overrides,
+  };
+}
+
+function createCoachInsight(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "2026-03-18:stable",
+    type: "stable",
+    priority: 80,
+    title: "Ask coach about today",
+    body: "Today has enough signal for a short check-in.",
+    actionLabel: "Open chat",
+    actionType: "open_chat",
+    reasonCodes: ["day_signal_ready"],
+    source: "rules",
+    validUntil: "2026-03-18T23:59:59Z",
+    confidence: 0.8,
+    isPositive: false,
+    ...overrides,
+  };
+}
+
+function createCoachResponse(topInsight: ReturnType<typeof createCoachInsight> | null = null) {
+  return {
+    dayKey: "2026-03-18",
+    computedAt: "2026-03-18T08:00:00.000Z",
+    source: "rules",
+    insights: topInsight ? [topInsight] : [],
+    topInsight,
+    meta: {
+      available: !!topInsight,
+      emptyReason: topInsight ? null : "no_data",
+      isDegraded: false,
+    },
   };
 }
 
@@ -339,6 +397,16 @@ describe("HomeScreen", () => {
       error: null,
       refresh: jest.fn(),
     });
+    mockUseCoach.mockReturnValue({
+      coach: createCoachResponse(),
+      loading: false,
+      enabled: false,
+      source: "disabled",
+      status: "disabled",
+      isStale: true,
+      error: null,
+      refresh: jest.fn(),
+    });
   });
 
   afterEach(() => {
@@ -371,7 +439,7 @@ describe("HomeScreen", () => {
     expect(
       getByText("Start with your first meal and the rest of today will build from there."),
     ).toBeTruthy();
-    expect(getByText("weekly-report-card:ready")).toBeTruthy();
+    expect(queryByText("weekly-report-card:ready")).toBeNull();
     expect(queryByText(/^meals:1:/)).toBeNull();
 
     fireEvent.press(getByText("Log breakfast"));
@@ -386,8 +454,15 @@ describe("HomeScreen", () => {
       selectionMode: "persistDefault",
     });
 
-    fireEvent.press(getByText("weekly-report-card:ready"));
-    expect(navigation.navigate).toHaveBeenCalledWith("WeeklyReport");
+    expect(mockUseWeeklyReport).toHaveBeenCalledWith({
+      uid: "user-1",
+      active: false,
+    });
+    expect(mockUseCoach).toHaveBeenCalledWith({
+      uid: "user-1",
+      dayKey: "2026-03-18",
+      active: false,
+    });
   });
 
   it("renders the in-progress today state with subtle progress and meals list", () => {
@@ -506,6 +581,10 @@ describe("HomeScreen", () => {
   });
 
   it("hides weekly report card for free users", () => {
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
     mockUseAccessContext.mockReturnValue({
       accessState: null,
       loading: false,
@@ -528,9 +607,82 @@ describe("HomeScreen", () => {
     expect(queryByText("weekly-report-card:loading")).toBeNull();
   });
 
+  it("renders ready weekly report as the only retention card when the day has signal", () => {
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
+    mockUseCoach.mockReturnValue({
+      coach: createCoachResponse(createCoachInsight()),
+      loading: false,
+      enabled: true,
+      source: "remote",
+      status: "live_success",
+      isStale: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(mockUseWeeklyReport).toHaveBeenCalledWith({
+      uid: "user-1",
+      active: true,
+    });
+    expect(getByText("weekly-report-card:ready")).toBeTruthy();
+    expect(queryByText(/^coach-insight-card:/)).toBeNull();
+
+    fireEvent.press(getByText("weekly-report-card:ready"));
+    expect(navigation.navigate).toHaveBeenCalledWith("WeeklyReport");
+  });
+
+  it("renders coach insight when weekly report is not ready and coach has a non-competing action", () => {
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
+    mockUseWeeklyReport.mockReturnValue({
+      report: {
+        status: "insufficient_data",
+        period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+        summary: null,
+        insights: [],
+        priorities: [],
+      },
+      loading: false,
+      enabled: true,
+      source: "remote",
+      status: "live_success",
+      error: null,
+      refresh: jest.fn(),
+    });
+    mockUseCoach.mockReturnValue({
+      coach: createCoachResponse(createCoachInsight()),
+      loading: false,
+      enabled: true,
+      source: "remote",
+      status: "live_success",
+      isStale: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    fireEvent.press(getByText("coach-insight-card:Ask coach about today:open_chat"));
+    expect(navigation.navigate).toHaveBeenCalledWith("Chat");
+  });
+
   it("shows the past empty state for a previous day without entries", () => {
     const navigation = createNavigation();
-    const { getByText } = renderWithTheme(
+    const { getByText, queryByText } = renderWithTheme(
       <HomeScreen navigation={navigation as never} />,
     );
 
@@ -539,6 +691,46 @@ describe("HomeScreen", () => {
     expect(getByText("Add a missed meal")).toBeTruthy();
     expect(getByText("You missed a meal log")).toBeTruthy();
     expect(getByText("You can still fill in what was missing.")).toBeTruthy();
+    expect(queryByText(/^coach-insight-card:/)).toBeNull();
+    expect(queryByText("weekly-report-card:ready")).toBeNull();
+  });
+
+  it("does not show today retention surfaces for a selected past day", () => {
+    mockUseMeals.mockReturnValue({
+      meals: [
+        createMeal({
+          mealId: "meal-past",
+          dayKey: "2026-03-17",
+          timestamp: new Date("2026-03-17T10:00:00.000Z").getTime(),
+        }),
+      ],
+      getMeals: jest.fn(),
+    });
+    mockUseCoach.mockReturnValue({
+      coach: createCoachResponse(createCoachInsight()),
+      loading: false,
+      enabled: true,
+      source: "remote",
+      status: "live_success",
+      isStale: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(getByText("pick-2026-03-17"));
+
+    expect(queryByText(/^coach-insight-card:/)).toBeNull();
+    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    expect(mockUseCoach).toHaveBeenLastCalledWith({
+      uid: "user-1",
+      dayKey: "2026-03-17",
+      active: false,
+    });
   });
 
   it("keeps past days with entries in in-progress state and never shows missing-entry copy", () => {

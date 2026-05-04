@@ -7,17 +7,24 @@ import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useWeeklyReport } from "@/hooks/useWeeklyReport";
+import { useCoach } from "@/hooks/useCoach";
 import WeekStrip, { type WeekDayItem } from "@/components/WeekStrip";
 import { MacroTargetsRow } from "../components/MacroTargetsRow";
 import { TodaysMealsList } from "../components/TodaysMealsList";
 import HomeHeroCard from "../components/HomeHeroCard";
 import WeeklyReportCard from "../components/WeeklyReportCard";
+import CoachInsightCard from "../components/CoachInsightCard";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { useMealAddMethodState } from "@/feature/Meals/hooks/useMealAddMethodState";
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
 import { buildHomeHeroModel } from "@/feature/Home/services/homeHeroPresenter";
+import {
+  buildHomeRetentionSurface,
+  shouldRequestHomeCoach,
+  shouldRequestHomeWeeklyReport,
+} from "@/feature/Home/services/homeRetentionPresenter";
 import type { Meal } from "@/types/meal";
 
 function buildLast7Days(): WeekDayItem[] {
@@ -49,11 +56,6 @@ export default function HomeScreen({ navigation }: Props) {
   const { userData } = useUserProfileContext();
   const { uid } = useAuthContext();
   const { canUseFeature } = useAccessContext();
-  const canAccessWeeklyReport = canUseFeature("weeklyReport");
-  const weeklyReport = useWeeklyReport({
-    uid,
-    active: canAccessWeeklyReport,
-  });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const selectedDayKey = useMemo(
     () => formatMealDayKey(selectedDate),
@@ -76,6 +78,24 @@ export default function HomeScreen({ navigation }: Props) {
     consumed,
     macroTargets,
   } = homeDay;
+  const canAccessWeeklyReport = canUseFeature("weeklyReport");
+  const weeklyReportActive = shouldRequestHomeWeeklyReport({
+    hasAccess: canAccessWeeklyReport,
+    dayState: homeDay,
+  });
+  const weeklyReport = useWeeklyReport({
+    uid,
+    active: weeklyReportActive,
+  });
+  const coachActive = shouldRequestHomeCoach({
+    uid,
+    dayState: homeDay,
+  });
+  const coach = useCoach({
+    uid,
+    dayKey: selectedDayKey,
+    active: coachActive,
+  });
 
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language || undefined),
@@ -120,6 +140,38 @@ export default function HomeScreen({ navigation }: Props) {
     t,
   ]);
 
+  const retentionSurface = useMemo(
+    () =>
+      buildHomeRetentionSurface({
+        dayState: homeDay,
+        weekly: {
+          hasAccess: canAccessWeeklyReport,
+          loading: weeklyReport.loading,
+          report: weeklyReport.report,
+          status: weeklyReport.status,
+        },
+        coach: {
+          loading: coach.loading,
+          enabled: coach.enabled,
+          coach: coach.coach,
+          status: coach.status,
+          isStale: coach.isStale,
+        },
+      }),
+    [
+      canAccessWeeklyReport,
+      coach.coach,
+      coach.enabled,
+      coach.isStale,
+      coach.loading,
+      coach.status,
+      homeDay,
+      weeklyReport.loading,
+      weeklyReport.report,
+      weeklyReport.status,
+    ],
+  );
+
   const openMealDetails = useCallback(
     (meal: Meal) => {
       if (!meal.cloudId) return;
@@ -129,6 +181,25 @@ export default function HomeScreen({ navigation }: Props) {
     },
     [navigation],
   );
+
+  const handleCoachCta = useCallback(() => {
+    if (retentionSurface.type !== "coach_insight") {
+      return;
+    }
+
+    const { actionType } = retentionSurface.insight;
+    if (actionType === "log_next_meal") {
+      void mealAddEntry.handleDirectStart();
+      return;
+    }
+    if (actionType === "open_chat") {
+      navigation.navigate("Chat");
+      return;
+    }
+    if (actionType === "review_history") {
+      navigation.navigate("HistoryList");
+    }
+  }, [mealAddEntry, navigation, retentionSurface]);
 
   return (
     <Layout>
@@ -181,18 +252,24 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.supportCopy}>{heroModel.supportCopy}</Text>
         ) : null}
 
-        {canAccessWeeklyReport ? (
-          <WeeklyReportCard
-            loading={weeklyReport.loading}
-            report={weeklyReport.report}
-            onPress={() => navigation.navigate("WeeklyReport")}
-          />
-        ) : null}
-
         {mealCount > 0 ? (
           <TodaysMealsList
             meals={dayMeals}
             onOpenMeal={openMealDetails}
+          />
+        ) : null}
+
+        {retentionSurface.type === "weekly_report" ? (
+          <WeeklyReportCard
+            loading={false}
+            report={weeklyReport.report}
+            onPress={() => navigation.navigate("WeeklyReport")}
+          />
+        ) : retentionSurface.type === "coach_insight" ? (
+          <CoachInsightCard
+            insight={retentionSurface.insight}
+            ctaTargetScreen={retentionSurface.ctaTargetScreen ?? undefined}
+            onPressCta={handleCoachCta}
           />
         ) : null}
 

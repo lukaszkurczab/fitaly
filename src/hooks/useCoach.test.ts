@@ -102,6 +102,28 @@ describe("useCoach", () => {
     expect(result.current.coach.topInsight).toBeNull();
   });
 
+  it("does not request coach data when inactive", async () => {
+    const { result } = renderHook(() =>
+      useCoach({ uid: "user-1", dayKey: "2026-03-18", active: false }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetCoach).not.toHaveBeenCalled();
+    expect(result.current.enabled).toBe(false);
+    expect(result.current.source).toBe("disabled");
+    expect(result.current.status).toBe("disabled");
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(mockRefreshCoach).not.toHaveBeenCalled();
+    expect(result.current.coach.dayKey).toBe("2026-03-18");
+  });
+
   it("exposes service fallback when coach endpoint is unavailable", async () => {
     mockGetCoach.mockResolvedValue({
       coach: createFallbackCoachResponse("2026-03-18"),
