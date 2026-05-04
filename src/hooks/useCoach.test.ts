@@ -5,6 +5,8 @@ import type { CoachResult } from "@/services/coach/coachTypes";
 import { createFallbackCoachResponse } from "@/services/coach/coachService";
 import { useCoach } from "@/hooks/useCoach";
 
+const COACH_MUTATION_REFRESH_DELAY_MS = 1_000;
+
 const mockGetCoach = jest.fn<
   (uid: string | null | undefined, options?: { dayKey?: string | null; force?: boolean }) => Promise<CoachResult>
 >();
@@ -48,10 +50,12 @@ jest.mock("@/services/coach/coachService", () => {
 describe("useCoach", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     mockInvalidateCoachCache.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -212,6 +216,7 @@ describe("useCoach", () => {
   });
 
   it("invalidates and refreshes coach after a meal mutation for the same user", async () => {
+    jest.useFakeTimers();
     const initialCoach = createFallbackCoachResponse("2026-03-18");
     initialCoach.meta.available = true;
 
@@ -262,6 +267,13 @@ describe("useCoach", () => {
       emit("meal:added", { uid: "user-1" });
     });
 
+    expect(mockInvalidateCoachCache).not.toHaveBeenCalled();
+    expect(mockRefreshCoach).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(COACH_MUTATION_REFRESH_DELAY_MS);
+    });
+
     await waitFor(() => {
       expect(mockInvalidateCoachCache).toHaveBeenCalledWith("user-1", {
         dayKey: "2026-03-18",
@@ -276,6 +288,7 @@ describe("useCoach", () => {
   });
 
   it("invalidates and refreshes coach after a committed meal delete for the same user", async () => {
+    jest.useFakeTimers();
     const initialCoach = createFallbackCoachResponse("2026-03-18");
     initialCoach.meta.available = true;
 
@@ -324,6 +337,10 @@ describe("useCoach", () => {
 
     act(() => {
       emit("meal:delete:committed", { uid: "user-1", cloudId: "meal-1" });
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(COACH_MUTATION_REFRESH_DELAY_MS);
     });
 
     await waitFor(() => {
@@ -422,5 +439,120 @@ describe("useCoach", () => {
 
     expect(result.current.coach.dayKey).toBe("2026-03-19");
     expect(result.current.coach.topInsight?.title).toBe("Fresh");
+  });
+
+  it("coalesces three quick meal mutation events into one invalidate and refresh", async () => {
+    jest.useFakeTimers();
+    const initialCoach = createFallbackCoachResponse("2026-03-18");
+    initialCoach.meta.available = true;
+
+    const refreshedCoach = createFallbackCoachResponse("2026-03-18");
+    refreshedCoach.meta.available = true;
+
+    mockGetCoach.mockResolvedValue({
+      coach: initialCoach,
+      source: "remote",
+      status: "live_success",
+      enabled: true,
+      isStale: false,
+      error: null,
+    });
+    mockRefreshCoach.mockResolvedValue({
+      coach: refreshedCoach,
+      source: "remote",
+      status: "live_success",
+      enabled: true,
+      isStale: false,
+      error: null,
+    });
+
+    renderHook(() => useCoach({ uid: "user-1", dayKey: "2026-03-18" }));
+
+    await waitFor(() => {
+      expect(mockGetCoach).toHaveBeenCalledWith("user-1", { dayKey: "2026-03-18" });
+    });
+
+    act(() => {
+      emit("meal:added", { uid: "user-1" });
+      emit("meal:updated", { uid: "user-1" });
+      emit("meal:delete:committed", { uid: "user-1", cloudId: "meal-1" });
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(COACH_MUTATION_REFRESH_DELAY_MS - 1);
+    });
+
+    expect(mockInvalidateCoachCache).not.toHaveBeenCalled();
+    expect(mockRefreshCoach).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+
+    await waitFor(() => {
+      expect(mockInvalidateCoachCache).toHaveBeenCalledTimes(1);
+      expect(mockRefreshCoach).toHaveBeenCalledTimes(1);
+    });
+    expect(mockInvalidateCoachCache).toHaveBeenCalledWith("user-1", {
+      dayKey: "2026-03-18",
+    });
+    expect(mockRefreshCoach).toHaveBeenCalledWith("user-1", {
+      dayKey: "2026-03-18",
+    });
+  });
+
+  it("clears pending mutation refresh when dayKey changes", async () => {
+    jest.useFakeTimers();
+    const dayOneCoach = createFallbackCoachResponse("2026-03-18");
+    dayOneCoach.meta.available = true;
+
+    const dayTwoCoach = createFallbackCoachResponse("2026-03-19");
+    dayTwoCoach.meta.available = true;
+
+    mockGetCoach
+      .mockResolvedValueOnce({
+        coach: dayOneCoach,
+        source: "remote",
+        status: "live_success",
+        enabled: true,
+        isStale: false,
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        coach: dayTwoCoach,
+        source: "remote",
+        status: "live_success",
+        enabled: true,
+        isStale: false,
+        error: null,
+      });
+
+    const { rerender } = renderHook(
+      ({ dayKey }: { dayKey: string }) => useCoach({ uid: "user-1", dayKey }),
+      {
+        initialProps: { dayKey: "2026-03-18" },
+      },
+    );
+
+    await waitFor(() => {
+      expect(mockGetCoach).toHaveBeenCalledWith("user-1", { dayKey: "2026-03-18" });
+    });
+
+    act(() => {
+      emit("meal:added", { uid: "user-1" });
+    });
+
+    rerender({ dayKey: "2026-03-19" });
+
+    await waitFor(() => {
+      expect(mockGetCoach).toHaveBeenCalledWith("user-1", { dayKey: "2026-03-19" });
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(COACH_MUTATION_REFRESH_DELAY_MS);
+    });
+
+    expect(mockInvalidateCoachCache).not.toHaveBeenCalled();
+    expect(mockRefreshCoach).not.toHaveBeenCalled();
   });
 });

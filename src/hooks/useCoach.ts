@@ -13,6 +13,8 @@ import type {
   CoachResultStatus,
 } from "@/services/coach/coachTypes";
 
+const COACH_MUTATION_REFRESH_DELAY_MS = 1_000;
+
 type UseCoachParams = {
   uid: string | null | undefined;
   dayKey?: string | null;
@@ -52,6 +54,7 @@ export function useCoach({
   const [isStale, setIsStale] = useState<boolean>(true);
   const [error, setError] = useState<unknown | null>(null);
   const requestIdRef = useRef(0);
+  const mutationRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestScopeKey = `${uid ?? ""}:${resolvedDayKey}`;
   const requestScopeKeyRef = useRef(requestScopeKey);
 
@@ -75,6 +78,34 @@ export function useCoach({
     setIsStale(result.isStale);
     setError(result.error);
   }, []);
+
+  const clearPendingMutationRefresh = useCallback(() => {
+    if (mutationRefreshTimeoutRef.current !== null) {
+      clearTimeout(mutationRefreshTimeoutRef.current);
+      mutationRefreshTimeoutRef.current = null;
+    }
+  }, []);
+
+  const runRefreshRequest = useCallback(async (options?: { invalidateFirst?: boolean }) => {
+    const requestId = ++requestIdRef.current;
+    const requestScope = requestScopeKey;
+
+    if (options?.invalidateFirst) {
+      await invalidateCoachCache(uid, { dayKey: resolvedDayKey });
+    }
+
+    const result = await refreshCoach(uid, { dayKey: resolvedDayKey });
+    if (
+      requestIdRef.current === requestId &&
+      requestScopeKeyRef.current === requestScope
+    ) {
+      applyResult(result);
+      setLoading(false);
+    }
+    return result.coach;
+  }, [applyResult, requestScopeKey, resolvedDayKey, uid]);
+
+  useEffect(() => clearPendingMutationRefresh, [clearPendingMutationRefresh, requestScopeKey]);
 
   useEffect(() => {
     let active = true;
@@ -126,22 +157,16 @@ export function useCoach({
         return;
       }
 
+      clearPendingMutationRefresh();
       setLoading(true);
-      void (async () => {
-        const requestId = ++requestIdRef.current;
-        const requestScope = requestScopeKey;
-        await invalidateCoachCache(uid, { dayKey: resolvedDayKey });
-        const result = await refreshCoach(uid, { dayKey: resolvedDayKey });
-        if (
-          !active ||
-          requestIdRef.current !== requestId ||
-          requestScopeKeyRef.current !== requestScope
-        ) {
+      mutationRefreshTimeoutRef.current = setTimeout(() => {
+        mutationRefreshTimeoutRef.current = null;
+        if (!active) {
           return;
         }
-        applyResult(result);
-        setLoading(false);
-      })();
+
+        void runRefreshRequest({ invalidateFirst: true });
+      }, COACH_MUTATION_REFRESH_DELAY_MS);
     };
 
     const unsubscribers = [
@@ -152,23 +177,16 @@ export function useCoach({
 
     return () => {
       active = false;
+      clearPendingMutationRefresh();
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [applyResult, requestScopeKey, resolvedDayKey, uid]);
+  }, [clearPendingMutationRefresh, requestScopeKey, runRefreshRequest, uid]);
 
   const refresh = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
-    const requestScope = requestScopeKey;
-    const result = await refreshCoach(uid, { dayKey: resolvedDayKey });
-    if (
-      requestIdRef.current === requestId &&
-      requestScopeKeyRef.current === requestScope
-    ) {
-      applyResult(result);
-      setLoading(false);
-    }
-    return result.coach;
-  }, [applyResult, requestScopeKey, uid, resolvedDayKey]);
+    clearPendingMutationRefresh();
+    setLoading(true);
+    return runRefreshRequest();
+  }, [clearPendingMutationRefresh, runRefreshRequest]);
 
   return {
     coach,
