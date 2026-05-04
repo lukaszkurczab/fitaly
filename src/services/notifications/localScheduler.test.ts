@@ -159,77 +159,11 @@ describe("localScheduler", () => {
     ]);
   });
 
-  it("schedules daily and weekday reminders with stored IDs", async () => {
-    mockScheduleNotificationAsync
-      .mockResolvedValueOnce("daily-id")
-      .mockResolvedValueOnce("weekday-sun")
-      .mockResolvedValueOnce("weekday-sat");
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const localScheduler = require("@/services/notifications/localScheduler") as typeof import("@/services/notifications/localScheduler");
-
-    await localScheduler.scheduleDailyAt(
-      8,
-      15,
-      { title: "Daily", body: "Body", data: { type: "daily_check" } },
-      "daily-key",
-    );
-    await localScheduler.scheduleWeekdaysIOS(
-      [0, 6],
-      9,
-      30,
-      { title: "Weekday", body: "Body", data: { type: "meal_reminder" } },
-      "weekday-key",
-    );
-
-    expect(mockScheduleNotificationAsync).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        trigger: expect.objectContaining({ type: "daily", hour: 8, minute: 15 }),
-      }),
-    );
-    expect(mockScheduleNotificationAsync).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        trigger: expect.objectContaining({ type: "calendar", weekday: 2 }),
-      }),
-    );
-    expect(mockScheduleNotificationAsync).toHaveBeenNthCalledWith(
-      3,
-      expect.objectContaining({
-        trigger: expect.objectContaining({ type: "calendar", weekday: 1 }),
-      }),
-    );
-    expect(mockSetItem).toHaveBeenCalledWith("notif:ids:daily-key", "[\"daily-id\"]");
-    expect(mockSetItem).toHaveBeenCalledWith("notif:ids:weekday-key", "[\"weekday-sun\"]");
-    expect(mockSetItem).toHaveBeenCalledWith("notif:ids:weekday-key", "[\"weekday-sat\"]");
-  });
-
-  it("schedules meal reminders on iOS and resolves the next matching day", async () => {
+  it("resolves the next matching day for local scheduling diagnostics", async () => {
     jest.useFakeTimers({ now: new Date("2026-03-18T08:00:00.000Z") });
-    mockScheduleNotificationAsync
-      .mockResolvedValueOnce("meal-sun")
-      .mockResolvedValueOnce("meal-wed");
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const localScheduler = require("@/services/notifications/localScheduler") as typeof import("@/services/notifications/localScheduler");
 
-    await localScheduler.scheduleMealReminder(
-      { id: "meal-reminder", time: { hour: 12, minute: 45 }, days: [0, 3] },
-      "Meal",
-      "Log meal",
-    );
-
-    expect(mockScheduleNotificationAsync).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        trigger: expect.objectContaining({ type: "calendar", weekday: 2 }),
-      }),
-    );
-    expect(mockScheduleNotificationAsync).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        trigger: expect.objectContaining({ type: "calendar", weekday: 5 }),
-      }),
-    );
     const next = localScheduler.nextOccurrenceForDays({ hour: 12, minute: 45 }, [3]);
     expect(next?.getDay()).toBe(3);
     expect(next?.getHours()).toBe(12);

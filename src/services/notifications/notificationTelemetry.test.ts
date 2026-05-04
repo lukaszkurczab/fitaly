@@ -201,24 +201,6 @@ describe("notificationTelemetry", () => {
     });
   });
 
-  it("keeps reading legacy notification payloads that still carry source", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const service = require("@/services/notifications/notificationTelemetry") as typeof import("@/services/notifications/notificationTelemetry");
-
-    service.initNotificationTelemetry();
-    mockNotificationReceivedListener?.({
-      request: {
-        content: {
-          data: { type: "meal_reminder", source: "user_notifications" },
-        },
-      },
-    });
-
-    await Promise.resolve();
-
-    expect(mockTrackNotificationOpened).not.toHaveBeenCalled();
-  });
-
   it("tracks smart reminder opens only through generic notification_opened", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const service = require("@/services/notifications/notificationTelemetry") as typeof import("@/services/notifications/notificationTelemetry");

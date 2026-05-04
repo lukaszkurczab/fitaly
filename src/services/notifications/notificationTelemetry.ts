@@ -34,7 +34,7 @@ export function resolveNotificationTelemetryContext(
     };
   }
 
-  const explicitOrigin = asString(data.origin) ?? asString(data.source);
+  const explicitOrigin = asString(data.origin);
   if (explicitOrigin) {
     return {
       notificationType:
