@@ -151,7 +151,9 @@ describe("reminderScheduling", () => {
       errorMessage: null,
     });
     mockScheduleOneShotAt.mockResolvedValue(undefined);
-    mockCancelAllForNotif.mockResolvedValue(undefined);
+    mockCancelAllForNotif.mockImplementation(async (localKey) => {
+      asyncStorageState.delete(`notif:ids:${localKey}`);
+    });
     mockListStoredNotificationIdsByPrefix.mockImplementation(
       async (localKeyPrefix) => {
         const storagePrefix = `notif:ids:${localKeyPrefix}`;
@@ -329,6 +331,10 @@ describe("reminderScheduling", () => {
   });
 
   it("cancels scheduled reminder when backend is temporarily unavailable", async () => {
+    asyncStorageState.set(
+      "notif:ids:user-1:smart-reminder:2026-03-18",
+      JSON.stringify(["notif-user-1-18"]),
+    );
     mockGetReminderDecision.mockResolvedValue({
       decision: null,
       source: "fallback",
@@ -350,6 +356,12 @@ describe("reminderScheduling", () => {
       "user-1:smart-reminder:2026-03-18",
     );
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
+    await expect(
+      service.getReminderStoredScheduleDiagnostics("user-1"),
+    ).resolves.toMatchObject({
+      totalIds: 0,
+      entries: [],
+    });
   });
 
   it("does not schedule when device notification permission is unavailable", async () => {
@@ -586,5 +598,34 @@ describe("reminderScheduling", () => {
     expect(result.outcome).toBe("cancelled");
     expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalled();
     expect(mockTrackSmartReminderScheduled).not.toHaveBeenCalled();
+  });
+
+  it("cleans up stale local schedules when payload is invalid", async () => {
+    asyncStorageState.set(
+      "notif:ids:user-1:smart-reminder:2026-03-18",
+      JSON.stringify(["notif-user-1-18"]),
+    );
+    mockGetReminderDecision.mockResolvedValue({
+      decision: null,
+      source: "fallback",
+      status: "invalid_payload",
+      enabled: true,
+      error: new Error("contract drift"),
+    });
+
+    const service =
+      jest.requireActual("@/services/reminders/reminderScheduling") as typeof import("@/services/reminders/reminderScheduling");
+
+    const result = await service.reconcileReminderScheduling("user-1", {
+      dayKey: "2026-03-18",
+    });
+
+    expect(result.reason).toBe("decision_invalid_payload");
+    await expect(
+      service.getReminderStoredScheduleDiagnostics("user-1"),
+    ).resolves.toMatchObject({
+      totalIds: 0,
+      entries: [],
+    });
   });
 });

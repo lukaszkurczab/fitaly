@@ -317,6 +317,21 @@ export async function getReminderStoredScheduleDiagnostics(
   }
 }
 
+export async function hasStoredReminderScheduleForDay(
+  uid: string,
+  dayKey: string,
+): Promise<boolean> {
+  const diagnostics = await getReminderStoredScheduleDiagnostics(uid);
+  if (diagnostics.errorMessage) {
+    return false;
+  }
+
+  const localKey = createReminderScheduleKey(uid, dayKey);
+  return diagnostics.entries.some(
+    (entry) => entry.localKey === localKey && entry.ids.length > 0,
+  );
+}
+
 export async function reconcileReminderScheduling(
   uid: string,
   options?: { dayKey?: string | null; now?: Date },

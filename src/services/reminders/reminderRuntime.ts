@@ -2,9 +2,11 @@ import { AppState, type AppStateStatus } from "react-native";
 import {
   cancelAllReminderScheduling,
   getLastReminderReconcileSnapshot,
+  hasStoredReminderScheduleForDay,
   reconcileReminderScheduling,
   type ReminderSchedulingResult,
 } from "@/services/reminders/reminderScheduling";
+import { getCurrentReminderDecisionDayKey } from "@/services/reminders/reminderService";
 import { debugScope } from "@/utils/debug";
 
 type RemovableSubscription = {
@@ -74,6 +76,14 @@ async function runReconcile(
     return;
   }
 
+  if (
+    !force &&
+    reason === "app_foreground" &&
+    (await shouldSkipForegroundReconcile(uid))
+  ) {
+    return;
+  }
+
   reconcileInFlight = true;
   lastReconcileStartedAt = now;
 
@@ -105,6 +115,43 @@ async function runReconcile(
       void runReconcile(next.reason, { force: next.force });
     }
   }
+}
+
+async function shouldSkipForegroundReconcile(uid: string): Promise<boolean> {
+  const lastSnapshot = getLastReminderReconcileSnapshot();
+  const lastDecision = lastReconcileResult?.result.decision;
+  const dayKey = getCurrentReminderDecisionDayKey();
+
+  if (
+    !lastReconcileResult ||
+    lastReconcileResult.outcome !== "scheduled" ||
+    lastReconcileResult.reason !== "scheduled" ||
+    lastReconcileResult.result.status !== "live_success" ||
+    !lastDecision ||
+    lastDecision.decision !== "send" ||
+    !lastSnapshot ||
+    lastSnapshot.uid !== uid ||
+    lastSnapshot.dayKey !== dayKey
+  ) {
+    return false;
+  }
+
+  const validUntilMs = new Date(lastDecision.validUntil).getTime();
+  if (!Number.isFinite(validUntilMs) || validUntilMs <= Date.now()) {
+    return false;
+  }
+
+  const hasLocalSchedule = await hasStoredReminderScheduleForDay(uid, dayKey);
+  if (!hasLocalSchedule) {
+    return false;
+  }
+
+  log.log("skip smart reminder foreground reconcile because decision is still valid", {
+    uid,
+    dayKey,
+    validUntil: lastDecision.validUntil,
+  });
+  return true;
 }
 
 function handleAppStateChange(nextState: AppStateStatus): void {
