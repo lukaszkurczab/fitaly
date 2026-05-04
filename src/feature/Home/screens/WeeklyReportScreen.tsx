@@ -59,7 +59,11 @@ function resolveWeeklyReportAccessState(
   if (status === "enabled") {
     return "premium";
   }
-  if (status === "unknown" || reason === "degraded") {
+  if (
+    status === "unknown" ||
+    reason === "degraded" ||
+    reason === "feature_disabled"
+  ) {
     return "degraded";
   }
   return "locked";
@@ -583,6 +587,10 @@ export default function WeeklyReportScreen({ navigation }: Props) {
     !weeklyReport.loading &&
     weeklyReport.status === "live_success" &&
     weeklyReport.report.status === "insufficient_data";
+  const showPremiumLocked =
+    accessState === "locked" || weeklyReport.status === "premium_required";
+  const showDegradedAccess =
+    accessState === "degraded";
 
   useEffect(() => {
     if (
@@ -633,9 +641,9 @@ export default function WeeklyReportScreen({ navigation }: Props) {
                 "We wait for subscription state first so we don't trigger the report unnecessarily.",
             })}
           />
-        ) : accessState === "locked" ? (
+        ) : showPremiumLocked ? (
           <LockedState onManageSubscription={handleManageSubscription} />
-        ) : accessState === "degraded" ? (
+        ) : showDegradedAccess ? (
           <DegradedAccessState
             onRetryAccess={handleRetryAccess}
             onManageSubscription={handleManageSubscription}

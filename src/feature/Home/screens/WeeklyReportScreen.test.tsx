@@ -238,6 +238,41 @@ describe("WeeklyReportScreen", () => {
     expect(getByText("Manage subscription")).toBeTruthy();
   });
 
+  it("renders premium locked state when backend returns premium_required", () => {
+    mockUseAccessContext.mockReturnValue({
+      getFeature: jest.fn(() => ({
+        enabled: true,
+        status: "enabled",
+        reason: null,
+      })),
+      refreshAccess: jest.fn(),
+    });
+    mockUseWeeklyReport.mockReturnValue({
+      report: {
+        status: "not_available",
+        period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+        summary: null,
+        insights: [],
+        priorities: [],
+      },
+      loading: false,
+      enabled: true,
+      source: "fallback",
+      status: "premium_required",
+      error: new Error("premium required"),
+      refresh: jest.fn(),
+    });
+
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+    const { getByText, queryByText } = renderWithTheme(
+      <WeeklyReportScreen navigation={navigation as never} />,
+    );
+
+    expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
+    expect(getByText("Manage subscription")).toBeTruthy();
+    expect(queryByText("Your weekly reflection isn't ready right now")).toBeNull();
+  });
+
   it("renders degraded access state without activating weekly report request", () => {
     const refreshPremium = jest.fn();
     mockUsePremiumContext.mockReturnValue({

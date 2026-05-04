@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { WeeklyReport } from "@/services/weeklyReport/weeklyReportTypes";
+import { createServiceError } from "@/services/contracts/serviceError";
 
 const mockGet = jest.fn<(path: string, options?: unknown) => Promise<unknown>>();
 const mockReadPublicEnv = jest.fn<(name: string) => string | undefined>();
@@ -166,6 +167,63 @@ describe("weeklyReportService", () => {
     expect(result.error).toEqual(
       expect.objectContaining({ code: "weekly-report/invalid-contract-payload" }),
     );
+  });
+
+  it("maps 403 WEEKLY_REPORT_PREMIUM_REQUIRED to premium_required", async () => {
+    mockGet.mockRejectedValue(
+      Object.assign(
+        createServiceError({
+          code: "api/http-error",
+          source: "ApiClient",
+          retryable: false,
+          message: "WEEKLY_REPORT_PREMIUM_REQUIRED",
+        }),
+        {
+          status: 403,
+          details: { detail: "WEEKLY_REPORT_PREMIUM_REQUIRED" },
+        },
+      ),
+    );
+
+    const service =
+      jest.requireActual("@/services/weeklyReport/weeklyReportService") as typeof import("@/services/weeklyReport/weeklyReportService");
+
+    const result = await service.getWeeklyReport("user-1", {
+      weekEnd: "2026-03-15",
+    });
+
+    expect(result.source).toBe("fallback");
+    expect(result.status).toBe("premium_required");
+    expect(result.report.status).toBe("not_available");
+  });
+
+  it("maps 503 disabled response to feature_disabled and not premium_required", async () => {
+    mockGet.mockRejectedValue(
+      Object.assign(
+        createServiceError({
+          code: "api/http-error",
+          source: "ApiClient",
+          retryable: true,
+          message: "Weekly reports are disabled",
+        }),
+        {
+          status: 503,
+          details: { detail: "Weekly reports are disabled" },
+        },
+      ),
+    );
+
+    const service =
+      jest.requireActual("@/services/weeklyReport/weeklyReportService") as typeof import("@/services/weeklyReport/weeklyReportService");
+
+    const result = await service.getWeeklyReport("user-1", {
+      weekEnd: "2026-03-15",
+    });
+
+    expect(result.source).toBe("fallback");
+    expect(result.status).toBe("feature_disabled");
+    expect(result.status).not.toBe("premium_required");
+    expect(result.report.status).toBe("not_available");
   });
 
   it("returns no-user fallback without calling the endpoint when uid is missing", async () => {

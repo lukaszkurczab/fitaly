@@ -5,6 +5,7 @@ import {
   asString,
   isRecord,
 } from "@/services/contracts/guards";
+import { getErrorStatus } from "@/services/contracts/serviceError";
 import { debugScope } from "@/utils/debug";
 import {
   isWeeklyReportDayKey,
@@ -25,6 +26,8 @@ import type {
 const log = debugScope("WeeklyReportService");
 const WEEKLY_REPORT_ENDPOINT = withV2("/users/me/reports/weekly");
 const WEEKLY_REPORT_SERVICE_SOURCE = "WeeklyReportService";
+const WEEKLY_REPORT_PREMIUM_REQUIRED_DETAIL = "WEEKLY_REPORT_PREMIUM_REQUIRED";
+const WEEKLY_REPORTS_DISABLED_DETAIL = "Weekly reports are disabled";
 
 function toDayKey(date: Date): string {
   const year = date.getUTCFullYear();
@@ -212,6 +215,40 @@ function buildWeeklyReportResult(input: {
   return input;
 }
 
+function readWeeklyReportErrorDetail(error: unknown): string | null {
+  if (!isRecord(error)) {
+    return null;
+  }
+
+  const details = isRecord(error.details) ? error.details : null;
+  if (details) {
+    return asString(details.detail) ?? asString(details.code) ?? null;
+  }
+
+  return asString(error.detail) ?? null;
+}
+
+function mapWeeklyReportErrorStatus(error: unknown): WeeklyReportResultStatus {
+  const status = getErrorStatus(error);
+  const detail = readWeeklyReportErrorDetail(error);
+
+  if (
+    status === 403 &&
+    detail === WEEKLY_REPORT_PREMIUM_REQUIRED_DETAIL
+  ) {
+    return "premium_required";
+  }
+
+  if (
+    status === 503 &&
+    detail === WEEKLY_REPORTS_DISABLED_DETAIL
+  ) {
+    return "feature_disabled";
+  }
+
+  return "service_unavailable";
+}
+
 export async function getWeeklyReport(
   uid: string | null | undefined,
   options?: { weekEnd?: string | null },
@@ -255,7 +292,7 @@ export async function getWeeklyReport(
     return buildWeeklyReportResult({
       report: createFallbackWeeklyReport(weekEnd),
       source: "fallback",
-      status: isInvalidPayload ? "invalid_payload" : "service_unavailable",
+      status: isInvalidPayload ? "invalid_payload" : mapWeeklyReportErrorStatus(error),
       enabled: true,
       error,
     });

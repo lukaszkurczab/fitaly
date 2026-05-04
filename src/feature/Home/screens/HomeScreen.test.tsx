@@ -520,6 +520,10 @@ describe("HomeScreen", () => {
       <HomeScreen navigation={navigation as never} />,
     );
 
+    expect(mockUseWeeklyReport).toHaveBeenCalledWith({
+      uid: "user-1",
+      active: false,
+    });
     expect(queryByText("weekly-report-card:ready")).toBeNull();
     expect(queryByText("weekly-report-card:loading")).toBeNull();
   });

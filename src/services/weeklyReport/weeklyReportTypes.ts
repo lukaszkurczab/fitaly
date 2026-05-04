@@ -55,8 +55,10 @@ export type WeeklyReportSource = "disabled" | "remote" | "fallback";
 export type WeeklyReportResultStatus =
   | "live_success"
   | "disabled"
+  | "feature_disabled"
   | "no_user"
   | "invalid_payload"
+  | "premium_required"
   | "service_unavailable";
 
 export type WeeklyReportResult = {
