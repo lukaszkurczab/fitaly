@@ -268,9 +268,23 @@ export function useUserProfile(uid: string): UseUserProfileResult {
         avatarCachePath(uid)
       );
       if (!isCurrent()) return null;
-      const normalized = { ...profile, avatarLocalPath };
+      const normalizedLanguage = normalizeLanguageCode(profile.language);
+      const normalized = {
+        ...profile,
+        avatarLocalPath,
+        language: normalizedLanguage,
+      };
       setUserData(normalized);
       userDataRef.current = normalized;
+      setLanguage(normalizedLanguage);
+      if (
+        normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language) !==
+        normalizedLanguage
+      ) {
+        i18n.changeLanguage(normalizedLanguage).catch((error) => {
+          logWarning("language sync failed", null, error);
+        });
+      }
       if (completeBootstrap) {
         setLoading(false);
         setProfileBootstrapState(options?.bootstrapState ?? "profileReady");

@@ -14,6 +14,7 @@ import { parseUserData } from "./profile.dto";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { claimUsername } from "@/services/user/usernameService";
 import { resetUserRuntime } from "@/services/session/resetUserRuntime";
+import { normalizeLanguageCode } from "@/hooks/useUserProfile";
 import {
   fetchUserProfileRemote,
   initializeUserOnboardingRemote,
@@ -58,7 +59,7 @@ export async function fetchUserFromCloud(): Promise<UserData | null> {
 }
 
 export async function updateUserLanguageInFirestore(language: string) {
-  await mergeUserProfileRemote({ language });
+  await mergeUserProfileRemote({ language: normalizeLanguageCode(language) });
 }
 
 export async function uploadAndSaveAvatar({

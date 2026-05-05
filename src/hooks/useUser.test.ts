@@ -200,7 +200,6 @@ jest.mock("@/services/user/profilePatch", () => ({
     delete next.lastSyncedAt;
     delete next.avatarUrl;
     delete next.avatarlastSyncedAt;
-    delete next.language;
     delete next.avatarLocalPath;
     return Object.fromEntries(
       Object.entries(next).filter(([, value]) => value !== undefined),
@@ -348,7 +347,7 @@ describe("useUser", () => {
 
   it("loads cached profile, reacts to snapshot updates and unsubscribes", async () => {
     const cached = createUser({
-      language: "de",
+      language: "de" as unknown as UserData["language"],
       avatarLocalPath: "file:///avatar-local.jpg",
     });
     mockFetchUserProfileRemote.mockResolvedValue(cached);
@@ -368,7 +367,7 @@ describe("useUser", () => {
       emitSnapshot(
         createUser({
           username: "trinity",
-          language: "fr",
+          language: "fr" as unknown as UserData["language"],
           avatarLocalPath: "file:///avatar-local.jpg",
         }),
       );
@@ -793,7 +792,7 @@ describe("useUser", () => {
     );
   });
 
-  it("treats language as a local-only profile field", async () => {
+  it("persists language changes through the profile contract", async () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await act(async () => {
@@ -809,15 +808,21 @@ describe("useUser", () => {
     });
 
     expect(mockAssertNoUndefined).toHaveBeenCalledWith(
-      {},
+      { language: "pl" },
       "updateUserProfile payload",
     );
-    expect(mockEnqueueUserProfileUpdate).not.toHaveBeenCalled();
+    expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
+      "u1",
+      { language: "pl" },
+      expect.objectContaining({
+        updatedAt: expect.any(String),
+      }),
+    );
     expect(result.current.language).toBe("pl");
     expect(mockI18nChangeLanguage).toHaveBeenCalledWith("pl");
   });
 
-  it("keeps mixed profile patch remote sync without local-only fields", async () => {
+  it("keeps mixed profile patch sync on the canonical profile path", async () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await act(async () => {
@@ -832,12 +837,12 @@ describe("useUser", () => {
     });
 
     expect(mockAssertNoUndefined).toHaveBeenCalledWith(
-      { age: "31" },
+      { language: "pl", age: "31" },
       "updateUserProfile payload",
     );
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { age: "31" },
+      { language: "pl", age: "31" },
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),

@@ -30,6 +30,7 @@ const ACTIVITY = [
 ] as const satisfies readonly ActivityLevel[];
 const PLANS = ["free", "premium"] as const;
 const SYNC_STATES = ["synced", "pending", "conflict"] as const;
+const LANGUAGES = ["en", "pl"] as const;
 const PREFERENCES = [
   "lowCarb",
   "keto",
@@ -143,7 +144,7 @@ export function parseUserData(payload: unknown): UserData | null {
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
-    language: asString(payload.language) ?? "en",
+    language: pickEnum(payload.language, LANGUAGES, "en"),
   };
 
   return data;

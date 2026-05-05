@@ -185,7 +185,7 @@ describe("services/user/userProfileRepository", () => {
     expect(repo.getCachedUserProfile("u1")).toBeUndefined();
   });
 
-  it("skips backend patch when payload has only local-only/non-editable fields", async () => {
+  it("skips backend patch when payload has only non-editable local fields", async () => {
     mockPost.mockResolvedValue({ updated: true });
     mockGet.mockResolvedValue({
       profile: { uid: "u1", language: "pl" },
@@ -200,11 +200,13 @@ describe("services/user/userProfileRepository", () => {
       avatarLocalPath: "file:///avatar.jpg",
     });
 
-    expect(mockPost).not.toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith("/users/me/profile", {
+      language: "pl",
+    });
     expect(mockGet).not.toHaveBeenCalled();
   });
 
-  it("posts mixed payload without local-only fields", async () => {
+  it("posts mixed payload with canonical language field", async () => {
     mockPost.mockResolvedValue({ updated: true });
     mockGet.mockResolvedValue({
       profile: { uid: "u1", age: "31" },
@@ -219,6 +221,7 @@ describe("services/user/userProfileRepository", () => {
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/profile", {
+      language: "pl",
       age: "31",
     });
   });

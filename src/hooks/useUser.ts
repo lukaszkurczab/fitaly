@@ -3,6 +3,8 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
 import { useUserAccount } from "@/hooks/useUserAccount";
 import { useUserExport } from "@/hooks/useUserExport";
+import i18n from "@/i18n";
+import { normalizeLanguageCode } from "@/hooks/useUserProfile";
 
 export function useUser(uid: string) {
   const {
@@ -42,9 +44,15 @@ export function useUser(uid: string) {
 
   const exportAndPrefs = useUserExport({
     uid,
-    setLanguage,
-    mirrorProfileLocally,
-    pushPendingChanges,
+    changeLanguage: async (newLang: string) => {
+      if (!uid) {
+        const nextLanguage = normalizeLanguageCode(newLang);
+        setLanguage(nextLanguage);
+        await i18n.changeLanguage(nextLanguage);
+        return;
+      }
+      return updateUserProfile({ language: normalizeLanguageCode(newLang) });
+    },
   });
 
   return useMemo(

@@ -24,11 +24,11 @@ const EDITABLE_REMOTE_PROFILE_FIELDS = new Set<keyof UserData>([
   "surveyComplited",
   "surveyCompletedAt",
   "calorieTarget",
+  "language",
 ]);
 
 const EDITABLE_LOCAL_PROFILE_FIELDS = new Set<keyof UserData>([
   ...EDITABLE_REMOTE_PROFILE_FIELDS,
-  "language",
   "username",
 ]);
 

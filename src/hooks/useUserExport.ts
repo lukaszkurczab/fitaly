@@ -1,21 +1,14 @@
 import { useCallback, useMemo } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import type { UserData } from "@/types";
 import * as FileSystem from "@/services/core/fileSystem";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
-import i18n from "@/i18n";
 import { exportUserData as fetchUserExportData } from "@/services/user/userService";
-import { enqueueUserProfileUpdate } from "@/services/offline/queue.repo";
-import { normalizeLanguageCode } from "@/hooks/useUserProfile";
 import { logWarning } from "@/services/core/errorLogger";
 
 type UseUserExportParams = {
   uid: string;
-  setLanguage: Dispatch<SetStateAction<string>>;
-  mirrorProfileLocally: (patch: Partial<UserData>) => Promise<void>;
-  pushPendingChanges: () => Promise<void>;
+  changeLanguage: (newLang: string) => Promise<void>;
 };
 
 type UseUserExportResult = {
@@ -25,25 +18,8 @@ type UseUserExportResult = {
 
 export function useUserExport({
   uid,
-  setLanguage,
-  mirrorProfileLocally,
-  pushPendingChanges,
+  changeLanguage,
 }: UseUserExportParams): UseUserExportResult {
-  const changeLanguage = useCallback(
-    async (newLang: string) => {
-      const nextLanguage = normalizeLanguageCode(newLang);
-      setLanguage(nextLanguage);
-      await i18n.changeLanguage(nextLanguage);
-      if (!uid) return;
-      await mirrorProfileLocally({ language: nextLanguage });
-      await enqueueUserProfileUpdate(uid, { language: nextLanguage }, {
-        updatedAt: new Date().toISOString(),
-      });
-      await pushPendingChanges();
-    },
-    [setLanguage, uid, mirrorProfileLocally, pushPendingChanges]
-  );
-
   const exportUserData = useCallback(async (): Promise<string | void> => {
     if (!uid) return;
     const data = await fetchUserExportData();
@@ -136,6 +112,6 @@ export function useUserExport({
       exportUserData,
       changeLanguage,
     }),
-    [exportUserData, changeLanguage]
+    [changeLanguage, exportUserData]
   );
 }

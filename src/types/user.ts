@@ -4,6 +4,7 @@ import type { ChatMessage } from "./chatMessage";
 
 export type UserPlan = "free" | "premium";
 export type SyncState = "synced" | "pending" | "conflict";
+export type UserLanguage = "en" | "pl";
 
 export interface UserData extends FormData {
   uid: string;
@@ -19,7 +20,7 @@ export interface UserData extends FormData {
   avatarUrl?: string;
   avatarLocalPath?: string;
   avatarlastSyncedAt?: string;
-  language: string;
+  language: UserLanguage;
 }
 
 export type ExportedUserData = {
