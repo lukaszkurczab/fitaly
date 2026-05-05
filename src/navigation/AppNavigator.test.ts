@@ -4,9 +4,9 @@ import {
 } from "@/navigation/appNavigatorState";
 
 describe("AppNavigator onboarding gate", () => {
-  it("keeps first-run users out of the product stack until completion", () => {
-    expect(shouldRenderProductStack("profileReady", false)).toBe(false);
-    expect(resolveInitialRouteName("profileReady", false)).toBe("Onboarding");
+  it("keeps first-run users out of the product stack until profile readiness", () => {
+    expect(shouldRenderProductStack("profileReady", "needs_profile")).toBe(false);
+    expect(resolveInitialRouteName("profileReady", "needs_profile")).toBe("Onboarding");
   });
 
   it("keeps missing profiles gated instead of exposing Home", () => {
@@ -16,13 +16,13 @@ describe("AppNavigator onboarding gate", () => {
     );
   });
 
-  it("renders Home only after canonical onboarding completion", () => {
-    expect(shouldRenderProductStack("profileReady", true)).toBe(true);
-    expect(resolveInitialRouteName("profileReady", true)).toBe("Home");
+  it("renders the product stack when profile is complete and AI consent is pending", () => {
+    expect(shouldRenderProductStack("profileReady", "needs_ai_consent")).toBe(true);
+    expect(resolveInitialRouteName("profileReady", "needs_ai_consent")).toBe("Home");
   });
 
-  it("lets a locally completed profile recover into the product stack", () => {
-    expect(shouldRenderProductStack("profileMissing", true)).toBe(true);
-    expect(resolveInitialRouteName("profileMissing", true)).toBe("Home");
+  it("renders Home after canonical readiness", () => {
+    expect(shouldRenderProductStack("profileMissing", "ready")).toBe(true);
+    expect(resolveInitialRouteName("profileMissing", "ready")).toBe("Home");
   });
 });

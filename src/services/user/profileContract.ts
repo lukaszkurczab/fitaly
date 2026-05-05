@@ -105,8 +105,7 @@ export const PROFILE_EDITABLE_REMOTE_FIELDS = [
   "allergiesOther",
   "lifestyle",
   "aiPersona",
-  "surveyComplited",
-  "surveyCompletedAt",
+  "readiness",
   "calorieTarget",
   "language",
 ] as const satisfies readonly (keyof UserData)[];
@@ -148,9 +147,7 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "allergiesOther",
   "lifestyle",
   "aiPersona",
-  "aiHealthDataConsentAt",
-  "surveyComplited",
-  "surveyCompletedAt",
+  "readiness",
   "calorieTarget",
   "syncState",
   "lastSyncedAt",
@@ -160,13 +157,8 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "language",
 ] as const satisfies readonly (keyof UserData)[];
 
-export const PROFILE_COMPLETION_FIELDS = [
-  "surveyComplited",
-  "surveyCompletedAt",
-] as const satisfies readonly (keyof UserData)[];
-
-export const PROFILE_AI_CONSENT_FIELDS = [
-  "aiHealthDataConsentAt",
+export const PROFILE_READINESS_FIELDS = [
+  "readiness",
 ] as const satisfies readonly (keyof UserData)[];
 
 export const PROFILE_AI_PERSONA_FIELDS = [
@@ -204,9 +196,11 @@ export const PROFILE_ONBOARDING_DEFAULTS = {
   allergiesOther: "",
   lifestyle: "",
   aiPersona: "calm_guide" as AiPersona,
-  aiHealthDataConsentAt: null as string | null,
-  surveyComplited: false,
-  surveyCompletedAt: null as string | null,
+  readiness: {
+    status: "needs_profile",
+    onboardingCompletedAt: null,
+    readyAt: null,
+  } as UserData["readiness"],
   calorieTarget: 0,
   syncState: "pending" as SyncState,
   lastSyncedAt: "",

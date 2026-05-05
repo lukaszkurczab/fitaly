@@ -1,9 +1,10 @@
 import type {
+  ReadinessStatus,
   Sex,
   UserData,
+  UserReadiness,
 } from "@/types";
 import {
-  asBoolean,
   asNumber,
   asString,
   asStringArray,
@@ -23,6 +24,11 @@ import {
 } from "./profileContract";
 
 const PLANS = ["free", "premium"] as const;
+const READINESS_STATUSES = [
+  "needs_profile",
+  "needs_ai_consent",
+  "ready",
+] as const satisfies readonly ReadinessStatus[];
 
 function pickEnum<T extends string>(
   raw: unknown,
@@ -39,14 +45,24 @@ function pickNullableSex(raw: unknown): Sex {
   return pickEnum(raw, PROFILE_SEX, "female");
 }
 
-function pickNullableString(raw: unknown): string | null | undefined {
-  if (raw === null) return null;
-  return asString(raw);
-}
-
 function pickEnumArray<T extends string>(raw: unknown, allowed: readonly T[]): T[] {
   const input = asStringArray(raw);
   return input.filter((item): item is T => allowed.includes(item as T));
+}
+
+function parseReadiness(raw: unknown): UserReadiness {
+  if (!isRecord(raw)) {
+    return {
+      status: "needs_profile",
+      onboardingCompletedAt: null,
+      readyAt: null,
+    };
+  }
+  return {
+    status: pickEnum(raw.status, READINESS_STATUSES, "needs_profile"),
+    onboardingCompletedAt: asString(raw.onboardingCompletedAt) ?? null,
+    readyAt: asString(raw.readyAt) ?? null,
+  };
 }
 
 export function parseUserData(payload: unknown): UserData | null {
@@ -60,7 +76,6 @@ export function parseUserData(payload: unknown): UserData | null {
   const createdAt = asNumber(payload.createdAt) ?? Date.now();
   const lastLogin = asString(payload.lastLogin) ?? new Date().toISOString();
 
-  const surveyComplited = asBoolean(payload.surveyComplited) ?? false;
   const calorieTargetRaw = payload.calorieTarget;
   const calorieTarget =
     calorieTargetRaw === null ? null : (asNumber(calorieTargetRaw) ?? 0);
@@ -89,10 +104,8 @@ export function parseUserData(payload: unknown): UserData | null {
     allergiesOther: asString(payload.allergiesOther) ?? "",
     lifestyle: asString(payload.lifestyle) ?? "",
     aiPersona: pickEnum(payload.aiPersona, PROFILE_AI_PERSONAS, "calm_guide"),
-    aiHealthDataConsentAt: pickNullableString(payload.aiHealthDataConsentAt),
-    surveyComplited,
+    readiness: parseReadiness(payload.readiness),
     calorieTarget,
-    surveyCompletedAt: asString(payload.surveyCompletedAt),
     syncState: pickEnum(payload.syncState, PROFILE_SYNC_STATES, "pending"),
     lastSyncedAt: asString(payload.lastSyncedAt),
     avatarUrl: asString(payload.avatarUrl),

@@ -66,7 +66,11 @@ function buildUserData(overrides?: Partial<UserData>): UserData {
     allergiesOther: "",
     lifestyle: "",
     aiPersona: "cheerful_companion",
-    surveyComplited: true,
+    readiness: {
+      status: "ready",
+      onboardingCompletedAt: "2026-03-28T10:00:00.000Z",
+      readyAt: "2026-03-28T10:00:00.000Z",
+    },
     calorieTarget: 2100,
     syncState: "synced",
     language: "en",
@@ -246,7 +250,10 @@ describe("useOnboardingFlow", () => {
     expect(mockUpdateUser).toHaveBeenCalledTimes(1);
     expect(mockUpdateUser.mock.calls[0][0]).toMatchObject({
       aiPersona: "mediterranean_friend",
-      surveyComplited: true,
+      readiness: {
+        status: "needs_ai_consent",
+        readyAt: null,
+      },
     });
     expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
     expect(navigation.replace).toHaveBeenCalledWith("Loading");

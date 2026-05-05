@@ -243,7 +243,11 @@ const createUser = (overrides: Partial<UserData> = {}): UserData => ({
   plan: "free",
   createdAt: 1,
   lastLogin: "2026-03-10T10:00:00.000Z",
-  surveyComplited: true,
+  readiness: {
+    status: "ready",
+    onboardingCompletedAt: "2026-03-10T10:00:00.000Z",
+    readyAt: "2026-03-10T10:00:00.000Z",
+  },
   syncState: "synced",
   language: "en",
   unitsSystem: "metric",

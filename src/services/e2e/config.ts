@@ -28,7 +28,11 @@ export function buildE2EProfileSeed(uid: string, email: string): Partial<UserDat
     preferences: ["balanced"],
     activityLevel: "moderate",
     goal: "maintain",
-    surveyComplited: true,
+    readiness: {
+      status: "ready",
+      onboardingCompletedAt: nowIso,
+      readyAt: nowIso,
+    },
     calorieTarget: 2200,
     chronicDiseases: [],
     allergies: [],

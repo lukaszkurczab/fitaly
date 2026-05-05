@@ -5,6 +5,13 @@ import type { ChatMessage } from "./chatMessage";
 export type UserPlan = "free" | "premium";
 export type SyncState = "synced" | "pending" | "conflict";
 export type UserLanguage = "en" | "pl";
+export type ReadinessStatus = "needs_profile" | "needs_ai_consent" | "ready";
+
+export type UserReadiness = {
+  status: ReadinessStatus;
+  onboardingCompletedAt: string | null;
+  readyAt: string | null;
+};
 
 export interface UserData extends FormData {
   uid: string;
@@ -13,9 +20,7 @@ export interface UserData extends FormData {
   plan: UserPlan;
   createdAt: number;
   lastLogin: string;
-  surveyComplited: boolean;
-  aiHealthDataConsentAt?: string | null;
-  surveyCompletedAt?: string;
+  readiness: UserReadiness;
   syncState: SyncState;
   lastSyncedAt?: string;
   avatarUrl?: string;

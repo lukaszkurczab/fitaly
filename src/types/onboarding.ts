@@ -55,7 +55,5 @@ export type FormData = {
   allergiesOther?: string;
   lifestyle?: string;
   aiPersona?: AiPersona;
-  aiHealthDataConsentAt?: string | null;
-  surveyComplited: boolean;
   calorieTarget: number | null;
 };

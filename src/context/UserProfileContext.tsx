@@ -13,6 +13,7 @@ import { runMigrations } from "@/services/offline/db";
 import { startSyncLoop, stopSyncLoop } from "@/services/offline/sync.engine";
 import { cleanupTransientOfflineAssets } from "@/services/offline/fileCleanup";
 import { emit, on } from "@/services/core/events";
+import { shouldRenderProductStack } from "@/navigation/appNavigatorState";
 
 export type UserProfileContextType = {
   userData: UserData | null;
@@ -70,6 +71,10 @@ export const UserProfileProvider = ({
   const refreshUser = useCallback(async () => {
     return fetchUserFromCloud();
   }, [fetchUserFromCloud]);
+  const canRunUserScopedRuntime = shouldRenderProductStack(
+    profileBootstrapState,
+    userData?.readiness?.status,
+  );
 
   useEffect(() => {
     try {
@@ -81,7 +86,7 @@ export const UserProfileProvider = ({
   }, []);
 
   useEffect(() => {
-    if (!uid) {
+    if (!uid || !canRunUserScopedRuntime) {
       stopSyncLoop();
       return;
     }
@@ -90,7 +95,7 @@ export const UserProfileProvider = ({
     return () => {
       stopSyncLoop();
     };
-  }, [uid]);
+  }, [canRunUserScopedRuntime, uid]);
 
   useEffect(() => {
     const unsub = on<{ uid?: string; cloudId?: string | null }>(

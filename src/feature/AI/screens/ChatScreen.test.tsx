@@ -11,6 +11,7 @@ import type { ChatMessage } from "@/types";
 import type { ReactNode } from "react";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import ChatScreen from "@/feature/AI/screens/ChatScreen";
+import type { UserReadiness } from "@/types";
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -20,12 +21,24 @@ const mockRefreshUser = jest.fn<() => Promise<unknown>>();
 const mockAcceptAiHealthDataConsentRemote = jest.fn<(uid: string) => Promise<unknown>>();
 const mockUseChatHistory = jest.fn();
 const focusEffectCallbacks: Array<() => void | (() => void)> = [];
-let mockUserData: { uid: string; aiHealthDataConsentAt?: string | null } | null = {
+const readyReadiness: UserReadiness = {
+  status: "ready",
+  onboardingCompletedAt: "2026-05-01T09:00:00Z",
+  readyAt: "2026-05-01T10:00:00Z",
+};
+const needsAiConsentReadiness: UserReadiness = {
+  status: "needs_ai_consent",
+  onboardingCompletedAt: "2026-05-01T09:00:00Z",
+  readyAt: null,
+};
+
+let mockUserData: { uid: string; readiness: UserReadiness } | null = {
   uid: "user-1",
-  aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+  readiness: readyReadiness,
 };
 let mockLoadingUser = false;
 let mockIsProductReady = true;
+let mockCanRenderProductStack = true;
 
 const baseMessages: ChatMessage[] = [
   {
@@ -160,7 +173,15 @@ jest.mock("@/services/user/userProfileRepository", () => ({
 }));
 
 jest.mock("@/hooks/useProductReadiness", () => ({
-  useIsProductReady: () => mockIsProductReady,
+  useProductReadiness: () => ({
+    isProductReady: mockIsProductReady,
+    canRenderProductStack: mockCanRenderProductStack,
+    status: mockIsProductReady
+      ? "ready"
+      : (mockUserData?.readiness.status ?? "profileLoading"),
+    uid: mockIsProductReady ? "user-1" : null,
+    bootstrapState: "profileReady",
+  }),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -235,20 +256,17 @@ describe("ChatScreen", () => {
       updated: true,
       profile: {
         uid: "user-1",
-        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+        readiness: readyReadiness,
       },
-      consent: {
-        required: true,
-        granted: true,
-        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
-      },
+      consent: readyReadiness,
     });
     mockUserData = {
       uid: "user-1",
-      aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+      readiness: readyReadiness,
     };
     mockLoadingUser = false;
     mockIsProductReady = true;
+    mockCanRenderProductStack = true;
     mockChatHistoryState = {
       messages: [],
       loading: false,
@@ -283,6 +301,7 @@ describe("ChatScreen", () => {
 
   it("does not bind chat history to the auth uid before product readiness", async () => {
     mockIsProductReady = false;
+    mockCanRenderProductStack = false;
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -292,7 +311,7 @@ describe("ChatScreen", () => {
   });
 
   it("shows legal modal hierarchy and blocks the composer until acceptance", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -308,7 +327,7 @@ describe("ChatScreen", () => {
   });
 
   it("accepts legal consent through the backend and unlocks the composer", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -328,7 +347,7 @@ describe("ChatScreen", () => {
   });
 
   it("goes back when legal back action is pressed", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -339,7 +358,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens legal privacy hub link from modal", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -352,7 +371,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens data & ai clarity link from modal", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -366,7 +385,7 @@ describe("ChatScreen", () => {
   });
 
   it("keeps legal flow stable after returning from info screens", async () => {
-    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
+    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
 
     const screen = renderWithTheme(<ChatScreen />);
 

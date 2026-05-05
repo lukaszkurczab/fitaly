@@ -350,7 +350,11 @@ describe("HomeScreen", () => {
     mockUseUserProfileContext.mockReturnValue({
       userData: {
         username: "Anna",
-        surveyComplited: true,
+        readiness: {
+          status: "ready",
+          onboardingCompletedAt: "2026-03-18T08:00:00.000Z",
+          readyAt: "2026-03-18T08:00:00.000Z",
+        },
         calorieTarget: 2000,
         preferences: [],
         goal: "maintain",

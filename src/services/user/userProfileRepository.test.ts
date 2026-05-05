@@ -242,34 +242,32 @@ describe("services/user/userProfileRepository", () => {
   });
 
   it("accepts AI health data consent through the canonical backend endpoint", async () => {
+    const readiness = {
+      status: "ready",
+      onboardingCompletedAt: "2026-04-30T10:00:00Z",
+      readyAt: "2026-05-01T10:00:00Z",
+    };
     mockPost.mockResolvedValue({
       updated: true,
       profile: {
         uid: "u1",
-        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+        readiness,
       },
-      consent: {
-        required: true,
-        granted: true,
-        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
-      },
+      consent: readiness,
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const repo = require("@/services/user/userProfileRepository");
 
     await expect(repo.acceptAiHealthDataConsentRemote("u1")).resolves.toMatchObject({
       updated: true,
-      consent: {
-        granted: true,
-        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
-      },
+      consent: readiness,
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/ai-health-data-consent", {
       accepted: true,
     });
     expect(repo.getCachedUserProfile("u1")).toMatchObject({
-      aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+      readiness,
     });
   });
 

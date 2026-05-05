@@ -17,11 +17,7 @@ type UserOnboardingResponse = {
 type AiHealthDataConsentResponse = {
   profile: UserData | null;
   updated: boolean;
-  consent: {
-    required: boolean;
-    granted: boolean;
-    aiHealthDataConsentAt: string | null;
-  };
+  consent: UserData["readiness"];
 };
 
 const profileCache = new Map<string, UserData | null>();

@@ -156,7 +156,11 @@ describe("user/profile", () => {
       plan: "free",
       createdAt: 1,
       lastLogin: "2026-03-03T12:00:00.000Z",
-      surveyComplited: false,
+      readiness: {
+        status: "needs_profile",
+        onboardingCompletedAt: null,
+        readyAt: null,
+      },
       syncState: "pending",
       unitsSystem: "metric",
       age: "",

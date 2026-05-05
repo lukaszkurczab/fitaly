@@ -22,13 +22,14 @@ import { ChatHistorySheet } from "../components/ChatHistorySheet";
 import { ChatStatusBanner } from "../components/ChatStatusBanner";
 import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
 import { acceptAiHealthDataConsentRemote } from "@/services/user/userProfileRepository";
-import { useIsProductReady } from "@/hooks/useProductReadiness";
+import { useProductReadiness } from "@/hooks/useProductReadiness";
+import type { ReadinessStatus } from "@/types";
 
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { firebaseUser: user } = useAuthContext();
   const { userData, loadingUser, refreshUser } = useUserContext();
-  const isProductReady = useIsProductReady();
+  const { isProductReady, canRenderProductStack } = useProductReadiness();
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const net = useNetInfo();
@@ -37,13 +38,18 @@ export default function ChatScreen() {
   const { t, i18n } = useTranslation("chat");
 
   const uid = user?.uid || "";
-  const chatUid = isProductReady ? uid : "";
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [threadId, setThreadId] = useState<string>(() => `local-${uuidv4()}`);
-  const [consentOverrideAt, setConsentOverrideAt] = useState<string | null>(null);
+  const [readinessStatusOverride, setReadinessStatusOverride] =
+    useState<ReadinessStatus | null>(null);
   const [legalAckSubmitting, setLegalAckSubmitting] = useState(false);
   const [legalAckError, setLegalAckError] = useState(false);
+  const readinessStatus =
+    readinessStatusOverride ?? userData?.readiness?.status ?? "needs_profile";
+  const serverConfirmedReady =
+    isProductReady || readinessStatusOverride === "ready";
+  const chatUid = serverConfirmedReady ? uid : "";
 
   const {
     messages,
@@ -65,13 +71,12 @@ export default function ChatScreen() {
   const renewalDateLabel = formatLocalDateTime(credits?.periodEndAt, {
     locale: i18n?.language,
   });
-  const aiHealthDataConsentAt =
-    userData?.aiHealthDataConsentAt ?? consentOverrideAt;
-  const hasAiHealthDataConsent = Boolean(aiHealthDataConsentAt);
+  const hasAiHealthDataConsent = readinessStatus === "ready";
   const legalGateActive = !hasAiHealthDataConsent || legalAckSubmitting;
-  const profileReadyForAi = !loadingUser && isProductReady;
+  const profileReadyForAi =
+    !loadingUser && (canRenderProductStack || serverConfirmedReady);
   const legalAckVisible =
-    Boolean(uid) && profileReadyForAi && !hasAiHealthDataConsent;
+    Boolean(uid) && profileReadyForAi && readinessStatus === "needs_ai_consent";
   const chatDisabled = sendErrorType === "AI_CHAT_DISABLED";
   const composerDisabled =
     sending ||
@@ -82,7 +87,7 @@ export default function ChatScreen() {
     !profileReadyForAi;
 
   useEffect(() => {
-    setConsentOverrideAt(null);
+    setReadinessStatusOverride(null);
     setLegalAckSubmitting(false);
     setLegalAckError(false);
   }, [uid]);
@@ -90,14 +95,14 @@ export default function ChatScreen() {
   useFocusEffect(
     useCallback(() => {
       async function refreshServerConsentOnFocus() {
-        if (!uid || !isProductReady || loadingUser) return;
+        if (!uid || !canRenderProductStack || loadingUser) return;
         await refreshUser();
       }
 
       void refreshServerConsentOnFocus().catch(() => undefined);
 
       return undefined;
-    }, [isProductReady, loadingUser, refreshUser, uid]),
+    }, [canRenderProductStack, loadingUser, refreshUser, uid]),
   );
 
   const openLegalDetails = useCallback(() => {
@@ -109,7 +114,7 @@ export default function ChatScreen() {
   }, [navigation]);
 
   const acknowledgeLegal = useCallback(async () => {
-    if (!uid || !isProductReady) {
+    if (!uid || !canRenderProductStack) {
       return;
     }
 
@@ -117,17 +122,17 @@ export default function ChatScreen() {
     setLegalAckError(false);
     try {
       const response = await acceptAiHealthDataConsentRemote(uid);
-      const consentAt =
-        response.consent.aiHealthDataConsentAt ??
-        response.profile?.aiHealthDataConsentAt ??
+      const nextStatus =
+        response.consent.status ??
+        response.profile?.readiness?.status ??
         null;
-      setConsentOverrideAt(consentAt);
+      setReadinessStatusOverride(nextStatus);
     } catch {
       setLegalAckError(true);
     } finally {
       setLegalAckSubmitting(false);
     }
-  }, [isProductReady, uid]);
+  }, [canRenderProductStack, uid]);
 
   const starters = useMemo(
     () => [

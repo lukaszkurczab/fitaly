@@ -212,12 +212,16 @@ function findFirstInvalidStep(form: FormData, t: (key: string) => string) {
 }
 
 function buildCompletedPatch(form: FormData): Partial<UserData> {
+  const completedAt = new Date().toISOString();
   const payload = {
     ...form,
-    surveyComplited: true,
     avatarLocalPath: form.avatarLocalPath ?? "",
     calorieTarget: calculateCalorieTarget(form),
-    surveyCompletedAt: new Date().toISOString(),
+    readiness: {
+      status: "needs_ai_consent" as const,
+      onboardingCompletedAt: completedAt,
+      readyAt: null,
+    },
   } satisfies Partial<UserData>;
 
   assertNoUndefined(payload, "onboarding completed payload");

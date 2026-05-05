@@ -4,14 +4,12 @@ import * as path from "path";
 import { INITIAL_FORM } from "@/feature/Onboarding/constants";
 import {
   PROFILE_ACTIVITY_LEVELS,
-  PROFILE_AI_CONSENT_FIELDS,
   PROFILE_AI_PERSONAS,
   PROFILE_AI_PERSONA_FIELDS,
   PROFILE_AI_PERSONA_NORMALIZATION_EXAMPLES,
   PROFILE_AI_PERSONA_STYLE_LABELS,
   PROFILE_AI_STYLE_FIELDS,
   PROFILE_ALLERGIES,
-  PROFILE_COMPLETION_FIELDS,
   PROFILE_DISEASES,
   PROFILE_EDITABLE_REMOTE_FIELDS,
   PROFILE_GOALS,
@@ -24,6 +22,7 @@ import {
   PROFILE_ONBOARDING_REQUEST_OPTIONAL_FIELDS,
   PROFILE_ONBOARDING_REQUEST_REQUIRED_FIELDS,
   PROFILE_PREFERENCES,
+  PROFILE_READINESS_FIELDS,
   PROFILE_SEX,
   PROFILE_UNITS,
 } from "@/services/user/profileContract";
@@ -53,15 +52,14 @@ type ProfileContractFixture = {
       default: string;
       normalizedExamples: Record<string, string>;
     };
-    completion: {
-      completedFlagField: string;
-      completedAtField: string;
-      defaultCompleted: boolean;
-    };
-    aiConsent: {
+    readiness: {
       field: string;
-      default: null;
-      kind: string;
+      default: {
+        status: string;
+        onboardingCompletedAt: null;
+        readyAt: null;
+      };
+      statuses: string[];
     };
     aiPersona: {
       default: string;
@@ -105,9 +103,8 @@ describe("Profile/onboarding contract parity", () => {
 
   test("critical field groups match backend fixture", () => {
     expect(contract.criticalFieldGroups).toEqual({
-      completion: [...PROFILE_COMPLETION_FIELDS],
+      readiness: [...PROFILE_READINESS_FIELDS],
       language: ["language"],
-      aiConsent: [...PROFILE_AI_CONSENT_FIELDS],
       aiPersona: [...PROFILE_AI_PERSONA_FIELDS],
       aiStyle: [...PROFILE_AI_STYLE_FIELDS],
       nutrition: [...PROFILE_NUTRITION_FIELDS],
@@ -133,15 +130,10 @@ describe("Profile/onboarding contract parity", () => {
       default: PROFILE_ONBOARDING_DEFAULTS.language,
       normalizedExamples: PROFILE_LANGUAGE_NORMALIZATION_EXAMPLES,
     });
-    expect(contract.semantics.completion).toEqual({
-      completedFlagField: PROFILE_COMPLETION_FIELDS[0],
-      completedAtField: PROFILE_COMPLETION_FIELDS[1],
-      defaultCompleted: PROFILE_ONBOARDING_DEFAULTS.surveyComplited,
-    });
-    expect(contract.semantics.aiConsent).toEqual({
-      field: PROFILE_AI_CONSENT_FIELDS[0],
-      default: PROFILE_ONBOARDING_DEFAULTS.aiHealthDataConsentAt,
-      kind: "iso8601-or-null",
+    expect(contract.semantics.readiness).toEqual({
+      field: PROFILE_READINESS_FIELDS[0],
+      default: PROFILE_ONBOARDING_DEFAULTS.readiness,
+      statuses: ["needs_profile", "needs_ai_consent", "ready"],
     });
     expect(contract.semantics.aiPersona).toEqual({
       default: PROFILE_ONBOARDING_DEFAULTS.aiPersona,
@@ -162,7 +154,6 @@ describe("Profile/onboarding contract parity", () => {
       activityLevel: INITIAL_FORM.activityLevel,
       goal: INITIAL_FORM.goal,
       aiPersona: INITIAL_FORM.aiPersona,
-      surveyComplited: INITIAL_FORM.surveyComplited,
       calorieTarget: INITIAL_FORM.calorieTarget,
     }).toEqual({
       unitsSystem: contract.onboardingProfile.defaults.unitsSystem,
@@ -170,7 +161,6 @@ describe("Profile/onboarding contract parity", () => {
       activityLevel: contract.onboardingProfile.defaults.activityLevel,
       goal: contract.onboardingProfile.defaults.goal,
       aiPersona: contract.onboardingProfile.defaults.aiPersona,
-      surveyComplited: contract.onboardingProfile.defaults.surveyComplited,
       calorieTarget: contract.onboardingProfile.defaults.calorieTarget,
     });
   });
@@ -200,9 +190,11 @@ describe("Profile/onboarding contract parity", () => {
       allergiesOther: "",
       lifestyle: "",
       aiPersona: "focused_coach",
-      aiHealthDataConsentAt: "2026-05-01T09:00:00Z",
-      surveyComplited: true,
-      surveyCompletedAt: "2026-05-02T10:00:00Z",
+      readiness: {
+        status: "ready",
+        onboardingCompletedAt: "2026-05-02T10:00:00Z",
+        readyAt: "2026-05-03T10:00:00Z",
+      },
       calorieTarget: 2200,
       syncState: "pending",
       lastSyncedAt: "2026-05-02T10:00:00Z",
@@ -215,9 +207,11 @@ describe("Profile/onboarding contract parity", () => {
     expect(parsed).toMatchObject({
       activityLevel: "",
       goal: "",
-      aiHealthDataConsentAt: "2026-05-01T09:00:00Z",
-      surveyComplited: true,
-      surveyCompletedAt: "2026-05-02T10:00:00Z",
+      readiness: {
+        status: "ready",
+        onboardingCompletedAt: "2026-05-02T10:00:00Z",
+        readyAt: "2026-05-03T10:00:00Z",
+      },
       language: "pl",
       aiPersona: "focused_coach",
       preferences: ["vegan", "balanced"],
@@ -229,10 +223,12 @@ describe("Profile/onboarding contract parity", () => {
 
   test("profile patch sanitizer keeps editable fields but excludes canonical AI consent", () => {
     const patch = sanitizeUserProfilePatch({
-      surveyComplited: true,
-      surveyCompletedAt: "2026-05-02T10:00:00Z",
+      readiness: {
+        status: "needs_ai_consent",
+        onboardingCompletedAt: "2026-05-02T10:00:00Z",
+        readyAt: null,
+      },
       language: "pl",
-      aiHealthDataConsentAt: null,
       aiPersona: "mediterranean_friend",
       goal: "increase",
       calorieTarget: 2500,
@@ -242,8 +238,11 @@ describe("Profile/onboarding contract parity", () => {
     } satisfies Partial<UserData>);
 
     expect(patch).toEqual({
-      surveyComplited: true,
-      surveyCompletedAt: "2026-05-02T10:00:00Z",
+      readiness: {
+        status: "needs_ai_consent",
+        onboardingCompletedAt: "2026-05-02T10:00:00Z",
+        readyAt: null,
+      },
       language: "pl",
       aiPersona: "mediterranean_friend",
       goal: "increase",

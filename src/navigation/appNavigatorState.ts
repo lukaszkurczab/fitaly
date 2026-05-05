@@ -1,4 +1,5 @@
 import type { RootStackParamList } from "@/navigation/navigate";
+import type { ReadinessStatus } from "@/types";
 
 export type AppBootstrapState =
   | "authLoading"
@@ -21,10 +22,10 @@ export function resolveBootstrapState(params: {
 
 export function shouldRenderProductStack(
   bootstrapState: AppBootstrapState,
-  surveyCompleted: boolean | undefined,
+  readinessStatus: ReadinessStatus | undefined,
 ): boolean {
   return (
-    surveyCompleted === true &&
+    (readinessStatus === "needs_ai_consent" || readinessStatus === "ready") &&
     (bootstrapState === "profileReady" ||
       bootstrapState === "offlineCached" ||
       bootstrapState === "profileMissing")
@@ -33,9 +34,9 @@ export function shouldRenderProductStack(
 
 export function resolveInitialRouteName(
   bootstrapState: AppBootstrapState,
-  surveyCompleted: boolean | undefined,
+  readinessStatus: ReadinessStatus | undefined,
 ): keyof RootStackParamList {
-  if (shouldRenderProductStack(bootstrapState, surveyCompleted)) {
+  if (shouldRenderProductStack(bootstrapState, readinessStatus)) {
     return "Home";
   }
 

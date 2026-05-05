@@ -31,7 +31,6 @@ export const INITIAL_FORM: FormData = {
   lifestyle: "",
   aiPersona: "calm_guide",
   avatarLocalPath: "",
-  surveyComplited: false,
   calorieTarget: 0,
 };
 

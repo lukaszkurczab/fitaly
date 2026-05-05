@@ -6,19 +6,13 @@ import {
   shouldRenderProductStack,
   type AppBootstrapState,
 } from "@/navigation/appNavigatorState";
+import type { ReadinessStatus } from "@/types";
 
-export type ProductReadinessStatus =
-  | "authLoading"
-  | "unauthenticated"
-  | "profileLoading"
-  | "profileReady"
-  | "profileMissing"
-  | "offlineCached"
-  | "bootstrapFailed"
-  | "ready";
+export type ProductReadinessStatus = AppBootstrapState | ReadinessStatus;
 
 export type ProductReadiness = {
   isProductReady: boolean;
+  canRenderProductStack: boolean;
   status: ProductReadinessStatus;
   uid: string | null;
   bootstrapState: AppBootstrapState;
@@ -34,14 +28,19 @@ export function useProductReadiness(): ProductReadiness {
       isAuthenticated,
       profileBootstrapState,
     });
-    const isProductReady = shouldRenderProductStack(
+    const canRenderProductStack = shouldRenderProductStack(
       bootstrapState,
-      userData?.surveyComplited,
+      userData?.readiness?.status,
     );
+    const isProductReady =
+      canRenderProductStack && userData?.readiness?.status === "ready";
 
     return {
       isProductReady,
-      status: isProductReady ? "ready" : bootstrapState,
+      canRenderProductStack,
+      status: canRenderProductStack
+        ? (userData?.readiness?.status ?? bootstrapState)
+        : bootstrapState,
       uid: isProductReady ? (userData?.uid ?? null) : null,
       bootstrapState,
     };
@@ -49,7 +48,7 @@ export function useProductReadiness(): ProductReadiness {
     authLoading,
     isAuthenticated,
     profileBootstrapState,
-    userData?.surveyComplited,
+    userData?.readiness?.status,
     userData?.uid,
   ]);
 }
