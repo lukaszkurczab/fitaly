@@ -28,7 +28,6 @@ import {
   Linking,
 } from "react-native";
 import { useEffect, useRef } from "react";
-import { useAuthContext } from "@/context/AuthContext";
 import { useAppFonts } from "@hooks/useAppFonts";
 import { ToastBridge } from "@/components";
 import { isE2EModeEnabled } from "@/services/e2e/config";
@@ -56,6 +55,7 @@ import { captureException } from "@/services/core/errorLogger";
 import { warnMissingEnv } from "@/services/core/envValidation";
 import { getLaunchReadinessIssue } from "@/services/release/launchReadiness";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useProductReadiness } from "@/hooks/useProductReadiness";
 
 const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
 const sentryDsn = typeof extra?.sentryDsn === "string" ? extra.sentryDsn : "";
@@ -95,7 +95,6 @@ if (sentryDsn) {
 function Root() {
   const fontsLoaded = useAppFonts();
   const launchIssueLoggedRef = useRef(false);
-  const { uid } = useAuthContext();
   const launchReadinessIssue = getLaunchReadinessIssue();
 
   useEffect(() => {
@@ -125,10 +124,7 @@ function Root() {
         if (cancelled) return;
         initNotificationPresentationPolicy();
         initNotificationTelemetry();
-        await Promise.all([
-          initTelemetryLifecycle(),
-          initReminderRuntime(),
-        ]);
+        await initTelemetryLifecycle();
       })();
     }, 0);
 
@@ -141,13 +137,6 @@ function Root() {
       stopTelemetryClient();
     };
   }, [launchReadinessIssue]);
-
-  useEffect(() => {
-    if (launchReadinessIssue) {
-      return;
-    }
-    void setReminderRuntimeUid(uid);
-  }, [launchReadinessIssue, uid]);
 
   useEffect(() => {
     return () => {
@@ -204,10 +193,11 @@ function Root() {
         markNavigationReady();
       }}
     >
-      <AccessProvider>
-        <AiCreditsProvider>
-          <PremiumProvider>
-            <UserProvider>
+      <UserProvider>
+        <ProductRuntimeBootstrap launchReadinessIssue={launchReadinessIssue} />
+        <AccessProvider>
+          <AiCreditsProvider>
+            <PremiumProvider>
               <MealDraftProvider>
                 <HistoryProvider>
                   <ThemeController>
@@ -216,12 +206,47 @@ function Root() {
                   </ThemeController>
                 </HistoryProvider>
               </MealDraftProvider>
-            </UserProvider>
-          </PremiumProvider>
-        </AiCreditsProvider>
-      </AccessProvider>
+            </PremiumProvider>
+          </AiCreditsProvider>
+        </AccessProvider>
+      </UserProvider>
     </NavigationContainer>
   );
+}
+
+function ProductRuntimeBootstrap({
+  launchReadinessIssue,
+}: {
+  launchReadinessIssue: string | null;
+}) {
+  const { uid: productReadyUid } = useProductReadiness();
+
+  useEffect(() => {
+    if (launchReadinessIssue) {
+      return;
+    }
+
+    if (!productReadyUid) {
+      void setReminderRuntimeUid(null);
+      return;
+    }
+
+    let cancelled = false;
+    const bootTask = setTimeout(() => {
+      void (async () => {
+        await initReminderRuntime();
+        if (cancelled) return;
+        await setReminderRuntimeUid(productReadyUid);
+      })();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(bootTask);
+    };
+  }, [launchReadinessIssue, productReadyUid]);
+
+  return null;
 }
 
 function App() {

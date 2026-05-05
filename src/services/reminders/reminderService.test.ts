@@ -213,6 +213,22 @@ describe("reminderService", () => {
     expect(mockGet).not.toHaveBeenCalled();
   });
 
+  it("returns profile-not-ready fallback and skips the endpoint before product readiness", async () => {
+    const service = jest.requireActual(
+      "@/services/reminders/reminderService",
+    ) as typeof import("@/services/reminders/reminderService");
+
+    const result = await service.getReminderDecision("user-1", {
+      dayKey: "2026-03-18",
+      productReady: false,
+    });
+
+    expect(result.source).toBe("fallback");
+    expect(result.status).toBe("profile_not_ready");
+    expect(result.decision).toBeNull();
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
   it("rejects contract drift as invalid payload instead of normalizing it away", async () => {
     mockGet.mockResolvedValue({
       ...createHealthySendPayload(),

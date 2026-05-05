@@ -14,6 +14,7 @@ jest.mock("@/services/reminders/reminderRuntime", () => ({
 }));
 
 let mockUid: string | null = null;
+let mockProductReadyUid: string | null = null;
 
 jest.mock("@/context/AuthContext", () => {
   const ReactActual = jest.requireActual("react") as typeof import("react");
@@ -24,6 +25,10 @@ jest.mock("@/context/AuthContext", () => {
     useAuthContext: () => ({ uid: mockUid }),
   };
 });
+
+jest.mock("@/hooks/useProductReadiness", () => ({
+  useProductReadiness: () => ({ uid: mockProductReadyUid }),
+}));
 
 jest.mock("@/i18n", () => ({}));
 jest.mock("@/FirebaseConfig", () => ({}));
@@ -115,6 +120,15 @@ jest.mock("@/context/AiCreditsContext", () => {
   };
 });
 
+jest.mock("@/context/AccessContext", () => {
+  const ReactActual = jest.requireActual("react") as typeof import("react");
+
+  return {
+    AccessProvider: ({ children }: { children: React.ReactNode }) =>
+      ReactActual.createElement(ReactActual.Fragment, null, children),
+  };
+});
+
 jest.mock("@/theme/ThemeController", () => {
   const ReactActual = jest.requireActual("react") as typeof import("react");
 
@@ -189,6 +203,7 @@ const App = AppModule.default as React.ComponentType;
 describe("App.tsx → Smart Reminders runtime wiring", () => {
   beforeEach(() => {
     mockUid = null;
+    mockProductReadyUid = null;
     jest.clearAllMocks();
     mockInitReminderRuntime.mockResolvedValue(undefined);
     mockSetReminderRuntimeUid.mockResolvedValue(undefined);
@@ -208,7 +223,7 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
     });
   }
 
-  it("calls initReminderRuntime on app bootstrap", async () => {
+  it("does not start reminder runtime on app bootstrap before product readiness", async () => {
     let renderer: TestRenderer.ReactTestRenderer;
 
     await act(async () => {
@@ -216,15 +231,17 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
     });
     await flushDeferredBootstrap();
 
-    expect(mockInitReminderRuntime).toHaveBeenCalledTimes(1);
+    expect(mockInitReminderRuntime).not.toHaveBeenCalled();
+    expect(mockSetReminderRuntimeUid).toHaveBeenCalledWith(null);
 
     act(() => {
       renderer!.unmount();
     });
   });
 
-  it("calls setReminderRuntimeUid when auth uid changes", async () => {
-    mockUid = null;
+  it("starts reminder runtime once product readiness uid is available", async () => {
+    mockUid = "user-42";
+    mockProductReadyUid = null;
 
     let renderer: TestRenderer.ReactTestRenderer;
 
@@ -233,16 +250,43 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
     });
     await flushDeferredBootstrap();
 
-    expect(mockSetReminderRuntimeUid).toHaveBeenCalledWith(null);
+    expect(mockInitReminderRuntime).not.toHaveBeenCalled();
     mockSetReminderRuntimeUid.mockClear();
 
+    mockProductReadyUid = "user-42";
+
+    await act(async () => {
+      renderer!.update(React.createElement(App));
+    });
+    await flushDeferredBootstrap();
+
+    expect(mockInitReminderRuntime).toHaveBeenCalledTimes(1);
+    expect(mockSetReminderRuntimeUid).toHaveBeenCalledWith("user-42");
+
+    act(() => {
+      renderer!.unmount();
+    });
+  });
+
+  it("clears reminder runtime uid when product readiness is lost", async () => {
     mockUid = "user-42";
+    mockProductReadyUid = "user-42";
+
+    let renderer: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(App));
+    });
+    await flushDeferredBootstrap();
+
+    mockSetReminderRuntimeUid.mockClear();
+    mockProductReadyUid = null;
 
     await act(async () => {
       renderer!.update(React.createElement(App));
     });
 
-    expect(mockSetReminderRuntimeUid).toHaveBeenCalledWith("user-42");
+    expect(mockSetReminderRuntimeUid).toHaveBeenCalledWith(null);
 
     act(() => {
       renderer!.unmount();
@@ -267,6 +311,9 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
   });
 
   it("defers bootstrap work until after initial interactions", async () => {
+    mockUid = "user-42";
+    mockProductReadyUid = "user-42";
+
     await act(async () => {
       TestRenderer.create(React.createElement(App));
     });

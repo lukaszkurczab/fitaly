@@ -13,7 +13,7 @@ type RemovableSubscription = {
   remove: () => void;
 };
 
-type ReminderRuntimeReason = "auth_ready" | "app_foreground";
+type ReminderRuntimeReason = "product_ready" | "app_foreground";
 
 const FOREGROUND_RECONCILE_COOLDOWN_MS = 60_000;
 
@@ -174,7 +174,7 @@ export async function initReminderRuntime(): Promise<void> {
   log.log("reminder runtime initialized", { appState: currentAppState });
 
   if (currentUid && isForeground(currentAppState)) {
-    await runReconcile("auth_ready", { force: true });
+    await runReconcile("product_ready", { force: true });
   }
 }
 
@@ -202,7 +202,7 @@ export async function setReminderRuntimeUid(uid: string | null): Promise<void> {
     return;
   }
 
-  await runReconcile("auth_ready", { force: true });
+  await runReconcile("product_ready", { force: true });
 }
 
 export function stopReminderRuntime(): void {

@@ -6,7 +6,7 @@ import { useReminderDecision } from "@/hooks/useReminderDecision";
 const mockGetReminderDecision = jest.fn<
   (
     uid: string | null | undefined,
-    options?: { dayKey?: string | null },
+    options?: { dayKey?: string | null; productReady?: boolean },
   ) => Promise<ReminderDecisionResult>
 >();
 
@@ -25,10 +25,14 @@ jest.mock("@/services/reminders/reminderService", () => {
     getCurrentReminderDecisionDayKey: () => "2026-03-18",
     getReminderDecision: (
       uid: string | null | undefined,
-      options?: { dayKey?: string | null },
+      options?: { dayKey?: string | null; productReady?: boolean },
     ) => mockGetReminderDecision(uid, options),
   };
 });
+
+jest.mock("@/hooks/useProductReadiness", () => ({
+  useIsProductReady: () => true,
+}));
 
 describe("useReminderDecision", () => {
   beforeEach(() => {
@@ -66,6 +70,7 @@ describe("useReminderDecision", () => {
 
     expect(mockGetReminderDecision).toHaveBeenCalledWith("user-1", {
       dayKey: "2026-03-18",
+      productReady: true,
     });
     expect(result.current.decision?.kind).toBe("log_next_meal");
     expect(result.current.source).toBe("remote");
@@ -153,6 +158,7 @@ describe("useReminderDecision", () => {
     expect(mockGetReminderDecision).toHaveBeenCalledTimes(2);
     expect(mockGetReminderDecision).toHaveBeenLastCalledWith("user-1", {
       dayKey: "2026-03-18",
+      productReady: true,
     });
     await waitFor(() => {
       expect(result.current.decision?.decision).toBe("suppress");

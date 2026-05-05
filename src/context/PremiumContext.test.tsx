@@ -21,6 +21,7 @@ const mockIsBillingDisabled = jest.fn(() => false);
 const mockIsRevenueCatConfigured = jest.fn(() => true);
 const mockAppStateRemove = jest.fn();
 let appStateHandler: AppStateHandler | null = null;
+let mockProductReadyUid: string | null = null;
 
 function creditsSnapshot(tier: "free" | "premium") {
   return {
@@ -71,6 +72,12 @@ function accessStateSnapshot(
 
 jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => mockUseAuthContext(),
+}));
+
+jest.mock("@/hooks/useProductReadiness", () => ({
+  useProductReadiness: () => ({
+    uid: mockProductReadyUid,
+  }),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -134,6 +141,7 @@ describe("PremiumContext", () => {
       };
     });
     mockUseAuthContext.mockReturnValue({ uid: "user-1", email: "a@b.com" });
+    mockProductReadyUid = "user-1";
     mockGetCustomerInfo.mockResolvedValue({
       entitlements: { active: { premium: { identifier: "premium" } } },
     });
@@ -166,6 +174,30 @@ describe("PremiumContext", () => {
 
     expect(mockPost).toHaveBeenCalledWith("/ai/credits/sync-tier");
     expect(mockRefreshAccess).toHaveBeenCalled();
+  });
+
+  it("does not run premium bootstrap before product readiness", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1", email: "a@b.com" });
+    mockProductReadyUid = null;
+
+    const { result, rerender } = renderHook(() => usePremiumContext(), { wrapper });
+
+    await act(async () => {
+      await result.current.refreshPremium();
+    });
+
+    expect(mockRcLogIn).not.toHaveBeenCalled();
+    expect(mockGetCustomerInfo).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(mockRefreshAccess).not.toHaveBeenCalled();
+
+    mockProductReadyUid = "user-1";
+    rerender(undefined);
+
+    await waitFor(() => {
+      expect(mockGetCustomerInfo).toHaveBeenCalled();
+    });
+    expect(mockRcLogIn).toHaveBeenCalledWith("user-1");
   });
 
   it("confirms premium only from canonical access-state after sync-tier", async () => {
@@ -295,6 +327,7 @@ describe("PremiumContext", () => {
 
   it("skips sync-tier API call when user is logged out", async () => {
     mockUseAuthContext.mockReturnValue({ uid: null, email: null });
+    mockProductReadyUid = null;
 
     renderHook(() => usePremiumContext(), { wrapper });
 

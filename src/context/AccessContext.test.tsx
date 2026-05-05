@@ -8,9 +8,16 @@ import {
 
 const mockUseAuthContext = jest.fn();
 const mockGet = jest.fn<(url: string) => Promise<unknown>>();
+let mockProductReadyUid: string | null = null;
 
 jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => mockUseAuthContext(),
+}));
+
+jest.mock("@/hooks/useProductReadiness", () => ({
+  useProductReadiness: () => ({
+    uid: mockProductReadyUid,
+  }),
 }));
 
 jest.mock("@/services/core/apiClient", () => ({
@@ -72,6 +79,7 @@ describe("AccessContext", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuthContext.mockReturnValue({ uid: null });
+    mockProductReadyUid = null;
     mockGet.mockResolvedValue(accessStateSnapshot("free"));
   });
 
@@ -110,6 +118,7 @@ describe("AccessContext", () => {
 
   it("refreshes from /billing/access-state as the canonical contract", async () => {
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockProductReadyUid = "user-1";
     mockGet.mockResolvedValue(accessStateSnapshot("premium"));
 
     const { result } = renderHook(() => useAccessContext(), { wrapper });
@@ -120,5 +129,27 @@ describe("AccessContext", () => {
 
     expect(mockGet).toHaveBeenCalledWith("/billing/access-state");
     expect(result.current.accessState?.entitlementStatus).toBe("active");
+  });
+
+  it("does not refresh access before product readiness", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockProductReadyUid = null;
+
+    const { result, rerender } = renderHook(() => useAccessContext(), { wrapper });
+
+    await act(async () => {
+      await result.current.refreshAccess();
+    });
+
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(result.current.accessState).toBeNull();
+
+    mockProductReadyUid = "user-1";
+    rerender(undefined);
+
+    await waitFor(() => {
+      expect(result.current.accessState?.tier).toBe("free");
+    });
+    expect(mockGet).toHaveBeenCalledWith("/billing/access-state");
   });
 });

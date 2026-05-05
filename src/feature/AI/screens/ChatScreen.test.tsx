@@ -18,12 +18,14 @@ const mockUseNetInfo = jest.fn<() => { isConnected: boolean | null }>();
 const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockRefreshUser = jest.fn<() => Promise<unknown>>();
 const mockAcceptAiHealthDataConsentRemote = jest.fn<(uid: string) => Promise<unknown>>();
+const mockUseChatHistory = jest.fn();
 const focusEffectCallbacks: Array<() => void | (() => void)> = [];
 let mockUserData: { uid: string; aiHealthDataConsentAt?: string | null } | null = {
   uid: "user-1",
   aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
 };
 let mockLoadingUser = false;
+let mockIsProductReady = true;
 
 const baseMessages: ChatMessage[] = [
   {
@@ -157,6 +159,10 @@ jest.mock("@/services/user/userProfileRepository", () => ({
     mockAcceptAiHealthDataConsentRemote(uid),
 }));
 
+jest.mock("@/hooks/useProductReadiness", () => ({
+  useIsProductReady: () => mockIsProductReady,
+}));
+
 jest.mock("@/context/AiCreditsContext", () => ({
   useAiCreditsContext: () => ({
     credits: {
@@ -168,7 +174,8 @@ jest.mock("@/context/AiCreditsContext", () => ({
 }));
 
 jest.mock("@/hooks/useChatHistory", () => ({
-  useChatHistory: () => mockChatHistoryState,
+  useChatHistory: (uid: string, threadId: string) =>
+    mockUseChatHistory(uid, threadId),
 }));
 
 jest.mock("@/services/offline/sync.engine", () => ({
@@ -241,6 +248,7 @@ describe("ChatScreen", () => {
       aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
     };
     mockLoadingUser = false;
+    mockIsProductReady = true;
     mockChatHistoryState = {
       messages: [],
       loading: false,
@@ -254,6 +262,7 @@ describe("ChatScreen", () => {
       cancelInFlightSend: () => undefined,
       loadMore: () => undefined,
     };
+    mockUseChatHistory.mockImplementation(() => mockChatHistoryState);
   });
 
   afterEach(async () => {
@@ -270,6 +279,16 @@ describe("ChatScreen", () => {
     expect(screen.getByText("empty.suggestedLabel")).toBeTruthy();
     expect(screen.getByText("empty.starters.week")).toBeTruthy();
     expect(await screen.findByPlaceholderText("composer.placeholder")).toBeTruthy();
+  });
+
+  it("does not bind chat history to the auth uid before product readiness", async () => {
+    mockIsProductReady = false;
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(mockUseChatHistory).toHaveBeenCalledWith("", expect.any(String));
+    expect(await screen.findByPlaceholderText("composer.placeholder")).toBeTruthy();
+    expect(screen.getByTestId("chat-input").props.editable).toBe(false);
   });
 
   it("shows legal modal hierarchy and blocks the composer until acceptance", async () => {

@@ -308,7 +308,7 @@ function buildFallbackResult(input: {
 
 export async function getReminderDecision(
   uid: string | null | undefined,
-  options?: { dayKey?: string | null },
+  options?: { dayKey?: string | null; productReady?: boolean },
 ): Promise<ReminderDecisionResult> {
   const dayKey = normalizeDayKey(options?.dayKey);
   const enabled = isSmartRemindersEnabled();
@@ -318,6 +318,15 @@ export async function getReminderDecision(
       source: "disabled",
       status: "disabled",
       enabled: false,
+      error: null,
+    });
+  }
+
+  if (options?.productReady === false) {
+    return buildFallbackResult({
+      source: "fallback",
+      status: "profile_not_ready",
+      enabled,
       error: null,
     });
   }

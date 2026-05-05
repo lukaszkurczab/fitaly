@@ -22,11 +22,13 @@ import { ChatHistorySheet } from "../components/ChatHistorySheet";
 import { ChatStatusBanner } from "../components/ChatStatusBanner";
 import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
 import { acceptAiHealthDataConsentRemote } from "@/services/user/userProfileRepository";
+import { useIsProductReady } from "@/hooks/useProductReadiness";
 
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { firebaseUser: user } = useAuthContext();
   const { userData, loadingUser, refreshUser } = useUserContext();
+  const isProductReady = useIsProductReady();
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const net = useNetInfo();
@@ -35,6 +37,7 @@ export default function ChatScreen() {
   const { t, i18n } = useTranslation("chat");
 
   const uid = user?.uid || "";
+  const chatUid = isProductReady ? uid : "";
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [threadId, setThreadId] = useState<string>(() => `local-${uuidv4()}`);
@@ -53,7 +56,7 @@ export default function ChatScreen() {
     retryLastSend,
     cancelInFlightSend,
     loadMore,
-  } = useChatHistory(uid, threadId);
+  } = useChatHistory(chatUid, threadId);
 
   const isOffline = net.isConnected === false;
   const hasMessages = messages.length > 0;
@@ -66,7 +69,7 @@ export default function ChatScreen() {
     userData?.aiHealthDataConsentAt ?? consentOverrideAt;
   const hasAiHealthDataConsent = Boolean(aiHealthDataConsentAt);
   const legalGateActive = !hasAiHealthDataConsent || legalAckSubmitting;
-  const profileReadyForAi = !loadingUser;
+  const profileReadyForAi = !loadingUser && isProductReady;
   const legalAckVisible =
     Boolean(uid) && profileReadyForAi && !hasAiHealthDataConsent;
   const chatDisabled = sendErrorType === "AI_CHAT_DISABLED";
@@ -87,14 +90,14 @@ export default function ChatScreen() {
   useFocusEffect(
     useCallback(() => {
       async function refreshServerConsentOnFocus() {
-        if (!uid || loadingUser) return;
+        if (!uid || !isProductReady || loadingUser) return;
         await refreshUser();
       }
 
       void refreshServerConsentOnFocus().catch(() => undefined);
 
       return undefined;
-    }, [loadingUser, refreshUser, uid]),
+    }, [isProductReady, loadingUser, refreshUser, uid]),
   );
 
   const openLegalDetails = useCallback(() => {
@@ -106,7 +109,7 @@ export default function ChatScreen() {
   }, [navigation]);
 
   const acknowledgeLegal = useCallback(async () => {
-    if (!uid) {
+    if (!uid || !isProductReady) {
       return;
     }
 
@@ -124,7 +127,7 @@ export default function ChatScreen() {
     } finally {
       setLegalAckSubmitting(false);
     }
-  }, [uid]);
+  }, [isProductReady, uid]);
 
   const starters = useMemo(
     () => [
@@ -323,7 +326,7 @@ export default function ChatScreen() {
       <ChatHistorySheet
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        userUid={uid}
+        userUid={chatUid}
         activeThreadId={threadId}
         onSelectThread={(id) => setThreadId(id)}
       />

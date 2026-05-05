@@ -3,6 +3,7 @@ import {
   getCurrentReminderDecisionDayKey,
   getReminderDecision,
 } from "@/services/reminders/reminderService";
+import { useIsProductReady } from "@/hooks/useProductReadiness";
 import type {
   ReminderDecision,
   ReminderDecisionSource,
@@ -46,6 +47,7 @@ export function useReminderDecision({
   dayKey,
   fetchEnabled = true,
 }: UseReminderDecisionParams): UseReminderDecisionResult {
+  const isProductReady = useIsProductReady();
   const resolvedDayKey = resolveDayKey(dayKey);
   const [state, setState] = useState<ReminderDecisionState>(
     () => ({ ...INITIAL_STATE, loading: !!uid }),
@@ -73,7 +75,10 @@ export function useReminderDecision({
     const requestId = ++requestIdRef.current;
     const requestScope = requestScopeKey;
 
-    void getReminderDecision(uid, { dayKey: resolvedDayKey }).then((result) => {
+    void getReminderDecision(uid, {
+      dayKey: resolvedDayKey,
+      productReady: isProductReady,
+    }).then((result) => {
       if (
         !active ||
         requestIdRef.current !== requestId ||
@@ -95,12 +100,15 @@ export function useReminderDecision({
     return () => {
       active = false;
     };
-  }, [fetchEnabled, requestScopeKey, resolvedDayKey, uid]);
+  }, [fetchEnabled, isProductReady, requestScopeKey, resolvedDayKey, uid]);
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     const requestScope = requestScopeKey;
-    const result = await getReminderDecision(uid, { dayKey: resolvedDayKey });
+    const result = await getReminderDecision(uid, {
+      dayKey: resolvedDayKey,
+      productReady: isProductReady,
+    });
     if (
       requestIdRef.current === requestId &&
       requestScopeKeyRef.current === requestScope
@@ -115,7 +123,7 @@ export function useReminderDecision({
       });
     }
     return result.decision;
-  }, [requestScopeKey, resolvedDayKey, uid]);
+  }, [isProductReady, requestScopeKey, resolvedDayKey, uid]);
 
   return {
     ...state,

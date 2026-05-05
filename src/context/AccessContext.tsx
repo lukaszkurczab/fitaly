@@ -18,6 +18,7 @@ import {
   type AccessFeatureState,
   type AccessState,
 } from "@/services/access/accessState";
+import { useProductReadiness } from "@/hooks/useProductReadiness";
 
 type AccessContextValue = {
   accessState: AccessState | null;
@@ -45,6 +46,7 @@ function accessChanged(a: AccessState | null, b: AccessState | null): boolean {
 
 export function AccessProvider({ children }: { children: React.ReactNode }) {
   const { uid } = useAuthContext();
+  const { uid: productReadyUid } = useProductReadiness();
   const [accessState, setAccessState] = useState<AccessState | null>(null);
   const [loading, setLoading] = useState(false);
   const accessRef = useRef(accessState);
@@ -73,18 +75,18 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   }, [updateAccess]);
 
   const refreshAccess = useCallback((): Promise<AccessState | null> => {
-    if (!uid) {
+    if (!uid || !productReadyUid) {
       updateAccess(null);
       return Promise.resolve(null);
     }
 
     const inFlight = refreshInFlightRef.current;
-    if (inFlight?.uid === uid) {
+    if (inFlight?.uid === productReadyUid) {
       return inFlight.promise;
     }
 
     setLoading(true);
-    const requestUid = uid;
+    const requestUid = productReadyUid;
     const token = {};
     const promise = (async () => {
       try {
@@ -111,16 +113,16 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
 
     refreshInFlightRef.current = { uid: requestUid, token, promise };
     return promise;
-  }, [uid, updateAccess]);
+  }, [productReadyUid, uid, updateAccess]);
 
   useEffect(() => {
-    if (!uid) {
+    if (!uid || !productReadyUid) {
       updateAccess(null);
       return;
     }
 
     void refreshAccess();
-  }, [refreshAccess, uid, updateAccess]);
+  }, [productReadyUid, refreshAccess, uid, updateAccess]);
 
   const getFeature = useCallback(
     (feature: AccessFeatureKey) => getAccessFeature(accessState, feature),

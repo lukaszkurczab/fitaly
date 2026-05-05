@@ -27,6 +27,7 @@ import {
   rcLogOut,
   rcSetAttributes,
 } from "@/services/billing/revenuecat";
+import { useProductReadiness } from "@/hooks/useProductReadiness";
 import {
   hasPremiumAccess,
   mapUnknownSubscription,
@@ -63,6 +64,7 @@ export const PremiumProvider = ({
   children: React.ReactNode;
 }) => {
   const { uid, email } = useAuthContext();
+  const { uid: productReadyUid } = useProductReadiness();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { refreshAccess } = useAccessContext();
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
@@ -136,7 +138,7 @@ export const PremiumProvider = ({
   }, [setSubscriptionState, setSubscriptionUnknown]);
 
   const checkPremiumStatus = useCallback(async (): Promise<boolean> => {
-    if (!uid) {
+    if (!productReadyUid) {
       setSubscriptionFromPremium(false);
       return false;
     }
@@ -168,7 +170,7 @@ export const PremiumProvider = ({
     setSubscriptionFromPremium,
     setSubscriptionFromRevenueCat,
     setSubscriptionUnknown,
-    uid,
+    productReadyUid,
   ]);
 
   const shouldRunSyncTier = useCallback((policy: SyncTierPolicy): boolean => {
@@ -186,12 +188,12 @@ export const PremiumProvider = ({
     }
 
     const promise = (async () => {
-      if (!uid) {
+      if (!productReadyUid) {
         setSubscriptionFromPremium(false);
         return { confirmed: false, reason: "sync_tier_failed" as const };
       }
 
-      if (accessRefreshInFlightRef.current?.uid === uid) {
+      if (accessRefreshInFlightRef.current?.uid === productReadyUid) {
         await accessRefreshInFlightRef.current.promise;
       }
 
@@ -224,12 +226,12 @@ export const PremiumProvider = ({
     refreshAccess,
     setSubscriptionFromAccessState,
     setSubscriptionFromPremium,
-    uid,
+    productReadyUid,
   ]);
 
   const runAccessRefresh = useCallback(
     (params: { syncTier: SyncTierPolicy }): Promise<boolean> => {
-      const requestUid = uid;
+      const requestUid = productReadyUid;
       const inFlight = accessRefreshInFlightRef.current;
       if (inFlight?.uid === requestUid) {
         return inFlight.promise;
@@ -271,7 +273,7 @@ export const PremiumProvider = ({
       setSubscriptionFromAccessState,
       setSubscriptionFromPremium,
       shouldRunSyncTier,
-      uid,
+      productReadyUid,
     ],
   );
 
@@ -280,10 +282,10 @@ export const PremiumProvider = ({
 
     (async () => {
       try {
-        if (uid) {
-          await rcLogIn(uid);
-        } else {
+        if (!uid || !productReadyUid) {
           await rcLogOut();
+        } else {
+          await rcLogIn(productReadyUid);
         }
       } finally {
         if (!cancelled) {
@@ -296,18 +298,19 @@ export const PremiumProvider = ({
       cancelled = true;
     };
   }, [
+    productReadyUid,
     uid,
     checkPremiumStatus,
     runAccessRefresh,
   ]);
 
   useEffect(() => {
-    if (!uid || !email) return;
+    if (!uid || !productReadyUid || !email) return;
     void rcSetAttributes({
       email,
       locale: Intl.DateTimeFormat().resolvedOptions().locale || "en",
     });
-  }, [uid, email]);
+  }, [email, productReadyUid, uid]);
 
   const refreshPremium = useCallback(
     async () => {

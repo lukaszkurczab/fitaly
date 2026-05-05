@@ -96,7 +96,8 @@ export type ReminderDecisionResultStatus =
   | "invalid_payload"
   | "disabled"
   | "service_unavailable"
-  | "no_user";
+  | "no_user"
+  | "profile_not_ready";
 
 export type ReminderDecisionResult = {
   decision: ReminderDecision | null;
