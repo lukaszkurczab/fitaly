@@ -65,10 +65,7 @@ function buildUserData(overrides?: Partial<UserData>): UserData {
     allergies: [],
     allergiesOther: "",
     lifestyle: "",
-    aiStyle: "friendly",
-    aiFocus: "motivation",
-    aiFocusOther: "",
-    aiNote: "",
+    aiPersona: "cheerful_companion",
     surveyComplited: true,
     calorieTarget: 2100,
     syncState: "synced",
@@ -192,9 +189,7 @@ describe("useOnboardingFlow", () => {
         weight: "70",
         activityLevel: "moderate",
         goal: "maintain",
-        aiStyle: "detailed",
-        aiFocus: "motivation",
-        aiNote: "keep it short",
+        aiPersona: "mediterranean_friend",
       }));
     });
 
@@ -216,10 +211,7 @@ describe("useOnboardingFlow", () => {
 
     expect(mockUpdateUser).toHaveBeenCalledTimes(1);
     expect(mockUpdateUser.mock.calls[0][0]).toMatchObject({
-      aiStyle: "none",
-      aiFocus: "none",
-      aiFocusOther: "",
-      aiNote: "",
+      aiPersona: "calm_guide",
       surveyComplited: true,
     });
     expect(navigation.replace).toHaveBeenCalledWith("Home");

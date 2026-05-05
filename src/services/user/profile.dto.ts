@@ -1,7 +1,6 @@
 import type {
   ActivityLevel,
-  AiFocus,
-  AiStyle,
+  AiPersona,
   Allergy,
   ChronicDisease,
   Goal,
@@ -60,18 +59,12 @@ const ALLERGIES = [
   "lactose",
   "other",
 ] as const satisfies readonly Allergy[];
-const AI_STYLES = [
-  "none",
-  "concise",
-  "friendly",
-  "detailed",
-] as const satisfies readonly AiStyle[];
-const AI_FOCUS = [
-  "none",
-  "mealPlanning",
-  "analyzingMistakes",
-  "motivation",
-] as const satisfies readonly AiFocus[];
+const AI_PERSONAS = [
+  "calm_guide",
+  "cheerful_companion",
+  "focused_coach",
+  "mediterranean_friend",
+] as const satisfies readonly AiPersona[];
 
 function pickEnum<T extends string>(
   raw: unknown,
@@ -132,10 +125,7 @@ export function parseUserData(payload: unknown): UserData | null {
     allergies: pickEnumArray(payload.allergies, ALLERGIES),
     allergiesOther: asString(payload.allergiesOther) ?? "",
     lifestyle: asString(payload.lifestyle) ?? "",
-    aiStyle: pickEnum(payload.aiStyle, AI_STYLES, "none"),
-    aiFocus: pickEnum(payload.aiFocus, AI_FOCUS, "none"),
-    aiFocusOther: asString(payload.aiFocusOther) ?? "",
-    aiNote: asString(payload.aiNote) ?? "",
+    aiPersona: pickEnum(payload.aiPersona, AI_PERSONAS, "calm_guide"),
     surveyComplited,
     calorieTarget,
     surveyCompletedAt: asString(payload.surveyCompletedAt),

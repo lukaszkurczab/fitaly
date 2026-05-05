@@ -1,7 +1,6 @@
 import type {
   ActivityLevel,
-  AiFocus,
-  AiStyle,
+  AiPersona,
   Allergy,
   ChronicDisease,
   FormData,
@@ -30,11 +29,8 @@ export const INITIAL_FORM: FormData = {
   allergies: [],
   allergiesOther: "",
   lifestyle: "",
-  aiStyle: "none",
+  aiPersona: "calm_guide",
   avatarLocalPath: "",
-  aiFocus: "none",
-  aiFocusOther: "",
-  aiNote: "",
   surveyComplited: false,
   calorieTarget: 0,
 };
@@ -148,49 +144,30 @@ export const ALLERGY_OPTIONS: Array<{
   { value: "other", labelKey: "healthProfile.allergy.other" },
 ];
 
-export const AI_STYLE_OPTIONS: Array<{
-  value: AiStyle;
+export const AI_PERSONA_OPTIONS: Array<{
+  value: AiPersona;
   labelKey: string;
   descriptionKey: string;
 }> = [
-  { value: "none", labelKey: "ai.style.none", descriptionKey: "ai.styleDescription.none" },
   {
-    value: "concise",
+    value: "calm_guide",
+    labelKey: "ai.style.none",
+    descriptionKey: "ai.styleDescription.none",
+  },
+  {
+    value: "focused_coach",
     labelKey: "ai.style.concise",
     descriptionKey: "ai.styleDescription.concise",
   },
   {
-    value: "friendly",
+    value: "cheerful_companion",
     labelKey: "ai.style.friendly",
     descriptionKey: "ai.styleDescription.friendly",
   },
   {
-    value: "detailed",
+    value: "mediterranean_friend",
     labelKey: "ai.style.detailed",
     descriptionKey: "ai.styleDescription.detailed",
-  },
-];
-
-export const AI_FOCUS_OPTIONS: Array<{
-  value: AiFocus;
-  labelKey: string;
-  descriptionKey: string;
-}> = [
-  { value: "none", labelKey: "ai.focus.none", descriptionKey: "ai.focusDescription.none" },
-  {
-    value: "mealPlanning",
-    labelKey: "ai.focus.mealPlanning",
-    descriptionKey: "ai.focusDescription.mealPlanning",
-  },
-  {
-    value: "analyzingMistakes",
-    labelKey: "ai.focus.analyzingMistakes",
-    descriptionKey: "ai.focusDescription.analyzingMistakes",
-  },
-  {
-    value: "motivation",
-    labelKey: "ai.focus.motivation",
-    descriptionKey: "ai.focusDescription.motivation",
   },
 ];
 
@@ -224,9 +201,6 @@ export function resetOptionalHealthFields(form: FormData): FormData {
 export function resetOptionalAssistantFields(form: FormData): FormData {
   return {
     ...form,
-    aiStyle: "none",
-    aiFocus: "none",
-    aiFocusOther: "",
-    aiNote: "",
+    aiPersona: "calm_guide",
   };
 }

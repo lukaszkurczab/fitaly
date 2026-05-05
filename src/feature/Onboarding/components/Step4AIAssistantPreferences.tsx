@@ -3,14 +3,12 @@ import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   GlobalActionButtons,
-  LongTextInput,
   SelectableGroup,
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import type { FormData } from "@/types";
 import {
-  AI_FOCUS_OPTIONS,
-  AI_STYLE_OPTIONS,
+  AI_PERSONA_OPTIONS,
 } from "@/feature/Onboarding/constants";
 
 type Props = {
@@ -54,54 +52,19 @@ export default function Step4AIAssistantPreferences({
         <View style={styles.panel}>
           <SelectableGroup
             label={t("step4.toneLabel")}
-            options={AI_STYLE_OPTIONS.map((option) => ({
+            options={AI_PERSONA_OPTIONS.map((option) => ({
               value: option.value,
               label: t(option.labelKey),
               description: t(option.descriptionKey),
             }))}
-            value={form.aiStyle ?? "none"}
-            onChange={(nextStyle) => {
+            value={form.aiPersona ?? "calm_guide"}
+            onChange={(nextPersona) => {
               setForm((current) => ({
                 ...current,
-                aiStyle: nextStyle,
+                aiPersona: nextPersona,
               }));
             }}
             variant="card"
-          />
-        </View>
-
-        <View style={styles.panel}>
-          <SelectableGroup
-            label={t("step4.focusLabel")}
-            options={AI_FOCUS_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-              description: t(option.descriptionKey),
-            }))}
-            value={form.aiFocus ?? "none"}
-            onChange={(nextFocus) => {
-              setForm((current) => ({
-                ...current,
-                aiFocus: nextFocus,
-                aiFocusOther: "",
-              }));
-            }}
-            variant="card"
-          />
-        </View>
-
-        <View style={styles.panel}>
-          <LongTextInput
-            label={t("step4.noteLabel")}
-            value={form.aiNote ?? ""}
-            onChangeText={(nextValue) => {
-              setForm((current) => ({
-                ...current,
-                aiNote: nextValue,
-              }));
-            }}
-            placeholder={t("step4.notePlaceholder")}
-            maxLength={220}
           />
         </View>
       </ScrollView>

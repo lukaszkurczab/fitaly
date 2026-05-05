@@ -55,10 +55,7 @@ function normalizeFormForCompare(form: FormData) {
     allergies: normalizeStringArray(form.allergies),
     allergiesOther: form.allergiesOther ?? "",
     lifestyle: form.lifestyle ?? "",
-    aiStyle: form.aiStyle ?? "none",
-    aiFocus: form.aiFocus ?? "none",
-    aiFocusOther: form.aiFocusOther ?? "",
-    aiNote: form.aiNote ?? "",
+    aiPersona: form.aiPersona ?? "calm_guide",
   };
 }
 
@@ -73,10 +70,7 @@ function buildInitialForm(userData: UserData | null): FormData {
     chronicDiseasesOther: userData.chronicDiseasesOther ?? "",
     allergiesOther: userData.allergiesOther ?? "",
     lifestyle: userData.lifestyle ?? "",
-    aiStyle: userData.aiStyle ?? "none",
-    aiFocus: userData.aiFocus ?? "none",
-    aiFocusOther: "",
-    aiNote: userData.aiNote ?? "",
+    aiPersona: userData.aiPersona ?? "calm_guide",
   };
 }
 

@@ -28,12 +28,11 @@ export type ChronicDisease =
   | "asthma"
   | "other";
 export type Allergy = "none" | "peanuts" | "gluten" | "lactose" | "other";
-export type AiStyle = "none" | "concise" | "friendly" | "detailed";
-export type AiFocus =
-  | "none"
-  | "mealPlanning"
-  | "analyzingMistakes"
-  | "motivation";
+export type AiPersona =
+  | "calm_guide"
+  | "cheerful_companion"
+  | "focused_coach"
+  | "mediterranean_friend";
 
 export type OnboardingMode = "first" | "refill";
 
@@ -55,10 +54,7 @@ export type FormData = {
   allergies?: Allergy[];
   allergiesOther?: string;
   lifestyle?: string;
-  aiStyle?: AiStyle;
-  aiFocus?: AiFocus;
-  aiFocusOther?: string;
-  aiNote?: string;
+  aiPersona?: AiPersona;
   surveyComplited: boolean;
   calorieTarget: number | null;
 };
