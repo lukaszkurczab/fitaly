@@ -172,6 +172,14 @@ export default function HomeScreen({ navigation }: Props) {
     ],
   );
 
+  const coachInsightFreshness = useMemo(() => {
+    if (coach.isStale) {
+      return "stale" as const;
+    }
+
+    return coach.coach.meta.isDegraded ? "degraded" : "fresh";
+  }, [coach.coach.meta.isDegraded, coach.isStale]);
+
   const openMealDetails = useCallback(
     (meal: Meal) => {
       if (!meal.cloudId) return;
@@ -268,6 +276,7 @@ export default function HomeScreen({ navigation }: Props) {
         ) : retentionSurface.type === "coach_insight" ? (
           <CoachInsightCard
             insight={retentionSurface.insight}
+            freshness={coachInsightFreshness}
             ctaTargetScreen={retentionSurface.ctaTargetScreen ?? undefined}
             onPressCta={handleCoachCta}
           />

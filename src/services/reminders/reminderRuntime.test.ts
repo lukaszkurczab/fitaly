@@ -25,7 +25,7 @@ async function flushRuntimeReconcile(): Promise<void> {
   await Promise.resolve();
 }
 
-function defaultSchedulingResult() {
+function defaultSchedulingResult(): ReminderSchedulingResult {
   return {
     outcome: "scheduled" as const,
     reason: "scheduled" as const,
@@ -40,7 +40,7 @@ function defaultSchedulingResult() {
           "preferred_window_open",
           "day_partially_logged",
           "logging_usually_happens_now",
-        ],
+        ] as const,
         scheduledAtUtc: "2026-03-18T18:30:00Z",
         confidence: 0.9,
         validUntil: "2026-03-18T19:30:00Z",

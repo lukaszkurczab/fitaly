@@ -18,7 +18,11 @@ import {
   getCarryForwardLine,
   getSignalDotColor,
 } from "@/feature/Home/screens/WeeklyReportScreen.helpers";
-import { trackWeeklyReportOpened } from "@/services/telemetry/telemetryInstrumentation";
+import {
+  trackWeeklyReportAccessBlocked,
+  trackWeeklyReportLockedViewed,
+  trackWeeklyReportOpened,
+} from "@/services/telemetry/telemetryInstrumentation";
 
 type WeeklyReportNavigation = StackNavigationProp<
   RootStackParamList,
@@ -553,6 +557,7 @@ export default function WeeklyReportScreen({ navigation }: Props) {
   });
   const [refreshing, setRefreshing] = useState(false);
   const hasTrackedOpenRef = useRef(false);
+  const hasTrackedBlockedRef = useRef<string | null>(null);
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -596,6 +601,8 @@ export default function WeeklyReportScreen({ navigation }: Props) {
     if (
       accessState !== "premium"
       || weeklyReport.loading
+      || showPremiumLocked
+      || showDegradedAccess
       || hasTrackedOpenRef.current
     ) {
       return;
@@ -613,8 +620,71 @@ export default function WeeklyReportScreen({ navigation }: Props) {
       reportStatus,
       insightCount: weeklyReport.report.insights.length,
       priorityCount: weeklyReport.report.priorities.length,
+      source: weeklyReport.source,
+      accessState,
+      accessReason: weeklyReportFeature?.reason ?? null,
     });
-  }, [accessState, weeklyReport.loading, weeklyReport.report]);
+  }, [
+    accessState,
+    showDegradedAccess,
+    showPremiumLocked,
+    weeklyReport.loading,
+    weeklyReport.report,
+    weeklyReport.source,
+    weeklyReportFeature?.reason,
+  ]);
+
+  useEffect(() => {
+    const accessReason =
+      weeklyReport.status === "premium_required"
+        ? "premium_required"
+        : weeklyReportFeature?.reason ?? null;
+    const blockedState = showPremiumLocked
+      ? "locked"
+      : showDegradedAccess
+        ? "degraded"
+        : null;
+    const trackKey = `${blockedState ?? "none"}:${accessReason ?? "none"}`;
+
+    if (blockedState === "locked") {
+      if (hasTrackedBlockedRef.current === trackKey) {
+        return;
+      }
+
+      hasTrackedBlockedRef.current = trackKey;
+      void trackWeeklyReportLockedViewed({
+        source: weeklyReport.source,
+        accessState: "locked",
+        accessReason,
+      });
+      return;
+    }
+
+    if (blockedState === "degraded") {
+      if (hasTrackedBlockedRef.current === trackKey) {
+        return;
+      }
+
+      hasTrackedBlockedRef.current = trackKey;
+      void trackWeeklyReportAccessBlocked({
+        source: weeklyReport.source,
+        accessState: "degraded",
+        accessReason,
+      });
+      return;
+    }
+
+    if (blockedState === null && accessState !== "unknown") {
+      hasTrackedBlockedRef.current = null;
+    }
+  }, [
+    accessState,
+    showDegradedAccess,
+    showPremiumLocked,
+    weeklyReport.source,
+    weeklyReport.status,
+    weeklyReportFeature?.reason,
+  ]);
 
   return (
     <Layout showNavigation={false}>

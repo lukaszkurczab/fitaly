@@ -4,6 +4,8 @@ import {
   toSmartReminderConfidenceBucket,
   toSmartReminderScheduledWindow,
   trackAiMealReviewSaved,
+  trackCoachInsightTapped,
+  trackCoachInsightViewed,
   trackEntitlementConfirmationFailed,
   trackEntitlementConfirmed,
   trackMealLogged,
@@ -16,6 +18,8 @@ import {
   trackRestoreStarted,
   trackRestoreSucceeded,
   trackSessionStart,
+  trackWeeklyReportAccessBlocked,
+  trackWeeklyReportLockedViewed,
   trackSmartReminderDecisionFailed,
   trackSmartReminderNoop,
   trackSmartReminderScheduled,
@@ -98,6 +102,29 @@ describe("telemetryInstrumentation", () => {
       reportStatus: "ready",
       insightCount: 2,
       priorityCount: 2,
+      source: "remote",
+      accessState: "premium",
+      accessReason: null,
+    });
+    await trackWeeklyReportLockedViewed({
+      source: "disabled",
+      accessState: "locked",
+      accessReason: "requires_premium",
+    });
+    await trackWeeklyReportAccessBlocked({
+      source: "disabled",
+      accessState: "degraded",
+      accessReason: "degraded",
+    });
+    await trackCoachInsightViewed({
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "fresh",
+    });
+    await trackCoachInsightTapped({
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "degraded",
     });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
@@ -158,6 +185,36 @@ describe("telemetryInstrumentation", () => {
       reportStatus: "ready",
       insightCount: 2,
       priorityCount: 2,
+      source: "remote",
+      accessState: "premium",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      15,
+      "weekly_report_locked_viewed",
+      {
+        source: "disabled",
+        accessState: "locked",
+        accessReason: "requires_premium",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      16,
+      "weekly_report_access_blocked",
+      {
+        source: "disabled",
+        accessState: "degraded",
+        accessReason: "degraded",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(17, "coach_insight_viewed", {
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "fresh",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(18, "coach_insight_tapped", {
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "degraded",
     });
   });
 

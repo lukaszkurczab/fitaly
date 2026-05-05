@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import WeeklyReportScreen from "@/feature/Home/screens/WeeklyReportScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
+const mockTrackWeeklyReportOpened = jest.fn<(input: Record<string, unknown>) => Promise<void>>();
+const mockTrackWeeklyReportLockedViewed = jest.fn<(input: Record<string, unknown>) => Promise<void>>();
+const mockTrackWeeklyReportAccessBlocked = jest.fn<(input: Record<string, unknown>) => Promise<void>>();
+
 const mockUseAuthContext = jest.fn();
 const mockUsePremiumContext = jest.fn();
 const mockUseAccessContext = jest.fn();
@@ -22,6 +26,15 @@ jest.mock("@/context/AccessContext", () => ({
 
 jest.mock("@/hooks/useWeeklyReport", () => ({
   useWeeklyReport: (params: unknown) => mockUseWeeklyReport(params),
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackWeeklyReportOpened: (input: Record<string, unknown>) =>
+    mockTrackWeeklyReportOpened(input),
+  trackWeeklyReportLockedViewed: (input: Record<string, unknown>) =>
+    mockTrackWeeklyReportLockedViewed(input),
+  trackWeeklyReportAccessBlocked: (input: Record<string, unknown>) =>
+    mockTrackWeeklyReportAccessBlocked(input),
 }));
 
 jest.mock("react-i18next", () => ({
@@ -113,6 +126,9 @@ jest.mock("@/components", () => {
 describe("WeeklyReportScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTrackWeeklyReportOpened.mockResolvedValue(undefined);
+    mockTrackWeeklyReportLockedViewed.mockResolvedValue(undefined);
+    mockTrackWeeklyReportAccessBlocked.mockResolvedValue(undefined);
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
     mockUsePremiumContext.mockReturnValue({
       subscription: { state: "premium_active" },
@@ -236,6 +252,11 @@ describe("WeeklyReportScreen", () => {
     });
     expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
     expect(getByText("Manage subscription")).toBeTruthy();
+    expect(mockTrackWeeklyReportLockedViewed).toHaveBeenCalledWith({
+      source: "disabled",
+      accessState: "locked",
+      accessReason: "requires_premium",
+    });
   });
 
   it("renders premium locked state when backend returns premium_required", () => {
@@ -271,6 +292,12 @@ describe("WeeklyReportScreen", () => {
     expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
     expect(getByText("Manage subscription")).toBeTruthy();
     expect(queryByText("Your weekly reflection isn't ready right now")).toBeNull();
+    expect(mockTrackWeeklyReportLockedViewed).toHaveBeenCalledWith({
+      source: "fallback",
+      accessState: "locked",
+      accessReason: "premium_required",
+    });
+    expect(mockTrackWeeklyReportOpened).not.toHaveBeenCalled();
   });
 
   it("renders degraded access state without activating weekly report request", () => {
@@ -314,6 +341,11 @@ describe("WeeklyReportScreen", () => {
     });
     expect(getByText("Weekly Report access needs attention")).toBeTruthy();
     expect(getByText("Retry access check")).toBeTruthy();
+    expect(mockTrackWeeklyReportAccessBlocked).toHaveBeenCalledWith({
+      source: "disabled",
+      accessState: "degraded",
+      accessReason: "degraded",
+    });
   });
 
   it("renders ready state with synthesis hierarchy", () => {
@@ -357,6 +389,14 @@ describe("WeeklyReportScreen", () => {
     expect(getByText("Weekday rhythm carried most of the week.")).toBeTruthy();
     expect(getByText("Signals behind it")).toBeTruthy();
     expect(getByText("Carry into next week")).toBeTruthy();
+    expect(mockTrackWeeklyReportOpened).toHaveBeenCalledWith({
+      reportStatus: "ready",
+      insightCount: 1,
+      priorityCount: 1,
+      source: "remote",
+      accessState: "premium",
+      accessReason: null,
+    });
   });
 
   it("renders insufficient-data state", () => {
@@ -386,6 +426,14 @@ describe("WeeklyReportScreen", () => {
     ).toBeTruthy();
     expect(getByText("Back to Home")).toBeTruthy();
     expect(getByText("This is normal. Nothing is failing here.")).toBeTruthy();
+    expect(mockTrackWeeklyReportOpened).toHaveBeenCalledWith({
+      reportStatus: "insufficient_data",
+      insightCount: 0,
+      priorityCount: 0,
+      source: "remote",
+      accessState: "premium",
+      accessReason: null,
+    });
   });
 
   it("renders unavailable state", () => {

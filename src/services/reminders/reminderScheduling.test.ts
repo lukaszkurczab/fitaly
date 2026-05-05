@@ -33,10 +33,21 @@ const mockGetNotificationText = jest.fn();
 const mockDebugLog = jest.fn();
 const mockDebugWarn = jest.fn();
 const mockRunSystemNotifications = jest.fn<(uid: string) => Promise<void>>();
-const mockTrackSmartReminderNoop = jest.fn<() => Promise<void>>();
-const mockTrackSmartReminderScheduleFailed = jest.fn<() => Promise<void>>();
-const mockTrackSmartReminderScheduled = jest.fn<() => Promise<void>>();
-const mockTrackSmartReminderSuppressed = jest.fn<() => Promise<void>>();
+const mockTrackSmartReminderNoop = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackSmartReminderDecisionFailed = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackSmartReminderScheduleFailed = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackSmartReminderScheduled = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackSmartReminderSuppressed = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
 const mockGetPermissionsAsync = jest.fn<() => Promise<{ granted: boolean }>>();
 const mockPlatform = { OS: "ios" as "ios" | "android" };
 
@@ -105,10 +116,16 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
     if (localMinuteOfDay < 1260) return "evening";
     return "late_evening";
   },
-  trackSmartReminderNoop: () => mockTrackSmartReminderNoop(),
-  trackSmartReminderScheduleFailed: () => mockTrackSmartReminderScheduleFailed(),
-  trackSmartReminderScheduled: () => mockTrackSmartReminderScheduled(),
-  trackSmartReminderSuppressed: () => mockTrackSmartReminderSuppressed(),
+  trackSmartReminderNoop: (input: Record<string, unknown>) =>
+    mockTrackSmartReminderNoop(input),
+  trackSmartReminderDecisionFailed: (input: Record<string, unknown>) =>
+    mockTrackSmartReminderDecisionFailed(input),
+  trackSmartReminderScheduleFailed: (input: Record<string, unknown>) =>
+    mockTrackSmartReminderScheduleFailed(input),
+  trackSmartReminderScheduled: (input: Record<string, unknown>) =>
+    mockTrackSmartReminderScheduled(input),
+  trackSmartReminderSuppressed: (input: Record<string, unknown>) =>
+    mockTrackSmartReminderSuppressed(input),
 }));
 
 jest.mock("@/utils/debug", () => ({
@@ -183,6 +200,7 @@ describe("reminderScheduling", () => {
       body: "Body",
     });
     mockTrackSmartReminderNoop.mockResolvedValue(undefined);
+    mockTrackSmartReminderDecisionFailed.mockResolvedValue(undefined);
     mockTrackSmartReminderScheduleFailed.mockResolvedValue(undefined);
     mockTrackSmartReminderScheduled.mockResolvedValue(undefined);
     mockTrackSmartReminderSuppressed.mockResolvedValue(undefined);
@@ -242,6 +260,12 @@ describe("reminderScheduling", () => {
       "user-1:smart-reminder:2026-03-18",
     );
     expect(mockTrackSmartReminderScheduled).toHaveBeenCalled();
+    expect(mockTrackSmartReminderScheduled).toHaveBeenCalledWith({
+      reminderKind: "log_next_meal",
+      decision: "send",
+      confidenceBucket: "high",
+      scheduledWindow: "evening",
+    });
   });
 
   it("cancels any already-scheduled reminder when decision=suppress", async () => {
@@ -275,6 +299,11 @@ describe("reminderScheduling", () => {
     );
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
     expect(mockTrackSmartReminderSuppressed).toHaveBeenCalled();
+    expect(mockTrackSmartReminderSuppressed).toHaveBeenCalledWith({
+      decision: "suppress",
+      suppressionReason: "quiet_hours",
+      confidenceBucket: "high",
+    });
   });
 
   it("cancels any already-scheduled reminder when decision=noop", async () => {
@@ -305,6 +334,11 @@ describe("reminderScheduling", () => {
     expect(result.outcome).toBe("cancelled");
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
     expect(mockTrackSmartReminderNoop).toHaveBeenCalled();
+    expect(mockTrackSmartReminderNoop).toHaveBeenCalledWith({
+      decision: "noop",
+      noopReason: "insufficient_signal",
+      confidenceBucket: "medium",
+    });
   });
 
   it("does not schedule on failure or invalid payload semantics", async () => {
@@ -328,6 +362,9 @@ describe("reminderScheduling", () => {
       "user-1:smart-reminder:2026-03-18",
     );
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
+    expect(mockTrackSmartReminderDecisionFailed).toHaveBeenCalledWith({
+      failureReason: "invalid_payload",
+    });
   });
 
   it("cancels scheduled reminder when backend is temporarily unavailable", async () => {
@@ -361,6 +398,9 @@ describe("reminderScheduling", () => {
     ).resolves.toMatchObject({
       totalIds: 0,
       entries: [],
+    });
+    expect(mockTrackSmartReminderDecisionFailed).toHaveBeenCalledWith({
+      failureReason: "service_unavailable",
     });
   });
 
@@ -401,6 +441,12 @@ describe("reminderScheduling", () => {
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
     expect(mockTrackSmartReminderScheduled).not.toHaveBeenCalled();
     expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalled();
+    expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalledWith({
+      reminderKind: "log_next_meal",
+      decision: "send",
+      confidenceBucket: "high",
+      failureReason: "permission_unavailable",
+    });
   });
 
   it("does not schedule on Android when notification channel cannot be ensured", async () => {
@@ -445,6 +491,12 @@ describe("reminderScheduling", () => {
     expect(result.reason).toBe("channel_unavailable");
     expect(mockScheduleOneShotAt).not.toHaveBeenCalled();
     expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalled();
+    expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalledWith({
+      reminderKind: "log_next_meal",
+      decision: "send",
+      confidenceBucket: "high",
+      failureReason: "schedule_error",
+    });
   });
 
   it("maps complete_day reminders onto the existing day_fill notification type", async () => {
@@ -598,6 +650,12 @@ describe("reminderScheduling", () => {
     expect(result.outcome).toBe("cancelled");
     expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalled();
     expect(mockTrackSmartReminderScheduled).not.toHaveBeenCalled();
+    expect(mockTrackSmartReminderScheduleFailed).toHaveBeenCalledWith({
+      reminderKind: "log_next_meal",
+      decision: "send",
+      confidenceBucket: "high",
+      failureReason: "schedule_error",
+    });
   });
 
   it("cleans up stale local schedules when payload is invalid", async () => {

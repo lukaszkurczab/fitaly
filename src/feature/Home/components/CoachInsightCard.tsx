@@ -1,13 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/Button";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import type { CoachInsight } from "@/services/coach/coachTypes";
+import {
+  trackCoachInsightTapped,
+  trackCoachInsightViewed,
+} from "@/services/telemetry/telemetryInstrumentation";
 
 type Props = {
   insight: CoachInsight;
+  freshness?: "fresh" | "degraded" | "stale";
   onPressCta?: () => void;
   ctaTargetScreen?: Extract<
     keyof RootStackParamList,
@@ -17,6 +22,7 @@ type Props = {
 
 export default function CoachInsightCard({
   insight,
+  freshness = "fresh",
   onPressCta,
   ctaTargetScreen,
 }: Props) {
@@ -24,6 +30,7 @@ export default function CoachInsightCard({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation("home");
   const [expanded, setExpanded] = useState(false);
+  const lastTrackedInsightKeyRef = useRef<string | null>(null);
 
   const localizedTitle = t(`coachInsight.items.${insight.type}.title`, {
     defaultValue: insight.title,
@@ -48,6 +55,20 @@ export default function CoachInsightCard({
     typeof onPressCta === "function" &&
     !!ctaTargetScreen;
 
+  useEffect(() => {
+    const insightKey = `${insight.id}:${freshness}`;
+    if (lastTrackedInsightKeyRef.current === insightKey) {
+      return;
+    }
+
+    lastTrackedInsightKeyRef.current = insightKey;
+    void trackCoachInsightViewed({
+      insightType: insight.type,
+      actionType: insight.actionType,
+      freshness,
+    });
+  }, [freshness, insight.actionType, insight.id, insight.type]);
+
   const handleExpandToggle = () => {
     setExpanded((current) => {
       return !current;
@@ -58,6 +79,16 @@ export default function CoachInsightCard({
     if (!showCta || !ctaTargetScreen) {
       return;
     }
+
+    if (insight.actionType === "none") {
+      return;
+    }
+
+    void trackCoachInsightTapped({
+      insightType: insight.type,
+      actionType: insight.actionType,
+      freshness,
+    });
     onPressCta?.();
   };
 

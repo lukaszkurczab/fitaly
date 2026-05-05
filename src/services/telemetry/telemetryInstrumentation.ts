@@ -4,6 +4,10 @@ import type {
   ReminderKind,
   SuppressReminderReasonCode,
 } from "@/services/reminders/reminderTypes";
+import type {
+  CoachActionType as CoachInsightActionType,
+  CoachInsightType as CoachTelemetryInsightType,
+} from "@/services/coach/coachTypes";
 import type { TelemetryProps } from "@/services/telemetry/telemetryTypes";
 import { track } from "@/services/telemetry/telemetryClient";
 import type { Meal } from "@/types/meal";
@@ -71,6 +75,9 @@ type DomainFailureReason =
   | "unknown";
 
 type WeeklyReportStatus = "ready" | "insufficient_data" | "unavailable";
+type WeeklyReportSource = "remote" | "fallback" | "disabled";
+type WeeklyReportAccessState = "premium" | "locked" | "degraded" | "unknown";
+type CoachInsightFreshness = "fresh" | "degraded" | "stale";
 
 type AiMealReviewInputMethod = "photo" | "text";
 
@@ -296,11 +303,65 @@ export function trackWeeklyReportOpened(input: {
   reportStatus: WeeklyReportStatus;
   insightCount: number;
   priorityCount: number;
+  source: WeeklyReportSource;
+  accessState: WeeklyReportAccessState;
+  accessReason?: string | null;
 }): Promise<void> {
   return track("weekly_report_opened", {
     reportStatus: resolveWeeklyReportStatus(input.reportStatus),
     insightCount: input.insightCount,
     priorityCount: input.priorityCount,
+    source: input.source,
+    accessState: input.accessState,
+    ...(input.accessReason ? { accessReason: input.accessReason } : {}),
+  });
+}
+
+export function trackWeeklyReportLockedViewed(input: {
+  source: WeeklyReportSource;
+  accessState: Extract<WeeklyReportAccessState, "locked">;
+  accessReason?: string | null;
+}): Promise<void> {
+  return track("weekly_report_locked_viewed", {
+    source: input.source,
+    accessState: input.accessState,
+    ...(input.accessReason ? { accessReason: input.accessReason } : {}),
+  });
+}
+
+export function trackWeeklyReportAccessBlocked(input: {
+  source: WeeklyReportSource;
+  accessState: Extract<WeeklyReportAccessState, "degraded" | "unknown">;
+  accessReason?: string | null;
+}): Promise<void> {
+  return track("weekly_report_access_blocked", {
+    source: input.source,
+    accessState: input.accessState,
+    ...(input.accessReason ? { accessReason: input.accessReason } : {}),
+  });
+}
+
+export function trackCoachInsightViewed(input: {
+  insightType: CoachTelemetryInsightType;
+  actionType: CoachInsightActionType;
+  freshness: CoachInsightFreshness;
+}): Promise<void> {
+  return track("coach_insight_viewed", {
+    insightType: input.insightType,
+    actionType: input.actionType,
+    freshness: input.freshness,
+  });
+}
+
+export function trackCoachInsightTapped(input: {
+  insightType: CoachTelemetryInsightType;
+  actionType: Exclude<CoachInsightActionType, "none">;
+  freshness: CoachInsightFreshness;
+}): Promise<void> {
+  return track("coach_insight_tapped", {
+    insightType: input.insightType,
+    actionType: input.actionType,
+    freshness: input.freshness,
   });
 }
 

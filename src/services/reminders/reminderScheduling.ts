@@ -13,6 +13,7 @@ import {
   getReminderDecision,
 } from "@/services/reminders/reminderService";
 import {
+  trackSmartReminderDecisionFailed,
   trackSmartReminderNoop,
   trackSmartReminderScheduleFailed,
   toSmartReminderConfidenceBucket,
@@ -360,6 +361,25 @@ export async function reconcileReminderScheduling(
   if (result.status !== "live_success" || !result.decision) {
     await clearAndCancel(localKey);
     const reason = resolveUnavailableReason(result.status);
+    if (
+      result.status === "invalid_payload" ||
+      result.status === "service_unavailable"
+    ) {
+      emitSmartReminderTelemetry(
+        trackSmartReminderDecisionFailed({
+          failureReason:
+            result.status === "invalid_payload"
+              ? "invalid_payload"
+              : "service_unavailable",
+        }),
+        "smart_reminder_decision_failed",
+        {
+          uid,
+          dayKey,
+          failureReason: result.status,
+        },
+      );
+    }
     log.log("skip scheduling because reminder decision is unavailable", {
       uid,
       dayKey,

@@ -1,8 +1,22 @@
 import { fireEvent } from "@testing-library/react-native";
-import { describe, expect, it, jest } from "@jest/globals";
+import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import CoachInsightCard from "@/feature/Home/components/CoachInsightCard";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import type { CoachInsight } from "@/services/coach/coachTypes";
+
+const mockTrackCoachInsightViewed = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackCoachInsightTapped = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackCoachInsightViewed: (input: Record<string, unknown>) =>
+    mockTrackCoachInsightViewed(input),
+  trackCoachInsightTapped: (input: Record<string, unknown>) =>
+    mockTrackCoachInsightTapped(input),
+}));
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -52,6 +66,12 @@ function createInsight(overrides?: Partial<CoachInsight>): CoachInsight {
 }
 
 describe("CoachInsightCard", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockTrackCoachInsightViewed.mockResolvedValue(undefined);
+    mockTrackCoachInsightTapped.mockResolvedValue(undefined);
+  });
+
   it("renders the insight and triggers CTA", () => {
     const onPressCta = jest.fn();
     const { getByText, getByTestId } = renderWithTheme(
@@ -66,8 +86,18 @@ describe("CoachInsightCard", () => {
     expect(getByText("Logging has been light lately")).toBeTruthy();
     expect(getByText("There have been fewer fully logged days recently. Logging your next meal will give you a clearer picture.")).toBeTruthy();
     expect(getByText("Log next meal")).toBeTruthy();
+    expect(mockTrackCoachInsightViewed).toHaveBeenCalledWith({
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "fresh",
+    });
 
     fireEvent.press(getByTestId("coach-insight-cta"));
+    expect(mockTrackCoachInsightTapped).toHaveBeenCalledWith({
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "fresh",
+    });
     expect(onPressCta).toHaveBeenCalledTimes(1);
   });
 
@@ -103,7 +133,13 @@ describe("CoachInsightCard", () => {
 
   it("renders card on mount", () => {
     renderWithTheme(
-      <CoachInsightCard insight={createInsight()} />,
+      <CoachInsightCard insight={createInsight()} freshness="degraded" />,
     );
+
+    expect(mockTrackCoachInsightViewed).toHaveBeenCalledWith({
+      insightType: "under_logging",
+      actionType: "log_next_meal",
+      freshness: "degraded",
+    });
   });
 });
