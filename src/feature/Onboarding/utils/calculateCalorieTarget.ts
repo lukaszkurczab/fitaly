@@ -1,6 +1,6 @@
-import type { FormData } from "@/types";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 
-export function calculateCalorieTarget(form: FormData): number {
+export function calculateCalorieTarget(form: OnboardingFormData): number {
   const weightKg = Number(form.weight);
   const heightCm = Number(form.height);
   const age = Number(form.age);

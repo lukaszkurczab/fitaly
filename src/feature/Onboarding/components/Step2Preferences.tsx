@@ -9,7 +9,8 @@ import {
   Slider,
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
-import type { FormData, Preference } from "@/types";
+import type { Preference } from "@/types";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import {
   ACTIVITY_OPTIONS,
   GOAL_OPTIONS,
@@ -18,11 +19,11 @@ import {
 } from "@/feature/Onboarding/constants";
 
 type Props = {
-  form: FormData;
-  setForm: React.Dispatch<React.SetStateAction<FormData>>;
-  errors: Partial<Record<keyof FormData, string>>;
+  form: OnboardingFormData;
+  setForm: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
+  errors: Partial<Record<keyof OnboardingFormData, string>>;
   setErrors: React.Dispatch<
-    React.SetStateAction<Partial<Record<keyof FormData, string>>>
+    React.SetStateAction<Partial<Record<keyof OnboardingFormData, string>>>
   >;
   onContinue: () => void;
   onBack: () => void;

@@ -97,8 +97,6 @@ export const PROFILE_EDITABLE_REMOTE_FIELDS = [
   "preferences",
   "activityLevel",
   "goal",
-  "calorieDeficit",
-  "calorieSurplus",
   "chronicDiseases",
   "chronicDiseasesOther",
   "allergies",
@@ -139,8 +137,6 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "preferences",
   "activityLevel",
   "goal",
-  "calorieDeficit",
-  "calorieSurplus",
   "chronicDiseases",
   "chronicDiseasesOther",
   "allergies",
@@ -174,8 +170,6 @@ export const PROFILE_NUTRITION_FIELDS = [
   "goal",
   "calorieTarget",
   "preferences",
-  "calorieDeficit",
-  "calorieSurplus",
 ] as const satisfies readonly (keyof UserData)[];
 
 export const PROFILE_ONBOARDING_DEFAULTS = {
@@ -188,8 +182,6 @@ export const PROFILE_ONBOARDING_DEFAULTS = {
   preferences: [] as Preference[],
   activityLevel: "moderate" as UserData["activityLevel"],
   goal: "maintain" as UserData["goal"],
-  calorieDeficit: null as number | null,
-  calorieSurplus: null as number | null,
   chronicDiseases: [] as ChronicDisease[],
   chronicDiseasesOther: "",
   allergies: [] as Allergy[],
@@ -233,9 +225,4 @@ export const PROFILE_AI_PERSONA_NORMALIZATION_EXAMPLES = {
 export const PROFILE_NUTRITION_SEMANTICS = {
   defaultGoal: "maintain" as Goal,
   defaultCalorieTarget: 0,
-  goalAdjustmentFieldByGoal: {
-    lose: "calorieDeficit",
-    maintain: null,
-    increase: "calorieSurplus",
-  } as const,
 };

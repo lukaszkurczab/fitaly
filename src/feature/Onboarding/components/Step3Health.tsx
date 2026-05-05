@@ -8,23 +8,27 @@ import {
   TextInput,
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
-import type { Allergy, ChronicDisease, FormData } from "@/types";
 import {
   ALLERGY_OPTIONS,
   CHRONIC_DISEASE_OPTIONS,
 } from "@/feature/Onboarding/constants";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
+import type { Allergy, ChronicDisease } from "@/types";
 
 type Props = {
-  form: FormData;
-  setForm: React.Dispatch<React.SetStateAction<FormData>>;
+  form: OnboardingFormData;
+  setForm: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
   errors: Partial<
-    Record<keyof FormData | "chronicDiseasesOther" | "allergiesOther", string>
+    Record<
+      keyof OnboardingFormData | "chronicDiseasesOther" | "allergiesOther",
+      string
+    >
   >;
   setErrors: React.Dispatch<
     React.SetStateAction<
       Partial<
         Record<
-          keyof FormData | "chronicDiseasesOther" | "allergiesOther",
+          keyof OnboardingFormData | "chronicDiseasesOther" | "allergiesOther",
           string
         >
       >

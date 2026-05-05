@@ -46,8 +46,6 @@ export type FormData = {
   preferences: Preference[];
   activityLevel: ActivityLevel | "";
   goal: Goal | "";
-  calorieDeficit?: number;
-  calorieSurplus?: number;
   chronicDiseases?: ChronicDisease[];
   avatarLocalPath?: string;
   chronicDiseasesOther?: string;

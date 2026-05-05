@@ -4,15 +4,15 @@ import { useTranslation } from "react-i18next";
 import { GlobalActionButtons, NumberInput, RowPicker } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { cmToFtIn, ftInToCm, kgToLbs, lbsToKg } from "@/utils/units";
-import type { FormData } from "@/types";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import { SEX_OPTIONS, UNITS_OPTIONS } from "@/feature/Onboarding/constants";
 
 type Props = {
-  form: FormData;
-  setForm: React.Dispatch<React.SetStateAction<FormData>>;
-  errors: Partial<Record<keyof FormData, string>>;
+  form: OnboardingFormData;
+  setForm: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
+  errors: Partial<Record<keyof OnboardingFormData, string>>;
   setErrors: React.Dispatch<
-    React.SetStateAction<Partial<Record<keyof FormData, string>>>
+    React.SetStateAction<Partial<Record<keyof OnboardingFormData, string>>>
   >;
   onContinue: () => void;
   onSecondaryAction: () => void;
@@ -49,7 +49,7 @@ export default function Step1BasicData({
     : { ft: 0, inch: 0 };
   const displayLbs = weightKg ? kgToLbs(weightKg) : 0;
 
-  const clearError = (field: keyof FormData) => {
+  const clearError = (field: keyof OnboardingFormData) => {
     setErrors((current) => ({
       ...current,
       [field]: undefined,

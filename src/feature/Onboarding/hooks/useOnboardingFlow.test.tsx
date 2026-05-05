@@ -58,8 +58,6 @@ function buildUserData(overrides?: Partial<UserData>): UserData {
     preferences: [],
     activityLevel: "moderate",
     goal: "maintain",
-    calorieDeficit: 0.2,
-    calorieSurplus: 0.2,
     chronicDiseases: [],
     chronicDiseasesOther: "",
     allergies: [],
@@ -248,13 +246,16 @@ describe("useOnboardingFlow", () => {
     });
 
     expect(mockUpdateUser).toHaveBeenCalledTimes(1);
-    expect(mockUpdateUser.mock.calls[0][0]).toMatchObject({
+    const savedPatch = mockUpdateUser.mock.calls[0][0];
+    expect(savedPatch).toMatchObject({
       aiPersona: "mediterranean_friend",
       readiness: {
         status: "needs_ai_consent",
         readyAt: null,
       },
     });
+    expect(savedPatch).not.toHaveProperty("calorieDeficit");
+    expect(savedPatch).not.toHaveProperty("calorieSurplus");
     expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
     expect(navigation.replace).toHaveBeenCalledWith("Loading");
     expect(navigation.replace).not.toHaveBeenCalledWith("Home");

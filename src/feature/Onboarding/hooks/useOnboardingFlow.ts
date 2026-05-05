@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useUserContext } from "@/context/UserContext";
-import type { FormData, OnboardingMode, UserData } from "@/types";
+import type { OnboardingMode, UserData } from "@/types";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { calculateCalorieTarget } from "@/feature/Onboarding/utils/calculateCalorieTarget";
 import { assertNoUndefined } from "@/utils/findUndefined";
@@ -20,7 +21,7 @@ type OnboardingNavigation = StackNavigationProp<
 >;
 
 type OnboardingErrorKey =
-  | keyof FormData
+  | keyof OnboardingFormData
   | "chronicDiseasesOther"
   | "allergiesOther";
 
@@ -35,7 +36,7 @@ function normalizeStringArray(values: string[] | undefined): string[] {
   return [...(values ?? [])].sort();
 }
 
-function normalizeFormForCompare(form: FormData) {
+function normalizeFormForCompare(form: OnboardingFormData) {
   return {
     unitsSystem: form.unitsSystem,
     age: form.age,
@@ -57,7 +58,7 @@ function normalizeFormForCompare(form: FormData) {
   };
 }
 
-function buildInitialForm(userData: UserData | null): FormData {
+function buildInitialForm(userData: UserData | null): OnboardingFormData {
   if (!userData) return INITIAL_FORM;
   return {
     ...INITIAL_FORM,
@@ -73,7 +74,7 @@ function buildInitialForm(userData: UserData | null): FormData {
 }
 
 function validateStep1(
-  form: FormData,
+  form: OnboardingFormData,
   t: (key: string) => string,
 ): OnboardingErrors {
   const nextErrors: OnboardingErrors = {};
@@ -140,7 +141,7 @@ function validateStep1(
 }
 
 function validateStep2(
-  form: FormData,
+  form: OnboardingFormData,
   t: (key: string) => string,
 ): OnboardingErrors {
   const nextErrors: OnboardingErrors = {};
@@ -165,7 +166,7 @@ function validateStep2(
 }
 
 function validateStep3(
-  form: FormData,
+  form: OnboardingFormData,
   t: (key: string) => string,
 ): OnboardingErrors {
   const nextErrors: OnboardingErrors = {};
@@ -191,7 +192,10 @@ function validateStep4(): OnboardingErrors {
   return {};
 }
 
-function findFirstInvalidStep(form: FormData, t: (key: string) => string) {
+function findFirstInvalidStep(
+  form: OnboardingFormData,
+  t: (key: string) => string,
+) {
   const step1Errors = validateStep1(form, t);
   if (Object.keys(step1Errors).length > 0)
     return { step: 1 as const, errors: step1Errors };
@@ -211,10 +215,19 @@ function findFirstInvalidStep(form: FormData, t: (key: string) => string) {
   return null;
 }
 
-function buildCompletedPatch(form: FormData): Partial<UserData> {
+function toPersistedProfilePatch(form: OnboardingFormData): Partial<UserData> {
+  const {
+    calorieDeficit: _calorieDeficit,
+    calorieSurplus: _calorieSurplus,
+    ...profile
+  } = form;
+  return profile;
+}
+
+function buildCompletedPatch(form: OnboardingFormData): Partial<UserData> {
   const completedAt = new Date().toISOString();
   const payload = {
-    ...form,
+    ...toPersistedProfilePatch(form),
     avatarLocalPath: form.avatarLocalPath ?? "",
     calorieTarget: calculateCalorieTarget(form),
     readiness: {
@@ -228,9 +241,9 @@ function buildCompletedPatch(form: FormData): Partial<UserData> {
   return payload;
 }
 
-function buildPartialSavePatch(form: FormData): Partial<UserData> {
+function buildPartialSavePatch(form: OnboardingFormData): Partial<UserData> {
   const payload = {
-    ...form,
+    ...toPersistedProfilePatch(form),
     avatarLocalPath: form.avatarLocalPath ?? "",
     calorieTarget: calculateCalorieTarget(form),
   } satisfies Partial<UserData>;
@@ -246,8 +259,9 @@ export function useOnboardingFlow(params: {
   const { t } = useTranslation("onboarding");
   const { userData, updateUser, syncUserProfile } = useUserContext();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState<FormData>(INITIAL_FORM);
-  const [initialForm, setInitialForm] = useState<FormData>(INITIAL_FORM);
+  const [form, setForm] = useState<OnboardingFormData>(INITIAL_FORM);
+  const [initialForm, setInitialForm] =
+    useState<OnboardingFormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<OnboardingErrors>({});
   const [isLoaded, setIsLoaded] = useState(false);
   const [modalState, setModalState] = useState<ModalState>(null);
@@ -296,7 +310,7 @@ export function useOnboardingFlow(params: {
   }, [params.navigation]);
 
   const finishOnboarding = useCallback(
-    async (nextForm?: FormData) => {
+    async (nextForm?: OnboardingFormData) => {
       const resolvedForm = nextForm ?? form;
       setSubmitting(true);
       try {

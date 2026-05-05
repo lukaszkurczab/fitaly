@@ -6,14 +6,14 @@ import {
   SelectableGroup,
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
-import type { FormData } from "@/types";
 import {
   AI_PERSONA_OPTIONS,
 } from "@/feature/Onboarding/constants";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 
 type Props = {
-  form: FormData;
-  setForm: React.Dispatch<React.SetStateAction<FormData>>;
+  form: OnboardingFormData;
+  setForm: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
   onContinue: () => void;
   onBack: () => void;
   submitting?: boolean;

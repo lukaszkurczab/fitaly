@@ -68,7 +68,6 @@ type ProfileContractFixture = {
     nutrition: {
       defaultGoal: string;
       defaultCalorieTarget: number;
-      goalAdjustmentFieldByGoal: Record<string, string | null>;
     };
   };
   backendNormalizationExamples: {
@@ -142,8 +141,6 @@ describe("Profile/onboarding contract parity", () => {
     expect(contract.semantics.nutrition).toEqual({
       defaultGoal: PROFILE_NUTRITION_SEMANTICS.defaultGoal,
       defaultCalorieTarget: PROFILE_NUTRITION_SEMANTICS.defaultCalorieTarget,
-      goalAdjustmentFieldByGoal:
-        PROFILE_NUTRITION_SEMANTICS.goalAdjustmentFieldByGoal,
     });
   });
 
@@ -182,8 +179,6 @@ describe("Profile/onboarding contract parity", () => {
       preferences: ["vegan", "balanced"],
       activityLevel: "",
       goal: "",
-      calorieDeficit: 250,
-      calorieSurplus: 350,
       chronicDiseases: [],
       chronicDiseasesOther: "",
       allergies: [],
@@ -215,8 +210,6 @@ describe("Profile/onboarding contract parity", () => {
       language: "pl",
       aiPersona: "focused_coach",
       preferences: ["vegan", "balanced"],
-      calorieDeficit: 250,
-      calorieSurplus: 350,
       calorieTarget: 2200,
     });
   });
@@ -233,8 +226,6 @@ describe("Profile/onboarding contract parity", () => {
       goal: "increase",
       calorieTarget: 2500,
       preferences: ["mediterranean"],
-      calorieDeficit: 200,
-      calorieSurplus: 300,
     } satisfies Partial<UserData>);
 
     expect(patch).toEqual({
@@ -248,8 +239,6 @@ describe("Profile/onboarding contract parity", () => {
       goal: "increase",
       calorieTarget: 2500,
       preferences: ["mediterranean"],
-      calorieDeficit: 200,
-      calorieSurplus: 300,
     });
   });
 

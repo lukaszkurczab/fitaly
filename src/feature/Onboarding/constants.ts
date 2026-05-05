@@ -3,16 +3,16 @@ import type {
   AiPersona,
   Allergy,
   ChronicDisease,
-  FormData,
   Goal,
   Preference,
   Sex,
   UnitsSystem,
 } from "@/types";
+import type { OnboardingFormData } from "@/feature/Onboarding/types";
 
 export const ONBOARDING_TOTAL_STEPS = 4;
 
-export const INITIAL_FORM: FormData = {
+export const INITIAL_FORM: OnboardingFormData = {
   unitsSystem: "metric",
   age: "",
   sex: "female",
@@ -186,7 +186,9 @@ export const PREFERENCE_CONFLICTS: Record<Preference, Preference[]> = {
   paleo: [],
 };
 
-export function resetOptionalHealthFields(form: FormData): FormData {
+export function resetOptionalHealthFields(
+  form: OnboardingFormData,
+): OnboardingFormData {
   return {
     ...form,
     chronicDiseases: [],
@@ -197,7 +199,9 @@ export function resetOptionalHealthFields(form: FormData): FormData {
   };
 }
 
-export function resetOptionalAssistantFields(form: FormData): FormData {
+export function resetOptionalAssistantFields(
+  form: OnboardingFormData,
+): OnboardingFormData {
   return {
     ...form,
     aiPersona: "calm_guide",

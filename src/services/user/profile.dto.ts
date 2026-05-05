@@ -96,8 +96,6 @@ export function parseUserData(payload: unknown): UserData | null {
     preferences: pickEnumArray(payload.preferences, PROFILE_PREFERENCES),
     activityLevel: pickEnum(payload.activityLevel, PROFILE_ACTIVITY_LEVELS, "moderate"),
     goal: pickEnum(payload.goal, PROFILE_GOALS, "maintain"),
-    calorieDeficit: asNumber(payload.calorieDeficit),
-    calorieSurplus: asNumber(payload.calorieSurplus),
     chronicDiseases: pickEnumArray(payload.chronicDiseases, PROFILE_DISEASES),
     chronicDiseasesOther: asString(payload.chronicDiseasesOther) ?? "",
     allergies: pickEnumArray(payload.allergies, PROFILE_ALLERGIES),
