@@ -11,7 +11,6 @@ import { trackOnboardingCompleted } from "@/services/telemetry/telemetryInstrume
 import {
   INITIAL_FORM,
   ONBOARDING_TOTAL_STEPS,
-  resetOptionalAssistantFields,
   resetOptionalHealthFields,
 } from "@/feature/Onboarding/constants";
 
@@ -28,8 +27,7 @@ type OnboardingErrorKey =
 type OnboardingErrors = Partial<Record<OnboardingErrorKey, string>>;
 
 type ModalState =
-  | { type: "skip_onboarding" }
-  | { type: "skip_step"; step: 3 | 4 }
+  | { type: "skip_step"; step: 3 }
   | { type: "exit_refill" }
   | null;
 
@@ -240,7 +238,6 @@ function buildPartialSavePatch(form: FormData): Partial<UserData> {
 export function useOnboardingFlow(params: {
   mode: OnboardingMode;
   navigation: OnboardingNavigation;
-  allowInitialSkip?: boolean;
 }) {
   const { t } = useTranslation("onboarding");
   const { userData, updateUser, syncUserProfile } = useUserContext();
@@ -303,7 +300,7 @@ export function useOnboardingFlow(params: {
         await syncUserProfile();
         void trackOnboardingCompleted({ mode: params.mode });
         if (params.mode === "first") {
-          params.navigation.replace("Home");
+          params.navigation.replace("Loading");
         } else {
           goToProfile();
         }
@@ -340,12 +337,7 @@ export function useOnboardingFlow(params: {
   }, [step]);
 
   const handleStep1SecondaryAction = useCallback(() => {
-    if (params.mode === "first" && params.allowInitialSkip === false) {
-      return;
-    }
-
     if (params.mode === "first") {
-      setModalState({ type: "skip_onboarding" });
       return;
     }
 
@@ -355,7 +347,7 @@ export function useOnboardingFlow(params: {
     }
 
     setModalState({ type: "exit_refill" });
-  }, [goToProfile, isDirty, params.allowInitialSkip, params.mode]);
+  }, [goToProfile, isDirty, params.mode]);
 
   const handleCloseRefill = useCallback(() => {
     if (params.mode !== "refill") return;
@@ -367,31 +359,26 @@ export function useOnboardingFlow(params: {
   }, [goToProfile, isDirty, params.mode]);
 
   const applyOptionalStepSkip = useCallback(
-    async (skipStep: 3 | 4) => {
+    async (skipStep: 3) => {
       setErrors({});
 
       if (skipStep === 3) {
         setForm((current) => resetOptionalHealthFields(current));
         setStep(4);
-        return;
       }
-
-      const nextForm = resetOptionalAssistantFields(form);
-      setForm(nextForm);
-      await finishOnboarding(nextForm);
     },
-    [finishOnboarding, form],
+    [],
   );
 
   const handleSkipStep = useCallback(async () => {
-    if (step !== 3 && step !== 4) return;
+    if (step !== 3) return;
 
     if (hasConfirmedOptionalSkip) {
-      await applyOptionalStepSkip(step);
+      await applyOptionalStepSkip(3);
       return;
     }
 
-    setModalState({ type: "skip_step", step });
+    setModalState({ type: "skip_step", step: 3 });
   }, [applyOptionalStepSkip, hasConfirmedOptionalSkip, step]);
 
   const handleModalClose = useCallback(() => {
@@ -401,23 +388,12 @@ export function useOnboardingFlow(params: {
   const handleSkipConfirm = useCallback(async () => {
     if (!modalState) return;
 
-    if (modalState.type === "skip_onboarding") {
-      if (params.allowInitialSkip === false) return;
-      params.navigation.reset({ index: 0, routes: [{ name: "Home" }] });
-      return;
-    }
-
     if (modalState.type !== "skip_step") return;
 
     setHasConfirmedOptionalSkip(true);
     setModalState(null);
     await applyOptionalStepSkip(modalState.step);
-  }, [
-    applyOptionalStepSkip,
-    modalState,
-    params.allowInitialSkip,
-    params.navigation,
-  ]);
+  }, [applyOptionalStepSkip, modalState]);
 
   const handleSaveAndExit = useCallback(async () => {
     const invalidStep = findFirstInvalidStep(form, t);

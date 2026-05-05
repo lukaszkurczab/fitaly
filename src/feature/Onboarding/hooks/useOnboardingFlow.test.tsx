@@ -106,14 +106,10 @@ describe("useOnboardingFlow", () => {
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
-  it("does not allow first-step skip in profile recovery mode", async () => {
+  it("does not allow first-run onboarding to skip into Home", async () => {
     const navigation = buildNavigation();
     const { result } = renderHook(() =>
-      useOnboardingFlow({
-        mode: "first",
-        navigation: navigation as never,
-        allowInitialSkip: false,
-      }),
+      useOnboardingFlow({ mode: "first", navigation: navigation as never }),
     );
 
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
@@ -123,6 +119,8 @@ describe("useOnboardingFlow", () => {
     });
 
     expect(result.current.modalState).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
     expect(navigation.reset).not.toHaveBeenCalled();
   });
 
@@ -173,7 +171,7 @@ describe("useOnboardingFlow", () => {
     expect(result.current.form.lifestyle).toBe("");
   });
 
-  it("saves a cleaned final payload when the user skips the last optional step", async () => {
+  it("does not allow the final optional assistant step to skip into Home", async () => {
     const navigation = buildNavigation();
     const { result } = renderHook(() =>
       useOnboardingFlow({ mode: "first", navigation: navigation as never }),
@@ -201,20 +199,58 @@ describe("useOnboardingFlow", () => {
 
     expect(result.current.step).toBe(4);
 
+    await act(async () => {
+      await result.current.handleSkipStep();
+    });
+
+    expect(result.current.step).toBe(4);
+    expect(result.current.modalState).toBeNull();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalledWith("Home");
+    expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  it("completes first-run onboarding through the canonical final action", async () => {
+    const navigation = buildNavigation();
+    const { result } = renderHook(() =>
+      useOnboardingFlow({ mode: "first", navigation: navigation as never }),
+    );
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
     act(() => {
-      result.current.handleSkipStep();
+      result.current.setForm((current) => ({
+        ...current,
+        age: "30",
+        height: "170",
+        weight: "70",
+        activityLevel: "moderate",
+        goal: "maintain",
+        aiPersona: "mediterranean_friend",
+      }));
     });
 
     await act(async () => {
-      await result.current.handleSkipConfirm();
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
     });
 
     expect(mockUpdateUser).toHaveBeenCalledTimes(1);
     expect(mockUpdateUser.mock.calls[0][0]).toMatchObject({
-      aiPersona: "calm_guide",
+      aiPersona: "mediterranean_friend",
       surveyComplited: true,
     });
-    expect(navigation.replace).toHaveBeenCalledWith("Home");
+    expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
+    expect(navigation.replace).toHaveBeenCalledWith("Loading");
+    expect(navigation.replace).not.toHaveBeenCalledWith("Home");
   });
 
   it("shows optional skip confirmation only once in the same flow", async () => {
@@ -261,7 +297,7 @@ describe("useOnboardingFlow", () => {
     });
 
     expect(result.current.modalState).toBeNull();
-    expect(mockUpdateUser).toHaveBeenCalledTimes(1);
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it("stops save-and-exit in refill mode when required data is invalid", async () => {

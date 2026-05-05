@@ -47,17 +47,13 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ensureStreakDoc, resetIfMissed } from "@/services/gamification/streakService";
 import { primeBadges } from "@/services/gamification/badgeService";
 import { logWarning } from "@/services/core/errorLogger";
+import {
+  resolveBootstrapState,
+  resolveInitialRouteName,
+  shouldRenderProductStack,
+} from "@/navigation/appNavigatorState";
 
 const Stack = createStackNavigator<RootStackParamList>();
-
-export type AppBootstrapState =
-  | "authLoading"
-  | "unauthenticated"
-  | "profileLoading"
-  | "profileReady"
-  | "profileMissing"
-  | "offlineCached"
-  | "bootstrapFailed";
 
 function renderAuthScreens() {
   return (
@@ -157,6 +153,25 @@ function renderAppScreens({
   );
 }
 
+function renderOnboardingGateScreens({
+  onboardingMode = "first",
+  profileRecovery = false,
+}: {
+  onboardingMode?: "first" | "refill";
+  profileRecovery?: boolean;
+} = {}) {
+  return (
+    <>
+      <Stack.Screen name="Loading" component={LoadingScreen} />
+      <Stack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
+        initialParams={{ mode: onboardingMode, profileRecovery }}
+      />
+    </>
+  );
+}
+
 function renderSharedScreens() {
   return (
     <>
@@ -164,35 +179,6 @@ function renderSharedScreens() {
       <Stack.Screen name="Privacy" component={PrivacyScreen} />
     </>
   );
-}
-
-function resolveBootstrapState(params: {
-  authLoading: boolean;
-  isAuthenticated: boolean;
-  profileBootstrapState: AppBootstrapState;
-}): AppBootstrapState {
-  if (params.authLoading) return "authLoading";
-  if (!params.isAuthenticated) return "unauthenticated";
-  return params.profileBootstrapState;
-}
-
-function resolveInitialRouteName(
-  bootstrapState: AppBootstrapState,
-  surveyCompleted: boolean | undefined,
-): keyof RootStackParamList {
-  if (bootstrapState === "profileReady" || bootstrapState === "offlineCached") {
-    return surveyCompleted ? "Home" : "Onboarding";
-  }
-
-  if (bootstrapState === "profileMissing") {
-    return "Onboarding";
-  }
-
-  return "Loading";
-}
-
-function isAppReadyState(bootstrapState: AppBootstrapState): boolean {
-  return bootstrapState === "profileReady" || bootstrapState === "offlineCached";
 }
 
 export default function AppNavigator() {
@@ -209,9 +195,13 @@ export default function AppNavigator() {
     bootstrapState,
     userData?.surveyComplited,
   );
+  const renderProductStack = shouldRenderProductStack(
+    bootstrapState,
+    userData?.surveyComplited,
+  );
 
   useEffect(() => {
-    if (!isAppReadyState(bootstrapState) || !userData?.uid) {
+    if (!renderProductStack || !userData?.uid) {
       return;
     }
     if (primedUidRef.current === userData.uid) {
@@ -231,7 +221,7 @@ export default function AppNavigator() {
         }, error);
       }
     })();
-  }, [bootstrapState, userData?.uid]);
+  }, [bootstrapState, renderProductStack, userData?.uid]);
 
   const showAuthStack = bootstrapState === "unauthenticated";
   const showProfileStack =
@@ -242,7 +232,7 @@ export default function AppNavigator() {
   return (
     <ErrorBoundary>
       <Stack.Navigator
-        key={bootstrapState}
+        key={`${bootstrapState}:${renderProductStack ? "product" : "gate"}`}
         initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
@@ -253,10 +243,15 @@ export default function AppNavigator() {
         {showAuthStack
           ? renderAuthScreens()
           : showProfileStack
-            ? renderAppScreens({
-                onboardingMode: "first",
-                profileRecovery: bootstrapState === "profileMissing",
-              })
+            ? renderProductStack
+              ? renderAppScreens({
+                  onboardingMode: "first",
+                  profileRecovery: bootstrapState === "profileMissing",
+                })
+              : renderOnboardingGateScreens({
+                  onboardingMode: "first",
+                  profileRecovery: bootstrapState === "profileMissing",
+                })
             : <Stack.Screen name="Loading" component={LoadingScreen} />}
         {renderSharedScreens()}
       </Stack.Navigator>

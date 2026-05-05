@@ -16,8 +16,7 @@
     "description": "A few details help us set up your plan with the right targets from the start.",
     "unitsLabel": "Units",
     "sexLabel": "Sex",
-    "primaryCta": "Continue",
-    "secondaryCtaFirst": "Later"
+    "primaryCta": "Continue"
   },
   "step2": {
     "title": "Shape your plan",
@@ -51,7 +50,6 @@
     "noteLabel": "Optional note",
     "notePlaceholder": "Anything else you'd like the assistant to keep in mind?",
     "primaryCta": "Start plan",
-    "skipCta": "Skip",
     "disclaimer": "Assistant guidance is informational and does not replace medical advice."
   },
   "activityShort": {
@@ -134,12 +132,6 @@
       "analyzingMistakes": "Notice patterns that might be slowing progress.",
       "motivation": "Offer more encouragement when consistency feels harder."
     }
-  },
-  "skipOnboardingModal": {
-    "title": "Skip setup for now?",
-    "body": "You can finish onboarding later from your profile. For now, we'll take you straight into the app.",
-    "primaryCta": "Skip",
-    "secondaryCta": "Back"
   },
   "skipStepModal": {
     "title": "Skip this step?",

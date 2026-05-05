@@ -16,8 +16,7 @@
     "description": "Kilka prostych danych pomoże nam od razu ustawić plan na właściwych parametrach.",
     "unitsLabel": "Jednostki",
     "sexLabel": "Płeć",
-    "primaryCta": "Dalej",
-    "secondaryCtaFirst": "Na później"
+    "primaryCta": "Dalej"
   },
   "step2": {
     "title": "Ułóż swój plan",
@@ -51,7 +50,6 @@
     "noteLabel": "Opcjonalna notatka",
     "notePlaceholder": "Czy jest coś jeszcze, co asystent powinien brać pod uwagę?",
     "primaryCta": "Zacznij plan",
-    "skipCta": "Pomiń",
     "disclaimer": "Wskazówki asystenta mają charakter informacyjny i nie zastępują porady medycznej."
   },
   "activityShort": {
@@ -134,12 +132,6 @@
       "analyzingMistakes": "Wyłapywanie schematów, które mogą spowalniać progres.",
       "motivation": "Odrobinę więcej wsparcia, gdy trudniej o regularność."
     }
-  },
-  "skipOnboardingModal": {
-    "title": "Pominąć konfigurację na teraz?",
-    "body": "Onboarding możesz dokończyć później z poziomu profilu. Na razie przeniesiemy Cię prosto do aplikacji.",
-    "primaryCta": "Pomiń",
-    "secondaryCta": "Wróć"
   },
   "skipStepModal": {
     "title": "Pominąć ten krok?",

@@ -27,7 +27,6 @@ export default function OnboardingScreen({
   const state = useOnboardingFlow({
     mode,
     navigation,
-    allowInitialSkip: !profileRecovery,
   });
 
   useEffect(() => {
@@ -38,15 +37,6 @@ export default function OnboardingScreen({
 
   const modalCopy = useMemo(() => {
     if (!state.modalState) return null;
-
-    if (state.modalState.type === "skip_onboarding") {
-      return {
-        title: t("skipOnboardingModal.title"),
-        message: t("skipOnboardingModal.body"),
-        primaryLabel: t("skipOnboardingModal.primaryCta"),
-        secondaryLabel: t("skipOnboardingModal.secondaryCta"),
-      };
-    }
 
     if (state.modalState.type === "skip_step") {
       return {
@@ -91,14 +81,13 @@ export default function OnboardingScreen({
 
         {state.step === 1 ? (
           <Step1BasicData
-            mode={mode}
             form={state.form}
             setForm={state.setForm}
             errors={state.errors}
             setErrors={state.setErrors}
             onContinue={state.handlePrimaryAction}
             onSecondaryAction={state.handleStep1SecondaryAction}
-            showSecondaryAction={!profileRecovery}
+            showSecondaryAction={mode === "refill" && !profileRecovery}
             submitting={state.submitting}
           />
         ) : null}
