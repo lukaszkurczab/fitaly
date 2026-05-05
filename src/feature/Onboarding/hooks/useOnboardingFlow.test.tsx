@@ -5,6 +5,8 @@ import { useOnboardingFlow } from "@/feature/Onboarding/hooks/useOnboardingFlow"
 
 const mockUpdateUser = jest.fn();
 const mockSyncUserProfile = jest.fn();
+const mockApplyServerProfile = jest.fn();
+const mockCompleteUserOnboardingRemote = jest.fn();
 const mockTrackOnboardingCompleted = jest.fn();
 
 let mockUserData: UserData | null = null;
@@ -25,7 +27,13 @@ jest.mock("@/context/UserContext", () => ({
     userData: mockUserData,
     updateUser: mockUpdateUser,
     syncUserProfile: mockSyncUserProfile,
+    applyServerProfile: mockApplyServerProfile,
   }),
+}));
+
+jest.mock("@/services/user/userProfileRepository", () => ({
+  completeUserOnboardingRemote: (...args: unknown[]) =>
+    mockCompleteUserOnboardingRemote(...args),
 }));
 
 jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
@@ -84,6 +92,17 @@ describe("useOnboardingFlow", () => {
     mockUserData = null;
     mockUpdateUser.mockReset().mockImplementation(async () => undefined);
     mockSyncUserProfile.mockReset().mockImplementation(async () => undefined);
+    mockApplyServerProfile.mockReset().mockImplementation(async (profile) => profile);
+    mockCompleteUserOnboardingRemote.mockReset().mockImplementation(async () => ({
+      updated: true,
+      profile: buildUserData({
+        readiness: {
+          status: "ready",
+          onboardingCompletedAt: "2026-03-28T10:00:00.000Z",
+          readyAt: "2026-03-28T10:00:00.000Z",
+        },
+      }),
+    }));
     mockTrackOnboardingCompleted
       .mockReset()
       .mockImplementation(async () => undefined);
@@ -245,20 +264,21 @@ describe("useOnboardingFlow", () => {
       await result.current.handlePrimaryAction();
     });
 
-    expect(mockUpdateUser).toHaveBeenCalledTimes(1);
-    const savedPatch = mockUpdateUser.mock.calls[0][0];
-    expect(savedPatch).toMatchObject({
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(mockSyncUserProfile).not.toHaveBeenCalled();
+    expect(mockCompleteUserOnboardingRemote).toHaveBeenCalledTimes(1);
+    const completionPayload = mockCompleteUserOnboardingRemote.mock.calls[0][0];
+    expect(completionPayload).toMatchObject({
       aiPersona: "mediterranean_friend",
-      readiness: {
-        status: "needs_ai_consent",
-        readyAt: null,
-      },
+      goal: "maintain",
+      calorieAdjustment: null,
     });
-    expect(savedPatch).not.toHaveProperty("calorieDeficit");
-    expect(savedPatch).not.toHaveProperty("calorieSurplus");
+    expect(completionPayload).not.toHaveProperty("calorieDeficit");
+    expect(completionPayload).not.toHaveProperty("calorieSurplus");
+    expect(completionPayload).not.toHaveProperty("readiness");
+    expect(mockApplyServerProfile).toHaveBeenCalledTimes(1);
     expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
-    expect(navigation.replace).toHaveBeenCalledWith("Loading");
-    expect(navigation.replace).not.toHaveBeenCalledWith("Home");
+    expect(navigation.replace).toHaveBeenCalledWith("Home");
   });
 
   it("shows optional skip confirmation only once in the same flow", async () => {
@@ -306,6 +326,49 @@ describe("useOnboardingFlow", () => {
 
     expect(result.current.modalState).toBeNull();
     expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it("does not unlock Home when server completion fails", async () => {
+    mockCompleteUserOnboardingRemote.mockImplementationOnce(async () => {
+      throw new Error("completion failed");
+    });
+    const navigation = buildNavigation();
+    const { result } = renderHook(() =>
+      useOnboardingFlow({ mode: "first", navigation: navigation as never }),
+    );
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => {
+      result.current.setForm((current) => ({
+        ...current,
+        age: "30",
+        height: "170",
+        weight: "70",
+        activityLevel: "moderate",
+        goal: "maintain",
+      }));
+    });
+
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await expect(
+      act(async () => {
+        await result.current.handlePrimaryAction();
+      }),
+    ).rejects.toThrow("completion failed");
+
+    expect(mockCompleteUserOnboardingRemote).toHaveBeenCalledTimes(1);
+    expect(mockApplyServerProfile).not.toHaveBeenCalled();
+    expect(mockTrackOnboardingCompleted).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalledWith("Home");
   });
 
   it("stops save-and-exit in refill mode when required data is invalid", async () => {

@@ -25,6 +25,7 @@ export type UserProfileContextType = {
   refreshUser: () => Promise<UserData | null>;
   getUserData: () => Promise<UserData | null>;
   updateUser: (data: Partial<UserData>) => Promise<void>;
+  applyServerProfile: (profile: UserData) => Promise<UserData | null>;
   retryProfileSync: () => Promise<void>;
   syncUserProfile: () => Promise<void>;
   setAvatar: (photoUri: string) => Promise<void>;
@@ -40,6 +41,7 @@ const UserProfileContext = createContext<UserProfileContextType>({
   refreshUser: async () => null,
   getUserData: async () => null,
   updateUser: async () => {},
+  applyServerProfile: async () => null,
   retryProfileSync: async () => {},
   syncUserProfile: async () => {},
   setAvatar: async () => {},
@@ -63,6 +65,7 @@ export const UserProfileProvider = ({
     getUserProfile,
     fetchUserFromCloud,
     updateUserProfile,
+    applyServerProfile,
     retryProfileSync,
     syncUserProfile,
     setAvatar,
@@ -124,6 +127,7 @@ export const UserProfileProvider = ({
       refreshUser,
       getUserData: getUserProfile,
       updateUser: updateUserProfile,
+      applyServerProfile,
       retryProfileSync,
       syncUserProfile,
       setAvatar,
@@ -138,6 +142,7 @@ export const UserProfileProvider = ({
       refreshUser,
       getUserProfile,
       updateUserProfile,
+      applyServerProfile,
       retryProfileSync,
       syncUserProfile,
       setAvatar,

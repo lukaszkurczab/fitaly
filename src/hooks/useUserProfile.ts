@@ -177,6 +177,7 @@ type UseUserProfileResult = {
   getUserProfile: () => Promise<UserData | null>;
   fetchUserFromCloud: () => Promise<UserData | null>;
   updateUserProfile: (patch: Partial<UserData>) => Promise<void>;
+  applyServerProfile: (profile: UserData) => Promise<UserData | null>;
   syncUserProfile: () => Promise<void>;
   retryProfileSync: () => Promise<void>;
   mirrorProfileLocally: (patch: Partial<UserData>) => Promise<void>;
@@ -449,6 +450,17 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     [uid, pushPendingChanges]
   );
 
+  const applyServerProfile = useCallback(
+    async (profile: UserData) => {
+      return applyProfileData(profile, {
+        emitChange: true,
+        writeCache: true,
+        bootstrapState: "profileReady",
+      });
+    },
+    [applyProfileData],
+  );
+
   const mirrorProfileLocally = useCallback(
     async (patch: Partial<UserData>) => {
       if (!uid) return;
@@ -583,6 +595,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       getUserProfile,
       fetchUserFromCloud,
       updateUserProfile,
+      applyServerProfile,
       syncUserProfile,
       retryProfileSync,
       mirrorProfileLocally,
@@ -602,6 +615,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       getUserProfile,
       fetchUserFromCloud,
       updateUserProfile,
+      applyServerProfile,
       syncUserProfile,
       retryProfileSync,
       mirrorProfileLocally,

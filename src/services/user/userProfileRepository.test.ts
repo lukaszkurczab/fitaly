@@ -310,4 +310,52 @@ describe("services/user/userProfileRepository", () => {
       language: "pl",
     });
   });
+
+  it("completes onboarding through server-first endpoint and caches response profile", async () => {
+    const profile = {
+      uid: "u1",
+      username: "neo",
+      readiness: {
+        status: "ready",
+        onboardingCompletedAt: "2026-05-05T10:00:00Z",
+        readyAt: "2026-05-05T10:00:00Z",
+      },
+      calorieTarget: 2200,
+    };
+    const payload = {
+      unitsSystem: "metric",
+      age: "30",
+      sex: "female",
+      height: "170",
+      heightInch: "",
+      weight: "70",
+      preferences: ["balanced"],
+      activityLevel: "moderate",
+      goal: "maintain",
+      calorieAdjustment: null,
+      chronicDiseases: [],
+      chronicDiseasesOther: "",
+      allergies: [],
+      allergiesOther: "",
+      lifestyle: "",
+      aiPersona: "calm_guide",
+    };
+    mockPost.mockResolvedValue({
+      profile,
+      updated: true,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+
+    await expect(repo.completeUserOnboardingRemote(payload)).resolves.toEqual({
+      profile,
+      updated: true,
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/users/me/onboarding/complete",
+      payload,
+    );
+    expect(repo.getCachedUserProfile("u1")).toEqual(profile);
+  });
 });

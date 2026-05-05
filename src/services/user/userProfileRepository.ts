@@ -14,6 +14,32 @@ type UserOnboardingResponse = {
   updated: boolean;
 };
 
+export type UserOnboardingCompletePayload = Pick<
+  UserData,
+  | "unitsSystem"
+  | "age"
+  | "sex"
+  | "height"
+  | "heightInch"
+  | "weight"
+  | "preferences"
+  | "activityLevel"
+  | "goal"
+  | "chronicDiseases"
+  | "chronicDiseasesOther"
+  | "allergies"
+  | "allergiesOther"
+  | "lifestyle"
+  | "aiPersona"
+> & {
+  calorieAdjustment?: number | null;
+};
+
+type UserOnboardingCompleteResponse = {
+  profile: UserData;
+  updated: boolean;
+};
+
 type AiHealthDataConsentResponse = {
   profile: UserData | null;
   updated: boolean;
@@ -125,4 +151,17 @@ export async function initializeUserOnboardingRemote(
   },
 ): Promise<UserOnboardingResponse> {
   return post<UserOnboardingResponse>("/users/me/onboarding", payload);
+}
+
+export async function completeUserOnboardingRemote(
+  payload: UserOnboardingCompletePayload,
+): Promise<UserOnboardingCompleteResponse> {
+  const response = await post<UserOnboardingCompleteResponse>(
+    "/users/me/onboarding/complete",
+    payload,
+  );
+  if (response.profile?.uid) {
+    emitUserProfileChanged(response.profile.uid, response.profile);
+  }
+  return response;
 }

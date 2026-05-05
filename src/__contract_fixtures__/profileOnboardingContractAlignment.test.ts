@@ -214,7 +214,7 @@ describe("Profile/onboarding contract parity", () => {
     });
   });
 
-  test("profile patch sanitizer keeps editable fields but excludes canonical AI consent", () => {
+  test("profile patch sanitizer excludes server-owned readiness", () => {
     const patch = sanitizeUserProfilePatch({
       readiness: {
         status: "needs_ai_consent",
@@ -229,11 +229,6 @@ describe("Profile/onboarding contract parity", () => {
     } satisfies Partial<UserData>);
 
     expect(patch).toEqual({
-      readiness: {
-        status: "needs_ai_consent",
-        onboardingCompletedAt: "2026-05-02T10:00:00Z",
-        readyAt: null,
-      },
       language: "pl",
       aiPersona: "mediterranean_friend",
       goal: "increase",

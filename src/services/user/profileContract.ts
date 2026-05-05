@@ -103,7 +103,6 @@ export const PROFILE_EDITABLE_REMOTE_FIELDS = [
   "allergiesOther",
   "lifestyle",
   "aiPersona",
-  "readiness",
   "calorieTarget",
   "language",
 ] as const satisfies readonly (keyof UserData)[];

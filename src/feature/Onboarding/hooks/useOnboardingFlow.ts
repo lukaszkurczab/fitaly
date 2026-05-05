@@ -10,6 +10,10 @@ import { assertNoUndefined } from "@/utils/findUndefined";
 import { cmToFtIn, kgToLbs } from "@/utils/units";
 import { trackOnboardingCompleted } from "@/services/telemetry/telemetryInstrumentation";
 import {
+  completeUserOnboardingRemote,
+  type UserOnboardingCompletePayload,
+} from "@/services/user/userProfileRepository";
+import {
   INITIAL_FORM,
   ONBOARDING_TOTAL_STEPS,
   resetOptionalHealthFields,
@@ -224,20 +228,34 @@ function toPersistedProfilePatch(form: OnboardingFormData): Partial<UserData> {
   return profile;
 }
 
-function buildCompletedPatch(form: OnboardingFormData): Partial<UserData> {
-  const completedAt = new Date().toISOString();
+function buildCompletionPayload(
+  form: OnboardingFormData,
+): UserOnboardingCompletePayload {
   const payload = {
-    ...toPersistedProfilePatch(form),
-    avatarLocalPath: form.avatarLocalPath ?? "",
-    calorieTarget: calculateCalorieTarget(form),
-    readiness: {
-      status: "needs_ai_consent" as const,
-      onboardingCompletedAt: completedAt,
-      readyAt: null,
-    },
-  } satisfies Partial<UserData>;
+    unitsSystem: form.unitsSystem,
+    age: form.age,
+    sex: form.sex,
+    height: form.height,
+    heightInch: form.heightInch ?? "",
+    weight: form.weight,
+    preferences: form.preferences,
+    activityLevel: form.activityLevel,
+    goal: form.goal,
+    calorieAdjustment:
+      form.goal === "lose"
+        ? form.calorieDeficit
+        : form.goal === "increase"
+          ? form.calorieSurplus
+          : null,
+    chronicDiseases: form.chronicDiseases ?? [],
+    chronicDiseasesOther: form.chronicDiseasesOther ?? "",
+    allergies: form.allergies ?? [],
+    allergiesOther: form.allergiesOther ?? "",
+    lifestyle: form.lifestyle ?? "",
+    aiPersona: form.aiPersona ?? "calm_guide",
+  } satisfies UserOnboardingCompletePayload;
 
-  assertNoUndefined(payload, "onboarding completed payload");
+  assertNoUndefined(payload, "onboarding completion payload");
   return payload;
 }
 
@@ -257,7 +275,8 @@ export function useOnboardingFlow(params: {
   navigation: OnboardingNavigation;
 }) {
   const { t } = useTranslation("onboarding");
-  const { userData, updateUser, syncUserProfile } = useUserContext();
+  const { userData, updateUser, syncUserProfile, applyServerProfile } =
+    useUserContext();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingFormData>(INITIAL_FORM);
   const [initialForm, setInitialForm] =
@@ -314,14 +333,20 @@ export function useOnboardingFlow(params: {
       const resolvedForm = nextForm ?? form;
       setSubmitting(true);
       try {
-        await updateUser(buildCompletedPatch(resolvedForm));
+        if (params.mode === "first") {
+          const response = await completeUserOnboardingRemote(
+            buildCompletionPayload(resolvedForm),
+          );
+          await applyServerProfile(response.profile);
+          void trackOnboardingCompleted({ mode: params.mode });
+          params.navigation.replace("Home");
+          return;
+        }
+
+        await updateUser(buildPartialSavePatch(resolvedForm));
         await syncUserProfile();
         void trackOnboardingCompleted({ mode: params.mode });
-        if (params.mode === "first") {
-          params.navigation.replace("Loading");
-        } else {
-          goToProfile();
-        }
+        goToProfile();
       } finally {
         setSubmitting(false);
       }
@@ -331,6 +356,7 @@ export function useOnboardingFlow(params: {
       goToProfile,
       params.mode,
       params.navigation,
+      applyServerProfile,
       syncUserProfile,
       updateUser,
     ],
