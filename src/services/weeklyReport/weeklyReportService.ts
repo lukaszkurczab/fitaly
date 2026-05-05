@@ -239,6 +239,10 @@ function mapWeeklyReportErrorStatus(error: unknown): WeeklyReportResultStatus {
     return "premium_required";
   }
 
+  if (status === 400) {
+    return "bad_request";
+  }
+
   if (
     status === 503 &&
     detail === WEEKLY_REPORTS_DISABLED_DETAIL

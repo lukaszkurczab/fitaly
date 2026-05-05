@@ -495,7 +495,7 @@ describe("reminderScheduling", () => {
       reminderKind: "log_next_meal",
       decision: "send",
       confidenceBucket: "high",
-      failureReason: "schedule_error",
+      failureReason: "channel_unavailable",
     });
   });
 

@@ -542,7 +542,7 @@ export async function reconcileReminderScheduling(
           confidenceBucket: toSmartReminderConfidenceBucket(
             result.decision.confidence,
           ),
-          failureReason: "schedule_error",
+          failureReason: "channel_unavailable",
         }),
         "smart_reminder_schedule_failed",
         {

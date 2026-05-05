@@ -37,6 +37,7 @@ type SmartReminderDecisionFailureReason =
   | "service_unavailable";
 type SmartReminderScheduleFailureReason =
   | "permission_unavailable"
+  | "channel_unavailable"
   | "invalid_time"
   | "schedule_error";
 

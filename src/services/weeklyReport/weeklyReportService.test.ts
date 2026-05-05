@@ -197,6 +197,34 @@ describe("weeklyReportService", () => {
     expect(result.report.status).toBe("not_available");
   });
 
+  it("maps 400 invalid weekEnd response to bad_request", async () => {
+    mockGet.mockRejectedValue(
+      Object.assign(
+        createServiceError({
+          code: "api/http-error",
+          source: "ApiClient",
+          retryable: false,
+          message: "Invalid weekEnd. Expected YYYY-MM-DD.",
+        }),
+        {
+          status: 400,
+          details: { detail: "Invalid weekEnd. Expected YYYY-MM-DD." },
+        },
+      ),
+    );
+
+    const service =
+      jest.requireActual("@/services/weeklyReport/weeklyReportService") as typeof import("@/services/weeklyReport/weeklyReportService");
+
+    const result = await service.getWeeklyReport("user-1", {
+      weekEnd: "2026-13-40",
+    });
+
+    expect(result.source).toBe("fallback");
+    expect(result.status).toBe("bad_request");
+    expect(result.report.status).toBe("not_available");
+  });
+
   it("maps 503 disabled response to feature_disabled and not premium_required", async () => {
     mockGet.mockRejectedValue(
       Object.assign(

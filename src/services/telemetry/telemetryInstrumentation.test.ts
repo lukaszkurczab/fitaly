@@ -249,7 +249,7 @@ describe("telemetryInstrumentation", () => {
       reminderKind: "log_next_meal",
       decision: "send",
       confidenceBucket: "high",
-      failureReason: "invalid_time",
+      failureReason: "channel_unavailable",
     });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "smart_reminder_scheduled", {
@@ -275,7 +275,7 @@ describe("telemetryInstrumentation", () => {
       reminderKind: "log_next_meal",
       decision: "send",
       confidenceBucket: "high",
-      failureReason: "invalid_time",
+      failureReason: "channel_unavailable",
     });
   });
 

@@ -57,6 +57,7 @@ export type WeeklyReportResultStatus =
   | "disabled"
   | "feature_disabled"
   | "no_user"
+  | "bad_request"
   | "invalid_payload"
   | "premium_required"
   | "service_unavailable";
