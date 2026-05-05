@@ -1,33 +1,16 @@
 import type { UserData } from "@/types";
+import {
+  PROFILE_EDITABLE_LOCAL_FIELDS,
+  PROFILE_EDITABLE_REMOTE_FIELDS,
+} from "./profileContract";
 
-const EDITABLE_REMOTE_PROFILE_FIELDS = new Set<keyof UserData>([
-  "unitsSystem",
-  "age",
-  "sex",
-  "height",
-  "heightInch",
-  "weight",
-  "preferences",
-  "activityLevel",
-  "goal",
-  "calorieDeficit",
-  "calorieSurplus",
-  "chronicDiseases",
-  "chronicDiseasesOther",
-  "allergies",
-  "allergiesOther",
-  "lifestyle",
-  "aiPersona",
-  "surveyComplited",
-  "surveyCompletedAt",
-  "calorieTarget",
-  "language",
-]);
+const EDITABLE_REMOTE_PROFILE_FIELDS = new Set<keyof UserData>(
+  PROFILE_EDITABLE_REMOTE_FIELDS,
+);
 
-const EDITABLE_LOCAL_PROFILE_FIELDS = new Set<keyof UserData>([
-  ...EDITABLE_REMOTE_PROFILE_FIELDS,
-  "username",
-]);
+const EDITABLE_LOCAL_PROFILE_FIELDS = new Set<keyof UserData>(
+  PROFILE_EDITABLE_LOCAL_FIELDS,
+);
 
 function sanitizeWithAllowedFields(
   payload: Partial<UserData>,

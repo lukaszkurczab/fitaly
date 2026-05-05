@@ -93,7 +93,12 @@ npm run test
 
 # targeted run for changed area (recommended during day-to-day work)
 npm run test -- src/hooks/__tests__/useMeals.test.ts
+
+# cheap FE↔BE guardrail for profile/onboarding contract drift
+npm run test:profile-contract
 ```
+
+`npm run test:profile-contract` compares the mirrored mobile fixture with the backend canonical fixture. If the backend checkout is not a sibling directory, point it explicitly with `BACKEND_REPO=/path/to/fitaly-backend`.
 
 ## Environment Variables
 

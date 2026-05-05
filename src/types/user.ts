@@ -14,6 +14,7 @@ export interface UserData extends FormData {
   createdAt: number;
   lastLogin: string;
   surveyComplited: boolean;
+  aiHealthDataConsentAt?: string | null;
   surveyCompletedAt?: string;
   syncState: SyncState;
   lastSyncedAt?: string;

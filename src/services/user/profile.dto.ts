@@ -1,12 +1,5 @@
 import type {
-  ActivityLevel,
-  AiPersona,
-  Allergy,
-  ChronicDisease,
-  Goal,
-  Preference,
   Sex,
-  UnitsSystem,
   UserData,
 } from "@/types";
 import {
@@ -16,55 +9,20 @@ import {
   asStringArray,
   isRecord,
 } from "@/services/contracts/guards";
+import {
+  PROFILE_ACTIVITY_LEVELS,
+  PROFILE_AI_PERSONAS,
+  PROFILE_ALLERGIES,
+  PROFILE_DISEASES,
+  PROFILE_GOALS,
+  PROFILE_LANGUAGES,
+  PROFILE_PREFERENCES,
+  PROFILE_SEX,
+  PROFILE_SYNC_STATES,
+  PROFILE_UNITS,
+} from "./profileContract";
 
-const UNITS = ["metric", "imperial"] as const satisfies readonly UnitsSystem[];
-const SEX = ["male", "female"] as const satisfies readonly Exclude<Sex, null>[];
-const GOALS = ["lose", "maintain", "increase"] as const satisfies readonly Goal[];
-const ACTIVITY = [
-  "sedentary",
-  "light",
-  "moderate",
-  "active",
-  "very_active",
-] as const satisfies readonly ActivityLevel[];
 const PLANS = ["free", "premium"] as const;
-const SYNC_STATES = ["synced", "pending", "conflict"] as const;
-const LANGUAGES = ["en", "pl"] as const;
-const PREFERENCES = [
-  "lowCarb",
-  "keto",
-  "highProtein",
-  "highCarb",
-  "lowFat",
-  "balanced",
-  "vegetarian",
-  "vegan",
-  "pescatarian",
-  "mediterranean",
-  "glutenFree",
-  "dairyFree",
-  "paleo",
-] as const satisfies readonly Preference[];
-const DISEASES = [
-  "none",
-  "diabetes",
-  "hypertension",
-  "asthma",
-  "other",
-] as const satisfies readonly ChronicDisease[];
-const ALLERGIES = [
-  "none",
-  "peanuts",
-  "gluten",
-  "lactose",
-  "other",
-] as const satisfies readonly Allergy[];
-const AI_PERSONAS = [
-  "calm_guide",
-  "cheerful_companion",
-  "focused_coach",
-  "mediterranean_friend",
-] as const satisfies readonly AiPersona[];
 
 function pickEnum<T extends string>(
   raw: unknown,
@@ -78,7 +36,12 @@ function pickEnum<T extends string>(
 
 function pickNullableSex(raw: unknown): Sex {
   if (raw == null) return null;
-  return pickEnum(raw, SEX, "female");
+  return pickEnum(raw, PROFILE_SEX, "female");
+}
+
+function pickNullableString(raw: unknown): string | null | undefined {
+  if (raw === null) return null;
+  return asString(raw);
 }
 
 function pickEnumArray<T extends string>(raw: unknown, allowed: readonly T[]): T[] {
@@ -109,32 +72,33 @@ export function parseUserData(payload: unknown): UserData | null {
     plan: pickEnum(payload.plan, PLANS, "free"),
     createdAt,
     lastLogin,
-    unitsSystem: pickEnum(payload.unitsSystem, UNITS, "metric"),
+    unitsSystem: pickEnum(payload.unitsSystem, PROFILE_UNITS, "metric"),
     age: asString(payload.age) ?? "",
     sex: pickNullableSex(payload.sex),
     height: asString(payload.height) ?? "",
     heightInch: asString(payload.heightInch),
     weight: asString(payload.weight) ?? "",
-    preferences: pickEnumArray(payload.preferences, PREFERENCES),
-    activityLevel: pickEnum(payload.activityLevel, ACTIVITY, "moderate"),
-    goal: pickEnum(payload.goal, GOALS, "maintain"),
+    preferences: pickEnumArray(payload.preferences, PROFILE_PREFERENCES),
+    activityLevel: pickEnum(payload.activityLevel, PROFILE_ACTIVITY_LEVELS, "moderate"),
+    goal: pickEnum(payload.goal, PROFILE_GOALS, "maintain"),
     calorieDeficit: asNumber(payload.calorieDeficit),
     calorieSurplus: asNumber(payload.calorieSurplus),
-    chronicDiseases: pickEnumArray(payload.chronicDiseases, DISEASES),
+    chronicDiseases: pickEnumArray(payload.chronicDiseases, PROFILE_DISEASES),
     chronicDiseasesOther: asString(payload.chronicDiseasesOther) ?? "",
-    allergies: pickEnumArray(payload.allergies, ALLERGIES),
+    allergies: pickEnumArray(payload.allergies, PROFILE_ALLERGIES),
     allergiesOther: asString(payload.allergiesOther) ?? "",
     lifestyle: asString(payload.lifestyle) ?? "",
-    aiPersona: pickEnum(payload.aiPersona, AI_PERSONAS, "calm_guide"),
+    aiPersona: pickEnum(payload.aiPersona, PROFILE_AI_PERSONAS, "calm_guide"),
+    aiHealthDataConsentAt: pickNullableString(payload.aiHealthDataConsentAt),
     surveyComplited,
     calorieTarget,
     surveyCompletedAt: asString(payload.surveyCompletedAt),
-    syncState: pickEnum(payload.syncState, SYNC_STATES, "pending"),
+    syncState: pickEnum(payload.syncState, PROFILE_SYNC_STATES, "pending"),
     lastSyncedAt: asString(payload.lastSyncedAt),
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
-    language: pickEnum(payload.language, LANGUAGES, "en"),
+    language: pickEnum(payload.language, PROFILE_LANGUAGES, "en"),
   };
 
   return data;

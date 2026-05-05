@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# verify-backend-contract.sh — Read-only check that mobile contract matches backend canonical.
+# verify-backend-contract.sh — Read-only check that mobile contracts match backend canonical.
 #
-# This script is designed for CI: it compares the mobile-side contract
-# snapshot against the backend repo's canonical snapshot and exits non-zero
-# if they differ.  It never modifies files.
+# This script is designed for CI: it compares the mobile-side mirrored
+# contract snapshots against the backend repo's canonical snapshots and
+# exits non-zero if they differ. It never modifies files.
 #
 # Usage:
 #   ./scripts/verify-backend-contract.sh                    # auto-detect sibling dir
@@ -23,8 +23,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MOBILE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-MOBILE_CONTRACT="$MOBILE_ROOT/src/__contract_fixtures__/smart_reminders_v1.contract.json"
-BACKEND_CONTRACT_RELPATH="tests/contract_fixtures/smart_reminders_v1.contract.json"
+CONTRACT_FILES=(
+  "smart_reminders_v1.contract.json"
+  "profile_onboarding_v1.contract.json"
+)
 
 # Resolve backend repo location
 if [[ -n "${BACKEND_REPO:-}" ]]; then
@@ -37,29 +39,42 @@ else
   exit 0
 fi
 
-BACKEND_CONTRACT="$BACKEND_ROOT/$BACKEND_CONTRACT_RELPATH"
+drift_count=0
 
-if [[ ! -f "$BACKEND_CONTRACT" ]]; then
-  echo "ERROR: Canonical contract not found at $BACKEND_CONTRACT"
-  exit 1
-fi
+for contract_file in "${CONTRACT_FILES[@]}"; do
+  MOBILE_CONTRACT="$MOBILE_ROOT/src/__contract_fixtures__/$contract_file"
+  BACKEND_CONTRACT="$BACKEND_ROOT/tests/contract_fixtures/$contract_file"
 
-if [[ ! -f "$MOBILE_CONTRACT" ]]; then
-  echo "ERROR: Mobile contract not found at $MOBILE_CONTRACT"
-  exit 1
-fi
+  if [[ ! -f "$BACKEND_CONTRACT" ]]; then
+    echo "ERROR: Canonical contract not found at $BACKEND_CONTRACT"
+    drift_count=$((drift_count + 1))
+    continue
+  fi
 
-if diff -q "$BACKEND_CONTRACT" "$MOBILE_CONTRACT" > /dev/null 2>&1; then
-  echo "OK: Mobile contract matches backend canonical snapshot."
+  if [[ ! -f "$MOBILE_CONTRACT" ]]; then
+    echo "ERROR: Mobile contract not found at $MOBILE_CONTRACT"
+    drift_count=$((drift_count + 1))
+    continue
+  fi
+
+  if diff -q "$BACKEND_CONTRACT" "$MOBILE_CONTRACT" > /dev/null 2>&1; then
+    echo "OK: $contract_file matches backend canonical snapshot."
+    continue
+  fi
+
+  echo "DRIFT DETECTED: $contract_file differs from backend canonical."
+  echo ""
+  echo "Backend (canonical): $BACKEND_CONTRACT"
+  echo "Mobile (local copy): $MOBILE_CONTRACT"
+  echo ""
+  diff --unified "$BACKEND_CONTRACT" "$MOBILE_CONTRACT" || true
+  echo ""
+  drift_count=$((drift_count + 1))
+done
+
+if [[ $drift_count -eq 0 ]]; then
   exit 0
 fi
 
-echo "DRIFT DETECTED: Mobile contract differs from backend canonical."
-echo ""
-echo "Backend (canonical): $BACKEND_CONTRACT"
-echo "Mobile (local copy): $MOBILE_CONTRACT"
-echo ""
-diff --unified "$BACKEND_CONTRACT" "$MOBILE_CONTRACT" || true
-echo ""
 echo "To fix: run ./scripts/sync-backend-contract.sh"
 exit 1

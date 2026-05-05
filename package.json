@@ -29,6 +29,7 @@
     "fonts:download": "node scripts/download-fonts.mjs",
     "test": "jest --runInBand --coverage --watchman=false",
     "test:targeted": "jest --config jest.targeted.config.js --runInBand --watchman=false --passWithNoTests",
+    "test:profile-contract": "bash scripts/verify-backend-contract.sh && jest --runInBand --watchman=false --no-coverage --runTestsByPath src/__contract_fixtures__/profileOnboardingContractAlignment.test.ts",
     "test:reminders": "jest --runInBand --watchman=false --no-coverage --testPathPatterns='src/services/reminders/|src/__contract_fixtures__/contractAlignment'",
     "test:reminders:watch": "jest --watchman=false --watch --no-coverage --testPathPatterns='src/services/reminders/|src/__contract_fixtures__/contractAlignment'",
     "test:coverage:slice": "jest --runInBand --coverage --watchman=false --passWithNoTests",
