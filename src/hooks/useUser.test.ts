@@ -201,7 +201,6 @@ jest.mock("@/services/user/profilePatch", () => ({
     delete next.avatarUrl;
     delete next.avatarlastSyncedAt;
     delete next.language;
-    delete next.darkTheme;
     delete next.avatarLocalPath;
     return Object.fromEntries(
       Object.entries(next).filter(([, value]) => value !== undefined),
@@ -247,7 +246,6 @@ const createUser = (overrides: Partial<UserData> = {}): UserData => ({
   lastLogin: "2026-03-10T10:00:00.000Z",
   surveyComplited: true,
   syncState: "synced",
-  darkTheme: false,
   language: "en",
   unitsSystem: "metric",
   age: "30",
@@ -795,7 +793,7 @@ describe("useUser", () => {
     );
   });
 
-  it("treats language and darkTheme as local-only profile fields", async () => {
+  it("treats language as a local-only profile field", async () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await act(async () => {
@@ -806,7 +804,6 @@ describe("useUser", () => {
     await act(async () => {
       await result.current.updateUserProfile({
         language: "pl",
-        darkTheme: true,
         avatarLocalPath: undefined,
       });
     });
@@ -817,7 +814,6 @@ describe("useUser", () => {
     );
     expect(mockEnqueueUserProfileUpdate).not.toHaveBeenCalled();
     expect(result.current.language).toBe("pl");
-    expect(result.current.userData?.darkTheme).toBe(true);
     expect(mockI18nChangeLanguage).toHaveBeenCalledWith("pl");
   });
 
@@ -831,7 +827,6 @@ describe("useUser", () => {
     await act(async () => {
       await result.current.updateUserProfile({
         language: "pl",
-        darkTheme: true,
         age: "31",
       });
     });

@@ -18,7 +18,6 @@ let mockUserData: Record<string, unknown> | null = {
   email: "u1@example.com",
   avatarUrl: "",
   avatarLocalPath: "",
-  darkTheme: false,
   language: "en",
 };
 let mockLoadingUser = false;
@@ -72,7 +71,6 @@ describe("feature/UserProfile/useUserProfileState", () => {
       email: "u1@example.com",
       avatarUrl: "",
       avatarLocalPath: "",
-      darkTheme: false,
       language: "en",
     };
     mockLoadingUser = false;

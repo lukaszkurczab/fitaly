@@ -128,14 +128,12 @@ describe("user/profile", () => {
       uid: "u1",
       email: "u1@example.com",
       username: "neo",
-      darkTheme: true,
     });
 
     await expect(getUserLocal()).resolves.toMatchObject({
       uid: "u1",
       email: "u1@example.com",
       username: "neo",
-      darkTheme: true,
       language: "en",
       plan: "free",
     });
@@ -180,7 +178,6 @@ describe("user/profile", () => {
       aiNote: "",
       calorieTarget: 0,
       lastSyncedAt: "",
-      darkTheme: false,
       avatarUrl: "",
       avatarLocalPath: "",
       avatarlastSyncedAt: "",

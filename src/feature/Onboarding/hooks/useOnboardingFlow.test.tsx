@@ -72,7 +72,6 @@ function buildUserData(overrides?: Partial<UserData>): UserData {
     surveyComplited: true,
     calorieTarget: 2100,
     syncState: "synced",
-    darkTheme: false,
     language: "en",
     avatarUrl: "",
     avatarLocalPath: "",

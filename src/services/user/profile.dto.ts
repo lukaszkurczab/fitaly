@@ -143,7 +143,6 @@ export function parseUserData(payload: unknown): UserData | null {
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
-    darkTheme: asBoolean(payload.darkTheme) ?? false,
     language: asString(payload.language) ?? "en",
   };
 

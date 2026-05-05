@@ -33,7 +33,6 @@ export function buildE2EProfileSeed(uid: string, email: string): Partial<UserDat
     chronicDiseases: [],
     allergies: [],
     plan: "free",
-    darkTheme: false,
     syncState: "pending",
     createdAt: Date.parse("2025-01-01T00:00:00.000Z"),
     lastLogin: nowIso,

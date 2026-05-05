@@ -188,7 +188,7 @@ describe("services/user/userProfileRepository", () => {
   it("skips backend patch when payload has only local-only/non-editable fields", async () => {
     mockPost.mockResolvedValue({ updated: true });
     mockGet.mockResolvedValue({
-      profile: { uid: "u1", language: "pl", darkTheme: true },
+      profile: { uid: "u1", language: "pl" },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -197,7 +197,6 @@ describe("services/user/userProfileRepository", () => {
     await mergeUserProfileRemote({
       username: "neo",
       language: "pl",
-      darkTheme: true,
       avatarLocalPath: "file:///avatar.jpg",
     });
 
@@ -216,7 +215,6 @@ describe("services/user/userProfileRepository", () => {
 
     await mergeUserProfileRemote({
       language: "pl",
-      darkTheme: true,
       age: "31",
     });
 

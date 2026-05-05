@@ -28,7 +28,6 @@ const EDITABLE_REMOTE_PROFILE_FIELDS = new Set<keyof UserData>([
 
 const EDITABLE_LOCAL_PROFILE_FIELDS = new Set<keyof UserData>([
   ...EDITABLE_REMOTE_PROFILE_FIELDS,
-  "darkTheme",
   "language",
   "username",
 ]);
