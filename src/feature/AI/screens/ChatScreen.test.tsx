@@ -16,9 +16,14 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockUseNetInfo = jest.fn<() => { isConnected: boolean | null }>();
 const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
-const mockAsyncStorageGetItem = jest.fn<(key: string) => Promise<string | null>>();
-const mockAsyncStorageSetItem = jest.fn<(key: string, value: string) => Promise<void>>();
+const mockRefreshUser = jest.fn<() => Promise<unknown>>();
+const mockAcceptAiHealthDataConsentRemote = jest.fn<(uid: string) => Promise<unknown>>();
 const focusEffectCallbacks: Array<() => void | (() => void)> = [];
+let mockUserData: { uid: string; aiHealthDataConsentAt?: string | null } | null = {
+  uid: "user-1",
+  aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+};
+let mockLoadingUser = false;
 
 const baseMessages: ChatMessage[] = [
   {
@@ -69,14 +74,6 @@ jest.mock("@react-navigation/native", () => ({
 
 jest.mock("@react-native-community/netinfo", () => ({
   useNetInfo: () => mockUseNetInfo(),
-}));
-
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  __esModule: true,
-  default: {
-    getItem: (key: string) => mockAsyncStorageGetItem(key),
-    setItem: (key: string, value: string) => mockAsyncStorageSetItem(key, value),
-  },
 }));
 
 jest.mock("@/components/Layout", () => ({
@@ -148,7 +145,16 @@ jest.mock("@/context/AuthContext", () => ({
 }));
 
 jest.mock("@contexts/UserContext", () => ({
-  useUserContext: () => ({ userData: null, loadingUser: false }),
+  useUserContext: () => ({
+    userData: mockUserData,
+    loadingUser: mockLoadingUser,
+    refreshUser: mockRefreshUser,
+  }),
+}));
+
+jest.mock("@/services/user/userProfileRepository", () => ({
+  acceptAiHealthDataConsentRemote: (uid: string) =>
+    mockAcceptAiHealthDataConsentRemote(uid),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -217,8 +223,24 @@ describe("ChatScreen", () => {
     focusEffectCallbacks.length = 0;
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockPullChatChanges.mockResolvedValue(undefined);
-    mockAsyncStorageGetItem.mockResolvedValue("accepted");
-    mockAsyncStorageSetItem.mockResolvedValue();
+    mockRefreshUser.mockResolvedValue(null);
+    mockAcceptAiHealthDataConsentRemote.mockResolvedValue({
+      updated: true,
+      profile: {
+        uid: "user-1",
+        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+      },
+      consent: {
+        required: true,
+        granted: true,
+        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+      },
+    });
+    mockUserData = {
+      uid: "user-1",
+      aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+    };
+    mockLoadingUser = false;
     mockChatHistoryState = {
       messages: [],
       loading: false,
@@ -251,7 +273,7 @@ describe("ChatScreen", () => {
   });
 
   it("shows legal modal hierarchy and blocks the composer until acceptance", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -266,8 +288,8 @@ describe("ChatScreen", () => {
     expect(screen.getByTestId("chat-input").props.editable).toBe(false);
   });
 
-  it("accepts legal consent, persists it, and unlocks the composer", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+  it("accepts legal consent through the backend and unlocks the composer", async () => {
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -276,10 +298,7 @@ describe("ChatScreen", () => {
     fireEvent.press(screen.getByTestId("chat-legal-accept"));
 
     await waitFor(() => {
-      expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
-        "chat_legal_ack:user-1",
-        "accepted",
-      );
+      expect(mockAcceptAiHealthDataConsentRemote).toHaveBeenCalledWith("user-1");
     });
 
     await waitFor(() => {
@@ -290,7 +309,7 @@ describe("ChatScreen", () => {
   });
 
   it("goes back when legal back action is pressed", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -301,7 +320,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens legal privacy hub link from modal", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -314,7 +333,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens data & ai clarity link from modal", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -328,7 +347,7 @@ describe("ChatScreen", () => {
   });
 
   it("keeps legal flow stable after returning from info screens", async () => {
-    mockAsyncStorageGetItem.mockResolvedValue(null);
+    mockUserData = { uid: "user-1", aiHealthDataConsentAt: null };
 
     const screen = renderWithTheme(<ChatScreen />);
 

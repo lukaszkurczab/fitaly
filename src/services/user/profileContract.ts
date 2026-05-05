@@ -105,7 +105,6 @@ export const PROFILE_EDITABLE_REMOTE_FIELDS = [
   "allergiesOther",
   "lifestyle",
   "aiPersona",
-  "aiHealthDataConsentAt",
   "surveyComplited",
   "surveyCompletedAt",
   "calorieTarget",

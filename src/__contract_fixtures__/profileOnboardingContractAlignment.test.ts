@@ -227,7 +227,7 @@ describe("Profile/onboarding contract parity", () => {
     });
   });
 
-  test("profile patch sanitizer keeps all critical backend-owned fields", () => {
+  test("profile patch sanitizer keeps editable fields but excludes canonical AI consent", () => {
     const patch = sanitizeUserProfilePatch({
       surveyComplited: true,
       surveyCompletedAt: "2026-05-02T10:00:00Z",
@@ -245,7 +245,6 @@ describe("Profile/onboarding contract parity", () => {
       surveyComplited: true,
       surveyCompletedAt: "2026-05-02T10:00:00Z",
       language: "pl",
-      aiHealthDataConsentAt: null,
       aiPersona: "mediterranean_friend",
       goal: "increase",
       calorieTarget: 2500,

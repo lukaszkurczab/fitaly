@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -22,15 +21,12 @@ import { ChatComposer } from "../components/ChatComposer";
 import { ChatHistorySheet } from "../components/ChatHistorySheet";
 import { ChatStatusBanner } from "../components/ChatStatusBanner";
 import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
-
-function getChatLegalAckKey(uid: string): string {
-  return `chat_legal_ack:${uid}`;
-}
+import { acceptAiHealthDataConsentRemote } from "@/services/user/userProfileRepository";
 
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { firebaseUser: user } = useAuthContext();
-  const { loadingUser } = useUserContext();
+  const { userData, loadingUser, refreshUser } = useUserContext();
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const net = useNetInfo();
@@ -42,8 +38,9 @@ export default function ChatScreen() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [threadId, setThreadId] = useState<string>(() => `local-${uuidv4()}`);
-  const [legalAckVisible, setLegalAckVisible] = useState(false);
-  const [legalAckLoading, setLegalAckLoading] = useState(true);
+  const [consentOverrideAt, setConsentOverrideAt] = useState<string | null>(null);
+  const [legalAckSubmitting, setLegalAckSubmitting] = useState(false);
+  const [legalAckError, setLegalAckError] = useState(false);
 
   const {
     messages,
@@ -65,8 +62,13 @@ export default function ChatScreen() {
   const renewalDateLabel = formatLocalDateTime(credits?.periodEndAt, {
     locale: i18n?.language,
   });
-  const legalGateActive = legalAckLoading || legalAckVisible;
+  const aiHealthDataConsentAt =
+    userData?.aiHealthDataConsentAt ?? consentOverrideAt;
+  const hasAiHealthDataConsent = Boolean(aiHealthDataConsentAt);
+  const legalGateActive = !hasAiHealthDataConsent || legalAckSubmitting;
   const profileReadyForAi = !loadingUser;
+  const legalAckVisible =
+    Boolean(uid) && profileReadyForAi && !hasAiHealthDataConsent;
   const chatDisabled = sendErrorType === "AI_CHAT_DISABLED";
   const composerDisabled =
     sending ||
@@ -77,71 +79,22 @@ export default function ChatScreen() {
     !profileReadyForAi;
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadLegalAck() {
-      if (!uid) {
-        if (!cancelled) {
-          setLegalAckVisible(false);
-          setLegalAckLoading(false);
-        }
-        return;
-      }
-
-      setLegalAckLoading(true);
-
-      try {
-        const stored = await AsyncStorage.getItem(getChatLegalAckKey(uid));
-        if (!cancelled) {
-          setLegalAckVisible(stored !== "accepted");
-        }
-      } catch {
-        if (!cancelled) {
-          setLegalAckVisible(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setLegalAckLoading(false);
-        }
-      }
-    }
-
-    void loadLegalAck();
-
-    return () => {
-      cancelled = true;
-    };
+    setConsentOverrideAt(null);
+    setLegalAckSubmitting(false);
+    setLegalAckError(false);
   }, [uid]);
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-
-      async function refreshLegalAckOnFocus() {
-        if (!uid) return;
-        setLegalAckLoading(true);
-        try {
-          const stored = await AsyncStorage.getItem(getChatLegalAckKey(uid));
-          if (active) {
-            setLegalAckVisible(stored !== "accepted");
-          }
-        } catch {
-          if (active) {
-            setLegalAckVisible(true);
-          }
-        } finally {
-          if (active) {
-            setLegalAckLoading(false);
-          }
-        }
+      async function refreshServerConsentOnFocus() {
+        if (!uid || loadingUser) return;
+        await refreshUser();
       }
 
-      void refreshLegalAckOnFocus();
+      void refreshServerConsentOnFocus().catch(() => undefined);
 
-      return () => {
-        active = false;
-      };
-    }, [uid]),
+      return undefined;
+    }, [loadingUser, refreshUser, uid]),
   );
 
   const openLegalDetails = useCallback(() => {
@@ -154,12 +107,23 @@ export default function ChatScreen() {
 
   const acknowledgeLegal = useCallback(async () => {
     if (!uid) {
-      setLegalAckVisible(false);
       return;
     }
 
-    await AsyncStorage.setItem(getChatLegalAckKey(uid), "accepted");
-    setLegalAckVisible(false);
+    setLegalAckSubmitting(true);
+    setLegalAckError(false);
+    try {
+      const response = await acceptAiHealthDataConsentRemote(uid);
+      const consentAt =
+        response.consent.aiHealthDataConsentAt ??
+        response.profile?.aiHealthDataConsentAt ??
+        null;
+      setConsentOverrideAt(consentAt);
+    } catch {
+      setLegalAckError(true);
+    } finally {
+      setLegalAckSubmitting(false);
+    }
   }, [uid]);
 
   const starters = useMemo(
@@ -378,6 +342,8 @@ export default function ChatScreen() {
           onPress: () => {
             void acknowledgeLegal();
           },
+          loading: legalAckSubmitting,
+          disabled: legalAckSubmitting || isOffline,
           testID: "chat-legal-accept",
         }}
         closeOnBackdropPress={false}
@@ -386,6 +352,9 @@ export default function ChatScreen() {
           <View testID="chat-legal-info" style={styles.legalInfo}>
             <Text style={styles.legalParagraph}>{t("legal.informational")}</Text>
             <Text style={styles.legalParagraph}>{t("legal.medical")}</Text>
+            {legalAckError ? (
+              <Text style={styles.legalError}>{t("legal.saveFailed")}</Text>
+            ) : null}
           </View>
 
           <View testID="chat-legal-links" style={styles.legalLinks}>
@@ -445,6 +414,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
+    },
+    legalError: {
+      color: theme.error.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.medium,
     },
     legalLinks: {
       gap: theme.spacing.xs,

@@ -14,6 +14,16 @@ type UserOnboardingResponse = {
   updated: boolean;
 };
 
+type AiHealthDataConsentResponse = {
+  profile: UserData | null;
+  updated: boolean;
+  consent: {
+    required: boolean;
+    granted: boolean;
+    aiHealthDataConsentAt: string | null;
+  };
+};
+
 const profileCache = new Map<string, UserData | null>();
 const profileFetchInFlight = new Map<string, Promise<UserData | null>>();
 
@@ -85,6 +95,19 @@ export async function updateUserProfileRemote(
   payload: Partial<UserData> & { updatedAt?: string },
 ): Promise<void> {
   await mergeUserProfileRemote(payload);
+}
+
+export async function acceptAiHealthDataConsentRemote(
+  uid: string,
+): Promise<AiHealthDataConsentResponse> {
+  const response = await post<AiHealthDataConsentResponse>(
+    "/users/me/ai-health-data-consent",
+    { accepted: true },
+  );
+  if (response.profile) {
+    emitUserProfileChanged(uid, response.profile);
+  }
+  return response;
 }
 
 export async function uploadUserAvatarRemote(

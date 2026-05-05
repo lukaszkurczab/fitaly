@@ -130,6 +130,7 @@
     "learnMore": "Jak działają dane i AI",
     "privacy": "Prawo i prywatność",
     "composerLocked": "Zaakceptuj zasady, aby odblokować czat",
+    "saveFailed": "Nie udało się zapisać zgody. Sprawdź połączenie i spróbuj ponownie.",
     "back": "Wróć"
   }
 }

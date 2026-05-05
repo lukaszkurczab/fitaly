@@ -130,6 +130,7 @@
     "learnMore": "How Data & AI works",
     "privacy": "Legal & privacy",
     "composerLocked": "Accept the notice to unlock chat",
+    "saveFailed": "We couldn't save your consent. Check your connection and try again.",
     "back": "Go back"
   }
 }
