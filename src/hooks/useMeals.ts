@@ -3,14 +3,12 @@ import { v4 as uuidv4 } from "uuid";
 import NetInfo from "@react-native-community/netinfo";
 import type { Meal } from "@/types/meal";
 import { getPendingMealsLocal } from "@/services/offline/meals.repo";
-import { reconcileAll } from "@/services/notifications/engine";
 import { debugScope } from "@/utils/debug";
 import { emit } from "@/services/core/events";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { requestSync } from "@/services/offline/sync.engine";
 import { upsertMyMealWithPhoto } from "@/services/meals/myMealService";
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
-import { refreshStreakFromBackend } from "@/services/gamification/streakService";
 import {
   saveMealTransaction,
   type SavedMealTemplateSave,
@@ -36,15 +34,6 @@ function isLocalUri(u?: string | null): u is string {
 }
 
 const log = debugScope("Hook:useMeals");
-
-function triggerReconcile(uid?: string | null) {
-  /* istanbul ignore next -- callers always pass defined uid */
-  if (!uid) return;
-  log.log("trigger reconcile", { uid });
-  void reconcileAll(uid).catch((err) => {
-    log.warn("reconcile failed", err);
-  });
-}
 
 export function useMeals(userUid: string | null) {
   const [snapshot, setSnapshot] = useState(() => getLocalMealsSnapshot(userUid));
@@ -85,12 +74,6 @@ export function useMeals(userUid: string | null) {
         reason: "local-change",
         pullAfterPush: false,
       });
-      try {
-        await refreshStreakFromBackend(userUid, { refreshBadges: true });
-      } catch (error: unknown) {
-        log.warn("streak refresh failed after sync", error);
-      }
-      triggerReconcile(userUid);
       log.log("sync flush done", { uid: userUid });
     } catch (error: unknown) {
       log.warn("sync flush failed", error);

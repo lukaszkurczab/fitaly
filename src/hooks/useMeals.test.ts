@@ -38,10 +38,6 @@ const mockEnqueueMyMealUpsert = jest.fn<(uid: string, meal: Meal) => Promise<voi
 const mockInsertOrUpdateImage = jest.fn<
   (uid: string, cloudId: string, path: string, status: "pending") => Promise<void>
 >();
-const mockReconcileAll = jest.fn<(uid: string) => Promise<void>>();
-const mockRefreshStreakFromBackend = jest.fn<
-  (uid: string, options?: { refreshBadges?: boolean }) => Promise<void>
->();
 const mockEmit = jest.fn<(event: string, payload: Record<string, unknown>) => void>();
 const mockOn = jest.fn();
 const mockRequestSync = jest.fn<
@@ -106,17 +102,6 @@ jest.mock("@/services/offline/images.repo", () => ({
     path: string,
     status: "pending",
   ) => mockInsertOrUpdateImage(uid, cloudId, path, status),
-}));
-
-jest.mock("@/services/notifications/engine", () => ({
-  reconcileAll: (uid: string) => mockReconcileAll(uid),
-}));
-
-jest.mock("@/services/gamification/streakService", () => ({
-  refreshStreakFromBackend: (
-    uid: string,
-    options?: { refreshBadges?: boolean },
-  ) => mockRefreshStreakFromBackend(uid, options),
 }));
 
 jest.mock("@/services/core/events", () => ({
@@ -250,8 +235,6 @@ describe("useMeals", () => {
     mockEnqueueDelete.mockResolvedValue();
     mockEnqueueMyMealUpsert.mockResolvedValue();
     mockInsertOrUpdateImage.mockResolvedValue();
-    mockReconcileAll.mockResolvedValue();
-    mockRefreshStreakFromBackend.mockResolvedValue();
     mockRequestSync.mockImplementation(async (params) => {
       await mockPushQueue(params.uid);
       if (params.pullAfterPush !== false) {
@@ -822,10 +805,9 @@ describe("useMeals", () => {
     });
     expect(mockPushQueue).toHaveBeenCalledWith("user-1");
     expect(mockPullChanges).not.toHaveBeenCalled();
-    expect(mockRefreshStreakFromBackend).toHaveBeenCalledWith("user-1", {
-      refreshBadges: true,
+    expect(mockDebugLog).toHaveBeenCalledWith("sync flush done", {
+      uid: "user-1",
     });
-    expect(mockReconcileAll).toHaveBeenCalledWith("user-1");
   });
 
   it("does nothing on add when user is missing", async () => {
@@ -1142,10 +1124,9 @@ describe("useMeals", () => {
     });
     expect(mockPushQueue).toHaveBeenCalledWith("user-1");
     expect(mockPullChanges).not.toHaveBeenCalled();
-    expect(mockRefreshStreakFromBackend).toHaveBeenCalledWith("user-1", {
-      refreshBadges: true,
+    expect(mockDebugLog).toHaveBeenCalledWith("sync flush done", {
+      uid: "user-1",
     });
-    expect(mockReconcileAll).toHaveBeenCalledWith("user-1");
   });
 
   it("updates history meals offline as a local pending upsert", async () => {
@@ -1684,8 +1665,7 @@ describe("useMeals", () => {
     expect(unsynced).toEqual([]);
   });
 
-  it("logs reconcile failures from sync-triggered reconcile", async () => {
-    mockReconcileAll.mockRejectedValueOnce(new Error("reconcile failed"));
+  it("keeps explicit sync limited to the meal sync request", async () => {
     const { result } = renderHook(() => useMeals("user-1"));
 
     await waitFor(() => {
@@ -1697,10 +1677,13 @@ describe("useMeals", () => {
     });
     await flush();
 
-    expect(mockDebugWarn).toHaveBeenCalledWith(
-      "reconcile failed",
-      expect.any(Error),
-    );
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "meals",
+      reason: "local-change",
+      pullAfterPush: false,
+    });
+    expect(mockPushQueue).toHaveBeenCalledWith("user-1");
   });
 
   it("queues a follow-up sync when requested during in-flight sync", async () => {

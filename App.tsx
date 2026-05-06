@@ -50,6 +50,11 @@ import {
   setReminderRuntimeUid,
   stopReminderRuntime,
 } from "@/services/reminders/reminderRuntime";
+import {
+  initMealSideEffectsRuntime,
+  setMealSideEffectsRuntimeUid,
+  stopMealSideEffectsRuntime,
+} from "@/services/meals/mealSideEffectsRuntime";
 import { sanitizeSentryEvent } from "@/services/core/loggingPrivacy";
 import { captureException } from "@/services/core/errorLogger";
 import { warnMissingEnv } from "@/services/core/envValidation";
@@ -131,6 +136,7 @@ function Root() {
     return () => {
       cancelled = true;
       clearTimeout(bootTask);
+      stopMealSideEffectsRuntime();
       stopReminderRuntime();
       stopNotificationTelemetry();
       stopTelemetryLifecycle();
@@ -227,13 +233,16 @@ function ProductRuntimeBootstrap({
     }
 
     if (!productReadyUid) {
+      setMealSideEffectsRuntimeUid(null);
       void setReminderRuntimeUid(null);
       return;
     }
 
+    setMealSideEffectsRuntimeUid(productReadyUid);
     let cancelled = false;
     const bootTask = setTimeout(() => {
       void (async () => {
+        initMealSideEffectsRuntime();
         await initReminderRuntime();
         if (cancelled) return;
         await setReminderRuntimeUid(productReadyUid);
@@ -243,6 +252,7 @@ function ProductRuntimeBootstrap({
     return () => {
       cancelled = true;
       clearTimeout(bootTask);
+      setMealSideEffectsRuntimeUid(null);
     };
   }, [launchReadinessIssue, productReadyUid]);
 
