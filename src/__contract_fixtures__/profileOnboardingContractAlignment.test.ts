@@ -39,12 +39,12 @@ type ProfileContractFixture = {
     requiredFields: string[];
     optionalFields: string[];
   };
-	  onboardingProfile: {
-	    fields: string[];
-	    defaults: {
-	      profile: UserProfile;
-	    };
-	  };
+  onboardingProfile: {
+    fields: string[];
+    defaults: {
+      profile: UserProfile;
+    };
+  };
   profilePatch: {
     editableFields: string[];
   };
@@ -155,18 +155,18 @@ describe("Profile/onboarding contract parity", () => {
       goal: INITIAL_FORM.goal,
       aiPersona: INITIAL_FORM.aiPersona,
       calorieTarget: INITIAL_FORM.calorieTarget,
-	    }).toEqual({
-	      unitsSystem:
-	        contract.onboardingProfile.defaults.profile.nutritionProfile
-	          .unitsSystem,
-	      sex: contract.onboardingProfile.defaults.profile.nutritionProfile.sex,
-	      activityLevel:
-	        contract.onboardingProfile.defaults.profile.nutritionProfile
-	          .activityLevel,
-	      goal: contract.onboardingProfile.defaults.profile.nutritionProfile.goal,
-	      aiPersona: contract.onboardingProfile.defaults.profile.aiPreferences.stylePersona,
-	      calorieTarget:
-	        contract.onboardingProfile.defaults.profile.nutritionProfile.calorieTarget,
+    }).toEqual({
+      unitsSystem:
+        contract.onboardingProfile.defaults.profile.nutritionProfile
+          .unitsSystem,
+      sex: contract.onboardingProfile.defaults.profile.nutritionProfile.sex,
+      activityLevel:
+        contract.onboardingProfile.defaults.profile.nutritionProfile
+          .activityLevel,
+      goal: contract.onboardingProfile.defaults.profile.nutritionProfile.goal,
+      aiPersona: contract.onboardingProfile.defaults.profile.aiPreferences.stylePersona,
+      calorieTarget:
+        contract.onboardingProfile.defaults.profile.nutritionProfile.calorieTarget,
     });
   });
 
