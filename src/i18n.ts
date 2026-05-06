@@ -47,9 +47,14 @@ const languageDetector: LanguageDetectorAsyncModule = {
   cacheUserLanguage: () => {},
 };
 
+const reactI18nextModule = initReactI18next || {
+  type: "3rdParty" as const,
+  init: () => {},
+};
+
 i18n
   .use(languageDetector)
-  .use(initReactI18next)
+  .use(reactI18nextModule)
   .init({
     fallbackLng: "en",
     supportedLngs: ["en", "pl"],

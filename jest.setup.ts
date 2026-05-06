@@ -43,6 +43,17 @@ jest.mock("expo-file-system", () => ({
   downloadAsync: jest.fn(async () => ({ uri: "file:///mock-download.jpg" })),
 }));
 
+jest.mock("expo-print", () => ({
+  __esModule: true,
+  printToFileAsync: jest.fn(async () => ({ uri: "file:///mock-export.pdf" })),
+}));
+
+jest.mock("expo-sharing", () => ({
+  __esModule: true,
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock("@/services/core/fileSystem", () => ({
   __esModule: true,
   documentDirectory: "file:///mock-documents/",

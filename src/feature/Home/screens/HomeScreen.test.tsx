@@ -350,14 +350,25 @@ describe("HomeScreen", () => {
     mockUseUserProfileContext.mockReturnValue({
       userData: {
         username: "Anna",
-        readiness: {
-          status: "ready",
-          onboardingCompletedAt: "2026-03-18T08:00:00.000Z",
-          readyAt: "2026-03-18T08:00:00.000Z",
+        profile: {
+          language: "en",
+          readiness: {
+            status: "ready",
+            onboardingCompletedAt: "2026-03-18T08:00:00.000Z",
+            readyAt: "2026-03-18T08:00:00.000Z",
+          },
+          nutritionProfile: {
+            calorieTarget: 2000,
+            preferences: [],
+            goal: "maintain",
+          },
+          aiPreferences: {
+            stylePersona: "calm_guide",
+          },
+          consents: {
+            aiHealthDataConsentAt: null,
+          },
         },
-        calorieTarget: 2000,
-        preferences: [],
-        goal: "maintain",
       },
     });
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });

@@ -22,8 +22,8 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 
-jest.mock("@/context/UserContext", () => ({
-  useUserContext: () => ({
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => ({
     userData: mockUserData,
     updateUser: mockUpdateUser,
     syncUserProfile: mockSyncUserProfile,

@@ -75,8 +75,8 @@ jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => mockUseAuthContext(),
 }));
 
-jest.mock("@contexts/UserContext", () => ({
-  useUserContext: () => mockUseUserContext(),
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserContext(),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({

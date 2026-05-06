@@ -13,8 +13,8 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 
-jest.mock("@/context/UserContext", () => ({
-  useUserContext: () => ({
+jest.mock("@/context/AppSettingsContext", () => ({
+  useAppSettingsContext: () => ({
     language: "pl",
     changeLanguage: (code: string) => mockChangeLanguage(code),
   }),

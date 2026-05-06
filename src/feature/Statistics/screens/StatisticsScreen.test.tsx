@@ -11,8 +11,8 @@ const mockUseAccessContext = jest.fn();
 const mockUseStatisticsState = jest.fn();
 const mockUseNetInfo = jest.fn();
 
-jest.mock("@contexts/UserContext", () => ({
-  useUserContext: () => mockUseUserContext(),
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserContext(),
 }));
 
 jest.mock("@/context/PremiumContext", () => ({

@@ -6,8 +6,8 @@ import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
 const mockUseUserContext = jest.fn();
 
-jest.mock("@/context/UserContext", () => ({
-  useUserContext: () => mockUseUserContext(),
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserContext(),
 }));
 
 jest.mock("react-i18next", () => ({

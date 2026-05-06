@@ -45,7 +45,7 @@ export default function StatisticsScreen({ navigation }: Props) {
 
   const state = useStatisticsState({
     uid,
-    calorieTarget: userData?.profile.nutritionProfile.calorieTarget ?? null,
+    calorieTarget: userData?.profile?.nutritionProfile.calorieTarget ?? null,
     accessWindowDays,
   });
 

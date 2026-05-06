@@ -26,8 +26,8 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-jest.mock("@/context/UserContext", () => ({
-  useUserContext: () => ({
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => ({
     userData: mockUserData,
     loadingUser: mockLoadingUser,
     refreshUser: (...args: unknown[]) => mockRefreshUser(...args),

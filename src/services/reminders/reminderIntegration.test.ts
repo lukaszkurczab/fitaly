@@ -238,6 +238,7 @@ describe("Smart Reminders v1 — runtime integration", () => {
     reminderRuntime.__resetReminderRuntimeForTests();
 
     jest.clearAllMocks();
+    mockGetReminderDecision.mockReset();
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-03-18T18:00:00.000Z"));
     mockAppStateChangeListener = null;
@@ -353,6 +354,7 @@ describe("Smart Reminders v1 — runtime integration", () => {
     );
 
     mockGetReminderDecision.mockResolvedValueOnce(suppressDecision());
+    jest.setSystemTime(new Date("2026-03-18T19:31:00.000Z"));
     jest.advanceTimersByTime(61_000);
     mockAppStateChangeListener?.("background");
     mockAppStateChangeListener?.("active");
@@ -376,6 +378,7 @@ describe("Smart Reminders v1 — runtime integration", () => {
     expect(mockScheduleOneShotAt).toHaveBeenCalledTimes(1);
 
     mockGetReminderDecision.mockResolvedValueOnce(noopDecision());
+    jest.setSystemTime(new Date("2026-03-18T19:31:00.000Z"));
     jest.advanceTimersByTime(61_000);
     mockAppStateChangeListener?.("background");
     mockAppStateChangeListener?.("active");

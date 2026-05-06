@@ -64,7 +64,7 @@ export default function HomeScreen({ navigation }: Props) {
   const homeDay = useHomeTodayState({
     uid,
     selectedDayKey,
-    nutritionProfile: userData?.profile.nutritionProfile,
+    nutritionProfile: userData?.profile?.nutritionProfile,
   });
   const last7Days = useMemo(buildLast7Days, []);
   const mealAddEntry = useMealAddMethodState({

@@ -134,8 +134,10 @@ describe("user/profile", () => {
       uid: "u1",
       email: "u1@example.com",
       username: "neo",
-      language: "en",
       plan: "free",
+      profile: {
+        language: "en",
+      },
     });
 
     await expect(fetchUserFromCloud()).resolves.toMatchObject({
@@ -195,6 +197,7 @@ describe("user/profile", () => {
     };
 
     await upsertUserLocal(profile);
+    mockFetchUserProfileRemote.mockResolvedValue(profile);
     await updateUserLanguageInFirestore("pl");
 
     expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(1, profile);

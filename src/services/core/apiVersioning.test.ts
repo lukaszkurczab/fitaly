@@ -1,6 +1,6 @@
 import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
-const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+const mockGetRuntimeConfig = jest.fn<RuntimeConfig, []>();
 
 function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
   return {

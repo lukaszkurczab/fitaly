@@ -195,8 +195,8 @@ jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => ({ firebaseUser: { uid: "user-1" } }),
 }));
 
-jest.mock("@contexts/UserContext", () => ({
-  useUserContext: () => ({
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => ({
     userData: mockUserData,
     loadingUser: mockLoadingUser,
     refreshUser: mockRefreshUser,

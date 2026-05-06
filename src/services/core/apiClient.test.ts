@@ -2,7 +2,7 @@ import { afterEach } from "@jest/globals";
 import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 const mockGetApp = jest.fn();
 const mockGetAuth = jest.fn();
-const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+const mockGetRuntimeConfig = jest.fn<RuntimeConfig, []>();
 
 function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {

@@ -59,8 +59,8 @@ jest.mock("@contexts/MealDraftContext", () => ({
   useMealDraftContext: () => mockUseMealDraftContext(),
 }));
 
-jest.mock("@contexts/UserContext", () => ({
-  useUserContext: () => mockUseUserContext(),
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserContext(),
 }));
 
 jest.mock("@hooks/useMeals", () => ({
