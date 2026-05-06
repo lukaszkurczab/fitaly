@@ -1,18 +1,27 @@
 import "dotenv/config";
 
+const PRODUCTION_BUILD_PROFILE = "production";
+
+function normalizeEnvString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 const iosGoogleServicesFile =
   process.env.GOOGLE_SERVICES_FILE_IOS || "./GoogleService-Info.plist";
 const androidGoogleServicesFile =
   process.env.GOOGLE_SERVICES_FILE_ANDROID || "./google-services.json";
-const configuredApiBaseUrl = (
-  process.env.EXPO_PUBLIC_API_BASE_URL || ""
-).trim();
-const sentryOrganization = (process.env.SENTRY_ORG || "lukaszkurczab").trim();
-const sentryProject = (process.env.SENTRY_PROJECT || "fitaly-frontend").trim();
+const configuredApiBaseUrl = normalizeEnvString(process.env.EXPO_PUBLIC_API_BASE_URL);
+const sentryOrganization = normalizeEnvString(process.env.SENTRY_ORG || "lukaszkurczab");
+const sentryProject = normalizeEnvString(process.env.SENTRY_PROJECT || "fitaly-frontend");
+const buildProfile = normalizeEnvString(process.env.EAS_BUILD_PROFILE);
 const isLocalDevelopmentRuntime = process.env.EAS_BUILD !== "true";
+const isProductionBuildProfile =
+  buildProfile.toLowerCase() === PRODUCTION_BUILD_PROFILE;
 const resolvedApiBaseUrl =
   configuredApiBaseUrl ||
-  (isLocalDevelopmentRuntime ? "http://localhost:8000/" : "");
+  (!isProductionBuildProfile && isLocalDevelopmentRuntime
+    ? "http://localhost:8000/"
+    : "");
 
 export default {
   expo: {
@@ -108,13 +117,14 @@ export default {
       revenuecatIosKey: process.env.RC_IOS_API_KEY || "",
       disableBilling:
         (process.env.DISABLE_BILLING || "").toLowerCase() === "true",
-      termsUrl: process.env.TERMS_URL || "",
-      privacyUrl: process.env.PRIVACY_URL || "",
+      termsUrl: normalizeEnvString(process.env.TERMS_URL),
+      privacyUrl: normalizeEnvString(process.env.PRIVACY_URL),
       sentryDsn: process.env.SENTRY_DSN || "",
-      sentryEnvironment: process.env.SENTRY_ENVIRONMENT || "development",
+      sentryEnvironment:
+        normalizeEnvString(process.env.SENTRY_ENVIRONMENT) || "development",
       sentryOrganization,
       sentryProject,
-      buildProfile: process.env.EAS_BUILD_PROFILE || "",
+      buildProfile,
       eas: {
         projectId: "74cb0678-596b-4dc2-bec0-cb1e3a206caa",
       },
