@@ -9,10 +9,12 @@ const {
   EXPECTED_PRODUCTION_API_BASE_URL,
   EXPECTED_DEV_API_BASE_URL,
   validateEasApiBaseUrlProfiles,
+  validateEasRuntimeContractProfiles,
 } = readinessLib as {
   EXPECTED_PRODUCTION_API_BASE_URL: string;
   EXPECTED_DEV_API_BASE_URL: string;
   validateEasApiBaseUrlProfiles: (config: EasConfig) => string[];
+  validateEasRuntimeContractProfiles: (config: EasConfig) => string[];
 };
 
 function createConfig(
@@ -91,5 +93,62 @@ describe("check-launch-readiness eas api mapping", () => {
     });
     const errors = validateEasApiBaseUrlProfiles(config);
     expect(errors.join("\n")).toContain("build.internal.env.EXPO_PUBLIC_API_BASE_URL must be an https URL");
+  });
+});
+
+describe("check-launch-readiness eas runtime contract", () => {
+  function createLaunchLikeConfig(
+    overrides?: Partial<Record<"smoke" | "production", Record<string, string>>>,
+  ): EasConfig {
+    return {
+      build: {
+        smoke: {
+          env: {
+            EXPO_PUBLIC_ENABLE_TELEMETRY: "true",
+            EXPO_PUBLIC_ENABLE_SMART_REMINDERS: "true",
+            DISABLE_BILLING: "false",
+            ...overrides?.smoke,
+          },
+        },
+        production: {
+          env: {
+            EXPO_PUBLIC_ENABLE_TELEMETRY: "true",
+            EXPO_PUBLIC_ENABLE_SMART_REMINDERS: "true",
+            DISABLE_BILLING: "false",
+            ...overrides?.production,
+          },
+        },
+      },
+    };
+  }
+
+  it("passes when smoke and production declare launch-like client flags", () => {
+    expect(
+      validateEasRuntimeContractProfiles(createLaunchLikeConfig()),
+    ).toHaveLength(0);
+  });
+
+  it("fails when smoke telemetry is not launch-like", () => {
+    const errors = validateEasRuntimeContractProfiles(
+      createLaunchLikeConfig({
+        smoke: { EXPO_PUBLIC_ENABLE_TELEMETRY: "false" },
+      }),
+    );
+
+    expect(errors.join("\n")).toContain(
+      "build.smoke.env.EXPO_PUBLIC_ENABLE_TELEMETRY must be",
+    );
+  });
+
+  it("fails when production billing is disabled", () => {
+    const errors = validateEasRuntimeContractProfiles(
+      createLaunchLikeConfig({
+        production: { DISABLE_BILLING: "true" },
+      }),
+    );
+
+    expect(errors.join("\n")).toContain(
+      "build.production.env.DISABLE_BILLING must be",
+    );
   });
 });

@@ -145,6 +145,8 @@ Description:
 - `SENTRY_AUTH_TOKEN` - build-time auth token used by `sentry-cli` for source map upload.
 - `GOOGLE_FONTS_KEY` - used only by `npm run fonts:download`.
 
+The canonical mobile to backend matrix for prod, smoke, and dev/local is [docs/runtime-config.md](./docs/runtime-config.md).
+
 ### Production release checks
 
 `publish:android`, `publish:ios`, `build:android`, and `build:ios` run `scripts/check-launch-readiness.mjs` before EAS.

@@ -16,6 +16,7 @@
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "tsc": "tsc",
     "typecheck": "tsc --noEmit",
+    "check:runtime-config": "node scripts/check-launch-readiness.mjs smoke",
     "check:launch-readiness:android": "node scripts/check-launch-readiness.mjs production android",
     "check:launch-readiness:ios": "node scripts/check-launch-readiness.mjs production ios",
     "publish:android": "READINESS_ASSUME_EAS_SECRETS=true npm run check:launch-readiness:android && npx eas-cli@18.6.0 build -p android --profile production",

@@ -10,6 +10,7 @@ const EXPECTED_DEV_API_BASE_URL =
   "https://fitaly-backend-smoke.up.railway.app";
 const EXPECTED_PRODUCTION_API_BASE_URL =
   "https://fitaly-backend-production.up.railway.app";
+const LAUNCH_LIKE_RUNTIME_PROFILES = ["smoke", "production"];
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -135,6 +136,43 @@ function validateEasApiBaseUrlProfiles(easConfig) {
   return errors;
 }
 
+function normalizeBooleanString(value) {
+  return normalizeString(value).toLowerCase();
+}
+
+function validateEasRuntimeContractProfiles(easConfig) {
+  const errors = [];
+
+  for (const profileName of LAUNCH_LIKE_RUNTIME_PROFILES) {
+    const env = getProfileEnv(easConfig, profileName);
+    const telemetryEnabled = normalizeBooleanString(
+      env.EXPO_PUBLIC_ENABLE_TELEMETRY,
+    );
+    const smartRemindersEnabled = normalizeBooleanString(
+      env.EXPO_PUBLIC_ENABLE_SMART_REMINDERS,
+    );
+    const billingDisabled = normalizeBooleanString(env.DISABLE_BILLING);
+
+    if (telemetryEnabled !== "true") {
+      errors.push(
+        `eas.json build.${profileName}.env.EXPO_PUBLIC_ENABLE_TELEMETRY must be \"true\" for launch-like runtime contract (got: ${telemetryEnabled || "missing"}).`,
+      );
+    }
+    if (smartRemindersEnabled !== "true") {
+      errors.push(
+        `eas.json build.${profileName}.env.EXPO_PUBLIC_ENABLE_SMART_REMINDERS must be \"true\" for launch-like runtime contract (got: ${smartRemindersEnabled || "missing"}).`,
+      );
+    }
+    if (billingDisabled !== "false") {
+      errors.push(
+        `eas.json build.${profileName}.env.DISABLE_BILLING must be \"false\" for launch-like runtime contract (got: ${billingDisabled || "missing"}).`,
+      );
+    }
+  }
+
+  return errors;
+}
+
 module.exports = {
   REQUIRED_NON_PROD_BUILD_PROFILES,
   PRODUCTION_BUILD_PROFILE,
@@ -144,4 +182,5 @@ module.exports = {
   isLocalhostUrl,
   getApiBaseUrlForProfile,
   validateEasApiBaseUrlProfiles,
+  validateEasRuntimeContractProfiles,
 };

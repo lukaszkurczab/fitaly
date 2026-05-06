@@ -10,6 +10,9 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://fitaly-backend-smoke.up.railway.app",
         "EXPO_PUBLIC_API_VERSION": "v1",
         "EXPO_PUBLIC_ENABLE_BACKEND_LOGGING": "true",
+        "EXPO_PUBLIC_ENABLE_TELEMETRY": "true",
+        "EXPO_PUBLIC_ENABLE_SMART_REMINDERS": "true",
+        "DISABLE_BILLING": "false",
         "SENTRY_ORG": "lukaszkurczab",
         "SENTRY_PROJECT": "fitaly",
         "SENTRY_ENVIRONMENT": "smoke"
@@ -18,7 +21,10 @@
     "development": {
       "extends": "smoke",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENABLE_TELEMETRY": "false"
+      }
     },
     "preview": {
       "extends": "smoke",
@@ -60,6 +66,9 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://fitaly-backend-production.up.railway.app",
         "EXPO_PUBLIC_API_VERSION": "v1",
         "EXPO_PUBLIC_ENABLE_BACKEND_LOGGING": "false",
+        "EXPO_PUBLIC_ENABLE_TELEMETRY": "true",
+        "EXPO_PUBLIC_ENABLE_SMART_REMINDERS": "true",
+        "DISABLE_BILLING": "false",
         "DEBUG_OCR": "false",
         "SENTRY_ORG": "lukaszkurczab",
         "SENTRY_PROJECT": "fitaly",

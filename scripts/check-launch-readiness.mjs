@@ -12,6 +12,7 @@ const TARGET_IOS_APP_ID = "com.lkurczab.foodscannerai";
 const MIN_ANDROID_TARGET_SDK = 35;
 const { PRODUCTION_BUILD_PROFILE, validateEasApiBaseUrlProfiles } =
   readinessLib;
+const { validateEasRuntimeContractProfiles } = readinessLib;
 
 const profile = (process.argv[2] ?? process.env.EAS_BUILD_PROFILE ?? "")
   .trim()
@@ -148,6 +149,12 @@ function checkApiBaseUrlMapping() {
   errors.push(...mappingErrors);
 }
 
+function checkRuntimeContractMapping() {
+  const eas = readJson("eas.json");
+  const runtimeContractErrors = validateEasRuntimeContractProfiles(eas);
+  errors.push(...runtimeContractErrors);
+}
+
 function checkAndroidFirebaseConfig() {
   if (!shouldCheckPlatform("android")) {
     return;
@@ -276,6 +283,24 @@ function checkSentryDsn() {
 }
 
 if (profile !== PRODUCTION_BUILD_PROFILE) {
+  if (profile === "smoke") {
+    checkApiBaseUrlMapping();
+    checkRuntimeContractMapping();
+
+    if (errors.length > 0) {
+      console.error(
+        "[launch-readiness] Blocking smoke runtime config due to configuration errors:",
+      );
+      for (const error of errors) {
+        console.error(`- ${error}`);
+      }
+      process.exit(1);
+    }
+
+    console.log("[launch-readiness] Smoke runtime config checks passed.");
+    process.exit(0);
+  }
+
   console.log(
     `[launch-readiness] Skipped checks for profile "${profile || "unknown"}".`,
   );
@@ -286,6 +311,7 @@ checkLegalUrls();
 checkEasAndroidBuildType();
 checkAndroidTargetSdk();
 checkApiBaseUrlMapping();
+checkRuntimeContractMapping();
 checkAndroidFirebaseConfig();
 checkIosExpoBundleIdentifier();
 checkIosFirebaseConfig();
