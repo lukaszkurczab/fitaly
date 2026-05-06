@@ -5,7 +5,7 @@ import { useTheme } from "@/theme/useTheme";
 import { FormScreenShell, SettingsRow, SettingsSection } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import AvatarBadge from "@/components/AvatarBadge";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 
 type EditUserDataNavigation = StackNavigationProp<
   RootStackParamList,
@@ -23,7 +23,7 @@ export default function EditUserDataScreen({
 }: EditUserDataScreenProps) {
   const { t } = useTranslation("profile");
   const theme = useTheme();
-  const { userData } = useUserContext();
+  const { userData } = useUserProfileContext();
 
   const avatarSrc = userData?.avatarLocalPath || userData?.avatarUrl || "";
 

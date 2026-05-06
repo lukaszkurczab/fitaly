@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Button, Modal } from "@/components";
 import { Layout } from "@/components/Layout";
 import { useAuthContext } from "@/context/AuthContext";
-import { useUserContext } from "@contexts/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useTheme } from "@/theme/useTheme";
@@ -28,7 +28,7 @@ import type { ReadinessStatus } from "@/types";
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { firebaseUser: user } = useAuthContext();
-  const { userData, loadingUser, refreshUser } = useUserContext();
+  const { userData, loadingUser, refreshUser } = useUserProfileContext();
   const { isProductReady, canRenderProductStack } = useProductReadiness();
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;

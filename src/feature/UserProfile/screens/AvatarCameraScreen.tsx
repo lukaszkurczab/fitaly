@@ -3,7 +3,7 @@ import { View, StyleSheet, Pressable, Text, Linking } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
-import { useUserContext } from "@contexts/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { Layout, PhotoPreview, ScreenCornerNavButton } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import type { StackScreenProps } from "@react-navigation/stack";
@@ -30,7 +30,7 @@ export default function AvatarCameraScreen({
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
-  const { setAvatar } = useUserContext();
+  const { setAvatar } = useUserProfileContext();
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isTakingPhoto, setIsTakingPhoto] = useState(false);
   const [isUploading, setIsUploading] = useState(false);

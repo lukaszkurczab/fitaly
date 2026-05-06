@@ -10,7 +10,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/components";
-import { useUserContext } from "@/context/UserContext";
+import { useUserAccountContext } from "@/context/UserAccountContext";
 import { getTermsUrl } from "@/utils/legalUrls";
 
 type LegalPrivacyHubNavigation = StackNavigationProp<
@@ -28,7 +28,7 @@ export default function LegalPrivacyHubScreen({
   const { t } = useTranslation("profile");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { exportUserData } = useUserContext();
+  const { exportUserData } = useUserAccountContext();
   const [exporting, setExporting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("");

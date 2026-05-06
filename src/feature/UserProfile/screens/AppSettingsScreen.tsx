@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { useTheme } from "@/theme/useTheme";
-import { useUserContext } from "@/context/UserContext";
+import { useAppSettingsContext } from "@/context/AppSettingsContext";
 import {
   FormScreenShell,
   SettingsRow,
@@ -33,7 +33,7 @@ export default function AppSettingsScreen({
   const { t } = useTranslation("profile");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { language, changeLanguage } = useUserContext();
+  const { language, changeLanguage } = useAppSettingsContext();
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
 
   const handleBack = () => {

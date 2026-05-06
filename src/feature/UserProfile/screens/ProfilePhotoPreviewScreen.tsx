@@ -8,7 +8,7 @@ import { useTheme } from "@/theme/useTheme";
 import { FormScreenShell, SettingsRow, SettingsSection } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import AvatarBadge from "@/components/AvatarBadge";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { AccountIdentityCard } from "@/feature/UserProfile/components/AccountIdentityCard";
 
 type ProfilePhotoPreviewNavigation = StackNavigationProp<
@@ -26,7 +26,7 @@ export default function ProfilePhotoPreviewScreen({
   const { t } = useTranslation(["profile", "common"]);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { userData, setAvatar } = useUserContext();
+  const { userData, setAvatar } = useUserProfileContext();
   const [isUploading, setIsUploading] = useState(false);
 
   const avatarSrc = userData?.avatarLocalPath || userData?.avatarUrl || "";

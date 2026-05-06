@@ -22,7 +22,7 @@ import {
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
-import { useUserContext } from "@contexts/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useMeals } from "@hooks/useMeals";
 import { calculateTotalNutrients } from "@/utils/calculateTotalNutrients";
 import { useAuthContext } from "@/context/AuthContext";
@@ -86,7 +86,7 @@ export default function ReviewMealScreen({
   const netInfo = useNetInfo();
   const isOnline = netInfo.isConnected !== false;
   const { uid } = useAuthContext();
-  const { userData } = useUserContext();
+  const { userData } = useUserProfileContext();
   const { saveMeal } = useMeals(uid ?? null);
   const { meal, clearMeal, loadDraft, saveDraft, setLastScreen, setPhotoUrl } =
     useMealDraftContext();

@@ -18,6 +18,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => (
   </UserProfileProvider>
 );
 
+// Convenience compatibility API for legacy aggregate consumers.
+// New core surfaces should prefer granular hooks to avoid fan-out rerenders:
+// `useUserProfileContext`, `useUserAccountContext`, `useAppSettingsContext`.
 export const useUserContext = (): UserContextType => {
   const userProfileContext = useUserProfileContext();
   const userAccountContext = useUserAccountContext();

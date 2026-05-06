@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { View, Image, StyleProp, ViewStyle, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import AppIcon from "@/components/AppIcon";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -22,7 +22,7 @@ export const UserIcon: React.FC<Props> = ({
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { userData } = useUserContext();
+  const { userData } = useUserProfileContext();
   const { t } = useTranslation("common");
 
   const borderColor = isPremium ? theme.macro.fat : theme.surfaceElevated;

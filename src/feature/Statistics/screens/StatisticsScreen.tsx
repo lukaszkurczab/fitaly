@@ -5,7 +5,7 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import { useTranslation } from "react-i18next";
 import { Layout, FullScreenLoader } from "@/components";
 import { useAccessContext } from "@/context/AccessContext";
-import { useUserContext } from "@contexts/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useTheme } from "@/theme/useTheme";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { FREE_WINDOW_DAYS } from "@/services/meals/mealService";
@@ -34,7 +34,7 @@ export default function StatisticsScreen({ navigation }: Props) {
   const netInfo = useNetInfo();
   const isOnline = netInfo.isConnected !== false;
 
-  const { userData } = useUserContext();
+  const { userData } = useUserProfileContext();
   const { canUseFeature } = useAccessContext();
 
   const uid = userData?.uid || "";

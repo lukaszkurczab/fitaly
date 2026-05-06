@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { useBadges } from "@/hooks/useBadges";
 import { usePremiumContext } from "@/context/PremiumContext";
@@ -21,7 +21,7 @@ export function useUserProfileState(params: {
     syncState,
     retryProfileSync,
     retryingProfileSync,
-  } = useUserContext();
+  } = useUserProfileContext();
   const { uid } = useAuthContext();
   const isOnline = netInfo.isConnected !== false;
   const { isPremium } = usePremiumContext();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import type { OnboardingMode, UserData, UserNutritionProfile, UserProfile } from "@/types";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import type { RootStackParamList } from "@/navigation/navigate";
@@ -287,7 +287,7 @@ export function useOnboardingFlow(params: {
 }) {
   const { t } = useTranslation("onboarding");
   const { userData, updateUser, syncUserProfile, applyServerProfile } =
-    useUserContext();
+    useUserProfileContext();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingFormData>(INITIAL_FORM);
   const [initialForm, setInitialForm] =

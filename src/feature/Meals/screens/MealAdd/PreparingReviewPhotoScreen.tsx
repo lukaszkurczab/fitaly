@@ -8,7 +8,7 @@ import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
-import { useUserContext } from "@contexts/UserContext";
+import { useAppSettingsContext } from "@/context/AppSettingsContext";
 import { detectIngredientsWithVision } from "@/services/ai/visionService";
 import { getAiUxErrorType } from "@/services/ai/uxError";
 import { getErrorStatus } from "@/services/contracts/serviceError";
@@ -70,7 +70,7 @@ export default function PreparingReviewPhotoScreen({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation(["common", "meals"]);
   const { uid } = useAuthContext();
-  const { language } = useUserContext();
+  const { language } = useAppSettingsContext();
   const { meal, saveDraft, setMeal, updateMeal } = useMealDraftContext();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { applyAccessFromResponse, refreshAccess } = useAccessContext();

@@ -6,7 +6,7 @@ import { useTheme } from "@/theme/useTheme";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import type { RootStackParamList } from "@/navigation/navigate";
 import AvatarBadge from "@/components/AvatarBadge";
-import { useUserContext } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useBadges } from "@/hooks/useBadges";
 import { useAuthContext } from "@/context/AuthContext";
 import { usePremiumContext } from "@/context/PremiumContext";
@@ -65,7 +65,7 @@ export const BottomTabBar: React.FC = () => {
       state.routes[state.index]?.name as keyof RootStackParamList | undefined,
   );
   const { uid } = useAuthContext();
-  const { userData } = useUserContext();
+  const { userData } = useUserProfileContext();
   const { isPremium } = usePremiumContext();
   const { badges } = useBadges(uid);
   const { t } = useTranslation("common");

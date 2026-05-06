@@ -7,7 +7,7 @@ import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
-import { useUserContext } from "@contexts/UserContext";
+import { useAppSettingsContext } from "@/context/AppSettingsContext";
 import type { Meal } from "@/types";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
 import { extractIngredientsFromText } from "@/services/ai/textMealService";
@@ -71,7 +71,7 @@ export default function TextAnalyzingScreen({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation(["meals", "chat"]);
   const { uid } = useAuthContext();
-  const { language } = useUserContext();
+  const { language } = useAppSettingsContext();
   const { meal, saveDraft, setLastScreen, setMeal } = useMealDraftContext();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { applyAccessFromResponse, refreshAccess } = useAccessContext();
