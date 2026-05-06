@@ -227,9 +227,19 @@ export async function deleteAsync(
   }
 
   if (info.isDirectory) {
-    new Directory(fileUri).delete();
+    try {
+      new Directory(fileUri).delete();
+    } catch (error) {
+      if (options?.idempotent) return;
+      throw error;
+    }
   } else {
-    new File(fileUri).delete();
+    try {
+      new File(fileUri).delete();
+    } catch (error) {
+      if (options?.idempotent) return;
+      throw error;
+    }
   }
 }
 

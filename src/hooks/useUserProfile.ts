@@ -25,6 +25,7 @@ import {
 import i18n from "@/i18n";
 import type { QueueKind } from "@/services/offline/queue.repo";
 import { logError, logWarning } from "@/services/core/errorLogger";
+import { parseUserProfile } from "@/services/user/profile.dto";
 
 const PROFILE_SYNC_KINDS: QueueKind[] = [
   "update_user_profile",
@@ -85,6 +86,18 @@ function isValidBootstrapProfile(uid: string, value: unknown): value is UserData
   );
 }
 
+function normalizeBootstrapProfile(
+  uid: string,
+  value: unknown,
+): UserData | null {
+  if (!isValidBootstrapProfile(uid, value)) return null;
+  const candidate = value as UserData;
+  return {
+    ...candidate,
+    profile: parseUserProfile(candidate.profile),
+  };
+}
+
 function avatarCachePath(uid: string): string {
   return `${FileSystem.documentDirectory}users/${uid}/images/avatar.jpg`;
 }
@@ -93,8 +106,8 @@ async function readProfileCache(uid: string): Promise<UserData | null> {
   try {
     const cached = await AsyncStorage.getItem(profileCacheKey(uid));
     if (!cached) return null;
-    const parsed: unknown = JSON.parse(cached);
-    if (!isValidBootstrapProfile(uid, parsed)) {
+    const parsed = normalizeBootstrapProfile(uid, JSON.parse(cached));
+    if (!parsed) {
       logWarning("profile cache invalid for bootstrap", { uid });
       return null;
     }
@@ -196,7 +209,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
   const [syncState, setSyncState] = useState<SyncState>("synced");
   const [retryingProfileSync, setRetryingProfileSync] = useState(false);
   const language = normalizeLanguageCode(
-    userData?.profile.language ?? i18n.resolvedLanguage ?? i18n.language,
+    userData?.profile?.language ?? i18n.resolvedLanguage ?? i18n.language,
   );
   const userDataRef = useRef<UserData | null>(null);
   const mountedRef = useRef(true);
@@ -268,11 +281,12 @@ export function useUserProfile(uid: string): UseUserProfileResult {
         avatarCachePath(uid)
       );
       if (!isCurrent()) return null;
-      const normalizedLanguage = normalizeLanguageCode(profile.profile.language);
+      const normalizedProfile = parseUserProfile(profile.profile);
+      const normalizedLanguage = normalizeLanguageCode(normalizedProfile.language);
       const normalized = {
         ...profile,
         profile: {
-          ...profile.profile,
+          ...normalizedProfile,
           language: normalizedLanguage,
         },
         avatarLocalPath,
@@ -377,7 +391,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     try {
       const data = await fetchUserProfileRemote(requestUid);
       if (!isCurrent()) return null;
-      const profile = isValidBootstrapProfile(requestUid, data) ? data : null;
+      const profile = normalizeBootstrapProfile(requestUid, data);
       if (data && !profile) {
         logWarning("remote profile invalid for bootstrap", { uid: requestUid });
       }

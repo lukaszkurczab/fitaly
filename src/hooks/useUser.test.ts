@@ -449,6 +449,44 @@ describe("useUser", () => {
     });
   });
 
+  it("normalizes cached bootstrap profiles that are missing the nested profile object", async () => {
+    let resolveRemote: ((value: UserData) => void) | null = null;
+    mockAsyncStorageGetItem.mockResolvedValueOnce(
+      JSON.stringify({
+        uid: "u1",
+        email: "u1@example.com",
+        username: "cached-name",
+        plan: "free",
+        createdAt: 1,
+        lastLogin: "2026-03-10T10:00:00.000Z",
+        syncState: "synced",
+      }),
+    );
+    mockFetchUserProfileRemote.mockReturnValueOnce(
+      new Promise<UserData>((resolve) => {
+        resolveRemote = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useUser("u1"));
+
+    await waitFor(() => {
+      expect(result.current.userData?.username).toBe("cached-name");
+    });
+
+    expect(result.current.language).toBe("en");
+    expect(result.current.userData?.profile.language).toBe("en");
+    expect(mockLogWarning).not.toHaveBeenCalledWith(
+      "profile cache hydration failed",
+      expect.anything(),
+      expect.anything(),
+    );
+
+    await act(async () => {
+      resolveRemote?.(createUser({ username: "remote-name" }));
+    });
+  });
+
   it("ignores delayed remote profile response after account switch", async () => {
     let resolveUserA: ((value: UserData) => void) | null = null;
     mockFetchUserProfileRemote.mockImplementation((sessionKey: unknown) => {

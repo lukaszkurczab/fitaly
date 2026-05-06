@@ -112,7 +112,7 @@ function parseConsents(raw: unknown): UserConsents {
   };
 }
 
-function parseProfile(raw: unknown): UserProfile {
+export function parseUserProfile(raw: unknown): UserProfile {
   const payload = isRecord(raw) ? raw : {};
   return {
     language: pickEnum(payload.language, PROFILE_LANGUAGES, "en"),
@@ -141,7 +141,7 @@ export function parseUserData(payload: unknown): UserData | null {
     plan: pickEnum(payload.plan, PLANS, "free"),
     createdAt,
     lastLogin,
-    profile: parseProfile(payload.profile),
+    profile: parseUserProfile(payload.profile),
     syncState: pickEnum(payload.syncState, PROFILE_SYNC_STATES, "pending"),
     lastSyncedAt: asString(payload.lastSyncedAt),
     avatarUrl: asString(payload.avatarUrl),
