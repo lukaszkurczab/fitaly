@@ -57,7 +57,7 @@ describe("mealSideEffectsRuntime", () => {
     jest.useRealTimers();
   });
 
-  it("debounces pushed and synced meal events into one user-scoped side effect run", async () => {
+  it("debounces pushed and synced meal events into one user-scoped streak refresh", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const runtime = require("@/services/meals/mealSideEffectsRuntime") as typeof import("@/services/meals/mealSideEffectsRuntime");
 
@@ -80,11 +80,34 @@ describe("mealSideEffectsRuntime", () => {
     expect(mockRefreshStreakFromBackend).toHaveBeenCalledWith("user-1", {
       refreshBadges: true,
     });
+    expect(mockReconcileAll).not.toHaveBeenCalled();
+  });
+
+  it("debounces local meal mutations into one user-scoped notification reconcile", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const runtime = require("@/services/meals/mealSideEffectsRuntime") as typeof import("@/services/meals/mealSideEffectsRuntime");
+
+    runtime.initMealSideEffectsRuntime();
+    runtime.setMealSideEffectsRuntimeUid("user-1");
+
+    emit("meal:local:upserted", { uid: "user-1", cloudId: "meal-1" });
+    emit("meal:local:deleted", { uid: "user-1", cloudId: "meal-2" });
+    emit("meal:local:upserted", { uid: "user-1", cloudId: "meal-3" });
+
+    jest.advanceTimersByTime(1_499);
+    await flushPromises();
+    expect(mockRefreshStreakFromBackend).not.toHaveBeenCalled();
+    expect(mockReconcileAll).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(mockRefreshStreakFromBackend).not.toHaveBeenCalled();
     expect(mockReconcileAll).toHaveBeenCalledTimes(1);
     expect(mockReconcileAll).toHaveBeenCalledWith("user-1");
   });
 
-  it("ignores meal events for other users, missing users, and local-only mutations", async () => {
+  it("ignores meal events for other users, missing users, and unsupported side-effect channels", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const runtime = require("@/services/meals/mealSideEffectsRuntime") as typeof import("@/services/meals/mealSideEffectsRuntime");
 
@@ -93,8 +116,8 @@ describe("mealSideEffectsRuntime", () => {
 
     emit("meal:pushed", { uid: "user-2", cloudId: "meal-1" });
     emit("meal:synced", { cloudId: "meal-2" });
-    emit("meal:local:upserted", { uid: "user-1", cloudId: "meal-3" });
-    emit("meal:local:deleted", { uid: "user-1", cloudId: "meal-4" });
+    emit("meal:local:upserted", { uid: "user-2", cloudId: "meal-3" });
+    emit("meal:local:deleted", { cloudId: "meal-4" });
 
     jest.advanceTimersByTime(1_500);
     await flushPromises();
@@ -144,11 +167,21 @@ describe("mealSideEffectsRuntime", () => {
 
     expect(mockDebugWarn).toHaveBeenCalledWith(
       "meal side effect streak refresh failed",
-      { uid: "user-1", reason: "meal_pushed", error: streakError },
+      { uid: "user-1", kind: "streak", reason: "meal_pushed", error: streakError },
     );
+
+    emit("meal:local:upserted", { uid: "user-1", cloudId: "meal-2" });
+    jest.advanceTimersByTime(1_500);
+    await flushPromises();
+
     expect(mockDebugWarn).toHaveBeenCalledWith(
       "meal side effect notification reconcile failed",
-      { uid: "user-1", reason: "meal_pushed", error: reconcileError },
+      {
+        uid: "user-1",
+        kind: "notifications",
+        reason: "meal_local_upserted",
+        error: reconcileError,
+      },
     );
   });
 

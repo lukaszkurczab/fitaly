@@ -28,8 +28,99 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       }),
     ).toBeNull();
+  });
+
+  it("requires only the iOS RevenueCat key for an iOS production runtime", () => {
+    expect(
+      getLaunchReadinessIssueFromExtra(
+        {
+          buildProfile: "production",
+          apiBaseUrl: "https://api.example.com",
+          billingDisabled: false,
+          sentryEnvironment: "production",
+          termsUrl: "https://example.com/terms",
+          privacyUrl: "https://example.com/privacy",
+          revenuecatIosKey: "",
+          revenuecatAndroidKey: "goog_android_key",
+        },
+        "ios",
+      ),
+    ).toContain("Missing RevenueCat iOS API key in production build.");
+
+    expect(
+      getLaunchReadinessIssueFromExtra(
+        {
+          buildProfile: "production",
+          apiBaseUrl: "https://api.example.com",
+          billingDisabled: false,
+          sentryEnvironment: "production",
+          termsUrl: "https://example.com/terms",
+          privacyUrl: "https://example.com/privacy",
+          revenuecatIosKey: "appl_ios_key",
+          revenuecatAndroidKey: "",
+        },
+        "ios",
+      ),
+    ).toBeNull();
+  });
+
+  it("requires only the Android RevenueCat key for an Android production runtime", () => {
+    expect(
+      getLaunchReadinessIssueFromExtra(
+        {
+          buildProfile: "production",
+          apiBaseUrl: "https://api.example.com",
+          billingDisabled: false,
+          sentryEnvironment: "production",
+          termsUrl: "https://example.com/terms",
+          privacyUrl: "https://example.com/privacy",
+          revenuecatIosKey: "appl_ios_key",
+          revenuecatAndroidKey: "",
+        },
+        "android",
+      ),
+    ).toContain("Missing RevenueCat Android API key in production build.");
+
+    expect(
+      getLaunchReadinessIssueFromExtra(
+        {
+          buildProfile: "production",
+          apiBaseUrl: "https://api.example.com",
+          billingDisabled: false,
+          sentryEnvironment: "production",
+          termsUrl: "https://example.com/terms",
+          privacyUrl: "https://example.com/privacy",
+          revenuecatIosKey: "",
+          revenuecatAndroidKey: "goog_android_key",
+        },
+        "android",
+      ),
+    ).toBeNull();
+  });
+
+  it("requires both RevenueCat keys when production platform is not store-specific", () => {
+    expect(
+      getLaunchReadinessIssueFromExtra(
+        {
+          buildProfile: "production",
+          apiBaseUrl: "https://api.example.com",
+          billingDisabled: false,
+          sentryEnvironment: "production",
+          termsUrl: "https://example.com/terms",
+          privacyUrl: "https://example.com/privacy",
+        },
+        "web",
+      ),
+    ).toEqual(
+      [
+        "Missing RevenueCat iOS API key in production build.",
+        "Missing RevenueCat Android API key in production build.",
+      ].join("\n"),
+    );
   });
 
   it.each([
@@ -41,6 +132,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue: "Missing EXPO_PUBLIC_API_BASE_URL in production build.",
     },
@@ -53,6 +146,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue:
         "EXPO_PUBLIC_API_BASE_URL must start with https:// in production build.",
@@ -66,6 +161,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue:
         "EXPO_PUBLIC_API_BASE_URL must start with https:// in production build.",
@@ -79,6 +176,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue: "Billing must be enabled in production build.",
     },
@@ -90,6 +189,8 @@ describe("launchReadiness", () => {
         billingDisabled: false,
         sentryEnvironment: "production",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue: "Missing or invalid TERMS_URL in production build.",
     },
@@ -101,6 +202,8 @@ describe("launchReadiness", () => {
         billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue: "Missing or invalid PRIVACY_URL in production build.",
     },
@@ -113,6 +216,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "smoke",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
       expectedIssue:
         "SENTRY_ENVIRONMENT must equal production in production build.",
@@ -135,6 +240,7 @@ describe("launchReadiness", () => {
         "Missing or invalid TERMS_URL in production build.",
         "Missing or invalid PRIVACY_URL in production build.",
         "Billing must be enabled in production build.",
+        "Missing RevenueCat iOS API key in production build.",
         "SENTRY_ENVIRONMENT must equal production in production build.",
       ].join("\n"),
     );
@@ -155,6 +261,8 @@ describe("launchReadiness", () => {
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
+        revenuecatIosKey: "appl_ios_key",
+        revenuecatAndroidKey: "goog_android_key",
       },
     };
 

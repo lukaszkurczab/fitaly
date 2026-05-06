@@ -1,9 +1,11 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { getRuntimeConfigFromExtra } from "@/services/core/runtimeConfig";
 
 const PRODUCTION_BUILD_PROFILE = "production";
 
 type AppExtra = Parameters<typeof getRuntimeConfigFromExtra>[0];
+type LaunchReadinessPlatform = typeof Platform.OS;
 
 function readExtra(): AppExtra {
   return Constants.expoConfig?.extra ?? {};
@@ -21,7 +23,39 @@ function isProductionBuild(buildProfile: string): boolean {
   return buildProfile.toLowerCase() === PRODUCTION_BUILD_PROFILE;
 }
 
-export function getLaunchReadinessIssueFromExtra(extra: AppExtra): string | null {
+function appendRevenueCatIssues(
+  issues: string[],
+  config: ReturnType<typeof getRuntimeConfigFromExtra>,
+  platform: LaunchReadinessPlatform,
+): void {
+  if (platform === "ios") {
+    if (!config.revenuecatIosKey) {
+      issues.push("Missing RevenueCat iOS API key in production build.");
+    }
+    return;
+  }
+
+  if (platform === "android") {
+    if (!config.revenuecatAndroidKey) {
+      issues.push("Missing RevenueCat Android API key in production build.");
+    }
+    return;
+  }
+
+  // Unknown/non-store runtime platform cannot prove the target store build,
+  // so production readiness requires both store keys.
+  if (!config.revenuecatIosKey) {
+    issues.push("Missing RevenueCat iOS API key in production build.");
+  }
+  if (!config.revenuecatAndroidKey) {
+    issues.push("Missing RevenueCat Android API key in production build.");
+  }
+}
+
+export function getLaunchReadinessIssueFromExtra(
+  extra: AppExtra,
+  platform: LaunchReadinessPlatform = Platform.OS,
+): string | null {
   const config = getRuntimeConfigFromExtra(extra);
 
   if (!isProductionBuild(config.buildProfile)) {
@@ -49,6 +83,7 @@ export function getLaunchReadinessIssueFromExtra(extra: AppExtra): string | null
   if (config.billingDisabled) {
     issues.push("Billing must be enabled in production build.");
   }
+  appendRevenueCatIssues(issues, config, platform);
   if (sentryEnvironment !== PRODUCTION_BUILD_PROFILE) {
     issues.push("SENTRY_ENVIRONMENT must equal production in production build.");
   }
