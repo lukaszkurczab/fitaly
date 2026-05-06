@@ -1,18 +1,34 @@
-const mockReadPublicEnv = jest.fn();
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (...args: unknown[]) => mockReadPublicEnv(...args),
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+
+function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion,
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+  };
+}
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 function loadApiVersioning(apiVersion = "v1") {
   jest.resetModules();
-  mockReadPublicEnv.mockImplementation((key: string) => {
-    if (key === "EXPO_PUBLIC_API_VERSION") {
-      return apiVersion;
-    }
-
-    return undefined;
-  });
+  mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig(apiVersion));
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require("@/services/core/apiVersioning") as typeof import("@/services/core/apiVersioning");

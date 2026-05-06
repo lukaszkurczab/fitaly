@@ -11,7 +11,7 @@ describe("launchReadiness", () => {
       getLaunchReadinessIssueFromExtra({
         buildProfile: "preview",
         apiBaseUrl: "",
-        disableBilling: true,
+        billingDisabled: true,
         termsUrl: "",
         privacyUrl: "",
         sentryEnvironment: "development",
@@ -24,7 +24,7 @@ describe("launchReadiness", () => {
       getLaunchReadinessIssueFromExtra({
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -37,7 +37,7 @@ describe("launchReadiness", () => {
       name: "missing API URL",
       extra: {
         buildProfile: "production",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -49,7 +49,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "http://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -62,7 +62,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "http://localhost:8000",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -75,7 +75,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: true,
+        billingDisabled: true,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -87,7 +87,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         privacyUrl: "https://example.com/privacy",
       },
@@ -98,7 +98,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
       },
@@ -109,7 +109,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "smoke",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",
@@ -126,7 +126,7 @@ describe("launchReadiness", () => {
       getLaunchReadinessIssueFromExtra({
         buildProfile: "production",
         apiBaseUrl: "",
-        disableBilling: true,
+        billingDisabled: true,
         sentryEnvironment: "development",
       }),
     ).toBe(
@@ -151,7 +151,7 @@ describe("launchReadiness", () => {
       extra: {
         buildProfile: "production",
         apiBaseUrl: "https://api.example.com",
-        disableBilling: false,
+        billingDisabled: false,
         sentryEnvironment: "production",
         termsUrl: "https://example.com/terms",
         privacyUrl: "https://example.com/privacy",

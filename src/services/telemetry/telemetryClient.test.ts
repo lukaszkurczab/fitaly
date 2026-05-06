@@ -1,20 +1,42 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
 const mockPost = jest.fn<(path: string, data?: unknown, options?: unknown) => Promise<unknown>>();
-const mockReadPublicEnv = jest.fn<(name: string) => string | undefined>();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
 const mockNetInfoFetch = jest.fn<
   () => Promise<{ isConnected: boolean | null; isInternetReachable?: boolean | null }>
 >();
 const mockGetLocales = jest.fn<() => Array<{ languageTag?: string }>>();
+
+function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: true,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    ...overrides,
+  };
+}
 
 jest.mock("@/services/core/apiClient", () => ({
   post: (path: string, data?: unknown, options?: unknown) =>
     mockPost(path, data, options),
 }));
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (name: string) => mockReadPublicEnv(name),
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 jest.mock("@react-native-community/netinfo", () => ({
@@ -40,12 +62,7 @@ describe("telemetryClient", () => {
   beforeEach(async () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_ENABLE_TELEMETRY") {
-        return "true";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
     mockNetInfoFetch.mockResolvedValue({
       isConnected: true,
       isInternetReachable: true,
@@ -81,15 +98,25 @@ describe("telemetryClient", () => {
     );
     const payload = JSON.parse(raw || "{}") as {
       sessionId?: string;
-      events?: Array<{ name?: string; props?: { mealInputMethod?: string } }>;
+      events?: Array<{
+        name?: string;
+        sessionId?: string;
+        actor?: { anonymousId?: string; userId?: string };
+        schemaVersion?: number;
+        props?: { mealInputMethod?: string };
+      }>;
     };
 
     expect(payload.sessionId).toEqual(expect.any(String));
     expect(payload.events).toHaveLength(1);
     expect(payload.events?.[0]).toMatchObject({
       name: "meal_logged",
+      sessionId: payload.sessionId,
+      actor: { anonymousId: expect.stringMatching(/^anon_/) },
+      schemaVersion: 2,
       props: { mealInputMethod: "photo" },
     });
+    expect(payload.events?.[0]?.actor?.userId).toBeUndefined();
   });
 
   it("deduplicates buffered events by eventId when restoring persisted queue", async () => {
@@ -117,7 +144,64 @@ describe("telemetryClient", () => {
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(mockPost.mock.calls[0]?.[1]).toMatchObject({
       sessionId: "sess-1",
-      events: [duplicateEvent],
+      events: [
+        expect.objectContaining({
+          ...duplicateEvent,
+          sessionId: "sess-1",
+          actor: { anonymousId: expect.stringMatching(/^anon_/) },
+          schemaVersion: 2,
+        }),
+      ],
+    });
+  });
+
+  it("snapshots event-level actor identity so mixed account batches are not reassigned at flush time", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await telemetryClient.track("session_start", { origin: "app_boot" });
+    telemetryClient.setTelemetryUserId("user-a");
+    await telemetryClient.track("meal_logged", { mealInputMethod: "manual" });
+    telemetryClient.setTelemetryUserId("user-b");
+    await telemetryClient.track("paywall_view", {
+      source: "meal_text_limit",
+      trigger_source: "meal_text_limit_modal",
+    });
+
+    await telemetryClient.flush();
+
+    const payload = mockPost.mock.calls[0]?.[1] as
+      | { events?: Array<{ actor?: { anonymousId?: string; userId?: string } }> }
+      | undefined;
+
+    expect(payload?.events).toHaveLength(3);
+    expect(payload?.events?.[0]?.actor).toEqual({
+      anonymousId: expect.stringMatching(/^anon_/),
+    });
+    expect(payload?.events?.[1]?.actor).toEqual({ userId: "user-a" });
+    expect(payload?.events?.[2]?.actor).toEqual({ userId: "user-b" });
+  });
+
+  it("promotes requestId to the event-level correlation contract when present", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    telemetryClient.setTelemetryUserId("user-1");
+    await telemetryClient.track("ai_meal_review_saved", {
+      inputMethod: "photo",
+      corrected: true,
+      ingredientCount: 2,
+      requestId: "req-1",
+    });
+    await telemetryClient.flush();
+
+    expect(mockPost.mock.calls[0]?.[1]).toMatchObject({
+      events: [
+        expect.objectContaining({
+          requestId: "req-1",
+          actor: { userId: "user-1" },
+        }),
+      ],
     });
   });
 
@@ -188,12 +272,9 @@ describe("telemetryClient", () => {
   });
 
   it("is a graceful no-op for notification telemetry when telemetry is disabled", async () => {
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_ENABLE_TELEMETRY") {
-        return "false";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(
+      createRuntimeConfig({ telemetryEnabled: false }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
@@ -254,6 +335,9 @@ describe("telemetryClient", () => {
           expect.objectContaining({
             eventId: "evt-restored",
             name: "weekly_report_opened",
+            sessionId: "sess-restored",
+            actor: { anonymousId: expect.stringMatching(/^anon_/) },
+            schemaVersion: 2,
           }),
         ],
       }),

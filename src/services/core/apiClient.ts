@@ -1,11 +1,10 @@
 import { getApp } from "@react-native-firebase/app";
 import { getAuth } from "@react-native-firebase/auth";
-import Constants from "expo-constants";
 import { v4 as uuidv4 } from "uuid";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { asString, isRecord } from "@/services/contracts/guards";
 import { withVersion } from "@/services/core/apiVersioning";
-import { readPublicEnv } from "@/services/core/publicEnv";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 120_000;
@@ -33,19 +32,14 @@ export type ApiClientError = Error & {
 };
 
 function getApiBaseUrl(): string {
-  const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
-  const extraBaseUrl =
-    typeof extra?.apiBaseUrl === "string" ? extra.apiBaseUrl.trim() : undefined;
-  const publicBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-  const dynamicPublicBaseUrl = readPublicEnv("EXPO_PUBLIC_API_BASE_URL")?.trim();
-  const baseUrl = extraBaseUrl || publicBaseUrl || dynamicPublicBaseUrl;
+  const baseUrl = getRuntimeConfig().apiBaseUrl.trim();
 
   if (!baseUrl) {
     throw createServiceError({
       code: "api/misconfigured",
       source: API_CLIENT_SOURCE,
       retryable: false,
-      message: "Missing API base URL (expo extra / EXPO_PUBLIC_API_BASE_URL)",
+      message: "Missing API base URL in runtime config",
     });
   }
 

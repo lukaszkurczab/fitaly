@@ -6,6 +6,14 @@ function normalizeEnvString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function readBooleanEnv(name, defaultValue = false) {
+  const normalized = normalizeEnvString(process.env[name]).toLowerCase();
+  if (!normalized) {
+    return defaultValue;
+  }
+  return normalized === "true";
+}
+
 const iosGoogleServicesFile =
   process.env.GOOGLE_SERVICES_FILE_IOS || "./GoogleService-Info.plist";
 const androidGoogleServicesFile =
@@ -105,9 +113,15 @@ export default {
     extra: {
       apiBaseUrl: resolvedApiBaseUrl,
       apiVersion: process.env.EXPO_PUBLIC_API_VERSION || "v1",
-      enableBackendLogging:
-        (process.env.EXPO_PUBLIC_ENABLE_BACKEND_LOGGING || "").toLowerCase() ===
-        "true",
+      backendLoggingEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_BACKEND_LOGGING",
+        false,
+      ),
+      telemetryEnabled: readBooleanEnv("EXPO_PUBLIC_ENABLE_TELEMETRY", false),
+      smartRemindersEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_SMART_REMINDERS",
+        true,
+      ),
       debugOcr: (process.env.DEBUG_OCR || "false").toLowerCase() === "true",
       e2e: (process.env.E2E || "").toLowerCase() === "true",
       e2eMockChatReply:
@@ -115,8 +129,7 @@ export default {
         "E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day.",
       revenuecatAndroidKey: process.env.RC_ANDROID_API_KEY || "",
       revenuecatIosKey: process.env.RC_IOS_API_KEY || "",
-      disableBilling:
-        (process.env.DISABLE_BILLING || "").toLowerCase() === "true",
+      billingDisabled: readBooleanEnv("DISABLE_BILLING", false),
       termsUrl: normalizeEnvString(process.env.TERMS_URL),
       privacyUrl: normalizeEnvString(process.env.PRIVACY_URL),
       sentryDsn: process.env.SENTRY_DSN || "",

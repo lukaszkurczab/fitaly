@@ -6,6 +6,8 @@ export type TelemetryPropertyValue =
 
 export type TelemetryProps = Record<string, TelemetryPropertyValue>;
 
+export const TELEMETRY_SCHEMA_VERSION = 2;
+
 export const TELEMETRY_EVENT_NAMES = [
   "session_start",
   "onboarding_completed",
@@ -35,10 +37,31 @@ export const TELEMETRY_EVENT_NAMES = [
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];
 
+export type TelemetryActor =
+  | {
+      userId: string;
+      anonymousId?: never;
+    }
+  | {
+      userId?: never;
+      anonymousId: string;
+    };
+
 export type TelemetryEvent = {
   eventId: string;
   name: TelemetryEventName;
   ts: string;
+  occurredAt: string;
+  sessionId: string;
+  actor: TelemetryActor;
+  platform: string;
+  appVersion: string;
+  build?: string | null;
+  locale?: string | null;
+  timezone: string;
+  tzOffsetMin?: number | null;
+  schemaVersion: typeof TELEMETRY_SCHEMA_VERSION;
+  requestId?: string;
   props?: TelemetryProps;
 };
 

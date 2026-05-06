@@ -1,37 +1,28 @@
 import { Platform } from "react-native";
 import Purchases, { LOG_LEVEL } from "react-native-purchases";
-import Constants from "expo-constants";
 import * as Device from "expo-device";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
 let configured = false;
 
 type RevenueCatExtra = {
-  disableBilling?: boolean;
+  billingDisabled: boolean;
   revenuecatIosKey?: string;
   revenuecatAndroidKey?: string;
 };
 
 function getExtra() {
-  const raw = Constants.expoConfig?.extra;
-  if (!raw || typeof raw !== "object") return {} as RevenueCatExtra;
-  const extra = raw as Record<string, unknown>;
+  const config = getRuntimeConfig();
   return {
-    disableBilling:
-      typeof extra.disableBilling === "boolean" ? extra.disableBilling : undefined,
-    revenuecatIosKey:
-      typeof extra.revenuecatIosKey === "string"
-        ? extra.revenuecatIosKey
-        : undefined,
-    revenuecatAndroidKey:
-      typeof extra.revenuecatAndroidKey === "string"
-        ? extra.revenuecatAndroidKey
-        : undefined,
+    billingDisabled: config.billingDisabled,
+    revenuecatIosKey: config.revenuecatIosKey || undefined,
+    revenuecatAndroidKey: config.revenuecatAndroidKey || undefined,
   } as RevenueCatExtra;
 }
 
 export function isBillingDisabled(): boolean {
   const extra = getExtra();
-  if (__DEV__) return !!extra.disableBilling || !Device.isDevice;
+  if (__DEV__) return extra.billingDisabled || !Device.isDevice;
   return false;
 }
 

@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import * as apiClient from "@/services/core/apiClient";
-import { readPublicEnv } from "@/services/core/publicEnv";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import {
   sanitizeErrorStack,
   sanitizeLogContext,
@@ -15,7 +15,7 @@ const LOG_SOURCE = "mobile";
 const LOGS_ENDPOINT = "/logs/error";
 
 function isBackendLoggingEnabled(): boolean {
-  return readPublicEnv("EXPO_PUBLIC_ENABLE_BACKEND_LOGGING") === "true";
+  return getRuntimeConfig().backendLoggingEnabled;
 }
 
 function toExtraContext(

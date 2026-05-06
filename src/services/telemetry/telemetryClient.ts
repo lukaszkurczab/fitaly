@@ -6,9 +6,13 @@ import { Platform } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 import * as apiClient from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
-import { readPublicEnv } from "@/services/core/publicEnv";
-import { TELEMETRY_EVENT_NAMES } from "@/services/telemetry/telemetryTypes";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import {
+  TELEMETRY_EVENT_NAMES,
+  TELEMETRY_SCHEMA_VERSION,
+} from "@/services/telemetry/telemetryTypes";
 import type {
+  TelemetryActor,
   TelemetryBatchPayload,
   TelemetryEventName,
   TelemetryEvent,
@@ -17,8 +21,13 @@ import type {
 
 type BufferedTelemetryState = {
   sessionId: string;
-  events: TelemetryEvent[];
+  events: BufferedTelemetryEvent[];
 };
+
+type BufferedTelemetryEvent = Partial<TelemetryEvent> &
+  Pick<TelemetryEvent, "eventId" | "name" | "ts"> & {
+    props?: TelemetryProps;
+  };
 
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 const DEFAULT_MAX_BATCH_SIZE = 50;
@@ -27,6 +36,7 @@ const DEFAULT_RETRY_MAX_MS = 60_000;
 const TELEMETRY_ENDPOINT = withV2("/telemetry/events/batch");
 
 export const TELEMETRY_BUFFER_STORAGE_KEY = "telemetry:buffer:v1";
+export const TELEMETRY_ANONYMOUS_ID_STORAGE_KEY = "telemetry:anonymousId:v1";
 
 let flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS;
 let maxBatchSize = DEFAULT_MAX_BATCH_SIZE;
@@ -38,12 +48,14 @@ let initPromise: Promise<void> | null = null;
 let flushPromise: Promise<void> | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let sessionId = "";
+let anonymousId = "";
+let currentUserId: string | null = null;
 let queue: TelemetryEvent[] = [];
 let queuedEventIds = new Set<string>();
 let retryAttempt = 0;
 let nextAllowedFlushAt = 0;
 function isTelemetryEnabled(): boolean {
-  return readPublicEnv("EXPO_PUBLIC_ENABLE_TELEMETRY") === "true";
+  return getRuntimeConfig().telemetryEnabled;
 }
 
 function nextId(prefix: string): string {
@@ -56,6 +68,10 @@ function createSessionId(): string {
 
 function createEventId(): string {
   return nextId("evt");
+}
+
+function createAnonymousId(): string {
+  return nextId("anon");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -75,7 +91,7 @@ function shouldDropFailedBatch(error: unknown): boolean {
   );
 }
 
-function isTelemetryEvent(value: unknown): value is TelemetryEvent {
+function isTelemetryEvent(value: unknown): value is BufferedTelemetryEvent {
   if (!isRecord(value)) {
     return false;
   }
@@ -101,6 +117,43 @@ function isTelemetryEvent(value: unknown): value is TelemetryEvent {
   return isRecord(value.props);
 }
 
+function isV2TelemetryEvent(value: unknown): value is TelemetryEvent {
+  if (!isTelemetryEvent(value)) {
+    return false;
+  }
+
+  return (
+    value.schemaVersion === TELEMETRY_SCHEMA_VERSION &&
+    typeof value.occurredAt === "string" &&
+    typeof value.sessionId === "string" &&
+    isRecord(value.actor) &&
+    (typeof value.actor.userId === "string" ||
+      typeof value.actor.anonymousId === "string") &&
+    typeof value.platform === "string" &&
+    typeof value.appVersion === "string" &&
+    typeof value.timezone === "string"
+  );
+}
+
+function getCurrentActor(): TelemetryActor {
+  const normalizedUserId = currentUserId?.trim();
+  if (normalizedUserId) {
+    return { userId: normalizedUserId };
+  }
+
+  return { anonymousId: anonymousId || createAnonymousId() };
+}
+
+function getRequestId(props?: TelemetryProps): string | undefined {
+  const requestId = props?.requestId;
+  if (typeof requestId !== "string") {
+    return undefined;
+  }
+
+  const normalized = requestId.trim();
+  return normalized || undefined;
+}
+
 function normalizeBufferedState(value: unknown): BufferedTelemetryState | null {
   if (!isRecord(value)) {
     return null;
@@ -114,7 +167,7 @@ function normalizeBufferedState(value: unknown): BufferedTelemetryState | null {
     ? value.events.filter(isTelemetryEvent)
     : [];
 
-  const dedupedEvents: TelemetryEvent[] = [];
+  const dedupedEvents: BufferedTelemetryEvent[] = [];
   const seenIds = new Set<string>();
 
   for (const event of restoredEvents) {
@@ -160,14 +213,44 @@ function getBuildNumber(): string | null {
   return null;
 }
 
-function getLocale(): string | null {
+function getLocale(): string {
   const locales = Localization.getLocales?.() || [];
   const primaryLocale = locales[0];
-  return primaryLocale?.languageTag?.trim() || null;
+  return primaryLocale?.languageTag?.trim() || "unknown";
 }
 
 function getTimezoneOffsetMinutes(): number {
   return -new Date().getTimezoneOffset();
+}
+
+function getTimezone(): string {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return typeof timezone === "string" && timezone.trim()
+    ? timezone.trim()
+    : "unknown";
+}
+
+function enrichEventContext(event: BufferedTelemetryEvent): TelemetryEvent {
+  if (isV2TelemetryEvent(event)) {
+    return event;
+  }
+
+  const ts = event.ts || new Date().toISOString();
+  return {
+    ...event,
+    ts,
+    occurredAt: ts,
+    sessionId: event.sessionId || sessionId || createSessionId(),
+    actor: event.actor || { anonymousId: anonymousId || createAnonymousId() },
+    platform: event.platform || Platform.OS,
+    appVersion: event.appVersion || getAppVersion(),
+    build: event.build ?? getBuildNumber(),
+    locale: event.locale ?? getLocale(),
+    timezone: event.timezone || getTimezone(),
+    tzOffsetMin: event.tzOffsetMin ?? getTimezoneOffsetMinutes(),
+    schemaVersion: TELEMETRY_SCHEMA_VERSION,
+    requestId: event.requestId || getRequestId(event.props),
+  };
 }
 
 function buildBatchPayload(events: TelemetryEvent[]): TelemetryBatchPayload {
@@ -209,6 +292,15 @@ async function persistQueue(): Promise<void> {
 
 async function restoreQueue(): Promise<void> {
   try {
+    const storedAnonymousId = await AsyncStorage.getItem(
+      TELEMETRY_ANONYMOUS_ID_STORAGE_KEY,
+    );
+    anonymousId =
+      storedAnonymousId && storedAnonymousId.trim()
+        ? storedAnonymousId.trim()
+        : createAnonymousId();
+    await AsyncStorage.setItem(TELEMETRY_ANONYMOUS_ID_STORAGE_KEY, anonymousId);
+
     const raw = await AsyncStorage.getItem(TELEMETRY_BUFFER_STORAGE_KEY);
     if (!raw) {
       sessionId = createSessionId();
@@ -220,10 +312,11 @@ async function restoreQueue(): Promise<void> {
     const parsed = JSON.parse(raw) as unknown;
     const restored = normalizeBufferedState(parsed);
     sessionId = restored?.sessionId || createSessionId();
-    queue = restored?.events || [];
+    queue = (restored?.events || []).map(enrichEventContext);
     queuedEventIds = new Set(queue.map((event) => event.eventId));
   } catch {
     sessionId = createSessionId();
+    anonymousId = anonymousId || createAnonymousId();
     queue = [];
     queuedEventIds = new Set<string>();
   }
@@ -325,10 +418,23 @@ export async function track(
 
   await ensureInitialized();
 
+  const occurredAt = new Date().toISOString();
+  const requestId = getRequestId(props);
   const event: TelemetryEvent = {
     eventId: createEventId(),
     name,
-    ts: new Date().toISOString(),
+    ts: occurredAt,
+    occurredAt,
+    sessionId: sessionId || createSessionId(),
+    actor: getCurrentActor(),
+    platform: Platform.OS,
+    appVersion: getAppVersion(),
+    build: getBuildNumber(),
+    locale: getLocale(),
+    timezone: getTimezone(),
+    tzOffsetMin: getTimezoneOffsetMinutes(),
+    schemaVersion: TELEMETRY_SCHEMA_VERSION,
+    ...(requestId ? { requestId } : {}),
     ...(props && Object.keys(props).length > 0 ? { props } : {}),
   };
 
@@ -413,12 +519,19 @@ export function stopTelemetryClient(): void {
   initialized = false;
 }
 
+export function setTelemetryUserId(userId: string | null): void {
+  const normalizedUserId = userId?.trim() || null;
+  currentUserId = normalizedUserId;
+}
+
 export function __resetTelemetryClientForTests(): void {
   stopTelemetryClient();
   initialized = false;
   initPromise = null;
   flushPromise = null;
   sessionId = "";
+  anonymousId = "";
+  currentUserId = null;
   queue = [];
   queuedEventIds = new Set<string>();
   retryAttempt = 0;

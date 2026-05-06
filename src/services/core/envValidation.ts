@@ -1,15 +1,16 @@
 import { logWarning } from "@/services/core/errorLogger";
-import { readPublicEnv } from "@/services/core/publicEnv";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
-export const REQUIRED_ENV_VARS = {
-  EXPO_PUBLIC_API_BASE_URL: "Backend API base URL",
-  EXPO_PUBLIC_API_VERSION: "API version (e.g. v1)",
+export const REQUIRED_RUNTIME_CONFIG = {
+  apiBaseUrl: "Backend API base URL",
+  apiVersion: "API version (e.g. v1)",
 } as const;
 
-export const OPTIONAL_ENV_VARS = {
-  EXPO_PUBLIC_ENABLE_BACKEND_LOGGING: "Enable backend error logging",
-  EXPO_PUBLIC_ENABLE_TELEMETRY: "Enable telemetry",
-  EXPO_PUBLIC_ENABLE_SMART_REMINDERS: "Enable smart reminders canonical surface",
+export const OPTIONAL_RUNTIME_CONFIG = {
+  backendLoggingEnabled: "Enable backend error logging",
+  telemetryEnabled: "Enable telemetry",
+  smartRemindersEnabled: "Enable smart reminders canonical surface",
+  billingDisabled: "Disable billing",
 } as const;
 
 function hasValue(value: string | undefined): boolean {
@@ -17,9 +18,11 @@ function hasValue(value: string | undefined): boolean {
 }
 
 export function validateEnv(): { valid: boolean; missing: string[] } {
-  const missing = Object.keys(REQUIRED_ENV_VARS).filter(
-    (key) => !hasValue(readPublicEnv(key)),
-  );
+  const config = getRuntimeConfig();
+  const missing = Object.keys(REQUIRED_RUNTIME_CONFIG).filter((key) => {
+    const value = config[key as keyof typeof REQUIRED_RUNTIME_CONFIG];
+    return typeof value !== "string" || !hasValue(value);
+  });
 
   return {
     valid: missing.length === 0,
@@ -34,11 +37,11 @@ export function warnMissingEnv(): void {
     return;
   }
 
-  logWarning("missing required env vars", { missing: result.missing });
+  logWarning("missing required runtime config", { missing: result.missing });
 
   if (__DEV__) {
     console.warn(
-      `[envValidation] Missing required environment variables: ${result.missing.join(", ")}`,
+      `[envValidation] Missing required runtime config: ${result.missing.join(", ")}`,
     );
   }
 }

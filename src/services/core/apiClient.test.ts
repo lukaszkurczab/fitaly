@@ -1,7 +1,29 @@
 import { afterEach } from "@jest/globals";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 const mockGetApp = jest.fn();
 const mockGetAuth = jest.fn();
-const mockReadPublicEnv = jest.fn();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+
+function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    ...overrides,
+  };
+}
 
 jest.mock("@react-native-firebase/app", () => ({
   getApp: (...args: unknown[]) => mockGetApp(...args),
@@ -11,8 +33,8 @@ jest.mock("@react-native-firebase/auth", () => ({
   getAuth: (...args: unknown[]) => mockGetAuth(...args),
 }));
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (...args: unknown[]) => mockReadPublicEnv(...args),
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 describe("apiClient", () => {
@@ -21,17 +43,7 @@ describe("apiClient", () => {
     jest.clearAllMocks();
 
     mockGetApp.mockReturnValue({ name: "app" });
-    mockReadPublicEnv.mockImplementation((key: string) => {
-      if (key === "EXPO_PUBLIC_API_BASE_URL") {
-        return "https://api.example.com";
-      }
-
-      if (key === "EXPO_PUBLIC_API_VERSION") {
-        return "v1";
-      }
-
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
   });
 
   afterEach(() => {
@@ -314,15 +326,9 @@ describe("apiClient", () => {
     mockGetAuth.mockReturnValue({
       currentUser: null,
     });
-    mockReadPublicEnv.mockImplementation((key: string) => {
-      if (key === "EXPO_PUBLIC_API_BASE_URL") {
-        return "http://api.example.com";
-      }
-      if (key === "EXPO_PUBLIC_API_VERSION") {
-        return "v1";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(
+      createRuntimeConfig({ apiBaseUrl: "http://api.example.com" }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { get } = require("@/services/core/apiClient");

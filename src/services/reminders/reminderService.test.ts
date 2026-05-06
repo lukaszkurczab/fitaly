@@ -4,19 +4,41 @@ import type {
   SendReminderDecision,
   SuppressReminderDecision,
 } from "@/services/reminders/reminderTypes";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
 const mockGet =
   jest.fn<(path: string, options?: unknown) => Promise<unknown>>();
-const mockReadPublicEnv = jest.fn<(name: string) => string | undefined>();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
 const mockWarn = jest.fn<(...args: unknown[]) => void>();
 const mockTrackSmartReminderDecisionFailed = jest.fn<() => Promise<void>>();
+
+function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    ...overrides,
+  };
+}
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (path: string, options?: unknown) => mockGet(path, options),
 }));
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (name: string) => mockReadPublicEnv(name),
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 jest.mock("@/utils/debug", () => ({
@@ -94,12 +116,7 @@ describe("reminderService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockTrackSmartReminderDecisionFailed.mockResolvedValue(undefined);
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_ENABLE_SMART_REMINDERS") {
-        return "true";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
   });
 
   it("fetches reminder decision and keeps the backend payload strict", async () => {
@@ -153,7 +170,6 @@ describe("reminderService", () => {
   });
 
   it("defaults smart reminders on and derives canonical local day keys", () => {
-    mockReadPublicEnv.mockReturnValue(undefined);
     const service = jest.requireActual(
       "@/services/reminders/reminderService",
     ) as typeof import("@/services/reminders/reminderService");
@@ -166,8 +182,8 @@ describe("reminderService", () => {
     ).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("treats blank smart reminder flags as enabled", () => {
-    mockReadPublicEnv.mockReturnValue("   ");
+  it("treats missing smart reminder config as enabled via canonical defaults", () => {
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({ smartRemindersEnabled: true }));
     const service = jest.requireActual(
       "@/services/reminders/reminderService",
     ) as typeof import("@/services/reminders/reminderService");
@@ -176,12 +192,9 @@ describe("reminderService", () => {
   });
 
   it("returns disabled state and skips the endpoint when smart reminders are globally disabled", async () => {
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_ENABLE_SMART_REMINDERS") {
-        return "false";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(
+      createRuntimeConfig({ smartRemindersEnabled: false }),
+    );
 
     const service = jest.requireActual(
       "@/services/reminders/reminderService",

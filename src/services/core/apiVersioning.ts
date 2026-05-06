@@ -1,4 +1,4 @@
-import { readPublicEnv } from "@/services/core/publicEnv";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
 const DEFAULT_API_VERSION = "v1";
 const API_VERSION_PREFIXES = ["/api/v1", "/api/v2"] as const;
@@ -35,7 +35,7 @@ function replaceApiVersionPrefix(path: string, nextPrefix: string): string {
 
 // Changing API_VERSION affects only callers that still rely on withVersion().
 export const API_VERSION =
-  readPublicEnv("EXPO_PUBLIC_API_VERSION")?.trim() || DEFAULT_API_VERSION;
+  getRuntimeConfig().apiVersion.trim() || DEFAULT_API_VERSION;
 
 export function withVersion(path: string): string {
   const normalizedPath = normalizePath(path);

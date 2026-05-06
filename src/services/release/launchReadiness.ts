@@ -1,22 +1,12 @@
 import Constants from "expo-constants";
+import { getRuntimeConfigFromExtra } from "@/services/core/runtimeConfig";
 
 const PRODUCTION_BUILD_PROFILE = "production";
 
-type AppExtra = {
-  apiBaseUrl?: unknown;
-  buildProfile?: unknown;
-  disableBilling?: unknown;
-  termsUrl?: unknown;
-  privacyUrl?: unknown;
-  sentryEnvironment?: unknown;
-};
+type AppExtra = Parameters<typeof getRuntimeConfigFromExtra>[0];
 
 function readExtra(): AppExtra {
-  return (Constants.expoConfig?.extra ?? {}) as AppExtra;
-}
-
-function normalizeString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  return Constants.expoConfig?.extra ?? {};
 }
 
 function isHttpUrl(value: string): boolean {
@@ -27,22 +17,22 @@ function isHttpsUrl(value: string): boolean {
   return value.startsWith("https://");
 }
 
-function isProductionBuild(extra: AppExtra): boolean {
-  return (
-    normalizeString(extra.buildProfile).toLowerCase() === PRODUCTION_BUILD_PROFILE
-  );
+function isProductionBuild(buildProfile: string): boolean {
+  return buildProfile.toLowerCase() === PRODUCTION_BUILD_PROFILE;
 }
 
 export function getLaunchReadinessIssueFromExtra(extra: AppExtra): string | null {
-  if (!isProductionBuild(extra)) {
+  const config = getRuntimeConfigFromExtra(extra);
+
+  if (!isProductionBuild(config.buildProfile)) {
     return null;
   }
 
   const issues: string[] = [];
-  const apiBaseUrl = normalizeString(extra.apiBaseUrl);
-  const termsUrl = normalizeString(extra.termsUrl);
-  const privacyUrl = normalizeString(extra.privacyUrl);
-  const sentryEnvironment = normalizeString(extra.sentryEnvironment).toLowerCase();
+  const apiBaseUrl = config.apiBaseUrl;
+  const termsUrl = config.termsUrl;
+  const privacyUrl = config.privacyUrl;
+  const sentryEnvironment = config.sentryEnvironment.toLowerCase();
 
   if (!apiBaseUrl) {
     issues.push("Missing EXPO_PUBLIC_API_BASE_URL in production build.");
@@ -56,7 +46,7 @@ export function getLaunchReadinessIssueFromExtra(extra: AppExtra): string | null
   if (!isHttpUrl(privacyUrl)) {
     issues.push("Missing or invalid PRIVACY_URL in production build.");
   }
-  if (extra.disableBilling === true) {
+  if (config.billingDisabled) {
     issues.push("Billing must be enabled in production build.");
   }
   if (sentryEnvironment !== PRODUCTION_BUILD_PROFILE) {

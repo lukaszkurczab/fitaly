@@ -1,13 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { validateEnv, warnMissingEnv } from "@/services/core/envValidation";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
-const mockReadPublicEnv = jest.fn<(name: string) => string | undefined>();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
 const mockLogWarning = jest.fn<
   (message: string, context?: unknown, error?: unknown) => void
 >();
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (name: string) => mockReadPublicEnv(name),
+function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    ...overrides,
+  };
+}
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 jest.mock("@/services/core/errorLogger", () => ({
@@ -20,6 +42,7 @@ describe("envValidation", () => {
     jest.clearAllMocks();
     (globalThis as { __DEV__?: boolean }).__DEV__ = true;
     jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
   });
 
   afterEach(() => {
@@ -27,16 +50,6 @@ describe("envValidation", () => {
   });
 
   it("returns valid=true when all required env vars are set", () => {
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_API_BASE_URL") {
-        return "https://api.example.com";
-      }
-      if (name === "EXPO_PUBLIC_API_VERSION") {
-        return "v1";
-      }
-      return undefined;
-    });
-
     expect(validateEnv()).toEqual({
       valid: true,
       missing: [],
@@ -44,26 +57,23 @@ describe("envValidation", () => {
   });
 
   it("returns missing array when required env vars are missing", () => {
-    mockReadPublicEnv.mockReturnValue(undefined);
+    mockGetRuntimeConfig.mockReturnValue(
+      createRuntimeConfig({ apiBaseUrl: "", apiVersion: "" }),
+    );
 
     expect(validateEnv()).toEqual({
       valid: false,
-      missing: ["EXPO_PUBLIC_API_BASE_URL", "EXPO_PUBLIC_API_VERSION"],
+      missing: ["apiBaseUrl", "apiVersion"],
     });
   });
 
   it("calls logWarning when warnMissingEnv detects missing required vars", () => {
-    mockReadPublicEnv.mockImplementation((name: string) => {
-      if (name === "EXPO_PUBLIC_API_BASE_URL") {
-        return "https://api.example.com";
-      }
-      return undefined;
-    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({ apiVersion: "" }));
 
     warnMissingEnv();
 
-    expect(mockLogWarning).toHaveBeenCalledWith("missing required env vars", {
-      missing: ["EXPO_PUBLIC_API_VERSION"],
+    expect(mockLogWarning).toHaveBeenCalledWith("missing required runtime config", {
+      missing: ["apiVersion"],
     }, undefined);
   });
 });

@@ -14,6 +14,7 @@ import {
 } from "@react-native-firebase/auth";
 import * as Sentry from "@sentry/react-native";
 import { resetUserRuntime } from "@/services/session/resetUserRuntime";
+import { setTelemetryUserId } from "@/services/telemetry/telemetryClient";
 
 type AuthContextType = {
   firebaseUser: FirebaseAuthTypes.User | null;
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const applyAuthState = () => {
         lastUidRef.current = nextUid;
+        setTelemetryUserId(nextUid);
         setAuthStateUser(user);
         if (user) {
           Sentry.setUser({ id: user.uid });

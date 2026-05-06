@@ -2,7 +2,7 @@ import { get } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { isRecord } from "@/services/contracts/guards";
-import { readPublicEnv } from "@/services/core/publicEnv";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { trackSmartReminderDecisionFailed } from "@/services/telemetry/telemetryInstrumentation";
 import { debugScope } from "@/utils/debug";
 import {
@@ -32,11 +32,7 @@ const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UTC_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 export function isSmartRemindersEnabled(): boolean {
-  const raw = readPublicEnv("EXPO_PUBLIC_ENABLE_SMART_REMINDERS");
-  if (typeof raw !== "string" || !raw.trim()) {
-    return true;
-  }
-  return raw.trim().toLowerCase() === "true";
+  return getRuntimeConfig().smartRemindersEnabled;
 }
 
 function toDayKey(date: Date): string {

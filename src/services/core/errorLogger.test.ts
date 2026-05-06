@@ -1,8 +1,30 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
 const mockSentryCaptureException = jest.fn();
 const mockApiPost = jest.fn();
-const mockReadPublicEnv = jest.fn();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+
+function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: true,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    ...overrides,
+  };
+}
 
 jest.mock("@sentry/react-native", () => ({
   captureException: (...args: unknown[]) => mockSentryCaptureException(...args),
@@ -12,17 +34,16 @@ jest.mock("@/services/core/apiClient", () => ({
   post: (...args: unknown[]) => mockApiPost(...args),
 }));
 
-jest.mock("@/services/core/publicEnv", () => ({
-  readPublicEnv: (...args: unknown[]) => mockReadPublicEnv(...args),
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
 describe("errorLogger", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
     mockApiPost.mockImplementation(() => Promise.resolve(undefined));
-    mockReadPublicEnv.mockImplementation((...args: unknown[]) =>
-      args[0] === "EXPO_PUBLIC_ENABLE_BACKEND_LOGGING" ? "true" : undefined,
-    );
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
   });
 
   it("sends only sanitized payload to backend logs endpoint", () => {

@@ -11,6 +11,7 @@ let authStateCallback: AuthStateCallback | null = null;
 const mockResetUserRuntime = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
+const mockSetTelemetryUserId = jest.fn<(uid: string | null) => void>();
 const mockSentrySetUser = jest.fn();
 const mockUnsubscribe = jest.fn();
 
@@ -32,6 +33,10 @@ jest.mock("@sentry/react-native", () => ({
 
 jest.mock("@/services/session/resetUserRuntime", () => ({
   resetUserRuntime: (...args: unknown[]) => mockResetUserRuntime(...args),
+}));
+
+jest.mock("@/services/telemetry/telemetryClient", () => ({
+  setTelemetryUserId: (uid: string | null) => mockSetTelemetryUserId(uid),
 }));
 
 function Probe({ onRender }: { onRender: (uid: string | null) => void }) {
@@ -90,6 +95,7 @@ describe("AuthContext", () => {
 
     expect(lastRenderedUid(renderedUids)).toBe("user-b");
     expect(mockSentrySetUser).toHaveBeenLastCalledWith({ id: "user-b" });
+    expect(mockSetTelemetryUserId).toHaveBeenLastCalledWith("user-b");
   });
 
   it("resets previous user runtime when native auth session is lost", async () => {
@@ -117,5 +123,6 @@ describe("AuthContext", () => {
     });
     expect(lastRenderedUid(renderedUids)).toBeNull();
     expect(mockSentrySetUser).toHaveBeenLastCalledWith(null);
+    expect(mockSetTelemetryUserId).toHaveBeenLastCalledWith(null);
   });
 });
