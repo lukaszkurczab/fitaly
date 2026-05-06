@@ -5,7 +5,10 @@ import {
   it,
 } from "@jest/globals";
 import {
+  __hasLocalMealsStoreForTests,
   __resetLocalMealsStoreForTests,
+  getLocalMealsSnapshot,
+  subscribeLocalMeals,
   selectLocalMealByCloudId,
   selectLocalMealsByRange,
   upsertLocalMealSnapshot,
@@ -13,6 +16,7 @@ import {
 import type { Meal } from "@/types/meal";
 
 const UID = "user-1";
+const UID_B = "user-2";
 
 const makeMeal = (overrides: Partial<Meal> = {}): Meal => ({
   userUid: UID,
@@ -130,5 +134,40 @@ describe("localMealsStore range selectors", () => {
       selectLocalMealByCloudId(UID, "canonical-cloud-id"),
     ).toEqual(expect.objectContaining({ cloudId: "canonical-cloud-id" }));
     expect(selectLocalMealByCloudId(UID, "legacy-meal-id")).toBeNull();
+  });
+
+  it("removes idle per-user store after unsubscribe and keeps users isolated", () => {
+    upsertLocalMealSnapshot(
+      UID,
+      makeMeal({
+        mealId: "uid-a-meal",
+        cloudId: "uid-a-meal",
+      }),
+    );
+
+    const unsubscribeA = subscribeLocalMeals(UID, () => undefined);
+
+    expect(__hasLocalMealsStoreForTests(UID)).toBe(true);
+    expect(getLocalMealsSnapshot(UID).meals).toEqual([
+      expect.objectContaining({ cloudId: "uid-a-meal", userUid: UID }),
+    ]);
+
+    unsubscribeA();
+
+    expect(__hasLocalMealsStoreForTests(UID)).toBe(false);
+    expect(getLocalMealsSnapshot(UID)).toEqual({
+      meals: [],
+      loading: false,
+      version: 0,
+    });
+
+    const unsubscribeB = subscribeLocalMeals(UID_B, () => undefined);
+    const snapshotB = getLocalMealsSnapshot(UID_B);
+
+    expect(__hasLocalMealsStoreForTests(UID_B)).toBe(true);
+    expect(snapshotB.meals).toEqual([]);
+    expect(selectLocalMealByCloudId(UID_B, "uid-a-meal")).toBeNull();
+
+    unsubscribeB();
   });
 });

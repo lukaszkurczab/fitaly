@@ -116,7 +116,10 @@ class LocalMealsReadModel {
   private loadToken = 0;
   private snapshotCache: LocalMealsSnapshot = EMPTY_SNAPSHOT;
 
-  constructor(private readonly uid: string) {}
+  constructor(
+    private readonly uid: string,
+    private readonly onIdle: (uid: string, store: LocalMealsReadModel) => void,
+  ) {}
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
@@ -277,6 +280,9 @@ class LocalMealsReadModel {
     this.loadToken += 1;
     this.version += 1;
     this.snapshotCache = EMPTY_SNAPSHOT;
+    if (this.listeners.size === 0) {
+      this.onIdle(this.uid, this);
+    }
   }
 
   private matchesUid(event?: LocalMealEvent): boolean {
@@ -326,21 +332,31 @@ class LocalMealsReadModel {
 
 const stores = new Map<string, LocalMealsReadModel>();
 
-function getStore(uid: string | null | undefined): LocalMealsReadModel | null {
+function deleteStoreIfIdle(uid: string, store: LocalMealsReadModel): void {
+  if (store !== stores.get(uid)) return;
+  stores.delete(uid);
+}
+
+function ensureStore(uid: string | null | undefined): LocalMealsReadModel | null {
   if (!uid) return null;
   let store = stores.get(uid);
   if (!store) {
-    store = new LocalMealsReadModel(uid);
+    store = new LocalMealsReadModel(uid, deleteStoreIfIdle);
     stores.set(uid, store);
   }
   return store;
+}
+
+function peekStore(uid: string | null | undefined): LocalMealsReadModel | null {
+  if (!uid) return null;
+  return stores.get(uid) ?? null;
 }
 
 export function subscribeLocalMeals(
   uid: string | null | undefined,
   listener: Listener,
 ): () => void {
-  const store = getStore(uid);
+  const store = ensureStore(uid);
   if (!store) {
     listener();
     return () => undefined;
@@ -351,13 +367,13 @@ export function subscribeLocalMeals(
 export function getLocalMealsSnapshot(
   uid: string | null | undefined,
 ): LocalMealsSnapshot {
-  return getStore(uid)?.snapshot() ?? EMPTY_SNAPSHOT;
+  return peekStore(uid)?.snapshot() ?? EMPTY_SNAPSHOT;
 }
 
 export async function refreshLocalMeals(
   uid: string | null | undefined,
 ): Promise<void> {
-  await getStore(uid)?.refresh();
+  await ensureStore(uid)?.refresh();
 }
 
 export function selectLocalMealsByDayKey(
@@ -369,7 +385,7 @@ export function selectLocalMealsByDayKey(
   if (!normalizedDayKey) return [];
 
   const meals =
-    getStore(uid)
+    peekStore(uid)
       ?.snapshot()
       .meals.filter((meal) => getMealDayKey(meal) === normalizedDayKey) ?? [];
 
@@ -381,7 +397,7 @@ export function selectLocalMealsByRange(
   range: { start: Date; end: Date },
 ): Meal[] {
   return (
-    getStore(uid)
+    peekStore(uid)
       ?.snapshot()
       .meals.filter((meal) => isMealInDayKeyRange(meal, range)) ?? []
   );
@@ -393,7 +409,7 @@ export function selectLocalMealByCloudId(
 ): Meal | null {
   if (!cloudId) return null;
   return (
-    getStore(uid)
+    peekStore(uid)
       ?.snapshot()
       .meals.find((meal) => meal.cloudId === cloudId) ??
     null
@@ -404,14 +420,14 @@ export function upsertLocalMealSnapshot(
   uid: string | null | undefined,
   meal: Meal,
 ): void {
-  getStore(uid)?.upsertLocal(meal);
+  ensureStore(uid)?.upsertLocal(meal);
 }
 
 export function removeLocalMealSnapshot(
   uid: string | null | undefined,
   cloudId: string,
 ): void {
-  getStore(uid)?.removeById(cloudId);
+  ensureStore(uid)?.removeById(cloudId);
 }
 
 export function __resetLocalMealsStoreForTests(): void {
@@ -419,4 +435,10 @@ export function __resetLocalMealsStoreForTests(): void {
     store.resetForTests();
   }
   stores.clear();
+}
+
+export function __hasLocalMealsStoreForTests(
+  uid: string | null | undefined,
+): boolean {
+  return Boolean(uid && stores.has(uid));
 }
