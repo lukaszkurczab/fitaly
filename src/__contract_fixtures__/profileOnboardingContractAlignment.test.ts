@@ -17,6 +17,7 @@ import {
   PROFILE_LANGUAGE_NORMALIZATION_EXAMPLES,
   PROFILE_NUTRITION_FIELDS,
   PROFILE_NUTRITION_SEMANTICS,
+  PROFILE_DEFAULTS,
   PROFILE_ONBOARDING_DEFAULTS,
   PROFILE_ONBOARDING_DOCUMENT_FIELDS,
   PROFILE_ONBOARDING_REQUEST_OPTIONAL_FIELDS,
@@ -28,7 +29,7 @@ import {
 } from "@/services/user/profileContract";
 import { parseUserData } from "@/services/user/profile.dto";
 import { sanitizeUserProfilePatch } from "@/services/user/profilePatch";
-import type { UserData } from "@/types";
+import type { UserData, UserProfile } from "@/types";
 
 const FIXTURES_DIR = path.join(__dirname);
 
@@ -38,10 +39,12 @@ type ProfileContractFixture = {
     requiredFields: string[];
     optionalFields: string[];
   };
-  onboardingProfile: {
-    fields: string[];
-    defaults: Record<string, unknown>;
-  };
+	  onboardingProfile: {
+	    fields: string[];
+	    defaults: {
+	      profile: UserProfile;
+	    };
+	  };
   profilePatch: {
     editableFields: string[];
   };
@@ -103,7 +106,7 @@ describe("Profile/onboarding contract parity", () => {
   test("critical field groups match backend fixture", () => {
     expect(contract.criticalFieldGroups).toEqual({
       readiness: [...PROFILE_READINESS_FIELDS],
-      language: ["language"],
+      language: ["profile.language"],
       aiPersona: [...PROFILE_AI_PERSONA_FIELDS],
       aiStyle: [...PROFILE_AI_STYLE_FIELDS],
       nutrition: [...PROFILE_NUTRITION_FIELDS],
@@ -126,16 +129,16 @@ describe("Profile/onboarding contract parity", () => {
 
   test("shared semantics match backend fixture", () => {
     expect(contract.semantics.language).toEqual({
-      default: PROFILE_ONBOARDING_DEFAULTS.language,
+      default: PROFILE_DEFAULTS.language,
       normalizedExamples: PROFILE_LANGUAGE_NORMALIZATION_EXAMPLES,
     });
     expect(contract.semantics.readiness).toEqual({
       field: PROFILE_READINESS_FIELDS[0],
-      default: PROFILE_ONBOARDING_DEFAULTS.readiness,
+      default: PROFILE_DEFAULTS.readiness,
       statuses: ["needs_profile", "needs_ai_consent", "ready"],
     });
     expect(contract.semantics.aiPersona).toEqual({
-      default: PROFILE_ONBOARDING_DEFAULTS.aiPersona,
+      default: PROFILE_DEFAULTS.aiPreferences.stylePersona,
       styleProfileLabels: PROFILE_AI_PERSONA_STYLE_LABELS,
     });
     expect(contract.semantics.nutrition).toEqual({
@@ -152,13 +155,18 @@ describe("Profile/onboarding contract parity", () => {
       goal: INITIAL_FORM.goal,
       aiPersona: INITIAL_FORM.aiPersona,
       calorieTarget: INITIAL_FORM.calorieTarget,
-    }).toEqual({
-      unitsSystem: contract.onboardingProfile.defaults.unitsSystem,
-      sex: contract.onboardingProfile.defaults.sex,
-      activityLevel: contract.onboardingProfile.defaults.activityLevel,
-      goal: contract.onboardingProfile.defaults.goal,
-      aiPersona: contract.onboardingProfile.defaults.aiPersona,
-      calorieTarget: contract.onboardingProfile.defaults.calorieTarget,
+	    }).toEqual({
+	      unitsSystem:
+	        contract.onboardingProfile.defaults.profile.nutritionProfile
+	          .unitsSystem,
+	      sex: contract.onboardingProfile.defaults.profile.nutritionProfile.sex,
+	      activityLevel:
+	        contract.onboardingProfile.defaults.profile.nutritionProfile
+	          .activityLevel,
+	      goal: contract.onboardingProfile.defaults.profile.nutritionProfile.goal,
+	      aiPersona: contract.onboardingProfile.defaults.profile.aiPreferences.stylePersona,
+	      calorieTarget:
+	        contract.onboardingProfile.defaults.profile.nutritionProfile.calorieTarget,
     });
   });
 
@@ -170,70 +178,102 @@ describe("Profile/onboarding contract parity", () => {
       plan: "free",
       createdAt: 1,
       lastLogin: "2026-05-05T10:00:00Z",
-      unitsSystem: "metric",
-      age: "30",
-      sex: "female",
-      height: "170",
-      heightInch: "",
-      weight: "70",
-      preferences: ["vegan", "balanced"],
-      activityLevel: "",
-      goal: "",
-      chronicDiseases: [],
-      chronicDiseasesOther: "",
-      allergies: [],
-      allergiesOther: "",
-      lifestyle: "",
-      aiPersona: "focused_coach",
-      readiness: {
-        status: "ready",
-        onboardingCompletedAt: "2026-05-02T10:00:00Z",
-        readyAt: "2026-05-03T10:00:00Z",
+      profile: {
+        language: "pl",
+        nutritionProfile: {
+          unitsSystem: "metric",
+          age: "30",
+          sex: "female",
+          height: "170",
+          heightInch: "",
+          weight: "70",
+          preferences: ["vegan", "balanced"],
+          activityLevel: "",
+          goal: "",
+          chronicDiseases: [],
+          chronicDiseasesOther: "",
+          allergies: [],
+          allergiesOther: "",
+          lifestyle: "",
+          calorieTarget: 2200,
+        },
+        aiPreferences: {
+          stylePersona: "focused_coach",
+        },
+        consents: {
+          aiHealthDataConsentAt: "2026-05-03T10:00:00Z",
+        },
+        readiness: {
+          status: "ready",
+          onboardingCompletedAt: "2026-05-02T10:00:00Z",
+          readyAt: "2026-05-03T10:00:00Z",
+        },
       },
-      calorieTarget: 2200,
       syncState: "pending",
       lastSyncedAt: "2026-05-02T10:00:00Z",
       avatarUrl: "https://cdn/avatar.jpg",
       avatarLocalPath: "file:///avatar.jpg",
       avatarlastSyncedAt: "2026-05-02T10:00:00Z",
-      language: "pl",
     });
 
     expect(parsed).toMatchObject({
-      activityLevel: "",
-      goal: "",
-      readiness: {
-        status: "ready",
-        onboardingCompletedAt: "2026-05-02T10:00:00Z",
-        readyAt: "2026-05-03T10:00:00Z",
+      profile: {
+        language: "pl",
+        nutritionProfile: {
+          activityLevel: "",
+          goal: "",
+          preferences: ["vegan", "balanced"],
+          calorieTarget: 2200,
+        },
+        aiPreferences: {
+          stylePersona: "focused_coach",
+        },
+        readiness: {
+          status: "ready",
+          onboardingCompletedAt: "2026-05-02T10:00:00Z",
+          readyAt: "2026-05-03T10:00:00Z",
+        },
       },
-      language: "pl",
-      aiPersona: "focused_coach",
-      preferences: ["vegan", "balanced"],
-      calorieTarget: 2200,
     });
   });
 
   test("profile patch sanitizer excludes server-owned readiness", () => {
     const patch = sanitizeUserProfilePatch({
-      readiness: {
-        status: "needs_ai_consent",
-        onboardingCompletedAt: "2026-05-02T10:00:00Z",
-        readyAt: null,
+      profile: {
+        ...PROFILE_DEFAULTS,
+        language: "pl",
+        aiPreferences: { stylePersona: "mediterranean_friend" },
+        nutritionProfile: {
+          ...PROFILE_ONBOARDING_DEFAULTS,
+          goal: "increase",
+          calorieTarget: 2500,
+          preferences: ["mediterranean"],
+        },
+        readiness: {
+          status: "needs_ai_consent",
+          onboardingCompletedAt: "2026-05-02T10:00:00Z",
+          readyAt: null,
+        },
       },
-      language: "pl",
-      aiPersona: "mediterranean_friend",
-      goal: "increase",
-      calorieTarget: 2500,
-      preferences: ["mediterranean"],
     } satisfies Partial<UserData>);
 
     expect(patch).toEqual({
-      language: "pl",
-      aiPersona: "mediterranean_friend",
-      goal: "increase",
-      calorieTarget: 2500,
-      preferences: ["mediterranean"],
+      profile: {
+        ...PROFILE_DEFAULTS,
+        language: "pl",
+        aiPreferences: { stylePersona: "mediterranean_friend" },
+        nutritionProfile: {
+          ...PROFILE_ONBOARDING_DEFAULTS,
+          goal: "increase",
+          calorieTarget: 2500,
+          preferences: ["mediterranean"],
+        },
+        readiness: {
+          status: "needs_ai_consent",
+          onboardingCompletedAt: "2026-05-02T10:00:00Z",
+          readyAt: null,
+        },
+      },
     });
   });
 

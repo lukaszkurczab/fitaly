@@ -156,33 +156,42 @@ describe("user/profile", () => {
       plan: "free",
       createdAt: 1,
       lastLogin: "2026-03-03T12:00:00.000Z",
-      readiness: {
-        status: "needs_profile",
-        onboardingCompletedAt: null,
-        readyAt: null,
+      profile: {
+        language: "en",
+        nutritionProfile: {
+          unitsSystem: "metric",
+          age: "",
+          sex: "female",
+          height: "",
+          heightInch: "",
+          weight: "",
+          preferences: [],
+          activityLevel: "moderate",
+          goal: "maintain",
+          chronicDiseases: [],
+          chronicDiseasesOther: "",
+          allergies: [],
+          allergiesOther: "",
+          lifestyle: "",
+          calorieTarget: 0,
+        },
+        aiPreferences: {
+          stylePersona: "calm_guide",
+        },
+        consents: {
+          aiHealthDataConsentAt: null,
+        },
+        readiness: {
+          status: "needs_profile",
+          onboardingCompletedAt: null,
+          readyAt: null,
+        },
       },
       syncState: "pending",
-      unitsSystem: "metric",
-      age: "",
-      sex: "female",
-      height: "",
-      heightInch: "",
-      weight: "",
-      preferences: [],
-      activityLevel: "moderate",
-      goal: "maintain",
-      chronicDiseases: [],
-      chronicDiseasesOther: "",
-      allergies: [],
-      allergiesOther: "",
-      lifestyle: "",
-      aiPersona: "calm_guide",
-      calorieTarget: 0,
       lastSyncedAt: "",
       avatarUrl: "",
       avatarLocalPath: "",
       avatarlastSyncedAt: "",
-      language: "en",
     };
 
     await upsertUserLocal(profile);
@@ -190,7 +199,10 @@ describe("user/profile", () => {
 
     expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(1, profile);
     expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(2, {
-      language: "pl",
+      profile: {
+        ...profile.profile,
+        language: "pl",
+      },
     });
   });
 

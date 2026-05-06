@@ -1201,11 +1201,11 @@ describe("useMeals", () => {
         meals: snapshotMeals,
         selectedDayKey: originalDayKey,
         todayDayKey: originalDayKey,
-        userData: {
+        nutritionProfile: {
           calorieTarget: 1000,
           preferences: ["balanced"],
           goal: "maintain",
-        },
+        } as never,
       });
       const stats = buildStatisticsRangeState({
         meals: snapshotMeals,
@@ -1471,11 +1471,11 @@ describe("useMeals", () => {
         meals: snapshotMeals,
         selectedDayKey: "2026-02-20",
         todayDayKey: "2026-02-20",
-        userData: {
+        nutritionProfile: {
           calorieTarget: 1000,
           preferences: ["balanced"],
           goal: "maintain",
-        },
+        } as never,
       });
       const stats = buildStatisticsRangeState({
         meals: snapshotMeals,

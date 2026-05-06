@@ -7,7 +7,7 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import type { UserData } from "@/types";
+import type { UserData, UserProfile } from "@/types";
 import { useUser } from "@/hooks/useUser";
 import { Platform } from "react-native";
 
@@ -236,6 +236,39 @@ const setPlatformOs = (os: "ios" | "android") => {
   });
 };
 
+const createProfile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
+  language: "en",
+  nutritionProfile: {
+    unitsSystem: "metric",
+    age: "30",
+    sex: "male",
+    height: "180",
+    heightInch: "",
+    weight: "80",
+    preferences: [],
+    activityLevel: "moderate",
+    goal: "maintain",
+    chronicDiseases: [],
+    chronicDiseasesOther: "",
+    allergies: [],
+    allergiesOther: "",
+    lifestyle: "",
+    calorieTarget: 2200,
+  },
+  aiPreferences: {
+    stylePersona: "calm_guide",
+  },
+  consents: {
+    aiHealthDataConsentAt: null,
+  },
+  readiness: {
+    status: "ready",
+    onboardingCompletedAt: "2026-03-10T10:00:00.000Z",
+    readyAt: "2026-03-10T10:00:00.000Z",
+  },
+  ...overrides,
+});
+
 const createUser = (overrides: Partial<UserData> = {}): UserData => ({
   uid: "u1",
   email: "u1@example.com",
@@ -243,22 +276,8 @@ const createUser = (overrides: Partial<UserData> = {}): UserData => ({
   plan: "free",
   createdAt: 1,
   lastLogin: "2026-03-10T10:00:00.000Z",
-  readiness: {
-    status: "ready",
-    onboardingCompletedAt: "2026-03-10T10:00:00.000Z",
-    readyAt: "2026-03-10T10:00:00.000Z",
-  },
+  profile: createProfile(),
   syncState: "synced",
-  language: "en",
-  unitsSystem: "metric",
-  age: "30",
-  sex: "male",
-  height: "180",
-  weight: "80",
-  preferences: [],
-  activityLevel: "moderate",
-  goal: "maintain",
-  calorieTarget: 2200,
   ...overrides,
 });
 
@@ -328,7 +347,7 @@ describe("useUser", () => {
     jest.restoreAllMocks();
   });
 
-  it("handles empty uid and local language change without network calls", async () => {
+  it("handles empty uid language changes without writing profile state", async () => {
     const { result } = renderHook(() => useUser(""));
 
     await waitFor(() => {
@@ -344,14 +363,14 @@ describe("useUser", () => {
       await result.current.changeLanguage("pl");
     });
 
-    expect(result.current.language).toBe("pl");
+    expect(result.current.language).toBe("en");
     expect(mockI18nChangeLanguage).toHaveBeenCalledWith("pl");
     expect(mockFetchUserProfileRemote).not.toHaveBeenCalled();
   });
 
   it("loads cached profile, reacts to snapshot updates and unsubscribes", async () => {
     const cached = createUser({
-      language: "de" as unknown as UserData["language"],
+      profile: createProfile({ language: "de" as never }),
       avatarLocalPath: "file:///avatar-local.jpg",
     });
     mockFetchUserProfileRemote.mockResolvedValue(cached);
@@ -371,7 +390,7 @@ describe("useUser", () => {
       emitSnapshot(
         createUser({
           username: "trinity",
-          language: "fr" as unknown as UserData["language"],
+          profile: createProfile({ language: "fr" as never }),
           avatarLocalPath: "file:///avatar-local.jpg",
         }),
       );
@@ -806,18 +825,21 @@ describe("useUser", () => {
 
     await act(async () => {
       await result.current.updateUserProfile({
-        language: "pl",
+        profile: createProfile({ language: "pl" }),
         avatarLocalPath: undefined,
       });
     });
 
+    const expectedPatch = {
+      profile: createProfile({ language: "pl" }),
+    };
     expect(mockAssertNoUndefined).toHaveBeenCalledWith(
-      { language: "pl" },
+      expectedPatch,
       "updateUserProfile payload",
     );
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { language: "pl" },
+      expectedPatch,
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),
@@ -835,24 +857,38 @@ describe("useUser", () => {
 
     await act(async () => {
       await result.current.updateUserProfile({
-        language: "pl",
-        age: "31",
+        profile: createProfile({
+          language: "pl",
+          nutritionProfile: {
+            ...createProfile().nutritionProfile,
+            age: "31",
+          },
+        }),
       });
     });
 
+    const expectedPatch = {
+      profile: createProfile({
+        language: "pl",
+        nutritionProfile: {
+          ...createProfile().nutritionProfile,
+          age: "31",
+        },
+      }),
+    };
     expect(mockAssertNoUndefined).toHaveBeenCalledWith(
-      { language: "pl", age: "31" },
+      expectedPatch,
       "updateUserProfile payload",
     );
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { language: "pl", age: "31" },
+      expectedPatch,
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),
     );
     expect(mockPushQueue).toHaveBeenCalledWith("u1");
-    expect(result.current.userData?.age).toBe("31");
+    expect(result.current.userData?.profile.nutritionProfile.age).toBe("31");
   });
 
   it("sanitizes local profile patch and blocks protected fields from overriding cache/state", async () => {
@@ -880,7 +916,12 @@ describe("useUser", () => {
       await result.current.updateUserProfile({
         uid: "attacker",
         username: "neo-2",
-        age: "33",
+        profile: createProfile({
+          nutritionProfile: {
+            ...createProfile().nutritionProfile,
+            age: "33",
+          },
+        }),
         avatarUrl: "https://evil.example/avatar.jpg",
         avatarlastSyncedAt: "9999-01-01T00:00:00.000Z",
         createdAt: 999999,
@@ -888,18 +929,28 @@ describe("useUser", () => {
     });
 
     expect(result.current.userData).toEqual(
-      expect.objectContaining({
-        uid: "u1",
-        username: "neo-2",
-        age: "33",
-        createdAt: 1,
-        avatarUrl: "https://cdn.safe/avatar.jpg",
-        avatarlastSyncedAt: "2026-03-10T10:00:00.000Z",
+        expect.objectContaining({
+          uid: "u1",
+          username: "neo-2",
+          createdAt: 1,
+          avatarUrl: "https://cdn.safe/avatar.jpg",
+          avatarlastSyncedAt: "2026-03-10T10:00:00.000Z",
+          profile: expect.objectContaining({
+            nutritionProfile: expect.objectContaining({ age: "33" }),
+          }),
+        }),
+      );
+    const expectedPatch = {
+      profile: createProfile({
+        nutritionProfile: {
+          ...createProfile().nutritionProfile,
+          age: "33",
+        },
       }),
-    );
+    };
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { age: "33" },
+      expectedPatch,
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),
@@ -915,7 +966,7 @@ describe("useUser", () => {
     expect(parsed.createdAt).toBe(1);
     expect(parsed.avatarUrl).toBe("https://cdn.safe/avatar.jpg");
     expect(parsed.avatarlastSyncedAt).toBe("2026-03-10T10:00:00.000Z");
-    expect(parsed.age).toBe("33");
+    expect(parsed.profile?.nutritionProfile.age).toBe("33");
     expect(parsed.username).toBe("neo-2");
   });
 
@@ -930,13 +981,26 @@ describe("useUser", () => {
 
     await act(async () => {
       await result.current.updateUserProfile({
-        age: "32",
+        profile: createProfile({
+          nutritionProfile: {
+            ...createProfile().nutritionProfile,
+            age: "32",
+          },
+        }),
       });
     });
 
+    const expectedPatch = {
+      profile: createProfile({
+        nutritionProfile: {
+          ...createProfile().nutritionProfile,
+          age: "32",
+        },
+      }),
+    };
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { age: "32" },
+      expectedPatch,
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),
@@ -1082,7 +1146,7 @@ describe("useUser", () => {
     expect(mockI18nChangeLanguage).toHaveBeenCalledWith("en");
     expect(mockEnqueueUserProfileUpdate).toHaveBeenCalledWith(
       "u1",
-      { language: "en" },
+      { profile: createProfile({ language: "en" }) },
       expect.objectContaining({
         updatedAt: expect.any(String),
       }),

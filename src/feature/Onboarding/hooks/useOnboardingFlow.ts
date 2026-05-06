@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useUserContext } from "@/context/UserContext";
-import type { OnboardingMode, UserData } from "@/types";
+import type { OnboardingMode, UserData, UserNutritionProfile, UserProfile } from "@/types";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { calculateCalorieTarget } from "@/feature/Onboarding/utils/calculateCalorieTarget";
@@ -51,8 +51,7 @@ function normalizeFormForCompare(form: OnboardingFormData) {
     preferences: normalizeStringArray(form.preferences),
     activityLevel: form.activityLevel,
     goal: form.goal,
-    calorieDeficit: form.calorieDeficit ?? null,
-    calorieSurplus: form.calorieSurplus ?? null,
+    calorieAdjustment: form.calorieAdjustment ?? null,
     chronicDiseases: normalizeStringArray(form.chronicDiseases),
     chronicDiseasesOther: form.chronicDiseasesOther ?? "",
     allergies: normalizeStringArray(form.allergies),
@@ -66,14 +65,8 @@ function buildInitialForm(userData: UserData | null): OnboardingFormData {
   if (!userData) return INITIAL_FORM;
   return {
     ...INITIAL_FORM,
-    ...userData,
-    heightInch: userData.heightInch ?? "",
-    chronicDiseases: userData.chronicDiseases ?? [],
-    allergies: userData.allergies ?? [],
-    chronicDiseasesOther: userData.chronicDiseasesOther ?? "",
-    allergiesOther: userData.allergiesOther ?? "",
-    lifestyle: userData.lifestyle ?? "",
-    aiPersona: userData.aiPersona ?? "calm_guide",
+    ...userData.profile.nutritionProfile,
+    aiPersona: userData.profile.aiPreferences.stylePersona,
   };
 }
 
@@ -158,12 +151,12 @@ function validateStep2(
     nextErrors.goal = t("errors.selectGoal");
   }
 
-  if (form.goal === "lose" && typeof form.calorieDeficit !== "number") {
-    nextErrors.calorieDeficit = t("errors.selectDeficit");
-  }
-
-  if (form.goal === "increase" && typeof form.calorieSurplus !== "number") {
-    nextErrors.calorieSurplus = t("errors.selectSurplus");
+  if (
+    (form.goal === "lose" || form.goal === "increase") &&
+    typeof form.calorieAdjustment !== "number"
+  ) {
+    nextErrors.calorieAdjustment =
+      form.goal === "lose" ? t("errors.selectDeficit") : t("errors.selectSurplus");
   }
 
   return nextErrors;
@@ -219,13 +212,24 @@ function findFirstInvalidStep(
   return null;
 }
 
-function toPersistedProfilePatch(form: OnboardingFormData): Partial<UserData> {
-  const {
-    calorieDeficit: _calorieDeficit,
-    calorieSurplus: _calorieSurplus,
-    ...profile
-  } = form;
-  return profile;
+function toNutritionProfile(form: OnboardingFormData): UserNutritionProfile {
+  return {
+    unitsSystem: form.unitsSystem,
+    age: form.age,
+    sex: form.sex,
+    height: form.height,
+    heightInch: form.heightInch ?? "",
+    weight: form.weight,
+    preferences: form.preferences,
+    activityLevel: form.activityLevel,
+    goal: form.goal,
+    chronicDiseases: form.chronicDiseases ?? [],
+    chronicDiseasesOther: form.chronicDiseasesOther ?? "",
+    allergies: form.allergies ?? [],
+    allergiesOther: form.allergiesOther ?? "",
+    lifestyle: form.lifestyle ?? "",
+    calorieTarget: calculateCalorieTarget(form),
+  };
 }
 
 function buildCompletionPayload(
@@ -242,11 +246,9 @@ function buildCompletionPayload(
     activityLevel: form.activityLevel,
     goal: form.goal,
     calorieAdjustment:
-      form.goal === "lose"
-        ? form.calorieDeficit
-        : form.goal === "increase"
-          ? form.calorieSurplus
-          : null,
+      form.goal === "lose" || form.goal === "increase"
+        ? form.calorieAdjustment
+        : null,
     chronicDiseases: form.chronicDiseases ?? [],
     chronicDiseasesOther: form.chronicDiseasesOther ?? "",
     allergies: form.allergies ?? [],
@@ -259,11 +261,20 @@ function buildCompletionPayload(
   return payload;
 }
 
-function buildPartialSavePatch(form: OnboardingFormData): Partial<UserData> {
+function buildPartialSavePatch(
+  form: OnboardingFormData,
+  currentProfile: UserProfile,
+): Partial<UserData> {
   const payload = {
-    ...toPersistedProfilePatch(form),
+    profile: {
+      ...currentProfile,
+      nutritionProfile: toNutritionProfile(form),
+      aiPreferences: {
+        ...currentProfile.aiPreferences,
+        stylePersona: form.aiPersona ?? "calm_guide",
+      },
+    },
     avatarLocalPath: form.avatarLocalPath ?? "",
-    calorieTarget: calculateCalorieTarget(form),
   } satisfies Partial<UserData>;
 
   assertNoUndefined(payload, "onboarding partial payload");
@@ -343,7 +354,8 @@ export function useOnboardingFlow(params: {
           return;
         }
 
-        await updateUser(buildPartialSavePatch(resolvedForm));
+      if (!userData?.profile) return;
+      await updateUser(buildPartialSavePatch(resolvedForm, userData.profile));
         await syncUserProfile();
         void trackOnboardingCompleted({ mode: params.mode });
         goToProfile();
@@ -359,6 +371,7 @@ export function useOnboardingFlow(params: {
       applyServerProfile,
       syncUserProfile,
       updateUser,
+      userData?.profile,
     ],
   );
 
@@ -450,13 +463,14 @@ export function useOnboardingFlow(params: {
 
     setSubmitting(true);
     try {
-      await updateUser(buildPartialSavePatch(form));
+      if (!userData?.profile) return;
+      await updateUser(buildPartialSavePatch(form, userData.profile));
       await syncUserProfile();
       goToProfile();
     } finally {
       setSubmitting(false);
     }
-  }, [form, goToProfile, syncUserProfile, t, updateUser]);
+  }, [form, goToProfile, syncUserProfile, t, updateUser, userData?.profile]);
 
   const handleDiscardAndExit = useCallback(() => {
     setModalState(null);

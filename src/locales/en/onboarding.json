@@ -26,8 +26,8 @@
     "activityLabel": "Activity level",
     "goalLabel": "Weight goal",
     "calorieAdjustmentLabel": "Daily calorie adjustment: {{percentage}}%",
-    "calorieDeficitHelper": "A lighter adjustment is easier to sustain. You can fine-tune this later.",
-    "calorieSurplusHelper": "A steadier increase keeps the plan easier to follow over time.",
+    "calorieDecreaseHelper": "A lighter adjustment is easier to sustain. You can fine-tune this later.",
+    "calorieIncreaseHelper": "A steadier increase keeps the plan easier to follow over time.",
     "primaryCta": "Continue"
   },
   "step3": {

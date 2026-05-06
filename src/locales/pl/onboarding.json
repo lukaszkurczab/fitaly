@@ -26,8 +26,8 @@
     "activityLabel": "Poziom aktywności",
     "goalLabel": "Cel wagowy",
     "calorieAdjustmentLabel": "Dzienna korekta kalorii: {{percentage}}%",
-    "calorieDeficitHelper": "Lżejszy deficyt łatwiej utrzymać. W każdej chwili możesz to później dopracować.",
-    "calorieSurplusHelper": "Spokojniejsza nadwyżka zwykle lepiej wspiera regularność planu.",
+    "calorieDecreaseHelper": "Lżejsza korekta łatwiej się utrzymuje. W każdej chwili możesz to później dopracować.",
+    "calorieIncreaseHelper": "Spokojniejsza korekta zwykle lepiej wspiera regularność planu.",
     "primaryCta": "Dalej"
   },
   "step3": {

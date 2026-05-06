@@ -193,11 +193,11 @@ export default function AppNavigator() {
   });
   const initialRouteName = resolveInitialRouteName(
     bootstrapState,
-    userData?.readiness?.status,
+    userData?.profile.readiness.status,
   );
   const renderProductStack = shouldRenderProductStack(
     bootstrapState,
-    userData?.readiness?.status,
+    userData?.profile.readiness.status,
   );
 
   useEffect(() => {

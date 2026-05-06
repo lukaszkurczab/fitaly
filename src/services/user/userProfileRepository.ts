@@ -1,4 +1,14 @@
 import type { UserData } from "@/types";
+import type {
+  ActivityLevel,
+  AiPersona,
+  Allergy,
+  ChronicDisease,
+  Goal,
+  Preference,
+  Sex,
+  UnitsSystem,
+} from "@/types";
 import { get, post, upload } from "@/services/core/apiClient";
 import { emit, on } from "@/services/core/events";
 import { sanitizeUserProfilePatch } from "./profilePatch";
@@ -14,24 +24,22 @@ type UserOnboardingResponse = {
   updated: boolean;
 };
 
-export type UserOnboardingCompletePayload = Pick<
-  UserData,
-  | "unitsSystem"
-  | "age"
-  | "sex"
-  | "height"
-  | "heightInch"
-  | "weight"
-  | "preferences"
-  | "activityLevel"
-  | "goal"
-  | "chronicDiseases"
-  | "chronicDiseasesOther"
-  | "allergies"
-  | "allergiesOther"
-  | "lifestyle"
-  | "aiPersona"
-> & {
+export type UserOnboardingCompletePayload = {
+  unitsSystem: UnitsSystem;
+  age: string;
+  sex: Sex;
+  height: string;
+  heightInch?: string;
+  weight: string;
+  preferences: Preference[];
+  activityLevel: ActivityLevel | "";
+  goal: Goal | "";
+  chronicDiseases: ChronicDisease[];
+  chronicDiseasesOther: string;
+  allergies: Allergy[];
+  allergiesOther: string;
+  lifestyle: string;
+  aiPersona: AiPersona;
   calorieAdjustment?: number | null;
 };
 
@@ -43,7 +51,10 @@ type UserOnboardingCompleteResponse = {
 type AiHealthDataConsentResponse = {
   profile: UserData | null;
   updated: boolean;
-  consent: UserData["readiness"];
+  consent: {
+    aiHealthDataConsentAt: string | null;
+    readiness: UserData["profile"]["readiness"];
+  };
 };
 
 const profileCache = new Map<string, UserData | null>();

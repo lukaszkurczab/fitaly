@@ -46,7 +46,9 @@ export default function ChatScreen() {
   const [legalAckSubmitting, setLegalAckSubmitting] = useState(false);
   const [legalAckError, setLegalAckError] = useState(false);
   const readinessStatus =
-    readinessStatusOverride ?? userData?.readiness?.status ?? "needs_profile";
+    readinessStatusOverride ??
+    userData?.profile.readiness.status ??
+    "needs_profile";
   const serverConfirmedReady =
     isProductReady || readinessStatusOverride === "ready";
   const chatUid = serverConfirmedReady ? uid : "";
@@ -123,8 +125,8 @@ export default function ChatScreen() {
     try {
       const response = await acceptAiHealthDataConsentRemote(uid);
       const nextStatus =
-        response.consent.status ??
-        response.profile?.readiness?.status ??
+        response.consent.readiness.status ??
+        response.profile?.profile.readiness.status ??
         null;
       setReadinessStatusOverride(nextStatus);
     } catch {

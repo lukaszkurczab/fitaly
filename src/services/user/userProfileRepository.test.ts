@@ -11,6 +11,38 @@ const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockUpload = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
+const profile = {
+  language: "pl",
+  nutritionProfile: {
+    unitsSystem: "metric",
+    age: "30",
+    sex: "female",
+    height: "170",
+    heightInch: "",
+    weight: "70",
+    preferences: ["balanced"],
+    activityLevel: "moderate",
+    goal: "maintain",
+    chronicDiseases: [],
+    chronicDiseasesOther: "",
+    allergies: [],
+    allergiesOther: "",
+    lifestyle: "",
+    calorieTarget: 2200,
+  },
+  aiPreferences: {
+    stylePersona: "calm_guide",
+  },
+  consents: {
+    aiHealthDataConsentAt: null,
+  },
+  readiness: {
+    status: "needs_ai_consent",
+    onboardingCompletedAt: "2026-05-05T10:00:00Z",
+    readyAt: null,
+  },
+};
+
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
@@ -76,7 +108,7 @@ describe("services/user/userProfileRepository", () => {
 
   it("fetches current user profile from backend-owned endpoint", async () => {
     mockGet.mockResolvedValue({
-      profile: { uid: "u1", username: "neo", language: "pl" },
+      profile: { uid: "u1", username: "neo", profile },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -85,7 +117,7 @@ describe("services/user/userProfileRepository", () => {
     await expect(fetchUserProfileRemote()).resolves.toEqual({
       uid: "u1",
       username: "neo",
-      language: "pl",
+      profile,
     });
     expect(mockGet).toHaveBeenCalledWith("/users/me/profile");
   });
@@ -188,7 +220,7 @@ describe("services/user/userProfileRepository", () => {
   it("skips backend patch when payload has only non-editable local fields", async () => {
     mockPost.mockResolvedValue({ updated: true });
     mockGet.mockResolvedValue({
-      profile: { uid: "u1", language: "pl" },
+      profile: { uid: "u1", profile },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -196,12 +228,12 @@ describe("services/user/userProfileRepository", () => {
 
     await mergeUserProfileRemote({
       username: "neo",
-      language: "pl",
+      profile: { ...profile, language: "pl" },
       avatarLocalPath: "file:///avatar.jpg",
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/profile", {
-      language: "pl",
+      profile: { ...profile, language: "pl" },
     });
     expect(mockGet).not.toHaveBeenCalled();
   });
@@ -209,20 +241,30 @@ describe("services/user/userProfileRepository", () => {
   it("posts mixed payload with canonical language field", async () => {
     mockPost.mockResolvedValue({ updated: true });
     mockGet.mockResolvedValue({
-      profile: { uid: "u1", age: "31" },
+      profile: { uid: "u1", profile },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { mergeUserProfileRemote } = require("@/services/user/userProfileRepository");
 
     await mergeUserProfileRemote({
-      language: "pl",
-      age: "31",
+      profile: {
+        ...profile,
+        nutritionProfile: {
+          ...profile.nutritionProfile,
+          age: "31",
+        },
+      },
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/profile", {
-      language: "pl",
-      age: "31",
+      profile: {
+        ...profile,
+        nutritionProfile: {
+          ...profile.nutritionProfile,
+          age: "31",
+        },
+      },
     });
   });
 
@@ -232,12 +274,24 @@ describe("services/user/userProfileRepository", () => {
     const { updateUserProfileRemote } = require("@/services/user/userProfileRepository");
 
     await updateUserProfileRemote({
-      age: "31",
+      profile: {
+        ...profile,
+        nutritionProfile: {
+          ...profile.nutritionProfile,
+          age: "31",
+        },
+      },
       updatedAt: "local-only",
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/profile", {
-      age: "31",
+      profile: {
+        ...profile,
+        nutritionProfile: {
+          ...profile.nutritionProfile,
+          age: "31",
+        },
+      },
     });
   });
 
@@ -251,23 +305,35 @@ describe("services/user/userProfileRepository", () => {
       updated: true,
       profile: {
         uid: "u1",
+        profile: {
+          ...profile,
+          consents: { aiHealthDataConsentAt: "2026-05-01T10:00:00Z" },
+          readiness,
+        },
+      },
+      consent: {
+        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
         readiness,
       },
-      consent: readiness,
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const repo = require("@/services/user/userProfileRepository");
 
     await expect(repo.acceptAiHealthDataConsentRemote("u1")).resolves.toMatchObject({
       updated: true,
-      consent: readiness,
+      consent: {
+        aiHealthDataConsentAt: "2026-05-01T10:00:00Z",
+        readiness,
+      },
     });
 
     expect(mockPost).toHaveBeenCalledWith("/users/me/ai-health-data-consent", {
       accepted: true,
     });
     expect(repo.getCachedUserProfile("u1")).toMatchObject({
-      readiness,
+      profile: {
+        readiness,
+      },
     });
   });
 
@@ -312,15 +378,17 @@ describe("services/user/userProfileRepository", () => {
   });
 
   it("completes onboarding through server-first endpoint and caches response profile", async () => {
-    const profile = {
+    const completedProfile = {
       uid: "u1",
       username: "neo",
-      readiness: {
-        status: "ready",
-        onboardingCompletedAt: "2026-05-05T10:00:00Z",
-        readyAt: "2026-05-05T10:00:00Z",
+      profile: {
+        ...profile,
+        readiness: {
+          status: "needs_ai_consent",
+          onboardingCompletedAt: "2026-05-05T10:00:00Z",
+          readyAt: null,
+        },
       },
-      calorieTarget: 2200,
     };
     const payload = {
       unitsSystem: "metric",
@@ -341,14 +409,14 @@ describe("services/user/userProfileRepository", () => {
       aiPersona: "calm_guide",
     };
     mockPost.mockResolvedValue({
-      profile,
+      profile: completedProfile,
       updated: true,
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const repo = require("@/services/user/userProfileRepository");
 
     await expect(repo.completeUserOnboardingRemote(payload)).resolves.toEqual({
-      profile,
+      profile: completedProfile,
       updated: true,
     });
 
@@ -356,6 +424,6 @@ describe("services/user/userProfileRepository", () => {
       "/users/me/onboarding/complete",
       payload,
     );
-    expect(repo.getCachedUserProfile("u1")).toEqual(profile);
+    expect(repo.getCachedUserProfile("u1")).toEqual(completedProfile);
   });
 });

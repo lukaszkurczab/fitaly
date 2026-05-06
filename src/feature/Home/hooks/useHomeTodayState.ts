@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useMeals } from "@/hooks/useMeals";
-import type { UserData } from "@/types";
+import type { UserNutritionProfile } from "@/types";
 import { formatMealDayKey, normalizeMealDayKey } from "@/services/meals/mealMetadata";
 import { buildHomeDayState } from "@/feature/Home/services/homeDaySelectors";
 
 export function useHomeTodayState(params: {
   uid: string | null | undefined;
   selectedDayKey: string | null | undefined;
-  userData: Pick<UserData, "calorieTarget" | "preferences" | "goal"> | null | undefined;
+  nutritionProfile: UserNutritionProfile | null | undefined;
   today?: Date;
 }) {
   const { meals, loading } = useMeals(params.uid ?? null);
@@ -20,9 +20,9 @@ export function useHomeTodayState(params: {
         meals,
         selectedDayKey,
         todayDayKey,
-        userData: params.userData,
+        nutritionProfile: params.nutritionProfile,
       }),
-    [meals, params.userData, selectedDayKey, todayDayKey],
+    [meals, params.nutritionProfile, selectedDayKey, todayDayKey],
   );
 
   return useMemo(

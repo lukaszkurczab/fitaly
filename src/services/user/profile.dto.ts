@@ -1,4 +1,8 @@
 import type {
+  UserAiPreferences,
+  UserConsents,
+  UserNutritionProfile,
+  UserProfile,
   ReadinessStatus,
   Sex,
   UserData,
@@ -65,6 +69,60 @@ function parseReadiness(raw: unknown): UserReadiness {
   };
 }
 
+function parseNutritionProfile(raw: unknown): UserNutritionProfile {
+  const payload = isRecord(raw) ? raw : {};
+  const calorieTargetRaw = payload.calorieTarget;
+  const calorieTarget =
+    calorieTargetRaw === null ? null : (asNumber(calorieTargetRaw) ?? 0);
+
+  return {
+    unitsSystem: pickEnum(payload.unitsSystem, PROFILE_UNITS, "metric"),
+    age: asString(payload.age) ?? "",
+    sex: pickNullableSex(payload.sex),
+    height: asString(payload.height) ?? "",
+    heightInch: asString(payload.heightInch) ?? "",
+    weight: asString(payload.weight) ?? "",
+    preferences: pickEnumArray(payload.preferences, PROFILE_PREFERENCES),
+    activityLevel: pickEnum(payload.activityLevel, PROFILE_ACTIVITY_LEVELS, "moderate"),
+    goal: pickEnum(payload.goal, PROFILE_GOALS, "maintain"),
+    chronicDiseases: pickEnumArray(payload.chronicDiseases, PROFILE_DISEASES),
+    chronicDiseasesOther: asString(payload.chronicDiseasesOther) ?? "",
+    allergies: pickEnumArray(payload.allergies, PROFILE_ALLERGIES),
+    allergiesOther: asString(payload.allergiesOther) ?? "",
+    lifestyle: asString(payload.lifestyle) ?? "",
+    calorieTarget,
+  };
+}
+
+function parseAiPreferences(raw: unknown): UserAiPreferences {
+  const payload = isRecord(raw) ? raw : {};
+  return {
+    stylePersona: pickEnum(
+      payload.stylePersona,
+      PROFILE_AI_PERSONAS,
+      "calm_guide",
+    ),
+  };
+}
+
+function parseConsents(raw: unknown): UserConsents {
+  const payload = isRecord(raw) ? raw : {};
+  return {
+    aiHealthDataConsentAt: asString(payload.aiHealthDataConsentAt) ?? null,
+  };
+}
+
+function parseProfile(raw: unknown): UserProfile {
+  const payload = isRecord(raw) ? raw : {};
+  return {
+    language: pickEnum(payload.language, PROFILE_LANGUAGES, "en"),
+    nutritionProfile: parseNutritionProfile(payload.nutritionProfile),
+    aiPreferences: parseAiPreferences(payload.aiPreferences),
+    consents: parseConsents(payload.consents),
+    readiness: parseReadiness(payload.readiness),
+  };
+}
+
 export function parseUserData(payload: unknown): UserData | null {
   if (!isRecord(payload)) return null;
 
@@ -76,10 +134,6 @@ export function parseUserData(payload: unknown): UserData | null {
   const createdAt = asNumber(payload.createdAt) ?? Date.now();
   const lastLogin = asString(payload.lastLogin) ?? new Date().toISOString();
 
-  const calorieTargetRaw = payload.calorieTarget;
-  const calorieTarget =
-    calorieTargetRaw === null ? null : (asNumber(calorieTargetRaw) ?? 0);
-
   const data: UserData = {
     uid,
     email,
@@ -87,29 +141,12 @@ export function parseUserData(payload: unknown): UserData | null {
     plan: pickEnum(payload.plan, PLANS, "free"),
     createdAt,
     lastLogin,
-    unitsSystem: pickEnum(payload.unitsSystem, PROFILE_UNITS, "metric"),
-    age: asString(payload.age) ?? "",
-    sex: pickNullableSex(payload.sex),
-    height: asString(payload.height) ?? "",
-    heightInch: asString(payload.heightInch),
-    weight: asString(payload.weight) ?? "",
-    preferences: pickEnumArray(payload.preferences, PROFILE_PREFERENCES),
-    activityLevel: pickEnum(payload.activityLevel, PROFILE_ACTIVITY_LEVELS, "moderate"),
-    goal: pickEnum(payload.goal, PROFILE_GOALS, "maintain"),
-    chronicDiseases: pickEnumArray(payload.chronicDiseases, PROFILE_DISEASES),
-    chronicDiseasesOther: asString(payload.chronicDiseasesOther) ?? "",
-    allergies: pickEnumArray(payload.allergies, PROFILE_ALLERGIES),
-    allergiesOther: asString(payload.allergiesOther) ?? "",
-    lifestyle: asString(payload.lifestyle) ?? "",
-    aiPersona: pickEnum(payload.aiPersona, PROFILE_AI_PERSONAS, "calm_guide"),
-    readiness: parseReadiness(payload.readiness),
-    calorieTarget,
+    profile: parseProfile(payload.profile),
     syncState: pickEnum(payload.syncState, PROFILE_SYNC_STATES, "pending"),
     lastSyncedAt: asString(payload.lastSyncedAt),
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
-    language: pickEnum(payload.language, PROFILE_LANGUAGES, "en"),
   };
 
   return data;

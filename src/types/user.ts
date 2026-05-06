@@ -1,6 +1,15 @@
-import type { FormData } from "./onboarding";
 import type { Meal } from "./meal";
 import type { ChatMessage } from "./chatMessage";
+import type {
+  ActivityLevel,
+  AiPersona,
+  Allergy,
+  ChronicDisease,
+  Goal,
+  Preference,
+  Sex,
+  UnitsSystem,
+} from "./onboarding";
 
 export type UserPlan = "free" | "premium";
 export type SyncState = "synced" | "pending" | "conflict";
@@ -13,20 +22,53 @@ export type UserReadiness = {
   readyAt: string | null;
 };
 
-export interface UserData extends FormData {
+export type UserNutritionProfile = {
+  unitsSystem: UnitsSystem;
+  age: string;
+  sex: Sex;
+  height: string;
+  heightInch: string;
+  weight: string;
+  preferences: Preference[];
+  activityLevel: ActivityLevel | "";
+  goal: Goal | "";
+  chronicDiseases: ChronicDisease[];
+  chronicDiseasesOther: string;
+  allergies: Allergy[];
+  allergiesOther: string;
+  lifestyle: string;
+  calorieTarget: number | null;
+};
+
+export type UserAiPreferences = {
+  stylePersona: AiPersona;
+};
+
+export type UserConsents = {
+  aiHealthDataConsentAt: string | null;
+};
+
+export type UserProfile = {
+  language: UserLanguage;
+  nutritionProfile: UserNutritionProfile;
+  aiPreferences: UserAiPreferences;
+  consents: UserConsents;
+  readiness: UserReadiness;
+};
+
+export interface UserData {
   uid: string;
   email: string;
   username: string;
   plan: UserPlan;
   createdAt: number;
   lastLogin: string;
-  readiness: UserReadiness;
+  profile: UserProfile;
   syncState: SyncState;
   lastSyncedAt?: string;
   avatarUrl?: string;
   avatarLocalPath?: string;
   avatarlastSyncedAt?: string;
-  language: UserLanguage;
 }
 
 export type ExportedUserData = {

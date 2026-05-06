@@ -76,7 +76,7 @@ export const UserProfileProvider = ({
   }, [fetchUserFromCloud]);
   const canRunUserScopedRuntime = shouldRenderProductStack(
     profileBootstrapState,
-    userData?.readiness?.status,
+    userData?.profile.readiness.status,
   );
 
   useEffect(() => {

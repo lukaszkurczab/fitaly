@@ -58,13 +58,8 @@ export default function Step2Preferences({
     return blocked;
   }, [form.preferences]);
 
-  const calorieAdjustmentValue =
-    form.goal === "increase"
-      ? form.calorieSurplus ?? 0.2
-      : form.calorieDeficit ?? 0.2;
-
-  const calorieAdjustmentError =
-    form.goal === "increase" ? errors.calorieSurplus : errors.calorieDeficit;
+  const calorieAdjustmentValue = form.calorieAdjustment ?? 0.2;
+  const calorieAdjustmentError = errors.calorieAdjustment;
 
   return (
     <View style={styles.container}>
@@ -145,14 +140,12 @@ export default function Step2Preferences({
               setForm((current) => ({
                 ...current,
                 goal: nextGoal,
-                calorieDeficit: current.calorieDeficit ?? 0.2,
-                calorieSurplus: current.calorieSurplus ?? 0.2,
+                calorieAdjustment: current.calorieAdjustment ?? 0.2,
               }));
               setErrors((current) => ({
                 ...current,
                 goal: undefined,
-                calorieDeficit: undefined,
-                calorieSurplus: undefined,
+                calorieAdjustment: undefined,
               }));
             }}
             error={errors.goal}
@@ -178,8 +171,8 @@ export default function Step2Preferences({
               </Text>
               <Text style={styles.adjustmentHelper}>
                 {form.goal === "increase"
-                  ? t("step2.calorieSurplusHelper")
-                  : t("step2.calorieDeficitHelper")}
+                  ? t("step2.calorieIncreaseHelper")
+                  : t("step2.calorieDecreaseHelper")}
               </Text>
               <Slider
                 value={calorieAdjustmentValue}
@@ -189,15 +182,14 @@ export default function Step2Preferences({
                 onValueChange={(nextValue) => {
                   setForm((current) => ({
                     ...current,
-                    calorieDeficit:
-                      current.goal === "lose" ? nextValue : current.calorieDeficit,
-                    calorieSurplus:
-                      current.goal === "increase" ? nextValue : current.calorieSurplus,
+                    calorieAdjustment:
+                      current.goal === "lose" || current.goal === "increase"
+                        ? nextValue
+                        : current.calorieAdjustment,
                   }));
                   setErrors((current) => ({
                     ...current,
-                    calorieDeficit: undefined,
-                    calorieSurplus: undefined,
+                    calorieAdjustment: undefined,
                   }));
                 }}
               />

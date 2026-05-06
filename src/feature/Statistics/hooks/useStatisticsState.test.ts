@@ -7,7 +7,7 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import type { Meal, UserData } from "@/types";
+import type { Meal, UserNutritionProfile } from "@/types";
 import { useStatisticsState } from "@/feature/Statistics/hooks/useStatisticsState";
 import { useMeals } from "@/hooks/useMeals";
 import { buildHomeDayState } from "@/feature/Home/services/homeDaySelectors";
@@ -390,11 +390,11 @@ describe("useStatisticsState", () => {
       meals,
       selectedDayKey: "2026-03-10",
       todayDayKey: "2026-03-10",
-      userData: {
+      nutritionProfile: {
         calorieTarget: 1000,
         preferences: ["balanced"],
         goal: "maintain",
-      } as Pick<UserData, "calorieTarget" | "preferences" | "goal">,
+      } as UserNutritionProfile,
     });
     const { result } = renderHook(() =>
       useStatisticsState({ uid: "user-1", calorieTarget: 1000 }),

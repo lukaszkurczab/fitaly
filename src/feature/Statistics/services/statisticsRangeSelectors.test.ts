@@ -4,7 +4,7 @@ import {
   buildStatisticsRangeState,
   clampStatisticsRangeToFreeWindow,
 } from "@/feature/Statistics/services/statisticsRangeSelectors";
-import type { Meal, UserData } from "@/types";
+import type { Meal, UserNutritionProfile } from "@/types";
 
 const makeMeal = (overrides: Partial<Meal> = {}): Meal => ({
   userUid: "user-1",
@@ -27,7 +27,7 @@ const userData = {
   calorieTarget: 1000,
   preferences: ["balanced"],
   goal: "maintain",
-} as Pick<UserData, "calorieTarget" | "preferences" | "goal">;
+} as UserNutritionProfile;
 
 describe("statisticsRangeSelectors", () => {
   it("builds exactly 7 canonical dayKeys for the 7d range", () => {
@@ -147,7 +147,7 @@ describe("statisticsRangeSelectors", () => {
       meals,
       selectedDayKey: "2026-03-18",
       todayDayKey: "2026-03-18",
-      userData,
+      nutritionProfile: userData,
     });
     const statisticsState = buildStatisticsRangeState({
       meals,

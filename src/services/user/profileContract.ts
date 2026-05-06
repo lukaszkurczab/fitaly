@@ -9,6 +9,8 @@ import type {
   UnitsSystem,
   UserData,
   UserLanguage,
+  UserNutritionProfile,
+  UserProfile,
 } from "@/types";
 
 export const PROFILE_UNITS = [
@@ -28,14 +30,14 @@ export const PROFILE_ACTIVITY_LEVELS = [
   "active",
   "very_active",
   "",
-] as const satisfies readonly UserData["activityLevel"][];
+] as const satisfies readonly UserNutritionProfile["activityLevel"][];
 
 export const PROFILE_GOALS = [
   "lose",
   "maintain",
   "increase",
   "",
-] as const satisfies readonly UserData["goal"][];
+] as const satisfies readonly UserNutritionProfile["goal"][];
 
 export const PROFILE_SYNC_STATES = [
   "synced",
@@ -88,23 +90,7 @@ export const PROFILE_AI_PERSONAS = [
 ] as const satisfies readonly AiPersona[];
 
 export const PROFILE_EDITABLE_REMOTE_FIELDS = [
-  "unitsSystem",
-  "age",
-  "sex",
-  "height",
-  "heightInch",
-  "weight",
-  "preferences",
-  "activityLevel",
-  "goal",
-  "chronicDiseases",
-  "chronicDiseasesOther",
-  "allergies",
-  "allergiesOther",
-  "lifestyle",
-  "aiPersona",
-  "calorieTarget",
-  "language",
+  "profile",
 ] as const satisfies readonly (keyof UserData)[];
 
 export const PROFILE_EDITABLE_LOCAL_FIELDS = [
@@ -127,49 +113,32 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "plan",
   "createdAt",
   "lastLogin",
-  "unitsSystem",
-  "age",
-  "sex",
-  "height",
-  "heightInch",
-  "weight",
-  "preferences",
-  "activityLevel",
-  "goal",
-  "chronicDiseases",
-  "chronicDiseasesOther",
-  "allergies",
-  "allergiesOther",
-  "lifestyle",
-  "aiPersona",
-  "readiness",
-  "calorieTarget",
+  "profile",
   "syncState",
   "lastSyncedAt",
   "avatarUrl",
   "avatarLocalPath",
   "avatarlastSyncedAt",
-  "language",
 ] as const satisfies readonly (keyof UserData)[];
 
 export const PROFILE_READINESS_FIELDS = [
-  "readiness",
-] as const satisfies readonly (keyof UserData)[];
+  "profile.readiness",
+] as const;
 
 export const PROFILE_AI_PERSONA_FIELDS = [
-  "aiPersona",
-] as const satisfies readonly (keyof UserData)[];
+  "profile.aiPreferences.stylePersona",
+] as const;
 
 export const PROFILE_AI_STYLE_FIELDS = [
-  "aiPersona",
+  "profile.aiPreferences.stylePersona",
   "styleProfile",
 ] as const;
 
 export const PROFILE_NUTRITION_FIELDS = [
-  "goal",
-  "calorieTarget",
-  "preferences",
-] as const satisfies readonly (keyof UserData)[];
+  "profile.nutritionProfile.goal",
+  "profile.nutritionProfile.calorieTarget",
+  "profile.nutritionProfile.preferences",
+] as const;
 
 export const PROFILE_ONBOARDING_DEFAULTS = {
   unitsSystem: "metric" as UnitsSystem,
@@ -179,27 +148,31 @@ export const PROFILE_ONBOARDING_DEFAULTS = {
   heightInch: "",
   weight: "",
   preferences: [] as Preference[],
-  activityLevel: "moderate" as UserData["activityLevel"],
-  goal: "maintain" as UserData["goal"],
+  activityLevel: "moderate" as UserNutritionProfile["activityLevel"],
+  goal: "maintain" as UserNutritionProfile["goal"],
   chronicDiseases: [] as ChronicDisease[],
   chronicDiseasesOther: "",
   allergies: [] as Allergy[],
   allergiesOther: "",
   lifestyle: "",
-  aiPersona: "calm_guide" as AiPersona,
+  calorieTarget: 0,
+} satisfies UserNutritionProfile;
+
+export const PROFILE_DEFAULTS = {
+  language: "en" as UserLanguage,
+  nutritionProfile: PROFILE_ONBOARDING_DEFAULTS,
+  aiPreferences: {
+    stylePersona: "calm_guide" as AiPersona,
+  },
+  consents: {
+    aiHealthDataConsentAt: null,
+  },
   readiness: {
     status: "needs_profile",
     onboardingCompletedAt: null,
     readyAt: null,
-  } as UserData["readiness"],
-  calorieTarget: 0,
-  syncState: "pending" as SyncState,
-  lastSyncedAt: "",
-  avatarUrl: "",
-  avatarLocalPath: "",
-  avatarlastSyncedAt: "",
-  language: "en" as UserLanguage,
-};
+  },
+} satisfies UserProfile;
 
 export const PROFILE_LANGUAGE_NORMALIZATION_EXAMPLES = {
   "pl-PL": "pl",

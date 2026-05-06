@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import type { Meal, UserData } from "@/types";
+import type { Meal, UserNutritionProfile } from "@/types";
 import { buildHomeDayState } from "@/feature/Home/services/homeDaySelectors";
 
 const makeMeal = (overrides: Partial<Meal> = {}): Meal => ({
@@ -23,7 +23,7 @@ const userData = {
   calorieTarget: 1000,
   preferences: ["balanced"],
   goal: "maintain",
-} as Pick<UserData, "calorieTarget" | "preferences" | "goal">;
+} as UserNutritionProfile;
 
 describe("homeDaySelectors", () => {
   it("builds meal list, kcal progress and macro progress from the same canonical dayKey source", () => {
@@ -65,7 +65,7 @@ describe("homeDaySelectors", () => {
       meals,
       selectedDayKey: "2026-03-18",
       todayDayKey: "2026-03-18",
-      userData,
+      nutritionProfile: userData,
     });
 
     expect(state.dayKey).toBe("2026-03-18");

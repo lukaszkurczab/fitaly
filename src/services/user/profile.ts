@@ -59,7 +59,14 @@ export async function fetchUserFromCloud(): Promise<UserData | null> {
 }
 
 export async function updateUserLanguageInFirestore(language: string) {
-  await mergeUserProfileRemote({ language: normalizeLanguageCode(language) });
+  const current = await fetchUserProfileRemote();
+  if (!current?.profile) return;
+  await mergeUserProfileRemote({
+    profile: {
+      ...current.profile,
+      language: normalizeLanguageCode(language),
+    },
+  });
 }
 
 export async function uploadAndSaveAvatar({

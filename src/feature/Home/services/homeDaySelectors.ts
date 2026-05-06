@@ -1,4 +1,4 @@
-import type { Meal, UserData } from "@/types";
+import type { Meal, UserNutritionProfile } from "@/types";
 import { calculateMacroTargets } from "@/utils/calculateMacroTargets";
 import type { MacroTargets } from "@/utils/calculateMacroTargets";
 import { calculateTotalNutrients } from "@/utils/calculateTotalNutrients";
@@ -35,19 +35,17 @@ function clampProgress(value: number): number {
   return Math.max(0, Math.min(value, 1));
 }
 
-type HomeUserData = Pick<UserData, "calorieTarget" | "preferences" | "goal"> | null | undefined;
-
 export function buildHomeDayState(params: {
   meals: Meal[];
   selectedDayKey: string | null | undefined;
   todayDayKey: string | null | undefined;
-  userData: HomeUserData;
+  nutritionProfile: UserNutritionProfile | null | undefined;
 }): HomeDayState {
   const dayKey = normalizeMealDayKey(params.selectedDayKey);
   const todayDayKey = normalizeMealDayKey(params.todayDayKey);
   const dayMeals = getMealsForDayKey(params.meals, dayKey, "asc");
   const consumed = calculateTotalNutrients(dayMeals);
-  const goalCalories = params.userData?.calorieTarget ?? 0;
+  const goalCalories = params.nutritionProfile?.calorieTarget ?? 0;
   const mealCount = dayMeals.length;
   const isToday = !!dayKey && dayKey === todayDayKey;
   const isCompletedDay =
@@ -60,8 +58,8 @@ export function buildHomeDayState(params: {
     goalCalories > 0
       ? calculateMacroTargets({
           calorieTarget: goalCalories,
-          preferences: params.userData?.preferences,
-          goal: params.userData?.goal,
+          preferences: params.nutritionProfile?.preferences,
+          goal: params.nutritionProfile?.goal,
         })
       : null;
 

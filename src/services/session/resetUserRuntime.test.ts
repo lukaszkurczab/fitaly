@@ -67,7 +67,6 @@ describe("resetUserRuntime", () => {
       "notif:sys:ids:user-1:stats",
       "notif:ids:user-1:smart-reminders:2026-04-24",
       "current_meal_draft_user-1",
-      "chat_legal_ack:user-1",
       "theme:mode",
     ]);
     mockMultiRemove.mockResolvedValue(undefined);
@@ -90,7 +89,6 @@ describe("resetUserRuntime", () => {
       "notif:sys:ids:user-1:stats",
       "notif:ids:user-1:smart-reminders:2026-04-24",
       "current_meal_draft_user-1",
-      "chat_legal_ack:user-1",
     ]);
   });
 

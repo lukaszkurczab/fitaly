@@ -36,13 +36,15 @@ export function calculateCalorieTarget(form: OnboardingFormData): number {
     form.goal === "lose"
       ? tdee *
         (1 -
-          (typeof form.calorieDeficit === "number"
-            ? form.calorieDeficit
+          (typeof form.calorieAdjustment === "number"
+            ? form.calorieAdjustment
             : 0.15))
-      : form.goal === "increase"
+    : form.goal === "increase"
       ? tdee *
         (1 +
-          (typeof form.calorieSurplus === "number" ? form.calorieSurplus : 0.1))
+          (typeof form.calorieAdjustment === "number"
+            ? form.calorieAdjustment
+            : 0.1))
       : tdee;
 
   const rounded = Math.round(target);

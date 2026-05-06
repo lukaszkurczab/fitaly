@@ -35,9 +35,9 @@ export const AppSettingsProvider = ({
   const language = useMemo(
     () =>
       normalizeLanguageCode(
-        userData?.language ?? i18n.resolvedLanguage ?? i18n.language
+        userData?.profile.language ?? i18n.resolvedLanguage ?? i18n.language
       ),
-    [userData?.language]
+    [userData?.profile.language]
   );
 
   useEffect(() => {
@@ -61,9 +61,15 @@ export const AppSettingsProvider = ({
         return;
       }
 
-      await updateUser({ language: nextLanguage });
+      if (!userData.profile) return;
+      await updateUser({
+        profile: {
+          ...userData.profile,
+          language: nextLanguage,
+        },
+      });
     },
-    [language, updateUser, userData?.uid]
+    [language, updateUser, userData]
   );
 
   const value = useMemo<AppSettingsContextType>(

@@ -25,7 +25,6 @@ export function useUser(uid: string) {
     refreshProfileSyncState,
     pushPendingChanges,
     setUserData,
-    setLanguage,
   } = useUserProfile(uid);
 
   const avatar = useUserAvatar({
@@ -48,11 +47,16 @@ export function useUser(uid: string) {
     changeLanguage: async (newLang: string) => {
       if (!uid) {
         const nextLanguage = normalizeLanguageCode(newLang);
-        setLanguage(nextLanguage);
         await i18n.changeLanguage(nextLanguage);
         return;
       }
-      return updateUserProfile({ language: normalizeLanguageCode(newLang) });
+      if (!userData?.profile) return;
+      return updateUserProfile({
+        profile: {
+          ...userData.profile,
+          language: normalizeLanguageCode(newLang),
+        },
+      });
     },
   });
 

@@ -11,7 +11,7 @@ import type { ChatMessage } from "@/types";
 import type { ReactNode } from "react";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import ChatScreen from "@/feature/AI/screens/ChatScreen";
-import type { UserReadiness } from "@/types";
+import type { UserData, UserReadiness } from "@/types";
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -32,10 +32,46 @@ const needsAiConsentReadiness: UserReadiness = {
   readyAt: null,
 };
 
-let mockUserData: { uid: string; readiness: UserReadiness } | null = {
-  uid: "user-1",
-  readiness: readyReadiness,
-};
+const buildUserData = (readiness: UserReadiness): UserData =>
+  ({
+    uid: "user-1",
+    email: "user@example.com",
+    username: "neo",
+    plan: "free",
+    createdAt: 1,
+    lastLogin: "2026-05-01T10:00:00Z",
+    syncState: "synced",
+    profile: {
+      language: "en",
+      nutritionProfile: {
+        unitsSystem: "metric",
+        age: "30",
+        sex: "female",
+        height: "170",
+        heightInch: "",
+        weight: "70",
+        preferences: [],
+        activityLevel: "moderate",
+        goal: "maintain",
+        chronicDiseases: [],
+        chronicDiseasesOther: "",
+        allergies: [],
+        allergiesOther: "",
+        lifestyle: "",
+        calorieTarget: 2200,
+      },
+      aiPreferences: {
+        stylePersona: "calm_guide",
+      },
+      consents: {
+        aiHealthDataConsentAt:
+          readiness.status === "ready" ? readiness.readyAt : null,
+      },
+      readiness,
+    },
+  }) as UserData;
+
+let mockUserData: UserData | null = buildUserData(readyReadiness);
 let mockLoadingUser = false;
 let mockIsProductReady = true;
 let mockCanRenderProductStack = true;
@@ -178,7 +214,7 @@ jest.mock("@/hooks/useProductReadiness", () => ({
     canRenderProductStack: mockCanRenderProductStack,
     status: mockIsProductReady
       ? "ready"
-      : (mockUserData?.readiness.status ?? "profileLoading"),
+      : (mockUserData?.profile.readiness.status ?? "profileLoading"),
     uid: mockIsProductReady ? "user-1" : null,
     bootstrapState: "profileReady",
   }),
@@ -254,16 +290,13 @@ describe("ChatScreen", () => {
     mockRefreshUser.mockResolvedValue(null);
     mockAcceptAiHealthDataConsentRemote.mockResolvedValue({
       updated: true,
-      profile: {
-        uid: "user-1",
+      profile: buildUserData(readyReadiness),
+      consent: {
+        aiHealthDataConsentAt: readyReadiness.readyAt,
         readiness: readyReadiness,
       },
-      consent: readyReadiness,
     });
-    mockUserData = {
-      uid: "user-1",
-      readiness: readyReadiness,
-    };
+    mockUserData = buildUserData(readyReadiness);
     mockLoadingUser = false;
     mockIsProductReady = true;
     mockCanRenderProductStack = true;
@@ -311,7 +344,7 @@ describe("ChatScreen", () => {
   });
 
   it("shows legal modal hierarchy and blocks the composer until acceptance", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -327,7 +360,7 @@ describe("ChatScreen", () => {
   });
 
   it("accepts legal consent through the backend and unlocks the composer", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -347,7 +380,7 @@ describe("ChatScreen", () => {
   });
 
   it("goes back when legal back action is pressed", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -358,7 +391,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens legal privacy hub link from modal", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(await screen.findByText("legal.title")).toBeTruthy();
@@ -371,7 +404,7 @@ describe("ChatScreen", () => {
   });
 
   it("opens data & ai clarity link from modal", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
 
@@ -385,7 +418,7 @@ describe("ChatScreen", () => {
   });
 
   it("keeps legal flow stable after returning from info screens", async () => {
-    mockUserData = { uid: "user-1", readiness: needsAiConsentReadiness };
+    mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
 

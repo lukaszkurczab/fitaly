@@ -7,7 +7,7 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import type { Meal, UserData } from "@/types";
+import type { Meal, UserNutritionProfile } from "@/types";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
 import { __resetLocalMealsStoreForTests } from "@/services/meals/localMealsStore";
 
@@ -122,7 +122,7 @@ const userData = {
   calorieTarget: 1000,
   preferences: ["balanced"],
   goal: "maintain",
-} as Pick<UserData, "calorieTarget" | "preferences" | "goal">;
+} as UserNutritionProfile;
 
 const makeMeal = (overrides: Partial<Meal> = {}): Meal => ({
   userUid: "user-1",
@@ -170,7 +170,7 @@ describe("useHomeTodayState", () => {
       useHomeTodayState({
         uid: "user-1",
         selectedDayKey: "2026-03-18",
-        userData,
+        nutritionProfile: userData,
         today: new Date("2026-03-18T08:00:00.000Z"),
       }),
     );

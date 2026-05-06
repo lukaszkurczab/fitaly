@@ -30,16 +30,16 @@ export function useProductReadiness(): ProductReadiness {
     });
     const canRenderProductStack = shouldRenderProductStack(
       bootstrapState,
-      userData?.readiness?.status,
+      userData?.profile.readiness.status,
     );
     const isProductReady =
-      canRenderProductStack && userData?.readiness?.status === "ready";
+      canRenderProductStack && userData?.profile.readiness.status === "ready";
 
     return {
       isProductReady,
       canRenderProductStack,
       status: canRenderProductStack
-        ? (userData?.readiness?.status ?? bootstrapState)
+        ? (userData?.profile.readiness.status ?? bootstrapState)
         : bootstrapState,
       uid: isProductReady ? (userData?.uid ?? null) : null,
       bootstrapState,
@@ -48,7 +48,7 @@ export function useProductReadiness(): ProductReadiness {
     authLoading,
     isAuthenticated,
     profileBootstrapState,
-    userData?.readiness?.status,
+    userData?.profile.readiness.status,
     userData?.uid,
   ]);
 }

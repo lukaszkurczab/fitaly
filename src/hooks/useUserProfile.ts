@@ -184,7 +184,6 @@ type UseUserProfileResult = {
   refreshProfileSyncState: () => Promise<void>;
   pushPendingChanges: () => Promise<void>;
   setUserData: Dispatch<SetStateAction<UserData | null>>;
-  setLanguage: Dispatch<SetStateAction<string>>;
 };
 
 export function useUserProfile(uid: string): UseUserProfileResult {
@@ -196,8 +195,8 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     useState<unknown | null>(null);
   const [syncState, setSyncState] = useState<SyncState>("synced");
   const [retryingProfileSync, setRetryingProfileSync] = useState(false);
-  const [language, setLanguage] = useState<string>(() =>
-    normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language)
+  const language = normalizeLanguageCode(
+    userData?.profile.language ?? i18n.resolvedLanguage ?? i18n.language,
   );
   const userDataRef = useRef<UserData | null>(null);
   const mountedRef = useRef(true);
@@ -269,15 +268,17 @@ export function useUserProfile(uid: string): UseUserProfileResult {
         avatarCachePath(uid)
       );
       if (!isCurrent()) return null;
-      const normalizedLanguage = normalizeLanguageCode(profile.language);
+      const normalizedLanguage = normalizeLanguageCode(profile.profile.language);
       const normalized = {
         ...profile,
+        profile: {
+          ...profile.profile,
+          language: normalizedLanguage,
+        },
         avatarLocalPath,
-        language: normalizedLanguage,
       };
       setUserData(normalized);
       userDataRef.current = normalized;
-      setLanguage(normalizedLanguage);
       if (
         normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language) !==
         normalizedLanguage
@@ -431,9 +432,8 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       setUserData((prev) =>
         prev ? { ...prev, ...localPatch } : ({ uid, ...localPatch } as UserData)
       );
-      if (localPatch.language) {
-        const nextLanguage = normalizeLanguageCode(localPatch.language);
-        setLanguage(nextLanguage);
+      if (localPatch.profile?.language) {
+        const nextLanguage = normalizeLanguageCode(localPatch.profile.language);
         i18n.changeLanguage(nextLanguage).catch((error) => {
           logWarning("language change failed", null, error);
         });
@@ -518,7 +518,6 @@ export function useUserProfile(uid: string): UseUserProfileResult {
 
     if (!uid) {
       setUserData(null);
-      setLanguage(normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language));
       setLoading(false);
       setProfileBootstrapState("profileMissing");
       setProfileBootstrapError(null);
@@ -602,7 +601,6 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       refreshProfileSyncState,
       pushPendingChanges,
       setUserData,
-      setLanguage,
     }),
     [
       userData,
@@ -622,7 +620,6 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       refreshProfileSyncState,
       pushPendingChanges,
       setUserData,
-      setLanguage,
     ]
   );
 }

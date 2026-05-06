@@ -50,41 +50,50 @@ function buildNavigation() {
 }
 
 function buildUserData(overrides?: Partial<UserData>): UserData {
-  return {
+  const base: UserData = {
     uid: "user-1",
     email: "hello@example.com",
     username: "lukasz",
     plan: "free",
     createdAt: 1,
     lastLogin: "2026-03-28T10:00:00.000Z",
-    unitsSystem: "metric",
-    age: "30",
-    sex: "female",
-    height: "168",
-    heightInch: "",
-    weight: "62",
-    preferences: [],
-    activityLevel: "moderate",
-    goal: "maintain",
-    chronicDiseases: [],
-    chronicDiseasesOther: "",
-    allergies: [],
-    allergiesOther: "",
-    lifestyle: "",
-    aiPersona: "cheerful_companion",
-    readiness: {
-      status: "ready",
-      onboardingCompletedAt: "2026-03-28T10:00:00.000Z",
-      readyAt: "2026-03-28T10:00:00.000Z",
+    profile: {
+      language: "en",
+      nutritionProfile: {
+        unitsSystem: "metric",
+        age: "30",
+        sex: "female",
+        height: "168",
+        heightInch: "",
+        weight: "62",
+        preferences: [],
+        activityLevel: "moderate",
+        goal: "maintain",
+        chronicDiseases: [],
+        chronicDiseasesOther: "",
+        allergies: [],
+        allergiesOther: "",
+        lifestyle: "",
+        calorieTarget: 2100,
+      },
+      aiPreferences: {
+        stylePersona: "cheerful_companion",
+      },
+      consents: {
+        aiHealthDataConsentAt: "2026-03-28T10:00:00.000Z",
+      },
+      readiness: {
+        status: "ready",
+        onboardingCompletedAt: "2026-03-28T10:00:00.000Z",
+        readyAt: "2026-03-28T10:00:00.000Z",
+      },
     },
-    calorieTarget: 2100,
     syncState: "synced",
-    language: "en",
     avatarUrl: "",
     avatarLocalPath: "",
     avatarlastSyncedAt: "",
-    ...overrides,
   };
+  return { ...base, ...overrides };
 }
 
 describe("useOnboardingFlow", () => {
@@ -95,13 +104,7 @@ describe("useOnboardingFlow", () => {
     mockApplyServerProfile.mockReset().mockImplementation(async (profile) => profile);
     mockCompleteUserOnboardingRemote.mockReset().mockImplementation(async () => ({
       updated: true,
-      profile: buildUserData({
-        readiness: {
-          status: "ready",
-          onboardingCompletedAt: "2026-03-28T10:00:00.000Z",
-          readyAt: "2026-03-28T10:00:00.000Z",
-        },
-      }),
+      profile: buildUserData(),
     }));
     mockTrackOnboardingCompleted
       .mockReset()
@@ -273,8 +276,6 @@ describe("useOnboardingFlow", () => {
       goal: "maintain",
       calorieAdjustment: null,
     });
-    expect(completionPayload).not.toHaveProperty("calorieDeficit");
-    expect(completionPayload).not.toHaveProperty("calorieSurplus");
     expect(completionPayload).not.toHaveProperty("readiness");
     expect(mockApplyServerProfile).toHaveBeenCalledTimes(1);
     expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
