@@ -1,6 +1,7 @@
 {
   "title": "Add meal",
   "meal": "Meal",
+  "kcal": "kcal",
   "subtitle": "Choose how to add your meal",
   "photoTitle": "Photo",
   "photoDesc": "Snap your plate",
@@ -138,6 +139,7 @@
   "review_meal_edit_add_first_ingredient": "Add first ingredient",
   "review_meal_edit_add_ingredient": "Add ingredient",
   "review_meal_edit_ingredient_title": "Edit ingredient",
+  "edit_ingredient": "Edit ingredient",
   "review_meal_edit_ingredient_basics": "Ingredient basics",
   "review_meal_edit_ingredient_unit": "Unit",
   "review_meal_edit_ingredient_nutrition": "Nutrition values",

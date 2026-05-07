@@ -1,6 +1,7 @@
 {
   "title": "Dodaj posiłek",
   "meal": "Posiłek",
+  "kcal": "kcal",
   "subtitle": "Wybierz, jak chcesz dodać posiłek",
   "photoTitle": "Zdjęcie",
   "photoDesc": "Zrób zdjęcie talerza",
@@ -146,6 +147,7 @@
   "review_meal_edit_add_first_ingredient": "Dodaj pierwszy składnik",
   "review_meal_edit_add_ingredient": "Dodaj składnik",
   "review_meal_edit_ingredient_title": "Edytuj składnik",
+  "edit_ingredient": "Edytuj składnik",
   "review_meal_edit_ingredient_basics": "Podstawy składnika",
   "review_meal_edit_ingredient_unit": "Jednostka",
   "review_meal_edit_ingredient_nutrition": "Wartości odżywcze",

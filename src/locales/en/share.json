@@ -79,6 +79,7 @@
     "text_color": "Text color",
     "background": "Background",
     "background_color": "Background color",
+    "close_color_picker": "Close color picker",
     "done": "Done",
     "custom": "Custom",
     "type": "Type",

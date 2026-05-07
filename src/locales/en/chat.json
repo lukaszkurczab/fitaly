@@ -83,6 +83,7 @@
     "offlineEmpty": "No local conversations yet. Connect to sync your chat history.",
     "errorTitle": "Couldn't load conversations",
     "refreshError": "Please try again when your connection is stable.",
+    "closeSheet": "Close conversations",
     "when": {
       "today": "Today",
       "yesterday": "Yesterday"

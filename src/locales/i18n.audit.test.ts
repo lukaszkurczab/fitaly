@@ -58,6 +58,20 @@ function listSourceFiles(dirPath: string): string[] {
   return files;
 }
 
+function inferDefaultNamespace(source: string): string | null {
+  const match = source.match(/\buseTranslation\(\s*([^)]*)\)/u);
+  if (!match) return null;
+
+  const argument = match[1]?.trim() || "";
+  if (argument.startsWith("[")) {
+    const firstNamespace = argument.match(/['"`]([a-zA-Z0-9_-]+)['"`]/u);
+    return firstNamespace?.[1] ?? null;
+  }
+
+  const namespace = argument.match(/['"`]([a-zA-Z0-9_-]+)['"`]/u);
+  return namespace?.[1] ?? null;
+}
+
 function hasLocaleKey(
   locales: Record<string, Record<string, FlatMap>>,
   ns: string,
@@ -131,6 +145,7 @@ describe("i18n locale audit", () => {
 
     for (const filePath of sourceFiles) {
       const source = fs.readFileSync(filePath, "utf8");
+      const defaultNamespace = inferDefaultNamespace(source);
 
       const optionsFallbackRegex =
         /\bt\(\s*(['"`])([^'"`]+)\1\s*,\s*\{([\s\S]{0,320}?)defaultValue\s*:/gu;
@@ -148,8 +163,7 @@ describe("i18n locale audit", () => {
           [ns, key] = segments;
         } else {
           const nsMatch = optionsSnippet.match(/\bns\s*:\s*['"`]([a-zA-Z0-9_-]+)['"`]/u);
-          if (!nsMatch) continue;
-          ns = nsMatch[1];
+          ns = nsMatch?.[1] ?? defaultNamespace ?? "";
         }
 
         if (!ns || !key || key.includes("${")) continue;

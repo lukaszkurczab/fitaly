@@ -70,8 +70,8 @@
     "v3": "Pomóż mi zaplanować kolację wysokobiałkową z tego, co już zapisuję.",
     "s4": "Czy dziś trzymam plan?",
     "v4": "Czy dziś trzymam plan kalorii i białka?",
-    "footerFree": "AI Credits: {{balance}}/{{allocation}}",
-    "footerPremium": "AI Credits: {{balance}}/{{allocation}}"
+    "footerFree": "Kredyty AI: {{balance}}/{{allocation}}",
+    "footerPremium": "Kredyty AI: {{balance}}/{{allocation}}"
   },
   "history": {
     "open": "Otwórz rozmowy",
@@ -83,6 +83,7 @@
     "offlineEmpty": "Brak lokalnych rozmów. Połącz się z internetem, aby zsynchronizować historię.",
     "errorTitle": "Nie udało się wczytać rozmów",
     "refreshError": "Spróbuj ponownie, gdy połączenie będzie stabilne.",
+    "closeSheet": "Zamknij rozmowy",
     "when": {
       "today": "Dziś",
       "yesterday": "Wczoraj"
@@ -116,7 +117,7 @@
     "name": "Kredyty AI",
     "balanceShort": "Kredyty AI: {{balance}}",
     "balanceOutOf": "Kredyty AI: {{balance}}/{{allocation}}",
-    "costZero": "0 AI Credits",
+    "costZero": "0 kredytów AI",
     "costSingle": "1 kredyt AI",
     "costMultiple": "{{count}} kredytów AI",
     "renewalUnknown": "Brak danych"

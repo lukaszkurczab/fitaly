@@ -141,7 +141,7 @@ export function useManageSubscriptionState(params: {
                   defaultValue: "Premium (refunded)",
                 })
               : state === "premium_expired"
-                ? `${params.t("manageSubscription.premium")} (${params.t("expired", { defaultValue: "expired" })})`
+                ? `${params.t("manageSubscription.premium")} (${params.t("manageSubscription.expired", { defaultValue: "expired" })})`
                 : state === "unknown"
                   ? params.t("manageSubscription.subscriptionUnknown", {
                       defaultValue: "Cannot confirm premium",

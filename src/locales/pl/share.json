@@ -79,6 +79,7 @@
     "text_color": "Kolor tekstu",
     "background": "Tło",
     "background_color": "Kolor tła",
+    "close_color_picker": "Zamknij wybór koloru",
     "done": "Gotowe",
     "custom": "Własny",
     "type": "Typ",
