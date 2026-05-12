@@ -76,7 +76,7 @@ export default {
         {
           image: "./assets/splash.png",
           imageWidth: 180,
-          backgroundColor: "#F7F2EA",
+          backgroundColor: "#EFE7DA",
         },
       ],
       [
@@ -92,6 +92,7 @@ export default {
         { ios: { useFrameworks: "static", deploymentTarget: "15.5" } },
       ],
       "expo-font",
+      "expo-asset",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [

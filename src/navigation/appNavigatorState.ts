@@ -40,6 +40,10 @@ export function resolveInitialRouteName(
     return "Home";
   }
 
+  if (bootstrapState === "unauthenticated") {
+    return "Login";
+  }
+
   if (bootstrapState === "profileReady" || bootstrapState === "offlineCached") {
     return "Onboarding";
   }

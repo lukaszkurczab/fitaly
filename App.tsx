@@ -71,12 +71,15 @@ const sentryEnvironment =
 const isPhysicalDevice = Device.isDevice === true;
 const shouldDisableSentryReplay = !isPhysicalDevice;
 const shouldEnableSentryDebug = sentryEnvironment !== "production" && isPhysicalDevice;
+const shouldTrackAppHangs = sentryEnvironment === "production";
 
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
     environment: sentryEnvironment,
     enableNative: true,
+    enableAppHangTracking: shouldTrackAppHangs,
+    appHangTimeoutInterval: 5,
     sendDefaultPii: false,
     tracesSampleRate: sentryEnvironment === "production" ? 0.05 : 0.0,
     attachStacktrace: true,

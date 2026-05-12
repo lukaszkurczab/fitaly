@@ -4,6 +4,10 @@ import {
 } from "@/navigation/appNavigatorState";
 
 describe("AppNavigator onboarding gate", () => {
+  it("starts unauthenticated users on a registered auth screen", () => {
+    expect(resolveInitialRouteName("unauthenticated", undefined)).toBe("Login");
+  });
+
   it("keeps first-run users out of the product stack until profile readiness", () => {
     expect(shouldRenderProductStack("profileReady", "needs_profile")).toBe(false);
     expect(resolveInitialRouteName("profileReady", "needs_profile")).toBe("Onboarding");
