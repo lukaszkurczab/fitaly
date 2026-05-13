@@ -1,5 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
 import type { Meal } from "@/types/meal";
 import { useSelectSavedMealsState } from "@/feature/Meals/hooks/useSelectSavedMealsState";
 
@@ -43,6 +50,10 @@ describe("useSelectSavedMealsState", () => {
     jest.clearAllMocks();
     emitRepoData = null;
     mockUuid.mockReturnValue("uuid-new");
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("resets state when uid is missing", async () => {
@@ -140,6 +151,9 @@ describe("useSelectSavedMealsState", () => {
       expect(result.current.pageItems).toHaveLength(1);
     });
 
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-03-20T08:30:00.000Z"));
+
     await act(async () => {
       await result.current.handleAddMeal(result.current.pageItems[0]);
     });
@@ -152,6 +166,8 @@ describe("useSelectSavedMealsState", () => {
         source: "saved",
         inputMethod: "saved",
         name: "Chicken pasta",
+        timestamp: "2026-03-20T08:30:00.000Z",
+        dayKey: "2026-03-20",
       }),
     );
     expect(saveDraft).toHaveBeenCalledWith(

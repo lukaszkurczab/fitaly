@@ -396,9 +396,16 @@ describe("ReviewMealScreen", () => {
 
   it("logs from saved meal without updating template when checkbox is unchecked", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const finalTimestamp = "2026-03-20T08:30:00.000Z";
+    const expectedDate = new Date(finalTimestamp);
     const ctx = buildDraftContext({
       source: "saved",
+      inputMethod: "saved",
       savedMealRefId: "saved-template-1",
+      timestamp: finalTimestamp,
+      dayKey: "2026-01-10",
+      loggedAtLocalMin: 780,
+      tzOffsetMin: 60,
     });
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
@@ -416,6 +423,15 @@ describe("ReviewMealScreen", () => {
     await waitFor(() => {
       expect(saveMeal).toHaveBeenCalledWith(
         expect.objectContaining({
+          meal: expect.objectContaining({
+            source: "saved",
+            inputMethod: "saved",
+            timestamp: finalTimestamp,
+            dayKey: "2026-03-20",
+            loggedAtLocalMin:
+              expectedDate.getHours() * 60 + expectedDate.getMinutes(),
+            tzOffsetMin: -expectedDate.getTimezoneOffset(),
+          }),
           savedTemplate: { mode: "none" },
         }),
       );

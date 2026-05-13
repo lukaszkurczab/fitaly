@@ -14,6 +14,7 @@ import { buildStatisticsRangeState } from "@/feature/Statistics/services/statist
 import {
   __resetLocalMealsStoreForTests,
   getLocalMealsSnapshot,
+  selectLocalMealsByDayKey,
   selectLocalMealByCloudId,
 } from "@/services/meals/localMealsStore";
 
@@ -837,12 +838,20 @@ describe("useMeals", () => {
       expect(result.current.loading).toBe(false);
     });
 
+    const finalTimestamp = "2026-03-20T08:30:00.000Z";
+    const expectedDate = new Date(finalTimestamp);
+    jest.useFakeTimers();
+    jest.setSystemTime(expectedDate);
+
     await act(async () => {
       await result.current.addMeal({
         userUid: "user-1",
         mealId: "draft-meal-id",
         savedMealRefId: "saved-template-1",
-        timestamp: "2026-03-15T12:00:00.000Z",
+        timestamp: finalTimestamp,
+        dayKey: "2026-01-10",
+        loggedAtLocalMin: 780,
+        tzOffsetMin: 60,
         type: "lunch",
         name: "Saved draft",
         ingredients: [],
@@ -857,6 +866,11 @@ describe("useMeals", () => {
         mealId: "draft-meal-id",
         cloudId: expect.any(String),
         source: "saved",
+        inputMethod: "saved",
+        dayKey: "2026-03-20",
+        loggedAtLocalMin:
+          expectedDate.getHours() * 60 + expectedDate.getMinutes(),
+        tzOffsetMin: -expectedDate.getTimezoneOffset(),
       }),
     );
     expect(mockUpsertMyMealWithPhoto).not.toHaveBeenCalled();
@@ -864,8 +878,16 @@ describe("useMeals", () => {
       expect.objectContaining({
         mealId: "draft-meal-id",
         source: "saved",
+        dayKey: "2026-03-20",
       }),
     );
+    expect(selectLocalMealsByDayKey("user-1", "2026-03-20")).toEqual([
+      expect.objectContaining({
+        mealId: "draft-meal-id",
+        source: "saved",
+      }),
+    ]);
+    expect(selectLocalMealsByDayKey("user-1", "2026-01-10")).toEqual([]);
   });
 
   it("saveMeal retries a saved-template draft against the same canonical meal id", async () => {

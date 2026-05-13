@@ -159,6 +159,43 @@ describe("saveMealTransaction", () => {
     );
   });
 
+  it("derives dayKey and local timing metadata from the final timestamp", async () => {
+    const finalTimestamp = "2026-03-20T08:30:00.000Z";
+    const expectedDate = new Date(finalTimestamp);
+    const { meal } = await saveMealTransaction({
+      uid: "user-1",
+      nowISO: finalTimestamp,
+      meal: baseMeal({
+        cloudId: undefined,
+        mealId: "saved-draft-1",
+        savedMealRefId: "template-1",
+        source: "saved",
+        inputMethod: "saved",
+        timestamp: finalTimestamp,
+        dayKey: "2026-01-10",
+        loggedAtLocalMin: 780,
+        tzOffsetMin: 60,
+      }),
+    });
+
+    expect(meal).toEqual(
+      expect.objectContaining({
+        cloudId: "saved-draft-1",
+        mealId: "saved-draft-1",
+        source: "saved",
+        inputMethod: "saved",
+        timestamp: finalTimestamp,
+        dayKey: "2026-03-20",
+        loggedAtLocalMin:
+          expectedDate.getHours() * 60 + expectedDate.getMinutes(),
+        tzOffsetMin: -expectedDate.getTimezoneOffset(),
+      }),
+    );
+    expect(meal).toEqual(
+      expect.not.objectContaining({ savedMealRefId: expect.anything() }),
+    );
+  });
+
   it("leaves one queued upsert after several updates of the same meal", async () => {
     const queuedUpserts = new Map<string, Meal>();
     mockEnqueueUpsert.mockImplementation(async (uid, meal) => {

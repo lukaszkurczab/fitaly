@@ -32,6 +32,10 @@ import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScree
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trackAiMealReviewSaved } from "@/services/telemetry/telemetryInstrumentation";
+import {
+  deriveMealTimingMetadata,
+  formatMealDayKey,
+} from "@/services/meals/mealMetadata";
 
 const IMAGE_HEIGHT = 164;
 
@@ -239,12 +243,17 @@ export default function ReviewMealScreen({
       if (!meal || !userData?.uid || saving || !uid) return;
 
       setSaving(true);
+      const finalTimestamp = mealTime.toISOString();
+      const timingMetadata = deriveMealTimingMetadata(finalTimestamp);
       const reviewMeal: Meal = {
         ...meal,
         userUid: uid,
         name: resolvedMealName,
         type: meal.type || "other",
-        timestamp: mealTime.toISOString(),
+        timestamp: finalTimestamp,
+        dayKey: formatMealDayKey(new Date(finalTimestamp)),
+        loggedAtLocalMin: timingMetadata.loggedAtLocalMin,
+        tzOffsetMin: timingMetadata.tzOffsetMin,
         source: meal.source ?? "manual",
       };
 

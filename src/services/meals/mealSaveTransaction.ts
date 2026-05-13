@@ -7,7 +7,6 @@ import { enqueueUpsert } from "@/services/offline/queue.repo";
 import {
   deriveMealTimingMetadata,
   formatMealDayKey,
-  normalizeMealDayKey,
 } from "@/services/meals/mealMetadata";
 import { upsertMyMealWithPhoto } from "@/services/meals/myMealService";
 import { trackMealLogged } from "@/services/telemetry/telemetryInstrumentation";
@@ -70,6 +69,14 @@ function resolveCanonicalMealId(meal: Meal): string {
   return uuidv4();
 }
 
+function resolveMealTimestamp(
+  timestamp: string | null | undefined,
+  nowISO: string,
+): string {
+  if (!timestamp) return nowISO;
+  return Number.isNaN(new Date(timestamp).getTime()) ? nowISO : timestamp;
+}
+
 function withCanonicalMealFields(params: {
   uid: string;
   meal: Meal;
@@ -77,10 +84,9 @@ function withCanonicalMealFields(params: {
 }): Meal {
   const { meal, nowISO, uid } = params;
   const cloudId = resolveCanonicalMealId(meal);
-  const timestamp = meal.timestamp ?? nowISO;
+  const timestamp = resolveMealTimestamp(meal.timestamp, nowISO);
   const timingMetadata = deriveMealTimingMetadata(timestamp);
   const dayKey =
-    normalizeMealDayKey(meal.dayKey) ??
     formatMealDayKey(new Date(timestamp)) ??
     formatMealDayKey(new Date(nowISO));
 
@@ -94,8 +100,8 @@ function withCanonicalMealFields(params: {
         : cloudId,
     timestamp,
     dayKey: dayKey ?? nowISO.slice(0, 10),
-    loggedAtLocalMin: meal.loggedAtLocalMin ?? timingMetadata.loggedAtLocalMin,
-    tzOffsetMin: meal.tzOffsetMin ?? timingMetadata.tzOffsetMin,
+    loggedAtLocalMin: timingMetadata.loggedAtLocalMin,
+    tzOffsetMin: timingMetadata.tzOffsetMin,
     type: meal.type || "other",
     name: meal.name,
     ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
@@ -106,7 +112,11 @@ function withCanonicalMealFields(params: {
     source: meal.source ?? "manual",
     inputMethod:
       meal.inputMethod ??
-      (meal.source === "manual" || meal.source === null ? "manual" : null),
+      (meal.source === "manual" || meal.source === null
+        ? "manual"
+        : meal.source === "saved"
+          ? "saved"
+          : null),
     totals: computeTotals(meal),
   };
 }

@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Meal } from "@/types/meal";
-import { deriveMealTimingMetadata } from "@/services/meals/mealMetadata";
+import {
+  deriveMealTimingMetadata,
+  formatMealDayKey,
+} from "@/services/meals/mealMetadata";
 
 export function buildSavedMealDraft(params: {
   picked: Meal;
@@ -10,7 +13,7 @@ export function buildSavedMealDraft(params: {
 }): Meal {
   const { picked, uid, mealId = uuidv4(), createdAt } = params;
   const now = new Date().toISOString();
-  const timestamp = picked.timestamp || now;
+  const timestamp = now;
   const timing = deriveMealTimingMetadata(timestamp);
   const savedMealRefId = picked.cloudId || picked.mealId || null;
 
@@ -42,7 +45,7 @@ export function buildSavedMealDraft(params: {
     notes: picked.notes ?? null,
     type: picked.type || "other",
     timestamp,
-    dayKey: picked.dayKey ?? null,
+    dayKey: formatMealDayKey(new Date(timestamp)),
     loggedAtLocalMin: timing.loggedAtLocalMin,
     tzOffsetMin: timing.tzOffsetMin,
     source: "saved",
