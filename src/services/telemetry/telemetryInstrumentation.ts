@@ -60,7 +60,7 @@ type PaywallSource = "manage_subscription" | "meal_text_limit";
 type PaywallTriggerSource =
   | "manage_subscription_screen"
   | "meal_text_limit_modal";
-type EntitlementSource = "purchase" | "restore";
+type EntitlementSource = "purchase" | "restore" | "manage_subscription";
 type DomainFailureReason =
   | "billing_unavailable"
   | "billing_not_initialized"

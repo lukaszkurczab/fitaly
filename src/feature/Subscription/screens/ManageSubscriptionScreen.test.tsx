@@ -385,4 +385,34 @@ describe("ManageSubscriptionScreen", () => {
     expect(trySubscribe).toHaveBeenCalledTimes(1);
     expect(closePaywall).toHaveBeenCalledTimes(1);
   });
+
+  it("collapses repeated confirmation warnings into the summary block", () => {
+    mockUseAccessContext.mockReturnValue({
+      accessState: { credits: null },
+      loading: false,
+    });
+    mockUseManageSubscriptionState.mockReturnValue(
+      makeManageState({
+        state: "unknown",
+        showConfirmationRetry: true,
+        showStart: false,
+        actionFeedback: {
+          tone: "warning",
+          title: "Cannot confirm premium right now",
+          message:
+            "Backend access state is unavailable or degraded, so Premium cannot be confirmed yet.",
+          source: "manage",
+        },
+      }),
+    );
+
+    const { getAllByText, queryByText } = renderWithTheme(
+      <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
+    );
+
+    expect(getAllByText("Cannot confirm premium right now")).toHaveLength(1);
+    expect(
+      queryByText("AI Credits unavailable"),
+    ).toBeNull();
+  });
 });

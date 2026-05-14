@@ -173,6 +173,37 @@ describe("useManageSubscriptionState", () => {
     );
   });
 
+  it("uses full entitlement confirmation for retry from manage subscription", async () => {
+    const refreshPremium = jest.fn(async () => false);
+    const confirmPremiumEntitlement = jest.fn(async () => ({
+      confirmed: false,
+      reason: "access_unknown_degraded" as const,
+    }));
+    const { result } = renderHook(() =>
+      useManageSubscriptionState(makeParams({
+        subscriptionState: "unknown",
+        refreshPremium,
+        confirmPremiumEntitlement,
+      })),
+    );
+
+    await act(async () => {
+      await result.current.tryRefreshPremium();
+    });
+
+    expect(refreshPremium).not.toHaveBeenCalled();
+    expect(confirmPremiumEntitlement).toHaveBeenCalledTimes(1);
+    expect(result.current.actionFeedback).toMatchObject({
+      tone: "warning",
+      title: "Cannot confirm premium right now",
+      source: "manage",
+    });
+    expect(mockTrack).toHaveBeenCalledWith(
+      "entitlement_confirmation_failed",
+      { source: "manage_subscription", reason: "access_unknown_degraded" },
+    );
+  });
+
   it("tracks paywall view with source and trigger source", async () => {
     const { result } = renderHook(() =>
       useManageSubscriptionState(makeParams()),

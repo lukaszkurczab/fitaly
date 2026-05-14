@@ -23,7 +23,7 @@ import { useProductReadiness } from "@/hooks/useProductReadiness";
 type AccessContextValue = {
   accessState: AccessState | null;
   loading: boolean;
-  refreshAccess: () => Promise<AccessState | null>;
+  refreshAccess: (options?: { force?: boolean }) => Promise<AccessState | null>;
   applyAccessFromResponse: (value: unknown) => AccessState | null;
   canUseFeature: (feature: AccessFeatureKey) => boolean;
   getFeature: (feature: AccessFeatureKey) => AccessFeatureState | null;
@@ -74,14 +74,16 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     return parsedAccess;
   }, [updateAccess]);
 
-  const refreshAccess = useCallback((): Promise<AccessState | null> => {
+  const refreshAccess = useCallback((
+    options?: { force?: boolean },
+  ): Promise<AccessState | null> => {
     if (!uid || !productReadyUid) {
       updateAccess(null);
       return Promise.resolve(null);
     }
 
     const inFlight = refreshInFlightRef.current;
-    if (inFlight?.uid === productReadyUid) {
+    if (!options?.force && inFlight?.uid === productReadyUid) {
       return inFlight.promise;
     }
 
@@ -93,13 +95,19 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
         const response = await get<unknown>("/billing/access-state");
         const parsed = parseAccessState(response);
         if (!parsed) return null;
-        if (uidRef.current === requestUid) {
+        if (
+          uidRef.current === requestUid
+          && refreshInFlightRef.current?.token === token
+        ) {
           updateAccess(parsed);
         }
         return parsed;
       } catch (error) {
         logWarning("access state refresh failed", null, error);
-        if (uidRef.current === requestUid) {
+        if (
+          uidRef.current === requestUid
+          && refreshInFlightRef.current?.token === token
+        ) {
           updateAccess(buildDegradedAccessState());
         }
         return null;

@@ -222,6 +222,17 @@ export default function ManageSubscriptionScreen({
               "Billing is not ready yet. Please try again in a moment.",
           })
         : null;
+  const confirmationWarningFeedback =
+    actionFeedback?.tone === "warning" &&
+    (state === "premium_pending_confirmation" || state === "unknown")
+      ? actionFeedback
+      : null;
+  const displayedSummaryTitle =
+    confirmationWarningFeedback?.title ?? summaryTitle;
+  const displayedSummaryBody =
+    confirmationWarningFeedback?.message ?? summaryBody;
+  const displayedSummaryTone =
+    confirmationWarningFeedback?.tone ?? getSummaryTone(state);
 
   if (!subscription) {
     if (!isOnline) {
@@ -285,9 +296,9 @@ export default function ManageSubscriptionScreen({
       >
         <View style={styles.content}>
           <InfoBlock
-            title={summaryTitle}
-            body={summaryBody}
-            tone={getSummaryTone(state)}
+            title={displayedSummaryTitle}
+            body={displayedSummaryBody}
+            tone={displayedSummaryTone}
             icon={
               <AppIcon
                 name={isPremiumComputed ? "star" : "info"}
@@ -334,7 +345,7 @@ export default function ManageSubscriptionScreen({
             />
           ) : null}
 
-          {actionFeedback ? (
+          {actionFeedback && !confirmationWarningFeedback ? (
             <InfoBlock
               title={actionFeedback.title}
               body={actionFeedback.message}
@@ -363,7 +374,8 @@ export default function ManageSubscriptionScreen({
 
           {(state === "premium_pending_confirmation" || state === "unknown") &&
           !credits &&
-          !creditsLoading ? (
+          !creditsLoading &&
+          !confirmationWarningFeedback ? (
             <InfoBlock
               title={t("manageSubscription.aiCreditsUnavailableTitle", {
                 defaultValue: "AI Credits unavailable",

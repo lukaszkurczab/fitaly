@@ -131,6 +131,82 @@ describe("AccessContext", () => {
     expect(result.current.accessState?.entitlementStatus).toBe("active");
   });
 
+  it("can force a fresh access-state read instead of reusing an in-flight request", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockProductReadyUid = "user-1";
+    let resolveFirst: ((value: unknown) => void) | null = null;
+    let resolveSecond: ((value: unknown) => void) | null = null;
+    mockGet
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve;
+        }),
+      );
+
+    const { result } = renderHook(() => useAccessContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    let forcedRefresh: Promise<unknown>;
+    act(() => {
+      forcedRefresh = result.current.refreshAccess({ force: true });
+    });
+
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveSecond?.(accessStateSnapshot("premium"));
+      await forcedRefresh!;
+      resolveFirst?.(accessStateSnapshot("free"));
+    });
+
+    expect(result.current.accessState?.tier).toBe("premium");
+  });
+
+  it("ignores stale access-state failures after a newer forced read succeeds", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockProductReadyUid = "user-1";
+    let rejectFirst: ((reason: unknown) => void) | null = null;
+    let resolveSecond: ((value: unknown) => void) | null = null;
+    mockGet
+      .mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          rejectFirst = reject;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve;
+        }),
+      );
+
+    const { result } = renderHook(() => useAccessContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    let forcedRefresh: Promise<unknown>;
+    act(() => {
+      forcedRefresh = result.current.refreshAccess({ force: true });
+    });
+
+    await act(async () => {
+      resolveSecond?.(accessStateSnapshot("premium"));
+      await forcedRefresh!;
+      rejectFirst?.(new Error("stale access failed"));
+    });
+
+    expect(result.current.accessState?.tier).toBe("premium");
+  });
+
   it("does not refresh access before product readiness", async () => {
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
     mockProductReadyUid = null;

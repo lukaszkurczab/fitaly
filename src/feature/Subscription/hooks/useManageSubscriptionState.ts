@@ -281,9 +281,28 @@ export function useManageSubscriptionState(params: {
     setBusy(true);
     setBusyAction("manage");
     try {
-      const confirmed = await params.refreshPremium();
-      if (confirmed !== true) {
-        const reason = params.premiumIssueReason ?? "access_unknown_degraded";
+      const confirmation = await params.confirmPremiumEntitlement();
+      if (confirmation.confirmed) {
+        void trackEntitlementConfirmed({ source: "manage_subscription" });
+        setActionFeedback({
+          tone: "success",
+          title: params.t("manageSubscription.purchaseSuccessTitle", {
+            defaultValue: "Premium active",
+          }),
+          message: params.t("manageSubscription.purchaseSuccess", {
+            defaultValue: "Subscription active.",
+          }),
+          source: "manage",
+        });
+      } else {
+        const reason =
+          confirmation.reason
+          ?? params.premiumIssueReason
+          ?? "access_unknown_degraded";
+        void trackEntitlementConfirmationFailed({
+          source: "manage_subscription",
+          reason,
+        });
         setActionFeedback({
           tone: "warning",
           title: params.t("manageSubscription.subscriptionUnknownTitle", {

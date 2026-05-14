@@ -350,7 +350,7 @@ export const PremiumProvider = ({
         return { confirmed: false, reason: "sync_tier_failed" as const };
       }
 
-      const access = await refreshAccess();
+      const access = await refreshAccess({ force: true });
       applyAccessCredits(access);
       const confirmed = setSubscriptionFromAccessState(access, {
         preserveRevenueCatPremium: true,
@@ -413,7 +413,7 @@ export const PremiumProvider = ({
           }
         }
 
-        const access = await refreshAccess();
+        const access = await refreshAccess({ force: true });
         applyAccessCredits(access);
         return setSubscriptionFromAccessState(access, {
           preserveRevenueCatPremium: true,
