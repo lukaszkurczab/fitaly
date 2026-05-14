@@ -106,6 +106,8 @@ describe("saveMealTransaction", () => {
 
   it("canonicalizes update payloads and commits locally before enqueueing", async () => {
     const onLocalCommitted = jest.fn<(meal: Meal) => void>();
+    const finalTimestamp = "2026-02-25T10:00:00.000Z";
+    const expectedDate = new Date(finalTimestamp);
 
     const { meal } = await saveMealTransaction({
       uid: "user-1",
@@ -127,8 +129,9 @@ describe("saveMealTransaction", () => {
         cloudId: "cloud-1",
         mealId: "meal-1",
         dayKey: "2026-02-25",
-        loggedAtLocalMin: 660,
-        tzOffsetMin: 60,
+        loggedAtLocalMin:
+          expectedDate.getHours() * 60 + expectedDate.getMinutes(),
+        tzOffsetMin: -expectedDate.getTimezoneOffset(),
         totals: { kcal: 260, protein: 27, carbs: 25, fat: 5 },
         photoLocalPath: "file://meal.jpg",
         syncState: "pending",
