@@ -1,7 +1,6 @@
 import { Platform, Linking } from "react-native";
 import Purchases from "react-native-purchases";
 import {
-  initRevenueCat,
   isBillingDisabled,
   isRevenueCatConfigured,
   rcLogIn,
@@ -81,16 +80,6 @@ function mapPurchaseError(meta: PurchaseErrorMeta): PurchaseErrorCode {
 export async function startOrRenewSubscription(
   uid?: string | null,
 ): Promise<PurchaseResult> {
-  initRevenueCat();
-
-  if (!isRevenueCatConfigured()) {
-    return {
-      status: "error",
-      errorCode: "billing_not_initialized",
-      message: "Billing not initialized (RevenueCat not configured).",
-    };
-  }
-
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
   }
@@ -109,6 +98,14 @@ export async function startOrRenewSubscription(
       status: "error",
       errorCode: "login_failed",
       message: "Unable to sign in to billing. Please try again.",
+    };
+  }
+
+  if (!isRevenueCatConfigured()) {
+    return {
+      status: "error",
+      errorCode: "billing_not_initialized",
+      message: "Billing not initialized (RevenueCat not configured).",
     };
   }
 
@@ -170,16 +167,6 @@ export async function startOrRenewSubscription(
 export async function restorePurchases(
   uid?: string | null,
 ): Promise<PurchaseResult> {
-  initRevenueCat();
-
-  if (!isRevenueCatConfigured()) {
-    return {
-      status: "error",
-      errorCode: "billing_not_initialized",
-      message: "Billing not initialized (RevenueCat not configured).",
-    };
-  }
-
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
   }
@@ -198,6 +185,14 @@ export async function restorePurchases(
       status: "error",
       errorCode: "login_failed",
       message: "Unable to sign in to billing. Please try again.",
+    };
+  }
+
+  if (!isRevenueCatConfigured()) {
+    return {
+      status: "error",
+      errorCode: "billing_not_initialized",
+      message: "Billing not initialized (RevenueCat not configured).",
     };
   }
 

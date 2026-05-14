@@ -9,9 +9,8 @@ import {
 } from "@/services/billing/purchase";
 import { resolvePurchaseErrorMessage } from "@/services/billing/purchaseErrorMessage";
 import {
-  initRevenueCat,
+  hasRevenueCatApiKey,
   isBillingDisabled,
-  isRevenueCatConfigured,
 } from "@/services/billing/revenuecat";
 import { hasPremiumAccess } from "@/services/billing/subscriptionStateMachine";
 import {
@@ -219,11 +218,10 @@ export function useManageSubscriptionState(params: {
   );
 
   useEffect(() => {
-    initRevenueCat();
     setBillingAvailability(
       isBillingDisabled()
         ? "disabled"
-        : isRevenueCatConfigured()
+        : hasRevenueCatApiKey()
           ? "ready"
           : "not_ready",
     );

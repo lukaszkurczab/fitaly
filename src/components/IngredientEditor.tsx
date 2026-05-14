@@ -133,9 +133,9 @@ export const IngredientEditor: React.FC<Props> = ({
     };
   };
 
-  const shouldAskForRecalc = () => {
+  const shouldAskForRecalc = (amountOverride?: number) => {
     const prevAmount = baseline.current.amount;
-    const nextAmount = parseNum(amount) || 0;
+    const nextAmount = amountOverride ?? (parseNum(amount) || 0);
     const hasMacros =
       Math.abs(parseNum(protein) || 0) > 0.0001 ||
       Math.abs(parseNum(carbs) || 0) > 0.0001 ||
@@ -170,12 +170,32 @@ export const IngredientEditor: React.FC<Props> = ({
 
   const commit = () => {
     if (hasBlockingErrors) return;
-    if (shouldAskForRecalc()) {
-      setRecalcPromptVisible(true);
-      return;
-    }
 
     commitIngredient();
+  };
+
+  const applyAmountRecalcChoice = (recalculateMacros: boolean) => {
+    const next = buildIngredientForCommit({ recalculateMacros });
+    if (recalculateMacros) {
+      setProtein(String(next.protein));
+      setCarbs(String(next.carbs));
+      setFat(String(next.fat));
+      setKcal(String(next.kcal));
+      onChangePartial?.({
+        protein: next.protein,
+        carbs: next.carbs,
+        fat: next.fat,
+        kcal: next.kcal,
+      });
+    }
+    baseline.current = {
+      amount: next.amount,
+      protein: next.protein,
+      carbs: next.carbs,
+      fat: next.fat,
+      kcal: next.kcal,
+    };
+    setRecalcPromptVisible(false);
   };
 
   const clearZeroOnFocus = (val: string, setter: (s: string) => void) => {
@@ -228,6 +248,10 @@ export const IngredientEditor: React.FC<Props> = ({
     if (key === "amount") {
       const nextAmt = Number.isFinite(n) ? n : 0;
       if (Math.abs(nextAmt - baseline.current.amount) <= 0.0001) {
+        baseline.current.amount = nextAmt;
+      } else if (shouldAskForRecalc(nextAmt)) {
+        setRecalcPromptVisible(true);
+      } else {
         baseline.current.amount = nextAmt;
       }
       return;
@@ -594,7 +618,7 @@ export const IngredientEditor: React.FC<Props> = ({
                 ns: "meals",
                 defaultValue: "Keep macros",
               })}
-              onPress={() => commitIngredient({ recalculateMacros: false })}
+              onPress={() => applyAmountRecalcChoice(false)}
             />
             <Button
               style={styles.recalcActionButton}
@@ -603,7 +627,7 @@ export const IngredientEditor: React.FC<Props> = ({
                 ns: "meals",
                 defaultValue: "Recalculate now",
               })}
-              onPress={() => commitIngredient({ recalculateMacros: true })}
+              onPress={() => applyAmountRecalcChoice(true)}
             />
           </View>
         </View>

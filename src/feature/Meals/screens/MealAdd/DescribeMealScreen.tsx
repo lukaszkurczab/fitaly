@@ -184,7 +184,7 @@ export default function DescribeMealScreen({
                   )}
                   multiline
                   numberOfLines={10}
-                  autoCapitalize="sentences"
+                  autoCapitalize="none"
                   autoCorrect={false}
                   spellCheck={false}
                   maxLength={300}

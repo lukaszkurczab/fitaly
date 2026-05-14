@@ -53,7 +53,7 @@ export default function MealBasicsSection({
           placeholder={t("manual_meal_name_placeholder", {
             defaultValue: "Enter meal name",
           })}
-          autoCapitalize="words"
+          autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
           maxLength={80}

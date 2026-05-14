@@ -5,7 +5,6 @@ import { useManageSubscriptionState } from "@/feature/Subscription/hooks/useMana
 const mockStartOrRenewSubscription =
   jest.fn<(uid?: string | null) => Promise<unknown>>();
 const mockRestorePurchases = jest.fn<(uid?: string | null) => Promise<unknown>>();
-const mockInitRevenueCat = jest.fn();
 
 jest.mock("@/services/billing/purchase", () => ({
   openManageSubscriptions: jest.fn(async () => true),
@@ -15,9 +14,8 @@ jest.mock("@/services/billing/purchase", () => ({
 }));
 
 jest.mock("@/services/billing/revenuecat", () => ({
-  initRevenueCat: () => mockInitRevenueCat(),
+  hasRevenueCatApiKey: () => true,
   isBillingDisabled: () => false,
-  isRevenueCatConfigured: () => true,
 }));
 
 jest.mock("@/utils/legalUrls", () => ({

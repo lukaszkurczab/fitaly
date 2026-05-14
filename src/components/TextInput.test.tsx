@@ -50,6 +50,18 @@ describe("TextInput", () => {
     expect(onBlur).toHaveBeenCalledTimes(1);
   });
 
+  it("does not auto-capitalize text by default", () => {
+    const { getByPlaceholderText } = renderWithTheme(
+      <AppTextInput
+        value=""
+        onChangeText={() => undefined}
+        placeholder="Meal name"
+      />,
+    );
+
+    expect(getByPlaceholderText("Meal name").props.autoCapitalize).toBe("none");
+  });
+
   it("uses centered single-line input metrics without extra vertical padding", () => {
     const { getByPlaceholderText } = renderWithTheme(
       <AppTextInput

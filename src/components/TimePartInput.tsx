@@ -54,6 +54,8 @@ export const TimePartInput: React.FC<Props> = ({
       onChangeText={handleChangeText}
       onBlur={handleBlur}
       keyboardType="number-pad"
+      autoCapitalize="none"
+      autoCorrect={false}
       maxLength={2}
     />
   );

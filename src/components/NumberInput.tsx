@@ -103,6 +103,7 @@ export const NumberInput: React.FC<Props> = (props) => {
         value={value}
         onChangeText={handleChangeText}
         keyboardType={resolvedKeyboardType}
+        autoCapitalize="none"
         autoCorrect={false}
         onBlur={handleBlur}
       />
@@ -117,6 +118,7 @@ export const NumberInput: React.FC<Props> = (props) => {
       value={value}
       onChangeText={handleChangeText}
       keyboardType={resolvedKeyboardType}
+      autoCapitalize="none"
       autoCorrect={false}
       onBlur={handleBlur}
     />

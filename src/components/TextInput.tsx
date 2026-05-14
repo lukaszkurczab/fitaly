@@ -90,7 +90,7 @@ export const TextInput = forwardRef<RNTextInput, Props>(
       inputStyle,
       disabled = false,
       editable,
-      autoCapitalize,
+      autoCapitalize = "none",
       autoComplete,
       textContentType,
       accessibilityLabel,

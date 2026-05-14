@@ -156,7 +156,7 @@ describe("DescribeMealScreen", () => {
     mockUseMealTextAiState.mockReturnValue(buildTextAiState());
   });
 
-  it("does not auto-capitalize the meal name input", () => {
+  it("does not auto-capitalize text inputs", () => {
     const props = {
       navigation: {
         navigate: jest.fn(),
@@ -177,6 +177,7 @@ describe("DescribeMealScreen", () => {
     const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
 
     expect(getByTestId("describe-meal-name-autocap").props.children).toBe("none");
+    expect(getByTestId("describe-meal-description-autocap").props.children).toBe("none");
   });
 
   it("opens the temporary method chooser", () => {

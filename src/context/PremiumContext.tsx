@@ -20,7 +20,6 @@ import {
   type AccessState,
 } from "@/services/access/accessState";
 import {
-  initRevenueCat,
   isBillingDisabled,
   isRevenueCatConfigured,
   rcLogIn,
@@ -266,9 +265,8 @@ export const PremiumProvider = ({
       return false;
     }
 
-    initRevenueCat();
-
-    if (!isRevenueCatConfigured()) {
+    const loggedIn = await rcLogIn(productReadyUid);
+    if (!loggedIn || !isRevenueCatConfigured()) {
       setSubscriptionUnknown();
       setPremiumIssueReason("rc_not_configured");
       return false;

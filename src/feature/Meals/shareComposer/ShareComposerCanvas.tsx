@@ -729,6 +729,8 @@ export default function ShareComposerCanvas({
                       blurOnSubmit
                       returnKeyType="done"
                       multiline={false}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                       style={[
                         stylesWithTheme.textLayer,
                         stylesWithTheme.textLayerInput,

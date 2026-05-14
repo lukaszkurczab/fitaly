@@ -5,6 +5,7 @@ import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { logWarning } from "@/services/core/errorLogger";
 
 let configured = false;
+let configuredAppUserId: string | null = null;
 
 type RevenueCatExtra = {
   billingDisabled: boolean;
@@ -43,9 +44,17 @@ function getErrorMeta(err: unknown) {
   };
 }
 
-export function initRevenueCat() {
+export function hasRevenueCatApiKey(): boolean {
+  const extra = getExtra();
+  const apiKey = Platform.OS === "ios"
+    ? extra.revenuecatIosKey
+    : extra.revenuecatAndroidKey;
+  return Boolean(apiKey);
+}
+
+export function initRevenueCat(appUserID?: string | null) {
   if (configured) {
-    log("initRevenueCat: already configured");
+    log("initRevenueCat: already configured", { configuredAppUserId });
     return;
   }
 
@@ -57,6 +66,11 @@ export function initRevenueCat() {
 
   const apiKey = Platform.OS === "ios" ? iosKey : androidKey;
 
+  const normalizedAppUserID =
+    typeof appUserID === "string" && appUserID.trim()
+      ? appUserID.trim()
+      : null;
+
   log("initRevenueCat: start", {
     platform: Platform.OS,
     isDevice: Device.isDevice,
@@ -65,6 +79,7 @@ export function initRevenueCat() {
     iosKeyLen: iosKey?.length ?? 0,
     androidKeyLen: androidKey?.length ?? 0,
     hasSelectedKey: !!apiKey,
+    hasAppUserID: !!normalizedAppUserID,
   });
 
   Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
@@ -84,17 +99,26 @@ export function initRevenueCat() {
   if (disabled) {
     log("RevenueCat disabled by config");
     configured = false;
+    configuredAppUserId = null;
+    return;
+  }
+
+  if (!normalizedAppUserID) {
+    log("RevenueCat configure skipped until authenticated uid is available");
+    configured = false;
+    configuredAppUserId = null;
     return;
   }
 
   try {
     Purchases.configure({
       apiKey,
-      appUserID: null,
+      appUserID: normalizedAppUserID,
     });
 
     configured = true;
-    log("✅ Purchases.configure OK");
+    configuredAppUserId = normalizedAppUserID;
+    log("✅ Purchases.configure OK", { appUserID: normalizedAppUserID });
   } catch (e: unknown) {
     const meta = getErrorMeta(e);
     configured = false;
@@ -116,32 +140,32 @@ export function isRevenueCatConfigured() {
 }
 
 export async function rcLogIn(uid: string): Promise<boolean> {
-  initRevenueCat();
+  const normalizedUid = uid.trim();
+  if (!normalizedUid) return false;
+
+  initRevenueCat(normalizedUid);
   if (!isRevenueCatConfigured()) return false;
 
+  if (configuredAppUserId === normalizedUid) {
+    log("rcLogIn skipped; already configured for uid", { uid: normalizedUid });
+    return true;
+  }
+
   try {
-    await Purchases.logIn(uid);
-    log("rcLogIn OK", { uid });
+    await Purchases.logIn(normalizedUid);
+    configuredAppUserId = normalizedUid;
+    log("rcLogIn OK", { uid: normalizedUid });
     return true;
   } catch (e: unknown) {
     const meta = getErrorMeta(e);
-    logWarning("revenuecat login failed", { uid, code: meta.code }, e);
+    logWarning("revenuecat login failed", { uid: normalizedUid, code: meta.code }, e);
     log("rcLogIn FAILED", { message: meta.message, code: meta.code });
     return false;
   }
 }
 
 export async function rcLogOut(): Promise<void> {
-  initRevenueCat();
-  if (!isRevenueCatConfigured()) return;
-
-  try {
-    await Purchases.logOut();
-    log("rcLogOut OK");
-  } catch (e: unknown) {
-    const meta = getErrorMeta(e);
-    log("rcLogOut FAILED", { message: meta.message, code: meta.code });
-  }
+  log("rcLogOut skipped; authenticated RevenueCat users are switched with rcLogIn");
 }
 
 export async function rcSetAttributes(
