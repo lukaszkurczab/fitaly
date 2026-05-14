@@ -99,11 +99,38 @@ export default function DescribeMealScreen({
     });
   }, [creditsBalance, remainingCreditsAfterAnalyze, t, textMealCost]);
 
+  const ctaHelperText = useMemo(() => {
+    if (analysisState === "missing_description") {
+      return t("text_ai_cta_missing_description", {
+        ns: "meals",
+        defaultValue: "Add a meal description to prepare a summary.",
+      });
+    }
+
+    if (analysisState === "credits_unverified") {
+      return t("text_ai_credits_unverified", {
+        ns: "meals",
+        defaultValue: "Checking available AI Credits...",
+      });
+    }
+
+    if (analysisState === "insufficient_credits") {
+      return t("text_ai_insufficient_credits_hard_stop", {
+        ns: "meals",
+        defaultValue:
+          "You do not have enough AI Credits to prepare a summary.",
+      });
+    }
+
+    return creditsNote;
+  }, [analysisState, creditsNote, t]);
+
   const creditsNoteWarning =
-    creditsBalance !== null &&
+    analysisState === "insufficient_credits" ||
+    (creditsBalance !== null &&
     (creditsBalance < textMealCost ||
       (remainingCreditsAfterAnalyze !== null &&
-        remainingCreditsAfterAnalyze <= 2));
+        remainingCreditsAfterAnalyze <= 2)));
   const showUpgradeLink = analysisState === "insufficient_credits";
   const canStepBack = flow.canGoBack();
   const hasUnsavedChanges =
@@ -196,14 +223,14 @@ export default function DescribeMealScreen({
                   loading={loading}
                   style={styles.primaryButton}
                 />
-                {creditsNote ? (
+                {ctaHelperText ? (
                   <Text
                     style={[
                       styles.inlineNote,
                       creditsNoteWarning ? styles.inlineNoteWarning : null,
                     ]}
                   >
-                    {creditsNote}
+                    {ctaHelperText}
                   </Text>
                 ) : null}
                 {showUpgradeLink ? (

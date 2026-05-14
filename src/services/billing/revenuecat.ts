@@ -2,11 +2,13 @@ import { Platform } from "react-native";
 import Purchases, { LOG_LEVEL } from "react-native-purchases";
 import * as Device from "expo-device";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import { logWarning } from "@/services/core/errorLogger";
 
 let configured = false;
 
 type RevenueCatExtra = {
   billingDisabled: boolean;
+  buildProfile?: string;
   revenuecatIosKey?: string;
   revenuecatAndroidKey?: string;
 };
@@ -15,6 +17,7 @@ function getExtra() {
   const config = getRuntimeConfig();
   return {
     billingDisabled: config.billingDisabled,
+    buildProfile: config.buildProfile || undefined,
     revenuecatIosKey: config.revenuecatIosKey || undefined,
     revenuecatAndroidKey: config.revenuecatAndroidKey || undefined,
   } as RevenueCatExtra;
@@ -68,6 +71,12 @@ export function initRevenueCat() {
 
   if (!apiKey) {
     log("❌ RevenueCat API key MISSING – check app.config extra + EAS env");
+    logWarning("revenuecat configuration missing api key", {
+      platform: Platform.OS,
+      buildProfile: extra.buildProfile || "unknown",
+      hasIosKey: !!iosKey,
+      hasAndroidKey: !!androidKey,
+    });
     configured = false;
     return;
   }
@@ -89,6 +98,11 @@ export function initRevenueCat() {
   } catch (e: unknown) {
     const meta = getErrorMeta(e);
     configured = false;
+    logWarning("revenuecat configure failed", {
+      platform: Platform.OS,
+      code: meta.code,
+      userInfo: meta.userInfo,
+    }, e);
     log("❌ Purchases.configure FAILED", {
       message: meta.message,
       code: meta.code,
@@ -111,6 +125,7 @@ export async function rcLogIn(uid: string): Promise<boolean> {
     return true;
   } catch (e: unknown) {
     const meta = getErrorMeta(e);
+    logWarning("revenuecat login failed", { uid, code: meta.code }, e);
     log("rcLogIn FAILED", { message: meta.message, code: meta.code });
     return false;
   }

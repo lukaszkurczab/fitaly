@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import type { Ingredient } from "@/types";
 import { NumberInput } from "./NumberInput";
 import { TextInput } from "./TextInput";
-import { Modal } from "./Modal";
 import { Button } from "./Button";
 
 type Props = {
@@ -70,8 +69,7 @@ export const IngredientEditor: React.FC<Props> = ({
     kcal: Number(initial.kcal ?? 0),
   });
 
-  const [showRecalc, setShowRecalc] = useState(false);
-  const recalcRatioRef = useRef(1);
+  const [recalcPromptVisible, setRecalcPromptVisible] = useState(false);
 
   const hasBlockingErrors = Object.keys(errors).length > 0;
   const resolvedSubmitLabel =
@@ -97,19 +95,87 @@ export const IngredientEditor: React.FC<Props> = ({
     syncBaselineFromState(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const commit = () => {
-    if (hasBlockingErrors) return;
+  const buildIngredientForCommit = (options?: {
+    recalculateMacros?: boolean;
+  }): Ingredient => {
+    const nextAmount = parseNum(amount) || 0;
+    const currentProtein = parseNum(protein) || 0;
+    const currentCarbs = parseNum(carbs) || 0;
+    const currentFat = parseNum(fat) || 0;
+    const currentKcal = parseNum(kcal) || 0;
+    const ratio =
+      options?.recalculateMacros &&
+      baseline.current.amount > 0 &&
+      nextAmount > 0
+        ? nextAmount / baseline.current.amount
+        : 1;
 
-    onCommit({
+    const nextProtein = Number((currentProtein * ratio).toFixed(1));
+    const nextCarbs = Number((currentCarbs * ratio).toFixed(1));
+    const nextFat = Number((currentFat * ratio).toFixed(1));
+    const kcalFromMacros = Math.round(
+      nextProtein * 4 + nextCarbs * 4 + nextFat * 9,
+    );
+    const nextKcal =
+      options?.recalculateMacros
+        ? Math.round(currentKcal * ratio) || kcalFromMacros
+        : currentKcal;
+
+    return {
       id: initial.id,
       name: name.trim(),
-      amount: parseNum(amount) || 0,
+      amount: nextAmount,
       unit: initial.unit,
-      protein: parseNum(protein) || 0,
-      carbs: parseNum(carbs) || 0,
-      fat: parseNum(fat) || 0,
-      kcal: parseNum(kcal) || 0,
-    });
+      protein: nextProtein,
+      carbs: nextCarbs,
+      fat: nextFat,
+      kcal: nextKcal,
+    };
+  };
+
+  const shouldAskForRecalc = () => {
+    const prevAmount = baseline.current.amount;
+    const nextAmount = parseNum(amount) || 0;
+    const hasMacros =
+      Math.abs(parseNum(protein) || 0) > 0.0001 ||
+      Math.abs(parseNum(carbs) || 0) > 0.0001 ||
+      Math.abs(parseNum(fat) || 0) > 0.0001 ||
+      Math.abs(parseNum(kcal) || 0) > 0.0001;
+
+    return (
+      prevAmount > 0 &&
+      nextAmount > 0 &&
+      hasMacros &&
+      Math.abs(nextAmount - prevAmount) > 0.0001
+    );
+  };
+
+  const commitIngredient = (options?: { recalculateMacros?: boolean }) => {
+    const next = buildIngredientForCommit(options);
+    if (options?.recalculateMacros) {
+      setProtein(String(next.protein));
+      setCarbs(String(next.carbs));
+      setFat(String(next.fat));
+      setKcal(String(next.kcal));
+      onChangePartial?.({
+        protein: next.protein,
+        carbs: next.carbs,
+        fat: next.fat,
+        kcal: next.kcal,
+      });
+    }
+    setRecalcPromptVisible(false);
+    onCommit(next);
+  };
+
+  const commit = () => {
+    if (hasBlockingErrors) return;
+    if (shouldAskForRecalc()) {
+      setRecalcPromptVisible(true);
+      return;
+    }
+
+    commitIngredient();
   };
 
   const clearZeroOnFocus = (val: string, setter: (s: string) => void) => {
@@ -144,6 +210,7 @@ export const IngredientEditor: React.FC<Props> = ({
     setter: (value: string) => void,
     key: NumericIngredientKey,
   ) => {
+    if (recalcPromptVisible) setRecalcPromptVisible(false);
     setter(value);
     const numeric = parseNum(value);
     if (!Number.isNaN(numeric)) {
@@ -159,14 +226,8 @@ export const IngredientEditor: React.FC<Props> = ({
     if (!Number.isNaN(n)) applyNumericPartial(key, n);
 
     if (key === "amount") {
-      syncBaselineFromState(true);
-      const prevAmt = baseline.current.amount;
       const nextAmt = Number.isFinite(n) ? n : 0;
-
-      if (prevAmt > 0 && nextAmt > 0 && Math.abs(nextAmt - prevAmt) > 0.0001) {
-        recalcRatioRef.current = nextAmt / prevAmt;
-        setShowRecalc(true);
-      } else {
+      if (Math.abs(nextAmt - baseline.current.amount) <= 0.0001) {
         baseline.current.amount = nextAmt;
       }
       return;
@@ -198,6 +259,7 @@ export const IngredientEditor: React.FC<Props> = ({
         setCarbs(String(ing.carbs ?? 0));
         setFat(String(ing.fat ?? 0));
         setKcal(String(ing.kcal ?? 0));
+        setRecalcPromptVisible(false);
 
         onChangePartial?.({
           name: ing.name || "",
@@ -508,6 +570,45 @@ export const IngredientEditor: React.FC<Props> = ({
         </>
       )}
 
+      {recalcPromptVisible ? (
+        <View style={styles.recalcCard}>
+          <Text style={styles.recalcTitle}>
+            {t("recalc_title", {
+              ns: "meals",
+              defaultValue: "Recalculate values?",
+            })}
+          </Text>
+          <Text style={styles.recalcMessage}>
+            {t("recalc_message", {
+              ns: "meals",
+              defaultValue:
+                "Adjust protein, carbs, fat and kcal proportionally to the new amount?",
+            })}
+          </Text>
+          <View style={styles.recalcActions}>
+            <Button
+              variant="secondary"
+              style={styles.recalcActionButton}
+              fullWidth={false}
+              label={t("recalc_keep_values", {
+                ns: "meals",
+                defaultValue: "Keep macros",
+              })}
+              onPress={() => commitIngredient({ recalculateMacros: false })}
+            />
+            <Button
+              style={styles.recalcActionButton}
+              fullWidth={false}
+              label={t("recalc_confirm", {
+                ns: "meals",
+                defaultValue: "Recalculate now",
+              })}
+              onPress={() => commitIngredient({ recalculateMacros: true })}
+            />
+          </View>
+        </View>
+      ) : null}
+
       {showDelete ? (
         <Pressable onPress={onDelete} style={styles.deleteLink}>
           <Text style={styles.deleteLinkText}>
@@ -522,72 +623,6 @@ export const IngredientEditor: React.FC<Props> = ({
         </Pressable>
       ) : null}
 
-      <Modal
-        visible={showRecalc}
-        title={t("recalc_title", { defaultValue: "Recalculate values?" })}
-        message={t("recalc_message", {
-          defaultValue:
-            "Adjust protein, carbs, fat and kcal proportionally to the new amount?",
-        })}
-        primaryAction={{
-          label: t("recalc_confirm", {
-            ns: "meals",
-            defaultValue: "Recalculate now",
-          }),
-          onPress: () => {
-            const r = recalcRatioRef.current;
-            const nextProtein = Number(
-              (baseline.current.protein * r).toFixed(1),
-            );
-            const nextCarbs = Number((baseline.current.carbs * r).toFixed(1));
-            const nextFat = Number((baseline.current.fat * r).toFixed(1));
-            const kcalFromMacros = Math.round(
-              nextProtein * 4 + nextCarbs * 4 + nextFat * 9,
-            );
-            const nextKcal =
-              Math.round(baseline.current.kcal * r) || kcalFromMacros;
-
-            setProtein(String(nextProtein));
-            setCarbs(String(nextCarbs));
-            setFat(String(nextFat));
-            setKcal(String(nextKcal));
-
-            onChangePartial?.({
-              protein: nextProtein,
-              carbs: nextCarbs,
-              fat: nextFat,
-              kcal: nextKcal,
-            });
-
-            baseline.current = {
-              amount: parseNum(amount) || baseline.current.amount,
-              protein: nextProtein,
-              carbs: nextCarbs,
-              fat: nextFat,
-              kcal: nextKcal,
-            };
-
-            setShowRecalc(false);
-          },
-          tone: "primary",
-        }}
-        secondaryAction={{
-          label: t("cancel", {
-            ns: "common",
-            defaultValue: "Cancel",
-          }),
-          onPress: () => {
-            baseline.current.amount =
-              parseNum(amount) || baseline.current.amount;
-            setShowRecalc(false);
-          },
-          tone: "secondary",
-        }}
-        onClose={() => {
-          baseline.current.amount = parseNum(amount) || baseline.current.amount;
-          setShowRecalc(false);
-        }}
-      />
     </View>
   );
 };
@@ -704,6 +739,34 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
+    },
+    recalcCard: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: theme.rounded.md,
+      padding: theme.spacing.md,
+      gap: theme.spacing.sm,
+      marginTop: theme.spacing.sm,
+    },
+    recalcTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    recalcMessage: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    recalcActions: {
+      flexDirection: "row",
+      gap: theme.spacing.sm,
+    },
+    recalcActionButton: {
+      flex: 1,
     },
     sheetActions: {
       flexDirection: "row",

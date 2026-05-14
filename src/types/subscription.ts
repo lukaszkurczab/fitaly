@@ -6,6 +6,7 @@ export type SubscriptionState =
   | "premium_paused"
   | "premium_refunded"
   | "premium_expired"
+  | "premium_pending_confirmation"
   | "free_active"
   | "free_expired"
   | "unknown";

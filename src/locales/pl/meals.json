@@ -90,6 +90,9 @@
   "text_ai_error_unavailable": "Usługa AI jest chwilowo niedostępna. Spróbuj za moment.",
   "text_ai_error_auth": "Zaloguj się ponownie, aby kontynuować.",
   "text_ai_analyze_failed": "Nie udało się przeanalizować posiłku. Spróbuj ponownie.",
+  "text_ai_cta_missing_description": "Dodaj opis posiłku, aby przygotować podsumowanie.",
+  "text_ai_credits_unverified": "Sprawdzamy dostępne kredyty AI...",
+  "text_ai_insufficient_credits_hard_stop": "Nie masz wystarczającej liczby kredytów AI, aby przygotować podsumowanie.",
   "text_ai_credits_remaining_note": "✦ Zostało {{count}} kredytów AI",
   "text_ai_low_credits_note": "Po tej analizie zostanie tylko {{count}} kredytów AI",
   "text_ai_no_credits_note": "Potrzebujesz {{cost}} kredytów AI, aby kontynuować.",
@@ -272,6 +275,7 @@
   "premium_required_body": "Tryb AI jest dostępny w Premium.",
   "premium_required_title": "Wymagane Premium",
   "recalc_confirm": "Przelicz teraz",
+  "recalc_keep_values": "Zostaw makra",
   "recalc_message": "Zmiana ilości może automatycznie przeliczyć kalorie i makroskładniki. Przeliczyć teraz?",
   "recalc_title": "Przeliczyć wartości?",
   "detailsUnavailable": {

@@ -19,6 +19,28 @@ type TextInputProps = {
 
 const mockUseMealTextAiState = jest.fn();
 
+const buildTextAiState = (overrides: Record<string, unknown> = {}) => ({
+  name: "",
+  quickDescription: "",
+  loading: false,
+  showLimitModal: false,
+  creditsUsed: 0,
+  creditsBalance: 74,
+  textMealCost: 1,
+  remainingCreditsAfterAnalyze: 73,
+  descriptionError: undefined,
+  submitError: undefined,
+  analyzeDisabled: false,
+  analysisState: "ready",
+  creditAllocation: 100,
+  onNameChange: jest.fn(),
+  onQuickDescriptionChange: jest.fn(),
+  onAnalyze: jest.fn(),
+  closeLimitModal: jest.fn(),
+  openPaywall: jest.fn(),
+  ...overrides,
+});
+
 jest.mock("@/feature/Meals/hooks/useMealTextAiState", () => ({
   useMealTextAiState: (params: unknown) => mockUseMealTextAiState(params),
 }));
@@ -131,25 +153,7 @@ jest.mock("@/feature/Meals/components/MealAddPhotoScaffold", () => ({
 describe("DescribeMealScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseMealTextAiState.mockReturnValue({
-      name: "",
-      quickDescription: "",
-      loading: false,
-      showLimitModal: false,
-      creditsUsed: 0,
-      creditsBalance: 74,
-      textMealCost: 1,
-      remainingCreditsAfterAnalyze: 73,
-      descriptionError: undefined,
-      submitError: undefined,
-      analyzeDisabled: false,
-      creditAllocation: 100,
-      onNameChange: jest.fn(),
-      onQuickDescriptionChange: jest.fn(),
-      onAnalyze: jest.fn(),
-      closeLimitModal: jest.fn(),
-      openPaywall: jest.fn(),
-    });
+    mockUseMealTextAiState.mockReturnValue(buildTextAiState());
   });
 
   it("does not auto-capitalize the meal name input", () => {
@@ -224,5 +228,98 @@ describe("DescribeMealScreen", () => {
     const { getByText } = renderWithTheme(<DescribeMealScreen {...props} />);
 
     expect(getByText("✦ 73 credits remaining")).toBeTruthy();
+  });
+
+  it("explains disabled CTA when description is missing", () => {
+    mockUseMealTextAiState.mockReturnValue({
+      ...buildTextAiState(),
+      analyzeDisabled: true,
+      analysisState: "missing_description",
+      creditsBalance: 74,
+      remainingCreditsAfterAnalyze: 73,
+    });
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByText } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    expect(getByText("Add a meal description to prepare a summary.")).toBeTruthy();
+  });
+
+  it("explains disabled CTA while credits are unverified", () => {
+    mockUseMealTextAiState.mockReturnValue({
+      ...buildTextAiState(),
+      analyzeDisabled: true,
+      analysisState: "credits_unverified",
+      creditsBalance: null,
+      remainingCreditsAfterAnalyze: null,
+    });
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByText } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    expect(getByText("Checking available AI Credits...")).toBeTruthy();
+  });
+
+  it("shows a hard stop and upgrade link when credits are insufficient", () => {
+    mockUseMealTextAiState.mockReturnValue({
+      ...buildTextAiState(),
+      analyzeDisabled: true,
+      analysisState: "insufficient_credits",
+      creditsBalance: 0,
+      remainingCreditsAfterAnalyze: 0,
+    });
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByText } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    expect(
+      getByText("You do not have enough AI Credits to prepare a summary."),
+    ).toBeTruthy();
+    expect(getByText("chat:limit.upgradeCta")).toBeTruthy();
   });
 });

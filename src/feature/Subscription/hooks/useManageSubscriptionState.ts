@@ -25,6 +25,7 @@ import {
   trackRestoreSucceeded,
 } from "@/services/telemetry/telemetryInstrumentation";
 import type { SubscriptionState } from "@/types/subscription";
+import type { PremiumEntitlementFailureReason } from "@/context/PremiumContext";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -43,7 +44,7 @@ export type SubscriptionActionFeedback = {
 
 type PremiumEntitlementConfirmationResult = {
   confirmed: boolean;
-  reason?: "credits_not_premium" | "sync_tier_failed";
+  reason?: PremiumEntitlementFailureReason;
 };
 
 const PREMIUM_RECOVERY_STATES = new Set<SubscriptionState>([
@@ -60,6 +61,7 @@ function normalizeSubscriptionState(input: {
     "premium_trial",
     "premium_grace",
     "premium_pending_downgrade",
+    "premium_pending_confirmation",
     "premium_paused",
     "premium_refunded",
     "premium_expired",
@@ -77,6 +79,7 @@ function normalizeSubscriptionState(input: {
 export function useManageSubscriptionState(params: {
   uid: string | null | undefined;
   subscriptionState?: string | null;
+  premiumIssueReason?: PremiumEntitlementFailureReason | null;
   refreshPremium: () => Promise<unknown>;
   confirmPremiumEntitlement: () => Promise<PremiumEntitlementConfirmationResult>;
   t: Translate;
@@ -114,9 +117,11 @@ export function useManageSubscriptionState(params: {
     || state === "premium_trial"
     || state === "premium_grace"
     || state === "premium_pending_downgrade"
+    || state === "premium_pending_confirmation"
     || state === "unknown";
   const showRenew = PREMIUM_RECOVERY_STATES.has(state);
-  const showConfirmationRetry = state === "unknown";
+  const showConfirmationRetry =
+    state === "unknown" || state === "premium_pending_confirmation";
   const showStart = !showConfirmationRetry && !showManageInStore && !showRenew;
 
   const headerStatus =
@@ -142,6 +147,10 @@ export function useManageSubscriptionState(params: {
                 })
               : state === "premium_expired"
                 ? `${params.t("manageSubscription.premium")} (${params.t("manageSubscription.expired", { defaultValue: "expired" })})`
+                : state === "premium_pending_confirmation"
+                  ? params.t("manageSubscription.premiumPendingConfirmation", {
+                      defaultValue: "Premium confirming",
+                    })
                 : state === "unknown"
                   ? params.t("manageSubscription.subscriptionUnknown", {
                       defaultValue: "Cannot confirm premium",
@@ -159,6 +168,54 @@ export function useManageSubscriptionState(params: {
     {
       defaultValue: "Billing is unavailable on this device.",
     },
+  );
+
+  const confirmationFailureMessage = useCallback(
+    (reason: PremiumEntitlementFailureReason | undefined): string => {
+      switch (reason) {
+        case "rc_not_configured":
+          return params.t("manageSubscription.reasonRcNotConfigured", {
+            defaultValue:
+              "RevenueCat is not configured for this build. Check the production iOS/Android API key.",
+          });
+        case "no_active_entitlement":
+          return params.t("manageSubscription.reasonNoActiveEntitlement", {
+            defaultValue:
+              "The store account did not return an active Premium entitlement for this user.",
+          });
+        case "uid_mismatch":
+          return params.t("manageSubscription.reasonUidMismatch", {
+            defaultValue:
+              "The store entitlement is attached to a different account ID. Sign in to the original account or restore purchases again.",
+          });
+        case "sync_tier_failed":
+          return params.t("manageSubscription.reasonSyncTierFailed", {
+            defaultValue:
+              "Premium was found in billing, but backend credit synchronization failed.",
+          });
+        case "access_unknown_degraded":
+          return params.t("manageSubscription.reasonAccessDegraded", {
+            defaultValue:
+              "Backend access state is unavailable or degraded, so Premium cannot be confirmed yet.",
+          });
+        case "credits_missing":
+          return params.t("manageSubscription.reasonCreditsMissing", {
+            defaultValue:
+              "Backend access was returned without an AI Credits balance.",
+          });
+        case "credits_not_premium":
+          return params.t("manageSubscription.reasonCreditsNotPremium", {
+            defaultValue:
+              "Backend credits are still not on the Premium tier.",
+          });
+        default:
+          return params.t("manageSubscription.reasonUnknown", {
+            defaultValue:
+              "Premium could not be confirmed across billing, backend access, and credits.",
+          });
+      }
+    },
+    [params],
   );
 
   useEffect(() => {
@@ -228,15 +285,13 @@ export function useManageSubscriptionState(params: {
     try {
       const confirmed = await params.refreshPremium();
       if (confirmed !== true) {
+        const reason = params.premiumIssueReason ?? "access_unknown_degraded";
         setActionFeedback({
           tone: "warning",
           title: params.t("manageSubscription.subscriptionUnknownTitle", {
             defaultValue: "Cannot confirm premium right now",
           }),
-          message: params.t("manageSubscription.subscriptionUnknownBody", {
-            defaultValue:
-              "We could not confirm premium with billing and backend credits. Try again, restore purchases, or manage your store subscription.",
-          }),
+          message: confirmationFailureMessage(reason),
           source: "manage",
         });
       }
@@ -244,7 +299,7 @@ export function useManageSubscriptionState(params: {
       setBusy(false);
       setBusyAction(null);
     }
-  }, [params, requireAuthOrAlert]);
+  }, [confirmationFailureMessage, params, requireAuthOrAlert]);
 
   const tryRestore = useCallback(async () => {
     if (!requireAuthOrAlert("restore")) return;
@@ -280,10 +335,7 @@ export function useManageSubscriptionState(params: {
             title: params.t("manageSubscription.confirmationPendingTitle", {
               defaultValue: "Confirmation pending",
             }),
-            message: params.t("manageSubscription.confirmationPending", {
-              defaultValue:
-                "Purchase was restored, but premium is still waiting for backend confirmation. Please try again shortly.",
-            }),
+            message: confirmationFailureMessage(confirmation.reason),
             source: "restore",
           });
         }
@@ -308,6 +360,7 @@ export function useManageSubscriptionState(params: {
     }
   }, [
     params,
+    confirmationFailureMessage,
     requireAuthOrAlert,
     setFeedbackForError,
   ]);
@@ -347,10 +400,7 @@ export function useManageSubscriptionState(params: {
             title: params.t("manageSubscription.confirmationPendingTitle", {
               defaultValue: "Confirmation pending",
             }),
-            message: params.t("manageSubscription.confirmationPending", {
-              defaultValue:
-                "Purchase succeeded, but premium is still waiting for backend confirmation. Please try again shortly.",
-            }),
+            message: confirmationFailureMessage(confirmation.reason),
             source: "purchase",
           });
         }
@@ -374,6 +424,7 @@ export function useManageSubscriptionState(params: {
     }
   }, [
     params,
+    confirmationFailureMessage,
     requireAuthOrAlert,
     setFeedbackForError,
   ]);

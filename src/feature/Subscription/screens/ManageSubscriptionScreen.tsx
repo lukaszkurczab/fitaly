@@ -70,6 +70,7 @@ export default function ManageSubscriptionScreen({
   const credits = accessState?.credits ?? null;
   const {
     subscription,
+    premiumIssueReason,
     refreshPremium,
     confirmPremiumEntitlement,
   } = usePremiumContext();
@@ -105,6 +106,7 @@ export default function ManageSubscriptionScreen({
     refreshPremium,
     confirmPremiumEntitlement,
     t,
+    premiumIssueReason,
   });
 
   const summaryTitle =
@@ -132,6 +134,10 @@ export default function ManageSubscriptionScreen({
                 ? t("manageSubscription.summaryPremiumTitle", {
                     defaultValue: "Premium active",
                   })
+                : state === "premium_pending_confirmation"
+                  ? t("manageSubscription.summaryPendingConfirmationTitle", {
+                      defaultValue: "Premium is being confirmed",
+                    })
                 : state === "unknown"
                   ? t("manageSubscription.summaryUnknownTitle", {
                       defaultValue: "Cannot confirm premium right now",
@@ -175,6 +181,11 @@ export default function ManageSubscriptionScreen({
                     defaultValue:
                       "Your account currently has access to premium features and the premium AI Credits tier.",
                   })
+                : state === "premium_pending_confirmation"
+                  ? t("manageSubscription.summaryPendingConfirmationBody", {
+                      defaultValue:
+                        "The store entitlement is active, but backend credits are still being confirmed. Retry confirmation or restore purchases; credits will stay unavailable until the backend sync succeeds.",
+                    })
                 : state === "unknown"
                   ? t("manageSubscription.summaryUnknownBody", {
                       defaultValue:
@@ -347,6 +358,22 @@ export default function ManageSubscriptionScreen({
                   }
                 />
               }
+            />
+          ) : null}
+
+          {(state === "premium_pending_confirmation" || state === "unknown") &&
+          !credits &&
+          !creditsLoading ? (
+            <InfoBlock
+              title={t("manageSubscription.aiCreditsUnavailableTitle", {
+                defaultValue: "AI Credits unavailable",
+              })}
+              body={t("manageSubscription.aiCreditsUnavailableBody", {
+                defaultValue:
+                  "Credits require backend confirmation. No Premium credits are being shown until access-state and sync-tier return a Premium balance.",
+              })}
+              tone="warning"
+              icon={<AppIcon name="info" size={18} color={theme.warning.text} />}
             />
           ) : null}
 

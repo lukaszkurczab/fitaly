@@ -127,6 +127,12 @@ export function hasPremiumAccess(state: SubscriptionState | string): boolean {
   );
 }
 
+export function mapPendingPremiumConfirmationToSubscription(): Subscription {
+  return {
+    state: "premium_pending_confirmation",
+  };
+}
+
 export function mapPremiumToSubscription(premium: boolean): Subscription {
   return premium ? { state: "premium_active" } : { state: "free_active" };
 }

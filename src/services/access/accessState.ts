@@ -166,6 +166,7 @@ export function hasConfirmedPremiumAccess(
   return (
     accessState?.tier === "premium"
     && accessState.entitlementStatus === "active"
+    && accessState.credits?.tier === "premium"
   );
 }
 

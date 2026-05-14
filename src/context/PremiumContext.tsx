@@ -30,19 +30,30 @@ import {
 import { useProductReadiness } from "@/hooks/useProductReadiness";
 import {
   hasPremiumAccess,
+  mapPendingPremiumConfirmationToSubscription,
   mapUnknownSubscription,
   mapPremiumToSubscription,
   resolveSubscriptionFromRevenueCat,
 } from "@/services/billing/subscriptionStateMachine";
 import { logWarning } from "@/services/core/errorLogger";
 
+export type PremiumEntitlementFailureReason =
+  | "rc_not_configured"
+  | "no_active_entitlement"
+  | "sync_tier_failed"
+  | "access_unknown_degraded"
+  | "credits_missing"
+  | "uid_mismatch"
+  | "credits_not_premium";
+
 type PremiumContextType = {
   isPremium: boolean | null;
   subscription: Subscription | null;
+  premiumIssueReason: PremiumEntitlementFailureReason | null;
   refreshPremium: () => Promise<boolean>;
   confirmPremiumEntitlement: () => Promise<{
     confirmed: boolean;
-    reason?: "credits_not_premium" | "sync_tier_failed";
+    reason?: PremiumEntitlementFailureReason;
   }>;
 };
 
@@ -54,6 +65,7 @@ type SyncTierPolicy = "force" | "if-stale";
 const PremiumContext = createContext<PremiumContextType>({
   isPremium: null,
   subscription: null,
+  premiumIssueReason: null,
   refreshPremium: async () => false,
   confirmPremiumEntitlement: async () => ({ confirmed: false }),
 });
@@ -69,21 +81,26 @@ export const PremiumProvider = ({
   const { refreshAccess } = useAccessContext();
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [premiumIssueReason, setPremiumIssueReason] =
+    useState<PremiumEntitlementFailureReason | null>(null);
   const lastActiveRefreshAtRef = useRef(0);
   const lastSyncTierAtRef = useRef(0);
+  const revenueCatActivePremiumRef = useRef(false);
+  const revenueCatUserIdRef = useRef<string | null>(null);
   const accessRefreshInFlightRef = useRef<{
     uid: string | null;
     promise: Promise<boolean>;
   } | null>(null);
   const entitlementConfirmationInFlightRef = useRef<Promise<{
     confirmed: boolean;
-    reason?: "credits_not_premium" | "sync_tier_failed";
+    reason?: PremiumEntitlementFailureReason;
   }> | null>(null);
 
   const setSubscriptionState = useCallback((next: Subscription) => {
     const premium = hasPremiumAccess(next.state);
     setIsPremium(premium);
     setSubscription(next);
+    setPremiumIssueReason(null);
   }, []);
 
   const setSubscriptionFromPremium = useCallback((premium: boolean) => {
@@ -95,6 +112,14 @@ export const PremiumProvider = ({
     setSubscription(mapUnknownSubscription());
   }, []);
 
+  const setSubscriptionPendingConfirmation = useCallback((
+    reason: PremiumEntitlementFailureReason,
+  ) => {
+    setIsPremium(null);
+    setSubscription(mapPendingPremiumConfirmationToSubscription());
+    setPremiumIssueReason(reason);
+  }, []);
+
   const applyAccessCredits = useCallback(
     (accessState: AccessState | null) => {
       if (accessState?.credits) {
@@ -104,47 +129,140 @@ export const PremiumProvider = ({
     [applyCreditsFromResponse],
   );
 
+  const resolveAccessFailureReason = useCallback((
+    accessState: AccessState | null,
+  ): PremiumEntitlementFailureReason => {
+    if (!accessState) return "access_unknown_degraded";
+    if (
+      accessState.tier === "unknown"
+      || accessState.entitlementStatus === "degraded"
+      || accessState.entitlementStatus === "unknown"
+    ) {
+      return "access_unknown_degraded";
+    }
+    if (!accessState.credits) return "credits_missing";
+    if (
+      accessState.tier === "premium"
+      || accessState.entitlementStatus === "active"
+      || revenueCatActivePremiumRef.current
+    ) {
+      return "credits_not_premium";
+    }
+    return "credits_not_premium";
+  }, []);
+
   const setSubscriptionFromAccessState = useCallback(
-    (accessState: AccessState | null): boolean => {
+    (accessState: AccessState | null, options?: { preserveRevenueCatPremium?: boolean }): boolean => {
       if (
         !accessState
         || accessState.tier === "unknown"
         || accessState.entitlementStatus === "degraded"
         || accessState.entitlementStatus === "unknown"
       ) {
-        setSubscriptionUnknown();
+        if (options?.preserveRevenueCatPremium && revenueCatActivePremiumRef.current) {
+          setSubscriptionPendingConfirmation(resolveAccessFailureReason(accessState));
+        } else {
+          setSubscriptionUnknown();
+          setPremiumIssueReason(resolveAccessFailureReason(accessState));
+        }
         return false;
       }
       const premium = hasConfirmedPremiumAccess(accessState);
+      if (!premium && options?.preserveRevenueCatPremium && revenueCatActivePremiumRef.current) {
+        setSubscriptionPendingConfirmation(resolveAccessFailureReason(accessState));
+        return false;
+      }
       setSubscriptionFromPremium(premium);
       return premium;
     },
-    [setSubscriptionFromPremium, setSubscriptionUnknown],
+    [
+      resolveAccessFailureReason,
+      setSubscriptionFromPremium,
+      setSubscriptionPendingConfirmation,
+      setSubscriptionUnknown,
+    ],
   );
+
+  const getRevenueCatDiagnostics = useCallback((
+    customerInfo: unknown,
+  ): {
+    appUserId: string | null;
+    activePremium: boolean;
+    activeEntitlements: string[];
+  } => {
+    const info =
+      customerInfo && typeof customerInfo === "object"
+        ? (customerInfo as Record<string, unknown>)
+        : {};
+    const rawAppUserId =
+      info.originalAppUserId ?? info.original_app_user_id ?? info.appUserID;
+    const entitlements =
+      info.entitlements && typeof info.entitlements === "object"
+        ? (info.entitlements as Record<string, unknown>)
+        : {};
+    const active =
+      entitlements.active && typeof entitlements.active === "object"
+        ? (entitlements.active as Record<string, unknown>)
+        : {};
+    const activeEntitlements = Object.keys(active);
+    return {
+      appUserId:
+        typeof rawAppUserId === "string" && rawAppUserId.trim()
+          ? rawAppUserId.trim()
+          : null,
+      activePremium: Boolean(active.premium),
+      activeEntitlements,
+    };
+  }, []);
 
   const setSubscriptionFromRevenueCat = useCallback((input: {
     customerInfo: unknown;
-  }): { confirmedAccess: boolean } => {
+    uid: string;
+  }): { confirmedAccess: boolean; reason?: PremiumEntitlementFailureReason } => {
+    const diagnostics = getRevenueCatDiagnostics(input.customerInfo);
+    revenueCatActivePremiumRef.current = diagnostics.activePremium;
+    revenueCatUserIdRef.current = diagnostics.appUserId;
+
+    if (
+      diagnostics.appUserId
+      && diagnostics.appUserId !== input.uid
+      && diagnostics.activePremium
+    ) {
+      logWarning("revenuecat uid mismatch for active entitlement", {
+        expectedUid: input.uid,
+        revenueCatUid: diagnostics.appUserId,
+      });
+      setSubscriptionPendingConfirmation("uid_mismatch");
+      return { confirmedAccess: false, reason: "uid_mismatch" };
+    }
+
     const resolved = resolveSubscriptionFromRevenueCat({
       customerInfo: input.customerInfo,
     });
     const revenueCatPremium = hasPremiumAccess(resolved.state);
     if (revenueCatPremium) {
-      setSubscriptionUnknown();
+      setSubscriptionPendingConfirmation("sync_tier_failed");
       return { confirmedAccess: false };
     }
     setSubscriptionState(resolved);
-    return { confirmedAccess: false };
-  }, [setSubscriptionState, setSubscriptionUnknown]);
+    return { confirmedAccess: false, reason: "no_active_entitlement" };
+  }, [
+    getRevenueCatDiagnostics,
+    setSubscriptionPendingConfirmation,
+    setSubscriptionState,
+  ]);
 
   const checkPremiumStatus = useCallback(async (): Promise<boolean> => {
     if (!productReadyUid) {
       setSubscriptionFromPremium(false);
+      revenueCatActivePremiumRef.current = false;
+      revenueCatUserIdRef.current = null;
       return false;
     }
 
     if (isBillingDisabled()) {
       setSubscriptionUnknown();
+      setPremiumIssueReason("rc_not_configured");
       return false;
     }
 
@@ -152,6 +270,7 @@ export const PremiumProvider = ({
 
     if (!isRevenueCatConfigured()) {
       setSubscriptionUnknown();
+      setPremiumIssueReason("rc_not_configured");
       return false;
     }
 
@@ -159,11 +278,16 @@ export const PremiumProvider = ({
       const info = await Purchases.getCustomerInfo();
       const resolved = setSubscriptionFromRevenueCat({
         customerInfo: info,
+        uid: productReadyUid,
       });
+      if (resolved.reason) {
+        setPremiumIssueReason(resolved.reason);
+      }
       return resolved.confirmedAccess;
     } catch (error) {
       logWarning("premium status check failed", null, error);
       setSubscriptionUnknown();
+      setPremiumIssueReason("access_unknown_degraded");
       return false;
     }
   }, [
@@ -180,17 +304,39 @@ export const PremiumProvider = ({
 
   const confirmPremiumEntitlement = useCallback((): Promise<{
     confirmed: boolean;
-    reason?: "credits_not_premium" | "sync_tier_failed";
+    reason?: PremiumEntitlementFailureReason;
   }> => {
     const inFlight = entitlementConfirmationInFlightRef.current;
     if (inFlight) {
       return inFlight;
     }
 
-    const promise = (async () => {
+    const promise: Promise<{
+      confirmed: boolean;
+      reason?: PremiumEntitlementFailureReason;
+    }> = (async () => {
       if (!productReadyUid) {
         setSubscriptionFromPremium(false);
         return { confirmed: false, reason: "sync_tier_failed" as const };
+      }
+
+      await checkPremiumStatus();
+      if (
+        revenueCatActivePremiumRef.current
+        && revenueCatUserIdRef.current
+        && revenueCatUserIdRef.current !== productReadyUid
+      ) {
+        setSubscriptionPendingConfirmation("uid_mismatch");
+        return { confirmed: false, reason: "uid_mismatch" as const };
+      }
+      if (!revenueCatActivePremiumRef.current) {
+        const reason: PremiumEntitlementFailureReason = !isRevenueCatConfigured()
+          ? "rc_not_configured"
+          : premiumIssueReason === "uid_mismatch"
+            ? premiumIssueReason
+            : "no_active_entitlement";
+        setPremiumIssueReason(reason);
+        return { confirmed: false, reason };
       }
 
       if (accessRefreshInFlightRef.current?.uid === productReadyUid) {
@@ -202,16 +348,19 @@ export const PremiumProvider = ({
         lastSyncTierAtRef.current = Date.now();
       } catch (error) {
         logWarning("premium entitlement confirmation sync failed", null, error);
-        setSubscriptionFromPremium(false);
+        setSubscriptionPendingConfirmation("sync_tier_failed");
         return { confirmed: false, reason: "sync_tier_failed" as const };
       }
 
       const access = await refreshAccess();
       applyAccessCredits(access);
-      const confirmed = setSubscriptionFromAccessState(access);
+      const confirmed = setSubscriptionFromAccessState(access, {
+        preserveRevenueCatPremium: true,
+      });
+      const reason = resolveAccessFailureReason(access);
       return {
         confirmed,
-        ...(confirmed ? {} : { reason: "credits_not_premium" as const }),
+        ...(confirmed ? {} : { reason }),
       };
     })().finally(() => {
       if (entitlementConfirmationInFlightRef.current === promise) {
@@ -224,7 +373,11 @@ export const PremiumProvider = ({
   }, [
     applyAccessCredits,
     refreshAccess,
+    checkPremiumStatus,
+    premiumIssueReason,
+    resolveAccessFailureReason,
     setSubscriptionFromAccessState,
+    setSubscriptionPendingConfirmation,
     setSubscriptionFromPremium,
     productReadyUid,
   ]);
@@ -244,6 +397,14 @@ export const PremiumProvider = ({
         }
 
         await checkPremiumStatus();
+        if (
+          revenueCatActivePremiumRef.current
+          && revenueCatUserIdRef.current
+          && revenueCatUserIdRef.current !== requestUid
+        ) {
+          setSubscriptionPendingConfirmation("uid_mismatch");
+          return false;
+        }
 
         if (shouldRunSyncTier(params.syncTier)) {
           try {
@@ -256,7 +417,9 @@ export const PremiumProvider = ({
 
         const access = await refreshAccess();
         applyAccessCredits(access);
-        return setSubscriptionFromAccessState(access);
+        return setSubscriptionFromAccessState(access, {
+          preserveRevenueCatPremium: true,
+        });
       })().finally(() => {
         if (accessRefreshInFlightRef.current?.promise === promise) {
           accessRefreshInFlightRef.current = null;
@@ -271,6 +434,7 @@ export const PremiumProvider = ({
       checkPremiumStatus,
       refreshAccess,
       setSubscriptionFromAccessState,
+      setSubscriptionPendingConfirmation,
       setSubscriptionFromPremium,
       shouldRunSyncTier,
       productReadyUid,
@@ -346,12 +510,14 @@ export const PremiumProvider = ({
     () => ({
       isPremium,
       subscription,
+      premiumIssueReason,
       refreshPremium,
       confirmPremiumEntitlement,
     }),
     [
       isPremium,
       subscription,
+      premiumIssueReason,
       refreshPremium,
       confirmPremiumEntitlement,
     ],

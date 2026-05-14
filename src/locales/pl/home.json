@@ -23,7 +23,7 @@
     },
     "todayEmpty": {
       "cta": "Dodaj śniadanie",
-      "supportCopy": "Zacznij od pierwszego posiłku, a reszta dnia ułoży się stąd naturalnie."
+      "supportCopy": "Zacznij od pierwszego posiłku, a resztę dnia łatwiej będzie zaplanować."
     },
     "todayInProgress": {
       "cta": "Dodaj kolejny posiłek"
@@ -78,7 +78,7 @@
     "reflectionReadyFallback": "Twój raport tygodniowy jest gotowy.",
     "signalsBehindIt": "Sygnały, które na to wpłynęły",
     "carryForwardTitle": "Przenieś do kolejnego tygodnia",
-    "carryForwardBody": "Zachowaj lekkość. Zadbaj o pierwszy posiłek weekendu i pozwól, by rytm tygodnia trwał.",
+    "carryForwardBody": "Zadbaj o pierwszy posiłek weekendu i utrzymaj rytm tygodnia.",
     "loadingTitle": "Przygotowujemy Twój raport tygodniowy",
     "loadingBody": "Analizujemy ostatni zakończony tydzień i składamy krótki raport na kolejny tydzień.",
     "loadingHelperNote": "Raport zawiera jeden główny wniosek, krótki odczyt sygnałów i jedną wskazówkę na kolejny tydzień.",
@@ -108,7 +108,7 @@
     "cardTitleInsufficient": "Potrzeba trochę więcej danych, żeby przygotować raport.",
     "cardTitleUnavailable": "Raport tygodniowy jest chwilowo niedostępny.",
     "cardBodyReady": "Otwórz raport i sprawdź najważniejszy wniosek z ostatniego tygodnia.",
-    "cardBodyInsufficient": "Gdy wpisów będzie więcej, raport zwykle odblokuje się naturalnie.",
+    "cardBodyInsufficient": "Gdy wpisów będzie więcej, raport zwykle odblokuje się sam.",
     "cardBodyUnavailable": "Spróbuj ponownie za chwilę."
   },
   "coachInsight": {

@@ -225,7 +225,7 @@ describe("PremiumContext", () => {
     expect(result.current.subscription?.state).toBe("premium_active");
   });
 
-  it("does not confirm premium when sync-tier returns premium but access-state is free degraded", async () => {
+  it("does not confirm premium when sync-tier returns premium but access-state is degraded", async () => {
     mockPost.mockResolvedValue(creditsSnapshot("premium"));
     mockRefreshAccess.mockResolvedValue(accessStateSnapshot("free", "degraded"));
 
@@ -242,10 +242,10 @@ describe("PremiumContext", () => {
 
     expect(confirmation!).toEqual({
       confirmed: false,
-      reason: "credits_not_premium",
+      reason: "access_unknown_degraded",
     });
     expect(result.current.isPremium).toBeNull();
-    expect(result.current.subscription?.state).toBe("unknown");
+    expect(result.current.subscription?.state).toBe("premium_pending_confirmation");
   });
 
   it("dedupes concurrent premium entitlement confirmations", async () => {
@@ -275,7 +275,9 @@ describe("PremiumContext", () => {
     });
 
     expect(first!).toBe(second!);
-    expect(mockPost).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
 
     await act(async () => {
       resolveSync?.(creditsSnapshot("premium"));
@@ -286,7 +288,7 @@ describe("PremiumContext", () => {
     expect(result.current.subscription?.state).toBe("premium_active");
   });
 
-  it("does not keep Premium active when RevenueCat is premium but sync-tier confirmation fails", async () => {
+  it("keeps active RevenueCat entitlement pending when sync-tier confirmation fails", async () => {
     const { result } = renderHook(() => usePremiumContext(), { wrapper });
 
     await waitFor(() => {
@@ -305,8 +307,34 @@ describe("PremiumContext", () => {
     });
 
     expect(confirmed).toBe(false);
-    expect(result.current.isPremium).toBe(false);
-    expect(result.current.subscription?.state).not.toBe("premium_active");
+    expect(result.current.isPremium).toBeNull();
+    expect(result.current.subscription?.state).toBe("premium_pending_confirmation");
+    expect(result.current.premiumIssueReason).toBe("sync_tier_failed");
+  });
+
+  it("reports uid mismatch without confirming premium", async () => {
+    mockGetCustomerInfo.mockResolvedValue({
+      originalAppUserId: "other-user",
+      entitlements: { active: { premium: { identifier: "premium" } } },
+    });
+    const { result } = renderHook(() => usePremiumContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockGetCustomerInfo).toHaveBeenCalled();
+    });
+
+    let confirmation: Awaited<ReturnType<typeof result.current.confirmPremiumEntitlement>>;
+    await act(async () => {
+      confirmation = await result.current.confirmPremiumEntitlement();
+    });
+
+    expect(confirmation!).toEqual({
+      confirmed: false,
+      reason: "uid_mismatch",
+    });
+    expect(mockPost).not.toHaveBeenCalledWith("/ai/credits/sync-tier");
+    expect(result.current.subscription?.state).toBe("premium_pending_confirmation");
+    expect(result.current.premiumIssueReason).toBe("uid_mismatch");
   });
 
   it("uses canonical access-state when RevenueCat fails", async () => {

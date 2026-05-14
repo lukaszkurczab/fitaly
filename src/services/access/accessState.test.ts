@@ -181,6 +181,10 @@ describe("access state contract parser", () => {
       ...activePremium!,
       tier: "free",
     })).toBe(false);
+    expect(hasConfirmedPremiumAccess({
+      ...activePremium!,
+      credits: null,
+    })).toBe(false);
   });
 
   it("builds explicit degraded client state when refresh fails before payload parsing", () => {

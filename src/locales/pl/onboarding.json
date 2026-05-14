@@ -27,7 +27,7 @@
     "goalLabel": "Cel wagowy",
     "calorieAdjustmentLabel": "Dzienna korekta kalorii: {{percentage}}%",
     "calorieDecreaseHelper": "Lżejsza korekta łatwiej się utrzymuje. W każdej chwili możesz to później dopracować.",
-    "calorieIncreaseHelper": "Spokojniejsza korekta zwykle lepiej wspiera regularność planu.",
+    "calorieIncreaseHelper": "Mniejsza korekta zwykle łatwiej utrzymuje regularność planu.",
     "primaryCta": "Dalej"
   },
   "step3": {
@@ -73,7 +73,7 @@
   },
   "goalDescription": {
     "lose": "Ustawić możliwy do utrzymania deficyt kalorii.",
-    "maintain": "Utrzymać spokojny i stabilny poziom spożycia.",
+    "maintain": "Utrzymać stabilny poziom spożycia.",
     "increase": "Ustawić stopniową nadwyżkę kalorii."
   },
   "preferences": {

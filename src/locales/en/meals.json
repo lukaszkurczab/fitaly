@@ -90,6 +90,9 @@
   "text_ai_error_unavailable": "AI is temporarily unavailable. Please try again shortly.",
   "text_ai_error_auth": "Please sign in again to continue.",
   "text_ai_analyze_failed": "We couldn't analyze this meal. Please try again.",
+  "text_ai_cta_missing_description": "Add a meal description to prepare a summary.",
+  "text_ai_credits_unverified": "Checking available AI Credits...",
+  "text_ai_insufficient_credits_hard_stop": "You do not have enough AI Credits to prepare a summary.",
   "text_ai_credits_remaining_note": "✦ {{count}} credits remaining",
   "text_ai_low_credits_note": "Only {{count}} credits left after this analysis",
   "text_ai_no_credits_note": "You need {{cost}} credit to continue.",
@@ -264,6 +267,7 @@
   "premium_required_body": "AI mode is available with Premium.",
   "premium_required_title": "Premium required",
   "recalc_confirm": "Recalculate now",
+  "recalc_keep_values": "Keep macros",
   "recalc_message": "Changing the amount can automatically recalculate calories and macros. Recalculate now?",
   "recalc_title": "Recalculate values?",
   "detailsUnavailable": {

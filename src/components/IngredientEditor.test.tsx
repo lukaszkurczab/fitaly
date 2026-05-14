@@ -45,6 +45,7 @@ describe("IngredientEditor", () => {
     fireEvent.changeText(inputs[5], "120");
 
     fireEvent.press(getByText("common:save_changes"));
+    fireEvent.press(getByText("meals:recalc_keep_values"));
 
     expect(onCommit).toHaveBeenCalledWith({
       id: "ing-1",
@@ -164,6 +165,7 @@ describe("IngredientEditor", () => {
 
     fireEvent.changeText(getByDisplayValue("77"), "150.5");
     fireEvent.press(getByText("common:save_changes"));
+    fireEvent.press(getByText("meals:recalc_keep_values"));
 
     expect(onCommit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -171,5 +173,46 @@ describe("IngredientEditor", () => {
         unit: "ml",
       }),
     );
+  });
+
+  it("asks on save and proportionally recalculates macros when amount changes", () => {
+    const onCommit = jest.fn();
+    const { getByDisplayValue, getByText } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-5",
+          name: "Rice",
+          amount: 250,
+          unit: "g",
+          protein: 10,
+          carbs: 70,
+          fat: 2,
+          kcal: 330,
+        }}
+        variant="sheet"
+        onCommit={onCommit}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.changeText(getByDisplayValue("250"), "300");
+    fireEvent.press(getByText("common:save_changes"));
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(getByText("meals:recalc_title")).toBeTruthy();
+
+    fireEvent.press(getByText("meals:recalc_confirm"));
+
+    expect(onCommit).toHaveBeenCalledWith({
+      id: "ing-5",
+      name: "Rice",
+      amount: 300,
+      unit: "g",
+      protein: 12,
+      carbs: 84,
+      fat: 2.4,
+      kcal: 396,
+    });
   });
 });

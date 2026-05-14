@@ -170,6 +170,19 @@ describe("useMealTextAiState", () => {
     expect(result.current.analyzeDisabled).toBe(true);
   });
 
+  it("disables analyze when description is missing", () => {
+    const { result } = renderHook(() =>
+      useMealTextAiState({
+        t: (key: string) => key,
+        language: "en",
+        flow: { goTo: jest.fn() },
+      }),
+    );
+
+    expect(result.current.analysisState).toBe("missing_description");
+    expect(result.current.analyzeDisabled).toBe(true);
+  });
+
   it("disables analyze when current credits are already insufficient", () => {
     mockUseAiCreditsContext.mockReturnValue({
       credits: {
@@ -215,6 +228,53 @@ describe("useMealTextAiState", () => {
 
     expect(result.current.analysisState).toBe("insufficient_credits");
     expect(result.current.analyzeDisabled).toBe(true);
+  });
+
+  it("enables analyze when description and credits are ready", () => {
+    const { result } = renderHook(() =>
+      useMealTextAiState({
+        t: (key: string) => key,
+        language: "en",
+        flow: { goTo: jest.fn() },
+      }),
+    );
+
+    act(() => {
+      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+    });
+
+    expect(result.current.analysisState).toBe("ready");
+    expect(result.current.analyzeDisabled).toBe(false);
+  });
+
+  it("does not show the no-credits modal when credits cannot be verified after refresh", async () => {
+    const flow = { goTo: jest.fn() };
+    mockCanUseFeature.mockReturnValue(false);
+    mockUseAccessContext.mockReturnValue({
+      accessState: null,
+      canUseFeature: mockCanUseFeature,
+      refreshAccess: mockRefreshAccess,
+    });
+    mockRefreshAccess.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useMealTextAiState({
+        t: (key: string) => key,
+        language: "en",
+        flow,
+      }),
+    );
+
+    act(() => {
+      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+    });
+    await act(async () => {
+      await result.current.onAnalyze();
+    });
+
+    expect(result.current.showLimitModal).toBe(false);
+    expect(result.current.submitError).toBe("text_ai_credits_unverified");
+    expect(flow.goTo).not.toHaveBeenCalled();
   });
 
   it("restores initial values and opens paywall from the limit modal", () => {

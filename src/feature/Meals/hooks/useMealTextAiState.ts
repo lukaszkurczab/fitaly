@@ -91,10 +91,14 @@ export function useMealTextAiState(params: {
 
       resolvedCredits = await reconcileCredits();
 
-      if (
-        !resolvedCredits ||
-        resolvedCredits.balance < resolvedCredits.costs.textMeal
-      ) {
+      if (!resolvedCredits) {
+        setSubmitError(
+          t("text_ai_credits_unverified", { ns: "meals" }),
+        );
+        return;
+      }
+
+      if (resolvedCredits.balance < resolvedCredits.costs.textMeal) {
         setShowLimitModal(true);
         return;
       }
