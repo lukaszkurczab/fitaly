@@ -23,7 +23,6 @@ export default function OnboardingScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mode = route.params?.mode ?? "first";
-  const profileRecovery = route.params?.profileRecovery === true;
   const { canRenderProductStack } = useProductReadiness();
 
   const state = useOnboardingFlow({
@@ -94,7 +93,7 @@ export default function OnboardingScreen({
             setErrors={state.setErrors}
             onContinue={state.handlePrimaryAction}
             onSecondaryAction={state.handleStep1SecondaryAction}
-            showSecondaryAction={mode === "refill" && !profileRecovery}
+            showSecondaryAction={mode === "refill"}
             submitting={state.submitting}
           />
         ) : null}

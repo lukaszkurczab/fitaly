@@ -78,9 +78,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readErrorText(error: Record<string, unknown>): string {
+  const message = typeof error.message === "string" ? error.message : "";
+  const details = error.details;
+  if (isRecord(details)) {
+    const detail = typeof details.detail === "string" ? details.detail : "";
+    const errorText = typeof details.error === "string" ? details.error : "";
+    return `${message} ${detail} ${errorText}`.toLowerCase();
+  }
+
+  return message.toLowerCase();
+}
+
+function isTelemetryDisabledResponse(error: Record<string, unknown>): boolean {
+  return (
+    error.status === 503 &&
+    readErrorText(error).includes("telemetry ingestion is disabled")
+  );
+}
+
 function shouldDropFailedBatch(error: unknown): boolean {
   if (!isRecord(error)) {
     return false;
+  }
+
+  if (isTelemetryDisabledResponse(error)) {
+    return true;
   }
 
   return (
@@ -486,7 +509,7 @@ export async function flush(): Promise<void> {
       try {
         await apiClient.post(TELEMETRY_ENDPOINT, buildBatchPayload(batch), {
           timeout: 15_000,
-          retryMode: "idempotent",
+          retryMode: "none",
         });
         dropBatch(batch);
         resetRetryState();

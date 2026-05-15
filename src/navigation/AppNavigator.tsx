@@ -47,6 +47,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ensureStreakDoc, resetIfMissed } from "@/services/gamification/streakService";
 import { primeBadges } from "@/services/gamification/badgeService";
 import { logWarning } from "@/services/core/errorLogger";
+import { authLogout } from "@/feature/Auth/services/authService";
 import {
   resolveBootstrapState,
   resolveInitialRouteName,
@@ -69,10 +70,8 @@ function renderAuthScreens() {
 
 function renderAppScreens({
   onboardingMode = "first",
-  profileRecovery = false,
 }: {
   onboardingMode?: "first" | "refill";
-  profileRecovery?: boolean;
 } = {}) {
   return (
     <>
@@ -82,7 +81,7 @@ function renderAppScreens({
       <Stack.Screen
         name="Onboarding"
         component={OnboardingScreen}
-        initialParams={{ mode: onboardingMode, profileRecovery }}
+        initialParams={{ mode: onboardingMode }}
       />
       <Stack.Screen name="AvatarCamera" component={AvatarCameraScreen} />
       <Stack.Screen
@@ -155,17 +154,15 @@ function renderAppScreens({
 
 function renderOnboardingGateScreens({
   onboardingMode = "first",
-  profileRecovery = false,
 }: {
   onboardingMode?: "first" | "refill";
-  profileRecovery?: boolean;
 } = {}) {
   return (
     <>
       <Stack.Screen
         name="Onboarding"
         component={OnboardingScreen}
-        initialParams={{ mode: onboardingMode, profileRecovery }}
+        initialParams={{ mode: onboardingMode }}
       />
     </>
   );
@@ -181,10 +178,11 @@ function renderSharedScreens() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, authLoading } = useAuthContext();
+  const { isAuthenticated, authLoading, uid } = useAuthContext();
   const { userData, profileBootstrapState } = useUserProfileContext();
   const disableAnimations = isE2EModeEnabled();
   const primedUidRef = useRef<string | null>(null);
+  const missingProfileLogoutUidRef = useRef<string | null>(null);
   const bootstrapState = resolveBootstrapState({
     authLoading,
     isAuthenticated,
@@ -222,10 +220,23 @@ export default function AppNavigator() {
     })();
   }, [bootstrapState, renderProductStack, userData?.uid]);
 
-  const showAuthStack = bootstrapState === "unauthenticated";
+  useEffect(() => {
+    if (bootstrapState !== "profileMissing" || !uid) {
+      return;
+    }
+    if (missingProfileLogoutUidRef.current === uid) {
+      return;
+    }
+    missingProfileLogoutUidRef.current = uid;
+
+    void authLogout().catch((error) => {
+      logWarning("profile missing logout failed", { uid }, error);
+    });
+  }, [bootstrapState, uid]);
+
+  const showAuthStack =
+    bootstrapState === "unauthenticated" || bootstrapState === "profileMissing";
   const showProfileStack = shouldRenderProfileGateStack(bootstrapState);
-  const profileRecovery =
-    bootstrapState === "profileMissing" || bootstrapState === "bootstrapFailed";
 
   return (
     <ErrorBoundary>
@@ -244,11 +255,9 @@ export default function AppNavigator() {
             ? renderProductStack
               ? renderAppScreens({
                   onboardingMode: "first",
-                  profileRecovery,
                 })
               : renderOnboardingGateScreens({
                   onboardingMode: "first",
-                  profileRecovery,
                 })
             : <Stack.Screen name="Loading" component={LoadingScreen} />}
         {renderSharedScreens()}

@@ -14,11 +14,10 @@ describe("AppNavigator onboarding gate", () => {
     expect(resolveInitialRouteName("profileReady", "needs_profile")).toBe("Onboarding");
   });
 
-  it("keeps missing profiles gated instead of exposing Home", () => {
+  it("routes missing authenticated profiles back to Login instead of onboarding recovery", () => {
+    expect(shouldRenderProfileGateStack("profileMissing")).toBe(false);
     expect(shouldRenderProductStack("profileMissing", undefined)).toBe(false);
-    expect(resolveInitialRouteName("profileMissing", undefined)).toBe(
-      "Onboarding",
-    );
+    expect(resolveInitialRouteName("profileMissing", undefined)).toBe("Login");
   });
 
   it("keeps profile bootstrap failures on the loading retry screen", () => {
@@ -35,7 +34,9 @@ describe("AppNavigator onboarding gate", () => {
   });
 
   it("renders Home after canonical readiness", () => {
-    expect(shouldRenderProductStack("profileMissing", "ready")).toBe(true);
-    expect(resolveInitialRouteName("profileMissing", "ready")).toBe("Home");
+    expect(shouldRenderProductStack("profileReady", "ready")).toBe(true);
+    expect(resolveInitialRouteName("profileReady", "ready")).toBe("Home");
+    expect(shouldRenderProductStack("profileMissing", "ready")).toBe(false);
+    expect(resolveInitialRouteName("profileMissing", "ready")).toBe("Login");
   });
 });

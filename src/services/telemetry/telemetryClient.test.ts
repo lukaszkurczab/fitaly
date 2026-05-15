@@ -271,6 +271,26 @@ describe("telemetryClient", () => {
     ).toBeNull();
   });
 
+  it("drops a batch permanently when telemetry ingestion is disabled server-side", async () => {
+    const error = Object.assign(new Error("Telemetry ingestion is disabled"), {
+      status: 503,
+      retryable: true,
+      details: { detail: "Telemetry ingestion is disabled" },
+    });
+    mockPost.mockRejectedValueOnce(error);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await telemetryClient.track("session_start", { origin: "app_boot" });
+    await telemetryClient.flush();
+
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(
+      await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
+    ).toBeNull();
+  });
+
   it("is a graceful no-op for notification telemetry when telemetry is disabled", async () => {
     mockGetRuntimeConfig.mockReturnValue(
       createRuntimeConfig({ telemetryEnabled: false }),
@@ -341,7 +361,7 @@ describe("telemetryClient", () => {
           }),
         ],
       }),
-      { timeout: 15_000, retryMode: "idempotent" },
+      { timeout: 15_000, retryMode: "none" },
     );
   });
 });
