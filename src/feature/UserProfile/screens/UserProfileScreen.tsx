@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -8,6 +8,7 @@ import {
   Button,
   InfoBlock,
   Layout,
+  Modal,
   SettingsRow,
   SettingsSection,
 } from "@/components";
@@ -31,6 +32,14 @@ export default function UserProfileScreen({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const state = useUserProfileState({ navigation });
   const { isPremium } = usePremiumContext();
+  const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  const closeLogoutModal = () => setLogoutModalVisible(false);
+
+  const confirmLogout = () => {
+    closeLogoutModal();
+    void state.handleLogout();
+  };
 
   if (state.loadingUser) {
     return (
@@ -197,7 +206,7 @@ export default function UserProfileScreen({
           <SettingsRow
             title={t("logOut")}
             testID="account-logout-row"
-            onPress={state.handleLogout}
+            onPress={() => setLogoutModalVisible(true)}
             showChevron={false}
           />
           <SettingsRow
@@ -209,6 +218,24 @@ export default function UserProfileScreen({
 
         <Text style={styles.version}>{t("appVersion")} 1.0.1</Text>
       </View>
+
+      <Modal
+        visible={isLogoutModalVisible}
+        title={t("logOutConfirmTitle")}
+        message={t("logOutConfirmMessage")}
+        onClose={closeLogoutModal}
+        primaryAction={{
+          label: t("logOutConfirmAction"),
+          onPress: confirmLogout,
+          tone: "destructive",
+          testID: "account-logout-confirm-button",
+        }}
+        secondaryAction={{
+          label: t("cancel"),
+          onPress: closeLogoutModal,
+          testID: "account-logout-cancel-button",
+        }}
+      />
     </Layout>
   );
 }
