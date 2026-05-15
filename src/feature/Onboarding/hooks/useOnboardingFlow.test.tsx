@@ -8,6 +8,8 @@ const mockSyncUserProfile = jest.fn();
 const mockApplyServerProfile = jest.fn();
 const mockCompleteUserOnboardingRemote = jest.fn();
 const mockTrackOnboardingCompleted = jest.fn();
+const mockEmit = jest.fn();
+const mockLogWarning = jest.fn();
 
 let mockUserData: UserData | null = null;
 
@@ -39,6 +41,14 @@ jest.mock("@/services/user/userProfileRepository", () => ({
 jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
   trackOnboardingCompleted: (...args: unknown[]) =>
     mockTrackOnboardingCompleted(...args),
+}));
+
+jest.mock("@/services/core/events", () => ({
+  emit: (...args: unknown[]) => mockEmit(...args),
+}));
+
+jest.mock("@/services/core/errorLogger", () => ({
+  logWarning: (...args: unknown[]) => mockLogWarning(...args),
 }));
 
 function buildNavigation() {
@@ -109,6 +119,8 @@ describe("useOnboardingFlow", () => {
     mockTrackOnboardingCompleted
       .mockReset()
       .mockImplementation(async () => undefined);
+    mockEmit.mockReset();
+    mockLogWarning.mockReset();
   });
 
   it("blocks step 1 progression when required fields are missing", async () => {
@@ -282,6 +294,55 @@ describe("useOnboardingFlow", () => {
     expect(navigation.replace).not.toHaveBeenCalled();
   });
 
+  it("shows feedback instead of silently failing when first-run completion fails", async () => {
+    const error = new Error("timeout");
+    mockCompleteUserOnboardingRemote.mockImplementationOnce(async () => {
+      throw error;
+    });
+    const navigation = buildNavigation();
+    const { result } = renderHook(() =>
+      useOnboardingFlow({ mode: "first", navigation: navigation as never }),
+    );
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => {
+      result.current.setForm((current) => ({
+        ...current,
+        age: "30",
+        height: "170",
+        weight: "70",
+        activityLevel: "moderate",
+        goal: "maintain",
+      }));
+    });
+
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
+
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "onboarding completion failed",
+      { mode: "first" },
+      error,
+    );
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "default_error",
+      ns: "common",
+    });
+    expect(mockApplyServerProfile).not.toHaveBeenCalled();
+    expect(mockTrackOnboardingCompleted).not.toHaveBeenCalled();
+  });
+
   it("shows optional skip confirmation only once in the same flow", async () => {
     const navigation = buildNavigation();
     const { result } = renderHook(() =>
@@ -330,8 +391,9 @@ describe("useOnboardingFlow", () => {
   });
 
   it("does not unlock Home when server completion fails", async () => {
+    const error = new Error("completion failed");
     mockCompleteUserOnboardingRemote.mockImplementationOnce(async () => {
-      throw new Error("completion failed");
+      throw error;
     });
     const navigation = buildNavigation();
     const { result } = renderHook(() =>
@@ -360,13 +422,16 @@ describe("useOnboardingFlow", () => {
     await act(async () => {
       await result.current.handlePrimaryAction();
     });
-    await expect(
-      act(async () => {
-        await result.current.handlePrimaryAction();
-      }),
-    ).rejects.toThrow("completion failed");
+    await act(async () => {
+      await result.current.handlePrimaryAction();
+    });
 
     expect(mockCompleteUserOnboardingRemote).toHaveBeenCalledTimes(1);
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "onboarding completion failed",
+      { mode: "first" },
+      error,
+    );
     expect(mockApplyServerProfile).not.toHaveBeenCalled();
     expect(mockTrackOnboardingCompleted).not.toHaveBeenCalled();
     expect(navigation.replace).not.toHaveBeenCalledWith("Home");

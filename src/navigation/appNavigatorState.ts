@@ -38,8 +38,7 @@ export function shouldRenderProfileGateStack(
   return (
     bootstrapState === "profileReady" ||
     bootstrapState === "offlineCached" ||
-    bootstrapState === "profileMissing" ||
-    bootstrapState === "bootstrapFailed"
+    bootstrapState === "profileMissing"
   );
 }
 
@@ -59,7 +58,7 @@ export function resolveInitialRouteName(
     return "Onboarding";
   }
 
-  if (bootstrapState === "profileMissing" || bootstrapState === "bootstrapFailed") {
+  if (bootstrapState === "profileMissing") {
     return "Onboarding";
   }
 

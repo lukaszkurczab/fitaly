@@ -6,11 +6,19 @@ const mockInitReminderRuntime = jest.fn<() => Promise<void>>();
 const mockSetReminderRuntimeUid =
   jest.fn<(uid: string | null) => Promise<void>>();
 const mockStopReminderRuntime = jest.fn();
+const mockLogWarning = jest.fn();
+const mockInitTelemetryClient = jest.fn<() => Promise<void>>();
+const mockInitTelemetryLifecycle = jest.fn<() => Promise<void>>();
 
 jest.mock("@/services/reminders/reminderRuntime", () => ({
   initReminderRuntime: () => mockInitReminderRuntime(),
   setReminderRuntimeUid: (uid: string | null) => mockSetReminderRuntimeUid(uid),
   stopReminderRuntime: () => mockStopReminderRuntime(),
+}));
+
+jest.mock("@/services/core/errorLogger", () => ({
+  captureException: jest.fn(),
+  logWarning: (...args: unknown[]) => mockLogWarning(...args),
 }));
 
 let mockUid: string | null = null;
@@ -160,16 +168,12 @@ jest.mock("@/services/notifications/notificationPresentationPolicy", () => ({
 }));
 
 jest.mock("@/services/telemetry/telemetryClient", () => ({
-  initTelemetryClient: jest
-    .fn<() => Promise<void>>()
-    .mockResolvedValue(undefined),
+  initTelemetryClient: () => mockInitTelemetryClient(),
   stopTelemetryClient: jest.fn(),
 }));
 
 jest.mock("@/services/telemetry/telemetryLifecycle", () => ({
-  initTelemetryLifecycle: jest
-    .fn<() => Promise<void>>()
-    .mockResolvedValue(undefined),
+  initTelemetryLifecycle: () => mockInitTelemetryLifecycle(),
   stopTelemetryLifecycle: jest.fn(),
 }));
 
@@ -207,6 +211,8 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
     jest.clearAllMocks();
     mockInitReminderRuntime.mockResolvedValue(undefined);
     mockSetReminderRuntimeUid.mockResolvedValue(undefined);
+    mockInitTelemetryClient.mockResolvedValue(undefined);
+    mockInitTelemetryLifecycle.mockResolvedValue(undefined);
     jest.useFakeTimers();
   });
 
@@ -323,5 +329,73 @@ describe("App.tsx → Smart Reminders runtime wiring", () => {
     await flushDeferredBootstrap();
 
     expect(mockInitReminderRuntime).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs app runtime bootstrap failures instead of leaving an unhandled rejection", async () => {
+    const error = new Error("timeout");
+    mockInitTelemetryClient.mockRejectedValueOnce(error);
+
+    let renderer: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(App));
+    });
+    await flushDeferredBootstrap();
+
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "startup_task_failed",
+      { taskName: "app_runtime_bootstrap" },
+      error,
+    );
+
+    act(() => {
+      renderer!.unmount();
+    });
+  });
+
+  it("logs reminder runtime clear failures instead of leaving an unhandled rejection", async () => {
+    const error = new Error("timeout");
+    mockSetReminderRuntimeUid.mockRejectedValueOnce(error);
+
+    let renderer: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(App));
+    });
+    await flushDeferredBootstrap();
+
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "startup_task_failed",
+      { taskName: "reminder_runtime_clear_uid" },
+      error,
+    );
+
+    act(() => {
+      renderer!.unmount();
+    });
+  });
+
+  it("logs product runtime bootstrap failures instead of leaving an unhandled rejection", async () => {
+    const error = new Error("timeout");
+    mockUid = "user-42";
+    mockProductReadyUid = "user-42";
+    mockInitReminderRuntime.mockRejectedValueOnce(error);
+
+    let renderer: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(App));
+    });
+    await flushDeferredBootstrap();
+
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "startup_task_failed",
+      { taskName: "product_runtime_bootstrap" },
+      error,
+    );
+
+    act(() => {
+      renderer!.unmount();
+    });
   });
 });

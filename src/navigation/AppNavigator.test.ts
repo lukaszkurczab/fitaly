@@ -21,11 +21,11 @@ describe("AppNavigator onboarding gate", () => {
     );
   });
 
-  it("does not leave authenticated profile bootstrap failures on the loading screen", () => {
-    expect(shouldRenderProfileGateStack("bootstrapFailed")).toBe(true);
+  it("keeps profile bootstrap failures on the loading retry screen", () => {
+    expect(shouldRenderProfileGateStack("bootstrapFailed")).toBe(false);
     expect(shouldRenderProductStack("bootstrapFailed", undefined)).toBe(false);
     expect(resolveInitialRouteName("bootstrapFailed", undefined)).toBe(
-      "Onboarding",
+      "Loading",
     );
   });
 

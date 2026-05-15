@@ -55,6 +55,11 @@
   "kcal": "kcal",
   "gram": "g",
   "loading": "Ładowanie…",
+  "profileLoadError": {
+    "title": "Nie udało się wczytać profilu",
+    "body": "Twój plan jest bezpieczny. Sprawdź połączenie i spróbuj ponownie.",
+    "offlineBody": "Profil nie jest jeszcze dostępny na tym urządzeniu. Połącz się z internetem i spróbuj ponownie."
+  },
   "back": "Wróć",
   "show_password": "Pokaż hasło",
   "hide_password": "Ukryj hasło",

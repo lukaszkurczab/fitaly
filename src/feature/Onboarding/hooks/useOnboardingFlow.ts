@@ -9,6 +9,8 @@ import { calculateCalorieTarget } from "@/feature/Onboarding/utils/calculateCalo
 import { assertNoUndefined } from "@/utils/findUndefined";
 import { cmToFtIn, kgToLbs } from "@/utils/units";
 import { trackOnboardingCompleted } from "@/services/telemetry/telemetryInstrumentation";
+import { emit } from "@/services/core/events";
+import { logWarning } from "@/services/core/errorLogger";
 import {
   completeUserOnboardingRemote,
   type UserOnboardingCompletePayload,
@@ -358,6 +360,9 @@ export function useOnboardingFlow(params: {
         await syncUserProfile();
         void trackOnboardingCompleted({ mode: params.mode });
         goToProfile();
+      } catch (error) {
+        logWarning("onboarding completion failed", { mode: params.mode }, error);
+        emit("ui:toast", { key: "default_error", ns: "common" });
       } finally {
         setSubmitting(false);
       }
@@ -465,10 +470,13 @@ export function useOnboardingFlow(params: {
       await updateUser(buildPartialSavePatch(form, userData.profile));
       await syncUserProfile();
       goToProfile();
+    } catch (error) {
+      logWarning("onboarding save and exit failed", { mode: params.mode }, error);
+      emit("ui:toast", { key: "default_error", ns: "common" });
     } finally {
       setSubmitting(false);
     }
-  }, [form, goToProfile, syncUserProfile, t, updateUser, userData?.profile]);
+  }, [form, goToProfile, params.mode, syncUserProfile, t, updateUser, userData?.profile]);
 
   const handleDiscardAndExit = useCallback(() => {
     setModalState(null);

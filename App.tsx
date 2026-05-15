@@ -56,7 +56,7 @@ import {
   stopMealSideEffectsRuntime,
 } from "@/services/meals/mealSideEffectsRuntime";
 import { sanitizeSentryEvent } from "@/services/core/loggingPrivacy";
-import { captureException } from "@/services/core/errorLogger";
+import { captureException, logWarning } from "@/services/core/errorLogger";
 import { warnMissingEnv } from "@/services/core/envValidation";
 import { getLaunchReadinessIssue } from "@/services/release/launchReadiness";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -72,6 +72,15 @@ const isPhysicalDevice = Device.isDevice === true;
 const shouldDisableSentryReplay = !isPhysicalDevice;
 const shouldEnableSentryDebug = sentryEnvironment !== "production" && isPhysicalDevice;
 const shouldTrackAppHangs = sentryEnvironment === "production";
+
+function runBestEffortStartupTask(
+  taskName: string,
+  task: () => Promise<void>,
+): void {
+  void task().catch((error) => {
+    logWarning("startup_task_failed", { taskName }, error);
+  });
+}
 
 if (sentryDsn) {
   Sentry.init({
@@ -126,14 +135,14 @@ function Root() {
 
     let cancelled = false;
     const bootTask = setTimeout(() => {
-      void (async () => {
+      runBestEffortStartupTask("app_runtime_bootstrap", async () => {
         if (cancelled) return;
         await initTelemetryClient();
         if (cancelled) return;
         initNotificationPresentationPolicy();
         initNotificationTelemetry();
         await initTelemetryLifecycle();
-      })();
+      });
     }, 0);
 
     return () => {
@@ -237,19 +246,21 @@ function ProductRuntimeBootstrap({
 
     if (!productReadyUid) {
       setMealSideEffectsRuntimeUid(null);
-      void setReminderRuntimeUid(null);
+      runBestEffortStartupTask("reminder_runtime_clear_uid", async () => {
+        await setReminderRuntimeUid(null);
+      });
       return;
     }
 
     setMealSideEffectsRuntimeUid(productReadyUid);
     let cancelled = false;
     const bootTask = setTimeout(() => {
-      void (async () => {
+      runBestEffortStartupTask("product_runtime_bootstrap", async () => {
         initMealSideEffectsRuntime();
         await initReminderRuntime();
         if (cancelled) return;
         await setReminderRuntimeUid(productReadyUid);
-      })();
+      });
     }, 0);
 
     return () => {

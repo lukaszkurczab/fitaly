@@ -56,6 +56,11 @@
   "kcal": "kcal",
   "gram": "g",
   "loading": "Loading…",
+  "profileLoadError": {
+    "title": "We couldn't load your profile",
+    "body": "Your plan is still safe. Check your connection and try again.",
+    "offlineBody": "Your profile is not available on this device yet. Connect to the internet and try again."
+  },
   "back": "Back",
   "show_password": "Show password",
   "hide_password": "Hide password",
