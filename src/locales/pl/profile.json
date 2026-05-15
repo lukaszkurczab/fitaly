@@ -14,7 +14,7 @@
   "sendFeedback": "Wyślij opinię",
   "logOut": "Wyloguj się",
   "logOutConfirmTitle": "Wylogować się?",
-  "logOutConfirmMessage": "Aby ponownie synchronizować posiłki, profil i status premium na tym urządzeniu, trzeba będzie zalogować się jeszcze raz.",
+  "logOutConfirmMessage": "Czy na pewno chcesz się wylogować?",
   "logOutConfirmAction": "Wyloguj się",
   "deleteAccount": "Usuń konto",
   "deleteAccountWarning": "Ta operacja trwale usunie Twoje konto i wszystkie dane. Wprowadź hasło, aby potwierdzić.",

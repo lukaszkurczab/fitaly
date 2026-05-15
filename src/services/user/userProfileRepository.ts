@@ -161,7 +161,14 @@ export async function initializeUserOnboardingRemote(
     language?: string | null;
   },
 ): Promise<UserOnboardingResponse> {
-  return post<UserOnboardingResponse>("/users/me/onboarding", payload);
+  const response = await post<UserOnboardingResponse>(
+    "/users/me/onboarding",
+    payload,
+  );
+  if (response.profile?.uid) {
+    emitUserProfileChanged(response.profile.uid, response.profile);
+  }
+  return response;
 }
 
 export async function completeUserOnboardingRemote(

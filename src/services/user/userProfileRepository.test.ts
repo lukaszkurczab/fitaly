@@ -356,25 +356,27 @@ describe("services/user/userProfileRepository", () => {
   });
 
   it("initializes onboarding through the backend-owned endpoint", async () => {
+    const initializedProfile = { uid: "u1", username: "neo" };
     mockPost.mockResolvedValue({
       username: "neo",
-      profile: { uid: "u1", username: "neo" },
+      profile: initializedProfile,
       updated: true,
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { initializeUserOnboardingRemote } = require("@/services/user/userProfileRepository");
+    const repo = require("@/services/user/userProfileRepository");
 
     await expect(
-      initializeUserOnboardingRemote({ username: "neo", language: "pl" }),
+      repo.initializeUserOnboardingRemote({ username: "neo", language: "pl" }),
     ).resolves.toEqual({
       username: "neo",
-      profile: { uid: "u1", username: "neo" },
+      profile: initializedProfile,
       updated: true,
     });
     expect(mockPost).toHaveBeenCalledWith("/users/me/onboarding", {
       username: "neo",
       language: "pl",
     });
+    expect(repo.getCachedUserProfile("u1")).toEqual(initializedProfile);
   });
 
   it("completes onboarding through server-first endpoint and caches response profile", async () => {

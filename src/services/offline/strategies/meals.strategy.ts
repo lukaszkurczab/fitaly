@@ -77,6 +77,11 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+function normalizeChangesCursor(cursor: string | null): string | null {
+  const normalized = cursor?.trim();
+  return normalized && normalized.includes("|") ? normalized : null;
+}
+
 async function forEachCursorPage<T>(params: {
   initialCursor: string | null;
   fetchPage: (cursor: string | null) => Promise<CursorPage<T>>;
@@ -106,7 +111,7 @@ export const mealsStrategy: SyncStrategy = {
 
     pullLog.time("exec");
 
-    const last = (await getLastPullTs(uid)) || "1970-01-01T00:00:00.000Z";
+    const last = normalizeChangesCursor(await getLastPullTs(uid));
     let latestCursor = last;
     let total = 0;
     pullLog.log("since", { last });

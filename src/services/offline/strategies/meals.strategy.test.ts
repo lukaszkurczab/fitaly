@@ -139,7 +139,7 @@ describe("meals strategy", () => {
     expect(mockFetchMealChangesRemote).toHaveBeenCalledWith({
       uid: "user-1",
       pageSize: 100,
-      cursor: "1970-01-01T00:00:00.000Z",
+      cursor: null,
     });
     expect(mockUpsertMealLocal).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -231,6 +231,21 @@ describe("meals strategy", () => {
       "sync:last_pull_ts:user-1",
       "2026-03-03T13:30:00.000Z|meal-2",
     );
+  });
+
+  it("ignores legacy timestamp-only pull cursor for meal changes", async () => {
+    mockGetItem.mockResolvedValueOnce("1970-01-01T00:00:00.000Z");
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    await mealsStrategy.pull("user-1");
+
+    expect(mockFetchMealChangesRemote).toHaveBeenCalledWith({
+      uid: "user-1",
+      pageSize: 100,
+      cursor: null,
+    });
   });
 
   it("keeps pending local edit when pulled remote meal is older", async () => {
