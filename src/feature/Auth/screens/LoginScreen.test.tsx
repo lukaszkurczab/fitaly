@@ -1,6 +1,10 @@
 import React from "react";
+import { Keyboard } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { NetInfoStateType } from "@react-native-community/netinfo";
+import {
+  NetInfoStateType,
+  type NetInfoState,
+} from "@react-native-community/netinfo";
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import LoginScreen from "@/feature/Auth/screens/LoginScreen";
@@ -163,25 +167,67 @@ describe("LoginScreen", () => {
       },
     });
 
+    const dismissSpy = jest
+      .spyOn(Keyboard, "dismiss")
+      .mockImplementation(() => undefined);
     fireEvent.press(getByTestId("login-submit-button"));
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith("user@example.com", "Strong1!");
     });
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 
-  it("keeps the request local when submit fetch confirms offline", async () => {
+  it("does not let a NetInfo offline preflight block login submit", async () => {
     const { getByTestId } = renderWithTheme(
       <LoginScreen navigation={navigation} />,
     );
 
     fireEvent.changeText(getByTestId("login-email-input"), "user@example.com");
     fireEvent.changeText(getByTestId("login-password-input"), "Strong1!");
+    const dismissSpy = jest
+      .spyOn(Keyboard, "dismiss")
+      .mockImplementation(() => undefined);
     fireEvent.press(getByTestId("login-submit-button"));
 
     await waitFor(() => {
-      expect(NetInfo.fetch).toHaveBeenCalled();
+      expect(mockLogin).toHaveBeenCalledWith("user@example.com", "Strong1!");
     });
-    expect(mockLogin).not.toHaveBeenCalled();
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
+  });
+
+  it("does not show stale no-internet banner when connected reachability is false", async () => {
+    const connectedButUnreachable: NetInfoState = {
+      type: NetInfoStateType.wifi,
+      isConnected: true,
+      isInternetReachable: false,
+      details: {
+        ssid: null,
+        bssid: null,
+        strength: null,
+        ipAddress: null,
+        subnet: null,
+        frequency: null,
+        linkSpeed: null,
+        rxLinkSpeed: null,
+        txLinkSpeed: null,
+        isConnectionExpensive: false,
+      },
+    };
+    jest.mocked(NetInfo.fetch).mockResolvedValue(connectedButUnreachable);
+    jest.mocked(NetInfo.addEventListener).mockImplementation((listener) => {
+      listener(connectedButUnreachable);
+      return jest.fn();
+    });
+
+    const { queryByText } = renderWithTheme(
+      <LoginScreen navigation={navigation} />,
+    );
+
+    await waitFor(() => {
+      expect(queryByText("common:no_internet")).toBeNull();
+    });
   });
 });

@@ -32,6 +32,7 @@ type ResetUserRuntimeOptions = {
 };
 
 const RESET_DEDUPE_WINDOW_MS = 2_000;
+const RESET_STAGE_TIMEOUT_MS = 5_000;
 const resetInFlight = new Map<string, Promise<void>>();
 const recentlyResetAt = new Map<string, number>();
 
@@ -70,11 +71,43 @@ async function runCleanupStage(
   cleanup: () => void | Promise<void>,
 ): Promise<void> {
   try {
-    await cleanup();
+    await withStageTimeout(stage, cleanup);
   } catch (error) {
     const payload: ResetUserRuntimeFailure = { uid, reason, stage };
     emit("session:runtime-reset:failed", payload);
     logWarning("user runtime reset stage failed", payload, error);
+  }
+}
+
+async function withStageTimeout(
+  stage: ResetUserRuntimeStage,
+  cleanup: () => void | Promise<void>,
+): Promise<void> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const cleanupTask = Promise.resolve()
+    .then(cleanup)
+    .catch((error) => {
+      throw error;
+    });
+
+  try {
+    await Promise.race([
+      cleanupTask,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `User runtime reset stage "${stage}" timed out after ${RESET_STAGE_TIMEOUT_MS}ms`,
+            ),
+          );
+        }, RESET_STAGE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    cleanupTask.catch(() => undefined);
   }
 }
 

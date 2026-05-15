@@ -154,6 +154,9 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
 
     networkListener({ isConnected: true });
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    networkListener({ isConnected: true });
     networkListener({ isConnected: true });
     networkListener({ isConnected: true });
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);

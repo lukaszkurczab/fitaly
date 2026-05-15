@@ -473,10 +473,15 @@ export function startSyncLoop(uid: string) {
   stopSyncLoop();
   activeRuntimeUid = uid;
   const token = ++runtimeToken;
+  let observedInitialNetEvent = false;
 
   netUnsub = NetInfo.addEventListener((state) => {
     log.log("net:event", { isConnected: state.isConnected });
     if (token !== runtimeToken || activeRuntimeUid !== uid) return;
+    if (!observedInitialNetEvent) {
+      observedInitialNetEvent = true;
+      return;
+    }
     if (!isOfflineNetState(state)) {
       scheduleReconnect(uid);
     }

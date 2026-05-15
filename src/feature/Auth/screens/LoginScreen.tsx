@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Keyboard, View, Text, Pressable, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
 import { Button, TextInput, ErrorBox, LinkText } from "@/components";
@@ -8,7 +8,6 @@ import { validateEmail } from "@/utils/validation";
 import AppIcon from "@/components/AppIcon";
 import { useLogin } from "@/feature/Auth/hooks/useLogin";
 import { AuthScreenLayout } from "@/feature/Auth/components/AuthScreenLayout";
-import { isOfflineNetState } from "@/services/core/networkState";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
 
@@ -17,6 +16,10 @@ type LoginNavigation = StackNavigationProp<RootStackParamList, "Login">;
 type LoginScreenProps = {
   navigation: LoginNavigation;
 };
+
+function isDisconnectedNetState(state: { isConnected: boolean | null }): boolean {
+  return state.isConnected === false;
+}
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { t } = useTranslation(["login", "common"]);
@@ -45,14 +48,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const checkConnection = async () => {
       const state = await NetInfo.fetch();
       if (active) {
-        setInternetError(isOfflineNetState(state));
+        setInternetError(isDisconnectedNetState(state));
       }
     };
 
     void checkConnection();
 
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setInternetError(isOfflineNetState(state));
+      setInternetError(isDisconnectedNetState(state));
     });
 
     return () => {
@@ -83,13 +86,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     setTouched({ email: true, password: true });
     if (!isFormValid) return;
 
-    const net = await NetInfo.fetch();
-    if (isOfflineNetState(net)) {
-      setInternetError(true);
-      return;
-    }
-
     setInternetError(false);
+    Keyboard.dismiss();
     await login(normalizedEmail, password);
   };
 

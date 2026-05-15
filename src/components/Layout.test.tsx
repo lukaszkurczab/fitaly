@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { Layout } from "@/components/Layout";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
-const mockUseE2ENetInfo = jest.fn<() => { isConnected: boolean | null }>();
+const mockUseE2ENetInfo = jest.fn<
+  () => { isConnected: boolean | null; isInternetReachable?: boolean | null }
+>();
 const mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
 
 jest.mock("react-native-gesture-handler", () => {
@@ -97,6 +99,20 @@ describe("Layout", () => {
 
   it("shows offline banner when disconnected", () => {
     mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+    const { getByText } = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    expect(getByText("offline-banner")).toBeTruthy();
+  });
+
+  it("shows offline banner when connected network has no internet reachability", () => {
+    mockUseE2ENetInfo.mockReturnValue({
+      isConnected: true,
+      isInternetReachable: false,
+    });
     const { getByText } = renderWithTheme(
       <Layout>
         <Text>screen-content</Text>

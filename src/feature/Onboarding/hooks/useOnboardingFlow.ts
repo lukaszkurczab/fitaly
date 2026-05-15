@@ -350,12 +350,11 @@ export function useOnboardingFlow(params: {
           );
           await applyServerProfile(response.profile);
           void trackOnboardingCompleted({ mode: params.mode });
-          params.navigation.replace("Home");
           return;
         }
 
-      if (!userData?.profile) return;
-      await updateUser(buildPartialSavePatch(resolvedForm, userData.profile));
+        if (!userData?.profile) return;
+        await updateUser(buildPartialSavePatch(resolvedForm, userData.profile));
         await syncUserProfile();
         void trackOnboardingCompleted({ mode: params.mode });
         goToProfile();
@@ -367,7 +366,6 @@ export function useOnboardingFlow(params: {
       form,
       goToProfile,
       params.mode,
-      params.navigation,
       applyServerProfile,
       syncUserProfile,
       updateUser,

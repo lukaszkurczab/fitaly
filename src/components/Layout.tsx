@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { useE2ENetInfo } from "@/services/e2e/connectivity";
+import { isOfflineNetState } from "@/services/core/networkState";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 
 type LayoutProps = {
@@ -69,7 +70,7 @@ export const Layout = ({
     : isKeyboardVisible
       ? 0
       : insets.bottom + 8;
-  const isOffline = netInfo.isConnected === false;
+  const isOffline = isOfflineNetState(netInfo);
   const shouldShowOffline = showOfflineBanner && isOffline;
   const contentTopPadding = shouldShowOffline
     ? offlineBannerHeight + theme.spacing.sm

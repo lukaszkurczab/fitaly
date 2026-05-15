@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNetInfo } from "@react-native-community/netinfo";
 import type { NetInfoState } from "@react-native-community/netinfo";
 import { NetInfoStateType } from "@react-native-community/netinfo";
+import { useMonitoredNetInfo } from "@/services/core/connectivityMonitor";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 
 type ConnectivityListener = (forcedOffline: boolean) => void;
@@ -34,7 +34,7 @@ export function setE2EForcedOffline(offline: boolean) {
 }
 
 export function useE2ENetInfo(): NetInfoState {
-  const netInfo = useNetInfo();
+  const netInfo = useMonitoredNetInfo();
   const [overrideOffline, setOverrideOffline] = useState(forcedOffline);
 
   useEffect(() => {

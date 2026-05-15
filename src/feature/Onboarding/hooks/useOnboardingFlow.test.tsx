@@ -279,7 +279,7 @@ describe("useOnboardingFlow", () => {
     expect(completionPayload).not.toHaveProperty("readiness");
     expect(mockApplyServerProfile).toHaveBeenCalledTimes(1);
     expect(mockTrackOnboardingCompleted).toHaveBeenCalledWith({ mode: "first" });
-    expect(navigation.replace).toHaveBeenCalledWith("Home");
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   it("shows optional skip confirmation only once in the same flow", async () => {

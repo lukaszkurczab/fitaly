@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
   __resetUserRuntimeDedupeForTests,
   resetUserRuntime,
@@ -74,6 +74,10 @@ describe("resetUserRuntime", () => {
     mockCleanupUserOfflineAssets.mockResolvedValue(undefined);
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it("cleans user-scoped runtime state for a uid", async () => {
     await resetUserRuntime("user-1", { reason: "logout" });
 
@@ -131,6 +135,7 @@ describe("resetUserRuntime", () => {
     const first = resetUserRuntime("user-1", { reason: "session_lost" });
     const second = resetUserRuntime("user-1", { reason: "logout" });
 
+    await Promise.resolve();
     expect(mockStopSyncLoop).toHaveBeenCalledTimes(1);
 
     resolveReminders();
@@ -138,5 +143,24 @@ describe("resetUserRuntime", () => {
 
     await resetUserRuntime("user-1", { reason: "logout" });
     expect(mockStopSyncLoop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not block auth flow forever when an async cleanup stage hangs", async () => {
+    jest.useFakeTimers();
+    mockCancelAllReminderScheduling.mockReturnValueOnce(new Promise(() => {}));
+
+    const pending = resetUserRuntime("user-1", { reason: "session_lost" });
+
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(5_000);
+    await expect(pending).resolves.toBeUndefined();
+
+    expect(mockEmit).toHaveBeenCalledWith("session:runtime-reset:failed", {
+      uid: "user-1",
+      reason: "session_lost",
+      stage: "cancel_reminders",
+    });
+    expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
+    expect(mockMultiRemove).toHaveBeenCalled();
   });
 });

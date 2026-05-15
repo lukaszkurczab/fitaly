@@ -76,7 +76,6 @@ function renderAppScreens({
 } = {}) {
   return (
     <>
-      <Stack.Screen name="Loading" component={LoadingScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="WeeklyReport" component={WeeklyReportScreen} />
       <Stack.Screen name="SavedMeals" component={SavedMealsScreen} />
@@ -163,7 +162,6 @@ function renderOnboardingGateScreens({
 } = {}) {
   return (
     <>
-      <Stack.Screen name="Loading" component={LoadingScreen} />
       <Stack.Screen
         name="Onboarding"
         component={OnboardingScreen}
