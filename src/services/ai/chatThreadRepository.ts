@@ -84,18 +84,23 @@ export function subscribeToChatThreadMessages(params: {
   let active = true;
 
   const publish = async () => {
-    const page = await getChatMessagesPageLocal({
-      userUid: params.userUid,
-      threadId: params.threadId,
-      limitCount: params.pageSize,
-    });
-    if (!active) return;
-    params.onMessages(
-      page.items,
-      page.nextBeforeCreatedAt == null
-        ? null
-        : { beforeCreatedAt: page.nextBeforeCreatedAt },
-    );
+    try {
+      const page = await getChatMessagesPageLocal({
+        userUid: params.userUid,
+        threadId: params.threadId,
+        limitCount: params.pageSize,
+      });
+      if (!active) return;
+      params.onMessages(
+        page.items,
+        page.nextBeforeCreatedAt == null
+          ? null
+          : { beforeCreatedAt: page.nextBeforeCreatedAt },
+      );
+    } catch (error) {
+      if (!active) return;
+      params.onError?.(error);
+    }
   };
 
   void publish();
@@ -251,9 +256,14 @@ export function subscribeToChatThreads(params: {
   let active = true;
 
   const publish = async () => {
-    const items = await getChatThreadsLocal(params.userUid, LOCAL_THREADS_LIMIT);
-    if (!active) return;
-    params.onThreads(items);
+    try {
+      const items = await getChatThreadsLocal(params.userUid, LOCAL_THREADS_LIMIT);
+      if (!active) return;
+      params.onThreads(items);
+    } catch (error) {
+      if (!active) return;
+      params.onError?.(error);
+    }
   };
 
   void publish();

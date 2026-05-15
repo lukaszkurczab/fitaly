@@ -1,5 +1,6 @@
 import {
   resolveInitialRouteName,
+  shouldRenderProfileGateStack,
   shouldRenderProductStack,
 } from "@/navigation/appNavigatorState";
 
@@ -16,6 +17,14 @@ describe("AppNavigator onboarding gate", () => {
   it("keeps missing profiles gated instead of exposing Home", () => {
     expect(shouldRenderProductStack("profileMissing", undefined)).toBe(false);
     expect(resolveInitialRouteName("profileMissing", undefined)).toBe(
+      "Onboarding",
+    );
+  });
+
+  it("does not leave authenticated profile bootstrap failures on the loading screen", () => {
+    expect(shouldRenderProfileGateStack("bootstrapFailed")).toBe(true);
+    expect(shouldRenderProductStack("bootstrapFailed", undefined)).toBe(false);
+    expect(resolveInitialRouteName("bootstrapFailed", undefined)).toBe(
       "Onboarding",
     );
   });

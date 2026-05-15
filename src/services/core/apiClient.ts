@@ -1,5 +1,5 @@
 import { getApp } from "@react-native-firebase/app";
-import { getAuth } from "@react-native-firebase/auth";
+import { getAuth, getIdToken } from "@react-native-firebase/auth";
 import { v4 as uuidv4 } from "uuid";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { asString, isRecord } from "@/services/contracts/guards";
@@ -8,6 +8,7 @@ import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 120_000;
+const AUTH_TOKEN_TIMEOUT_MS = 10_000;
 const API_CLIENT_SOURCE = "ApiClient";
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 1_000;
@@ -95,7 +96,28 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
     return null;
   }
 
-  return currentUser.getIdToken(forceRefresh);
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      getIdToken(currentUser, forceRefresh),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            createServiceError({
+              code: "auth/token-timeout",
+              source: API_CLIENT_SOURCE,
+              retryable: true,
+              message: `Firebase auth token timed out after ${AUTH_TOKEN_TIMEOUT_MS}ms`,
+            }),
+          );
+        }, AUTH_TOKEN_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 async function getAuthorizationHeader(): Promise<Record<string, string>> {
@@ -345,7 +367,7 @@ async function withRetry<T>(
       const apiError = error as Partial<ApiClientError>;
 
       // On first 401: force-refresh the Firebase token and retry once.
-      // getIdToken(true) refreshes the cached token so the next
+      // getIdToken(user, true) refreshes the cached token so the next
       // getAuthorizationHeader() call picks up the new value automatically.
       if (apiError?.status === 401 && attempt === 0) {
         try {

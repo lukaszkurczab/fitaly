@@ -40,10 +40,25 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   }, [email, password, reset]);
 
   useEffect(() => {
+    let active = true;
+
+    const checkConnection = async () => {
+      const state = await NetInfo.fetch();
+      if (active) {
+        setInternetError(isOfflineNetState(state));
+      }
+    };
+
+    void checkConnection();
+
     const unsubscribe = NetInfo.addEventListener((state) => {
       setInternetError(isOfflineNetState(state));
     });
-    return () => unsubscribe();
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const normalizedEmail = email.trim();
@@ -67,6 +82,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
     if (!isFormValid) return;
+
+    const net = await NetInfo.fetch();
+    if (isOfflineNetState(net)) {
+      setInternetError(true);
+      return;
+    }
+
+    setInternetError(false);
     await login(normalizedEmail, password);
   };
 
@@ -82,7 +105,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     ? t("common:no_internet")
     : mapCritical(criticalError);
 
-  const isLoginDisabled = !isFormValid || loading || internetError;
+  const isLoginDisabled = !isFormValid || loading;
 
   return (
     <AuthScreenLayout

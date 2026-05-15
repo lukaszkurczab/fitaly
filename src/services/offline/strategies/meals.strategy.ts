@@ -189,7 +189,7 @@ export const mealsStrategy: SyncStrategy = {
       },
     });
 
-    if (latestCursor !== last) {
+    if (latestCursor && latestCursor !== last) {
       await setLastPullTs(uid, latestCursor);
       pullLog.log("set_last_ts", { latestCursor });
     }

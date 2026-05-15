@@ -50,6 +50,7 @@ import { logWarning } from "@/services/core/errorLogger";
 import {
   resolveBootstrapState,
   resolveInitialRouteName,
+  shouldRenderProfileGateStack,
   shouldRenderProductStack,
 } from "@/navigation/appNavigatorState";
 
@@ -224,10 +225,9 @@ export default function AppNavigator() {
   }, [bootstrapState, renderProductStack, userData?.uid]);
 
   const showAuthStack = bootstrapState === "unauthenticated";
-  const showProfileStack =
-    bootstrapState === "profileReady" ||
-    bootstrapState === "offlineCached" ||
-    bootstrapState === "profileMissing";
+  const showProfileStack = shouldRenderProfileGateStack(bootstrapState);
+  const profileRecovery =
+    bootstrapState === "profileMissing" || bootstrapState === "bootstrapFailed";
 
   return (
     <ErrorBoundary>
@@ -246,11 +246,11 @@ export default function AppNavigator() {
             ? renderProductStack
               ? renderAppScreens({
                   onboardingMode: "first",
-                  profileRecovery: bootstrapState === "profileMissing",
+                  profileRecovery,
                 })
               : renderOnboardingGateScreens({
                   onboardingMode: "first",
-                  profileRecovery: bootstrapState === "profileMissing",
+                  profileRecovery,
                 })
             : <Stack.Screen name="Loading" component={LoadingScreen} />}
         {renderSharedScreens()}

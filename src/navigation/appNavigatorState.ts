@@ -32,6 +32,17 @@ export function shouldRenderProductStack(
   );
 }
 
+export function shouldRenderProfileGateStack(
+  bootstrapState: AppBootstrapState,
+): boolean {
+  return (
+    bootstrapState === "profileReady" ||
+    bootstrapState === "offlineCached" ||
+    bootstrapState === "profileMissing" ||
+    bootstrapState === "bootstrapFailed"
+  );
+}
+
 export function resolveInitialRouteName(
   bootstrapState: AppBootstrapState,
   readinessStatus: ReadinessStatus | undefined,
@@ -48,7 +59,7 @@ export function resolveInitialRouteName(
     return "Onboarding";
   }
 
-  if (bootstrapState === "profileMissing") {
+  if (bootstrapState === "profileMissing" || bootstrapState === "bootstrapFailed") {
     return "Onboarding";
   }
 

@@ -2,6 +2,7 @@ import { afterEach } from "@jest/globals";
 import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 const mockGetApp = jest.fn();
 const mockGetAuth = jest.fn();
+const mockGetIdToken = jest.fn<Promise<string>, unknown[]>();
 const mockGetRuntimeConfig = jest.fn<RuntimeConfig, []>();
 
 function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
@@ -31,6 +32,7 @@ jest.mock("@react-native-firebase/app", () => ({
 
 jest.mock("@react-native-firebase/auth", () => ({
   getAuth: (...args: unknown[]) => mockGetAuth(...args),
+  getIdToken: (...args: unknown[]) => mockGetIdToken(...args),
 }));
 
 jest.mock("@/services/core/runtimeConfig", () => ({
@@ -44,6 +46,7 @@ describe("apiClient", () => {
 
     mockGetApp.mockReturnValue({ name: "app" });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
+    mockGetIdToken.mockResolvedValue("token-123");
   });
 
   afterEach(() => {
@@ -51,9 +54,8 @@ describe("apiClient", () => {
   });
 
   it("adds Firebase bearer token when current user exists", async () => {
-    const getIdToken = jest.fn().mockResolvedValue("token-123");
     mockGetAuth.mockReturnValue({
-      currentUser: { getIdToken },
+      currentUser: { uid: "u1" },
     });
 
     const fetchMock = jest.fn().mockResolvedValue({
@@ -68,7 +70,8 @@ describe("apiClient", () => {
 
     await get("/ai/credits");
 
-    expect(getIdToken).toHaveBeenCalledTimes(1);
+    expect(mockGetIdToken).toHaveBeenCalledTimes(1);
+    expect(mockGetIdToken).toHaveBeenCalledWith({ uid: "u1" }, false);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.example.com/api/v1/ai/credits",
       expect.objectContaining({
@@ -106,9 +109,9 @@ describe("apiClient", () => {
   });
 
   it("keeps multipart uploads authenticated without forcing JSON content type", async () => {
-    const getIdToken = jest.fn().mockResolvedValue("token-456");
+    mockGetIdToken.mockResolvedValue("token-456");
     mockGetAuth.mockReturnValue({
-      currentUser: { getIdToken },
+      currentUser: { uid: "u1" },
     });
 
     const fetchMock = jest.fn().mockResolvedValue({
@@ -140,9 +143,9 @@ describe("apiClient", () => {
 
   it("does not retry multipart uploads for transient server failures by default", async () => {
     jest.useFakeTimers();
-    const getIdToken = jest.fn().mockResolvedValue("token-456");
+    mockGetIdToken.mockResolvedValue("token-456");
     mockGetAuth.mockReturnValue({
-      currentUser: { getIdToken },
+      currentUser: { uid: "u1" },
     });
 
     const fetchMock = jest
@@ -173,9 +176,9 @@ describe("apiClient", () => {
 
   it("retries multipart uploads only when explicitly marked idempotent", async () => {
     jest.useFakeTimers();
-    const getIdToken = jest.fn().mockResolvedValue("token-456");
+    mockGetIdToken.mockResolvedValue("token-456");
     mockGetAuth.mockReturnValue({
-      currentUser: { getIdToken },
+      currentUser: { uid: "u1" },
     });
 
     const fetchMock = jest
