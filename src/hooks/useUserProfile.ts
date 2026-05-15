@@ -24,7 +24,8 @@ import {
 } from "@/services/user/profilePatch";
 import i18n from "@/i18n";
 import type { QueueKind } from "@/services/offline/queue.repo";
-import { logError, logWarning } from "@/services/core/errorLogger";
+import { captureException, logError, logWarning } from "@/services/core/errorLogger";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { parseUserProfile } from "@/services/user/profile.dto";
 
 const PROFILE_SYNC_KINDS: QueueKind[] = [
@@ -47,6 +48,31 @@ const isLocalUri = (value: string | null | undefined): value is string =>
   (value.startsWith("file://") || value.startsWith("content://"));
 
 type CurrentGuard = () => boolean;
+
+function profileBootstrapErrorContext(uid: string, error: unknown) {
+  const runtimeConfig = getRuntimeConfig();
+  const candidate =
+    error && typeof error === "object"
+      ? (error as Record<string, unknown>)
+      : {};
+
+  return {
+    uid,
+    endpoint: "/users/me/profile",
+    source: typeof candidate.source === "string" ? candidate.source : "unknown",
+    code: typeof candidate.code === "string" ? candidate.code : "unknown",
+    status:
+      typeof candidate.status === "number" ? candidate.status : undefined,
+    retryable:
+      typeof candidate.retryable === "boolean"
+        ? candidate.retryable
+        : undefined,
+    requestId:
+      typeof candidate.requestId === "string" ? candidate.requestId : undefined,
+    buildProfile: runtimeConfig.buildProfile || "unknown",
+    environment: runtimeConfig.sentryEnvironment || "unknown",
+  };
+}
 
 async function withProfileCacheLock<T>(
   uid: string,
@@ -403,7 +429,8 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       });
     } catch (error) {
       if (!isCurrent()) return null;
-      logWarning("user profile remote fetch failed", null, error);
+      const errorContext = profileBootstrapErrorContext(requestUid, error);
+      logWarning("user profile remote fetch failed", errorContext, error);
       const cached = (await readCached()) || userDataRef.current;
       if (!isCurrent()) return null;
       if (cached) {
@@ -411,6 +438,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
         setProfileBootstrapState("offlineCached");
         setProfileBootstrapError(error);
       } else {
+        captureException("user_profile_bootstrap_failed", errorContext, error);
         setLoading(false);
         setProfileBootstrapState("bootstrapFailed");
         setProfileBootstrapError(error);

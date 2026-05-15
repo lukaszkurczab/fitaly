@@ -87,6 +87,8 @@ describe("errorLogger", () => {
     captureException("boom", {
       userUid: "user-1",
       threadId: "thread-1",
+      endpoint: "/users/me/profile",
+      requestId: "railway-request-1",
       text: "should-not-pass",
     });
 
@@ -97,6 +99,8 @@ describe("errorLogger", () => {
     expect(sentryOptions.extra).toEqual({
       userUid: "user-1",
       threadId: "thread-1",
+      endpoint: "/users/me/profile",
+      requestId: "railway-request-1",
     });
   });
 });

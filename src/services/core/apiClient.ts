@@ -28,6 +28,7 @@ export type ApiClientError = Error & {
   retryable: boolean;
   status?: number;
   details?: unknown;
+  requestId?: string;
   url?: string;
   method?: RequestMethod;
 };
@@ -175,12 +176,28 @@ function readErrorMessage(payload: unknown, fallback: string): string {
   );
 }
 
+function readResponseRequestId(response: Response, payload: unknown): string | undefined {
+  const headerRequestId =
+    response.headers?.get?.("x-railway-request-id") ||
+    response.headers?.get?.("x-request-id");
+  if (headerRequestId) {
+    return headerRequestId;
+  }
+
+  if (!isRecord(payload)) {
+    return undefined;
+  }
+
+  return asString(payload.request_id) || asString(payload.requestId);
+}
+
 function createApiClientError(params: {
   code: string;
   message: string;
   retryable: boolean;
   status?: number;
   details?: unknown;
+  requestId?: string;
   url: string;
   method: RequestMethod;
   cause?: unknown;
@@ -198,6 +215,7 @@ function createApiClientError(params: {
   }
 
   error.details = params.details;
+  error.requestId = params.requestId;
   error.url = params.url;
   error.method = params.method;
 
@@ -292,6 +310,7 @@ async function performRequest<T = unknown>({
       }),
     ]);
     const payload = await parseJsonResponse(response);
+    const requestId = readResponseRequestId(response, payload);
 
     if (!response.ok) {
       throw createApiClientError({
@@ -303,6 +322,7 @@ async function performRequest<T = unknown>({
         retryable: response.status >= 500 || response.status === 429,
         status: response.status,
         details: payload,
+        requestId,
         url,
         method,
       });

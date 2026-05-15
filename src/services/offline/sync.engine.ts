@@ -23,9 +23,11 @@ import {
   getLastChatPullTs,
   getLastMyMealsPullTs,
   getLastPullTs,
+  getLastPullCheckTs,
   setLastChatPullTs,
   setLastMyMealsPullTs,
   setLastPullTs,
+  setLastPullCheckTs,
 } from "./sync.storage";
 
 const log = Sync;
@@ -67,7 +69,6 @@ type DomainConfig = {
   queueKinds: QueueKind[];
   staleAfterMs?: number;
   requiredOnStartup?: boolean;
-  requiredOnReconnect?: boolean;
   getLastPullMarker?: (uid: string) => Promise<string | number | null>;
 };
 
@@ -84,7 +85,6 @@ const domainConfigs: Record<Exclude<SyncDomain, "images" | "userProfile">, Domai
     strategy: mealsStrategy,
     queueKinds: ["upsert", "delete"],
     requiredOnStartup: true,
-    requiredOnReconnect: true,
     getLastPullMarker: getLastPullTs,
   },
   myMeals: {
@@ -226,7 +226,11 @@ async function runPull(uid: string, domain: SyncDomain): Promise<number> {
   const existing = inFlightPulls.get(key);
   if (existing) return existing;
 
-  const task = withUidSyncLock(uid, () => config.strategy.pull(uid)).finally(() => {
+  const task = withUidSyncLock(uid, async () => {
+    const pulled = await config.strategy.pull(uid);
+    await setLastPullCheckTs(uid, domain, new Date(Date.now()).toISOString());
+    return pulled;
+  }).finally(() => {
     if (inFlightPulls.get(key) === task) {
       inFlightPulls.delete(key);
     }
@@ -251,6 +255,10 @@ async function hasDomainDirtyQueue(uid: string, domain: SyncDomain): Promise<boo
   return (await getQueuedOpsCount(uid, { kinds: queueKinds })) > 0;
 }
 
+async function hasAnyQueuedOps(uid: string): Promise<boolean> {
+  return (await getQueuedOpsCount(uid)) > 0;
+}
+
 function markerTime(marker: string | number | null): number {
   if (typeof marker === "number") return marker;
   if (!marker) return 0;
@@ -262,6 +270,11 @@ function markerTime(marker: string | number | null): number {
 async function isDomainStale(uid: string, domain: SyncDomain): Promise<boolean> {
   if (domain === "images" || domain === "userProfile") return false;
   const config = domainConfigs[domain];
+  const lastCheckMarker = await getLastPullCheckTs(uid, domain);
+  const lastCheckTs = markerTime(lastCheckMarker);
+  if (lastCheckTs > 0) {
+    return Date.now() - lastCheckTs > (config.staleAfterMs ?? DEFAULT_STALE_MS);
+  }
   const marker = await config.getLastPullMarker?.(uid);
   const ts = markerTime(marker ?? null);
   if (ts <= 0) return true;
@@ -276,7 +289,6 @@ async function shouldPullDomain(
   const config = domainConfigs[domain];
   if (reason === "manual") return true;
   if (reason === "startup" && config.requiredOnStartup) return true;
-  if (reason === "reconnect" && config.requiredOnReconnect) return true;
   return (await hasDomainDirtyQueue(uid, domain)) || (await isDomainStale(uid, domain));
 }
 
@@ -331,13 +343,17 @@ async function runReconcile(
 
       await maybeProcessImages(uid, result, reason === "manual");
 
-      try {
-        result.pushed = await runPushOnce(uid);
-        if (result.pushed.failed > 0) {
-          recordFailure(result, "push", pushFailedError(result.pushed));
+      if (await hasAnyQueuedOps(uid)) {
+        try {
+          result.pushed = await runPushOnce(uid);
+          if (result.pushed.failed > 0) {
+            recordFailure(result, "push", pushFailedError(result.pushed));
+          }
+        } catch (error) {
+          recordFailure(result, "push", error);
         }
-      } catch (error) {
-        recordFailure(result, "push", error);
+      } else {
+        result.skipped.push = "clean";
       }
 
       for (const domain of ["meals", "myMeals", "chat"] as const) {
@@ -473,16 +489,19 @@ export function startSyncLoop(uid: string) {
   stopSyncLoop();
   activeRuntimeUid = uid;
   const token = ++runtimeToken;
-  let observedInitialNetEvent = false;
+  let lastObservedOnline: boolean | null = null;
 
   netUnsub = NetInfo.addEventListener((state) => {
     log.log("net:event", { isConnected: state.isConnected });
     if (token !== runtimeToken || activeRuntimeUid !== uid) return;
-    if (!observedInitialNetEvent) {
-      observedInitialNetEvent = true;
+    const isOnlineState = !isOfflineNetState(state);
+    if (lastObservedOnline === null) {
+      lastObservedOnline = isOnlineState;
       return;
     }
-    if (!isOfflineNetState(state)) {
+    const wasOnline = lastObservedOnline;
+    lastObservedOnline = isOnlineState;
+    if (!wasOnline && isOnlineState) {
       scheduleReconnect(uid);
     }
   });
@@ -552,4 +571,6 @@ export {
   getLastMyMealsPullTs,
   setLastChatPullTs,
   getLastChatPullTs,
+  setLastPullCheckTs,
+  getLastPullCheckTs,
 };

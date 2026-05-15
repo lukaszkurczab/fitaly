@@ -16,6 +16,10 @@ const mockGetLastMyMealsPullTs = jest.fn<
   (...args: unknown[]) => Promise<string | null>
 >();
 const mockGetLastChatPullTs = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockGetLastPullCheckTs = jest.fn<
+  (...args: unknown[]) => Promise<string | null>
+>();
+const mockSetLastPullCheckTs = jest.fn<(...args: unknown[]) => Promise<void>>();
 
 jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
@@ -45,6 +49,8 @@ jest.mock("./sync.storage", () => ({
   setLastMyMealsPullTs: jest.fn(),
   getLastChatPullTs: (...args: unknown[]) => mockGetLastChatPullTs(...args),
   setLastChatPullTs: jest.fn(),
+  getLastPullCheckTs: (...args: unknown[]) => mockGetLastPullCheckTs(...args),
+  setLastPullCheckTs: (...args: unknown[]) => mockSetLastPullCheckTs(...args),
 }));
 
 jest.mock("./strategies/meals.strategy", () => ({
@@ -109,6 +115,8 @@ describe("offline sync.engine selective coordinator", () => {
     mockGetLastPullTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockGetLastMyMealsPullTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockGetLastChatPullTs.mockResolvedValue(Date.parse("2026-04-28T09:59:00.000Z"));
+    mockGetLastPullCheckTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
+    mockSetLastPullCheckTs.mockResolvedValue();
   });
 
   it("starts runtime, runs startup reconcile, and stops network subscription", async () => {
@@ -122,7 +130,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(getSyncStatus().hasTimer).toBe(true);
     await flushPromises();
 
-    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockRunPushQueue).not.toHaveBeenCalled();
     expect(mockMealsPull).toHaveBeenCalledWith("user-1");
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
@@ -132,7 +140,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(getSyncStatus()).toEqual({ running: false, hasTimer: false });
   });
 
-  it("debounces reconnect and does not run global pulls for clean domains", async () => {
+  it("schedules reconnect only after a real offline to online transition", async () => {
     let networkListener: (state: { isConnected: boolean }) => void = () => undefined;
     let scheduledReconnect: (() => void) | null = null;
     const setTimeoutSpy = jest
@@ -152,6 +160,21 @@ describe("offline sync.engine selective coordinator", () => {
     startSyncLoop("user-1");
     await flushPromises();
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+    mockNetInfoFetch.mockResolvedValue({ isConnected: true });
+    mockRunPushQueue.mockResolvedValue({
+      processed: 0,
+      failed: 0,
+      deadLettered: 0,
+    });
+    mockMealsPull.mockResolvedValue(0);
+    mockMyMealsPull.mockResolvedValue(0);
+    mockChatPull.mockResolvedValue(0);
+    mockProcessImageUploads.mockResolvedValue();
+    mockGetQueuedOpsCount.mockResolvedValue(0);
+    mockGetPendingUploads.mockResolvedValue([]);
+    mockGetLastPullCheckTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
+    mockSetLastPullCheckTs.mockResolvedValue();
 
     networkListener({ isConnected: true });
     expect(setTimeoutSpy).not.toHaveBeenCalled();
@@ -159,16 +182,78 @@ describe("offline sync.engine selective coordinator", () => {
     networkListener({ isConnected: true });
     networkListener({ isConnected: true });
     networkListener({ isConnected: true });
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    networkListener({ isConnected: false });
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    networkListener({ isConnected: true });
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
     expect(scheduledReconnect).not.toBeNull();
     (scheduledReconnect as unknown as () => void)();
     await flushPromises();
 
-    expect(mockRunPushQueue).toHaveBeenCalledTimes(2);
-    expect(mockMealsPull).toHaveBeenCalledTimes(2);
+    expect(mockRunPushQueue).not.toHaveBeenCalled();
+    expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     stopSyncLoop();
+    setTimeoutSpy.mockRestore();
+  });
+
+  it("clean reconnect skips empty push and all fresh pulls", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runReconnectReconcile } = require("@/services/offline/sync.engine");
+
+    const result = await runReconnectReconcile("user-1");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pushed: null,
+        pulled: {},
+        skipped: expect.objectContaining({
+          push: "clean",
+          meals: "clean",
+          myMeals: "clean",
+          chat: "clean",
+        }),
+      }),
+    );
+    expect(mockRunPushQueue).not.toHaveBeenCalled();
+    expect(mockMealsPull).not.toHaveBeenCalled();
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
+  });
+
+  it("stale reconnect pulls only stale domains", async () => {
+    mockGetLastPullCheckTs.mockImplementation(async (_uid, domain) =>
+      domain === "meals"
+        ? "2026-04-27T09:59:00.000Z"
+        : "2026-04-28T09:59:00.000Z",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runReconnectReconcile } = require("@/services/offline/sync.engine");
+
+    const result = await runReconnectReconcile("user-1");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pushed: null,
+        pulled: { meals: 0 },
+        skipped: expect.objectContaining({
+          push: "clean",
+          myMeals: "clean",
+          chat: "clean",
+        }),
+      }),
+    );
+    expect(mockRunPushQueue).not.toHaveBeenCalled();
+    expect(mockMealsPull).toHaveBeenCalledTimes(1);
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent sync requests so the pending queue pushes once", async () => {
@@ -253,6 +338,7 @@ describe("offline sync.engine selective coordinator", () => {
 
   it("reconnect pushes once and only pulls meal changes for dirty meal queue", async () => {
     mockGetQueuedOpsCount.mockImplementation(async (_uid, options) => {
+      if (!options) return 1;
       const kinds = (options as { kinds?: string[] } | undefined)?.kinds ?? [];
       return kinds.includes("upsert") || kinds.includes("delete") ? 1 : 0;
     });
@@ -290,8 +376,32 @@ describe("offline sync.engine selective coordinator", () => {
         pulled: expect.objectContaining({ meals: 0 }),
       }),
     );
-    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockRunPushQueue).not.toHaveBeenCalled();
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a successful pull check even when the pull returns no items", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { pullChanges } = require("@/services/offline/sync.engine");
+
+    await pullChanges("user-1");
+
+    expect(mockMealsPull).toHaveBeenCalledTimes(1);
+    expect(mockSetLastPullCheckTs).toHaveBeenCalledWith(
+      "user-1",
+      "meals",
+      "2026-04-28T10:00:00.000Z",
+    );
+  });
+
+  it("does not record a pull check when pull fails", async () => {
+    mockMealsPull.mockRejectedValueOnce(new Error("network failed"));
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { pullChanges } = require("@/services/offline/sync.engine");
+
+    await expect(pullChanges("user-1")).rejects.toThrow("network failed");
+    expect(mockSetLastPullCheckTs).not.toHaveBeenCalled();
   });
 
   it("rejects requestSync when push reports failed operations", async () => {

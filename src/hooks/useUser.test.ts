@@ -72,6 +72,7 @@ const mockI18nChangeLanguage =
   jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockLogError = jest.fn<(...args: unknown[]) => void>();
 const mockLogWarning = jest.fn<(...args: unknown[]) => void>();
+const mockCaptureException = jest.fn<(...args: unknown[]) => void>();
 
 const createExportPayload = () => ({
   profile: createUser(),
@@ -183,8 +184,29 @@ jest.mock("@/services/core/events", () => ({
 }));
 
 jest.mock("@/services/core/errorLogger", () => ({
+  captureException: (...args: unknown[]) => mockCaptureException(...args),
   logError: (...args: unknown[]) => mockLogError(...args),
   logWarning: (...args: unknown[]) => mockLogWarning(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => ({
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    billingDisabled: false,
+    buildProfile: "production",
+    privacyUrl: "",
+    termsUrl: "",
+    revenuecatAndroidKey: "",
+    revenuecatIosKey: "",
+    sentryDsn: "https://sentry.example/1",
+    sentryEnvironment: "production",
+    sentryOrganization: "",
+    sentryProject: "",
+  }),
 }));
 
 jest.mock("@/services/user/profilePatch", () => ({
@@ -850,6 +872,41 @@ describe("useUser", () => {
 
     expect(fallbackProfile).toEqual(
       expect.objectContaining({ username: "from-cache" }),
+    );
+  });
+
+  it("captures a bootstrap failure when remote profile fetch fails without cache", async () => {
+    const error = Object.assign(new Error("railway 502"), {
+      code: "api/http-error",
+      source: "ApiClient",
+      status: 502,
+      retryable: true,
+      requestId: "railway-request-1",
+    });
+    mockNetInfoFetch.mockResolvedValue({ isConnected: true });
+    mockFetchUserProfileRemote.mockRejectedValue(error);
+    mockAsyncStorageGetItem.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useUser("u1"));
+
+    await waitFor(() => {
+      expect(result.current.profileBootstrapState).toBe("bootstrapFailed");
+    });
+
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      "user_profile_bootstrap_failed",
+      expect.objectContaining({
+        uid: "u1",
+        endpoint: "/users/me/profile",
+        source: "ApiClient",
+        code: "api/http-error",
+        status: 502,
+        retryable: true,
+        requestId: "railway-request-1",
+        buildProfile: "production",
+        environment: "production",
+      }),
+      error,
     );
   });
 

@@ -9,7 +9,9 @@ const MAX_SENTRY_STRING_LENGTH = 1_000;
 const SAFE_CONTEXT_KEYS = new Set([
   "action",
   "beforeCreatedAt",
+  "buildProfile",
   "code",
+  "endpoint",
   "environment",
   "feature",
   "lang",
@@ -20,6 +22,7 @@ const SAFE_CONTEXT_KEYS = new Set([
   "phase",
   "platform",
   "reason",
+  "requestId",
   "retryable",
   "screen",
   "source",

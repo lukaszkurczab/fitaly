@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export type PullCheckDomain = "meals" | "myMeals" | "chat";
+
 function keyLastPull(uid: string) {
   return `sync:last_pull_ts:${uid}`;
 }
@@ -10,6 +12,10 @@ function keyLastMyMealsPull(uid: string) {
 
 function keyLastChatPull(uid: string) {
   return `sync:last_pull_chat:${uid}`;
+}
+
+function keyLastPullCheck(uid: string, domain: PullCheckDomain) {
+  return `sync:last_pull_check:${domain}:${uid}`;
 }
 
 export async function setLastPullTs(uid: string, iso: string): Promise<void> {
@@ -39,4 +45,19 @@ export async function getLastChatPullTs(uid: string): Promise<number> {
   const raw = await AsyncStorage.getItem(keyLastChatPull(uid));
   const parsed = Number(raw ?? 0);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+export async function setLastPullCheckTs(
+  uid: string,
+  domain: PullCheckDomain,
+  iso: string,
+): Promise<void> {
+  await AsyncStorage.setItem(keyLastPullCheck(uid, domain), iso);
+}
+
+export async function getLastPullCheckTs(
+  uid: string,
+  domain: PullCheckDomain,
+): Promise<string | null> {
+  return AsyncStorage.getItem(keyLastPullCheck(uid, domain));
 }

@@ -231,6 +231,40 @@ describe("apiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("adds upstream request id to HTTP errors", async () => {
+    mockGetAuth.mockReturnValue({
+      currentUser: null,
+    });
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "x-railway-request-id"
+            ? "railway-request-1"
+            : null,
+      },
+      text: async () =>
+        JSON.stringify({
+          status: "error",
+          code: 502,
+          message: "Application failed to respond",
+          request_id: "body-request-1",
+        }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await expect(get("/users/me/profile")).rejects.toMatchObject({
+      code: "api/http-error",
+      status: 502,
+      requestId: "railway-request-1",
+    });
+  });
+
   it("retries idempotent POST requests and reuses one idempotency key", async () => {
     jest.useFakeTimers();
     mockGetAuth.mockReturnValue({
