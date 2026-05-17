@@ -102,6 +102,12 @@ jest.mock("expo-device", () => ({
   isDevice: true,
 }));
 
+jest.mock("expo-splash-screen", () => ({
+  __esModule: true,
+  preventAutoHideAsync: jest.fn(async () => undefined),
+  hideAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock("expo-localization", () => ({
   __esModule: true,
   getLocales: jest.fn(() => [{ languageTag: "en-US" }]),
