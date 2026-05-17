@@ -30,6 +30,7 @@ export type RootStackParamList = {
   CheckMailbox: { email: string };
   ChangeEmailCheckMailbox: { email: string };
   Onboarding: { mode?: "first" | "refill" } | undefined;
+  OnboardingRefill: { mode?: "refill" } | undefined;
   Profile: undefined;
   ResetPassword: undefined;
   Terms: undefined;

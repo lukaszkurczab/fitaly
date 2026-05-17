@@ -11,9 +11,10 @@ import Step2Preferences from "@/feature/Onboarding/components/Step2Preferences";
 import Step3Health from "@/feature/Onboarding/components/Step3Health";
 import Step4AIAssistantPreferences from "@/feature/Onboarding/components/Step4AIAssistantPreferences";
 import { useOnboardingFlow } from "@/feature/Onboarding/hooks/useOnboardingFlow";
-import { useProductReadiness } from "@/hooks/useProductReadiness";
 
-type OnboardingScreenProps = StackScreenProps<RootStackParamList, "Onboarding">;
+type OnboardingScreenProps =
+  | StackScreenProps<RootStackParamList, "Onboarding">
+  | StackScreenProps<RootStackParamList, "OnboardingRefill">;
 
 export default function OnboardingScreen({
   navigation,
@@ -23,7 +24,6 @@ export default function OnboardingScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mode = route.params?.mode ?? "first";
-  const { canRenderProductStack } = useProductReadiness();
 
   const state = useOnboardingFlow({
     mode,
@@ -35,11 +35,6 @@ export default function OnboardingScreen({
       gestureEnabled: mode === "refill",
     });
   }, [mode, navigation]);
-
-  useEffect(() => {
-    if (mode !== "first" || !canRenderProductStack) return;
-    navigation.replace("Home");
-  }, [canRenderProductStack, mode, navigation]);
 
   const modalCopy = useMemo(() => {
     if (!state.modalState) return null;

@@ -70,20 +70,16 @@ function renderAuthScreens() {
   );
 }
 
-function renderAppScreens({
-  onboardingMode = "first",
-}: {
-  onboardingMode?: "first" | "refill";
-} = {}) {
+function renderAppScreens() {
   return (
     <>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="WeeklyReport" component={WeeklyReportScreen} />
       <Stack.Screen name="SavedMeals" component={SavedMealsScreen} />
       <Stack.Screen
-        name="Onboarding"
+        name="OnboardingRefill"
         component={OnboardingScreen}
-        initialParams={{ mode: onboardingMode }}
+        initialParams={{ mode: "refill" }}
       />
       <Stack.Screen name="AvatarCamera" component={AvatarCameraScreen} />
       <Stack.Screen
@@ -154,17 +150,13 @@ function renderAppScreens({
   );
 }
 
-function renderOnboardingGateScreens({
-  onboardingMode = "first",
-}: {
-  onboardingMode?: "first" | "refill";
-} = {}) {
+function renderOnboardingGateScreens() {
   return (
     <>
       <Stack.Screen
         name="Onboarding"
         component={OnboardingScreen}
-        initialParams={{ mode: onboardingMode }}
+        initialParams={{ mode: "first" }}
       />
     </>
   );
@@ -260,12 +252,8 @@ export default function AppNavigator() {
           ? renderAuthScreens()
           : showProfileStack
             ? renderProductStack
-              ? renderAppScreens({
-                  onboardingMode: "first",
-                })
-              : renderOnboardingGateScreens({
-                  onboardingMode: "first",
-                })
+              ? renderAppScreens()
+              : renderOnboardingGateScreens()
             : <Stack.Screen name="Loading" component={LoadingScreen} />}
         {renderSharedScreens()}
       </Stack.Navigator>

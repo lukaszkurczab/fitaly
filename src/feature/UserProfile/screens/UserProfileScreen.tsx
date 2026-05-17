@@ -165,7 +165,7 @@ export default function UserProfileScreen({
           <SettingsRow
             title={t("updateHealthSurvey")}
             onPress={() =>
-              navigation.navigate("Onboarding", { mode: "refill" })
+              navigation.navigate("OnboardingRefill", { mode: "refill" })
             }
           />
         </SettingsSection>

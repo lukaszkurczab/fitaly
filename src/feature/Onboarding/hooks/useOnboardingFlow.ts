@@ -23,7 +23,7 @@ import {
 
 type OnboardingNavigation = StackNavigationProp<
   RootStackParamList,
-  "Onboarding"
+  "Onboarding" | "OnboardingRefill"
 >;
 
 type OnboardingErrorKey =
