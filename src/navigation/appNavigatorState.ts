@@ -20,6 +20,20 @@ export function resolveBootstrapState(params: {
   return params.profileBootstrapState;
 }
 
+export function resolveEffectiveBootstrapState(params: {
+  bootstrapState: AppBootstrapState;
+  signupProfileBootstrapPending: boolean;
+}): AppBootstrapState {
+  if (
+    params.bootstrapState === "profileMissing" &&
+    params.signupProfileBootstrapPending
+  ) {
+    return "profileLoading";
+  }
+
+  return params.bootstrapState;
+}
+
 export function shouldRenderProductStack(
   bootstrapState: AppBootstrapState,
   readinessStatus: ReadinessStatus | undefined,

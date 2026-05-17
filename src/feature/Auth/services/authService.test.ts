@@ -12,6 +12,10 @@ import {
   authRegister,
   authSendPasswordReset,
 } from "@/feature/Auth/services/authService";
+import {
+  __resetSignupProfileBootstrapForTests,
+  isSignupProfileBootstrapPending,
+} from "@/services/session/signupProfileBootstrap";
 
 const mockGetAuth = jest.fn<(...args: unknown[]) => unknown>();
 const mockCreateUserWithEmailAndPassword = jest.fn<
@@ -78,6 +82,7 @@ const mockI18n = (
 describe("authService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetSignupProfileBootstrapForTests();
     mockI18n.resolvedLanguage = "en";
     mockI18n.language = "en";
     mockGetAuth.mockReturnValue({ app: "auth", currentUser: { uid: "user-1" } });
@@ -109,6 +114,29 @@ describe("authService", () => {
       "pl",
     );
     expect(user.uid).toBe("user-1");
+  });
+
+  it("keeps signup profile bootstrap pending until backend initialization finishes", async () => {
+    let resolveInitialization!: () => void;
+    mockInitializeUserOnboardingProfile.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveInitialization = resolve;
+      }),
+    );
+
+    const pendingSignup = authRegister("user@example.com", "Strong1!", "Neo");
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockInitializeUserOnboardingProfile).toHaveBeenCalledTimes(1);
+    expect(isSignupProfileBootstrapPending("user-1")).toBe(true);
+    expect(isSignupProfileBootstrapPending("other-user")).toBe(false);
+
+    resolveInitialization();
+
+    await expect(pendingSignup).resolves.toMatchObject({ uid: "user-1" });
+    expect(isSignupProfileBootstrapPending("user-1")).toBe(false);
   });
 
   it("normalizes auth input emails and username before calling providers", async () => {

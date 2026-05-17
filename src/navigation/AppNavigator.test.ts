@@ -1,4 +1,5 @@
 import {
+  resolveEffectiveBootstrapState,
   resolveInitialRouteName,
   shouldRenderProfileGateStack,
   shouldRenderProductStack,
@@ -18,6 +19,17 @@ describe("AppNavigator onboarding gate", () => {
     expect(shouldRenderProfileGateStack("profileMissing")).toBe(false);
     expect(shouldRenderProductStack("profileMissing", undefined)).toBe(false);
     expect(resolveInitialRouteName("profileMissing", undefined)).toBe("Login");
+  });
+
+  it("keeps a transient missing profile on Loading during signup profile initialization", () => {
+    const bootstrapState = resolveEffectiveBootstrapState({
+      bootstrapState: "profileMissing",
+      signupProfileBootstrapPending: true,
+    });
+
+    expect(bootstrapState).toBe("profileLoading");
+    expect(shouldRenderProfileGateStack(bootstrapState)).toBe(false);
+    expect(resolveInitialRouteName(bootstrapState, undefined)).toBe("Loading");
   });
 
   it("keeps profile bootstrap failures on the loading retry screen", () => {

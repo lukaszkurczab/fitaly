@@ -50,10 +50,12 @@ import { logWarning } from "@/services/core/errorLogger";
 import { authLogout } from "@/feature/Auth/services/authService";
 import {
   resolveBootstrapState,
+  resolveEffectiveBootstrapState,
   resolveInitialRouteName,
   shouldRenderProfileGateStack,
   shouldRenderProductStack,
 } from "@/navigation/appNavigatorState";
+import { useSignupProfileBootstrapPending } from "@/hooks/useSignupProfileBootstrapPending";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -183,10 +185,15 @@ export default function AppNavigator() {
   const disableAnimations = isE2EModeEnabled();
   const primedUidRef = useRef<string | null>(null);
   const missingProfileLogoutUidRef = useRef<string | null>(null);
-  const bootstrapState = resolveBootstrapState({
+  const rawBootstrapState = resolveBootstrapState({
     authLoading,
     isAuthenticated,
     profileBootstrapState,
+  });
+  const signupProfileBootstrapPending = useSignupProfileBootstrapPending(uid);
+  const bootstrapState = resolveEffectiveBootstrapState({
+    bootstrapState: rawBootstrapState,
+    signupProfileBootstrapPending,
   });
   const initialRouteName = resolveInitialRouteName(
     bootstrapState,

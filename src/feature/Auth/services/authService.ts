@@ -15,6 +15,7 @@ import {
 import { logError } from "@/services/core/errorLogger";
 import { initializeUserOnboardingProfile } from "@/services/user/userService";
 import { resetUserRuntime } from "@/services/session/resetUserRuntime";
+import { beginSignupProfileBootstrap } from "@/services/session/signupProfileBootstrap";
 import i18n from "@/i18n";
 
 function resolveInitialLanguage(language: string | undefined): "en" | "pl" {
@@ -109,20 +110,25 @@ export async function authRegister(
   const auth = getAuth(getApp());
   const normalizedEmail = normalizeEmail(email);
   const normalizedUsername = normalizeUsername(username);
-  const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
-
+  const signupBootstrap = beginSignupProfileBootstrap();
   try {
+    const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+    signupBootstrap.attachUid(cred.user.uid);
     const initialLanguage = resolveInitialLanguage(
       i18n.resolvedLanguage ?? i18n.language,
     );
-    await initializeUserOnboardingProfile(
-      normalizedUsername,
-      initialLanguage,
-    );
-    return cred.user;
-  } catch (error) {
-    const mappedError = mapSignupOnboardingError(error);
-    await rollbackFailedSignup(cred.user);
-    throw mappedError;
+    try {
+      await initializeUserOnboardingProfile(
+        normalizedUsername,
+        initialLanguage,
+      );
+      return cred.user;
+    } catch (error) {
+      const mappedError = mapSignupOnboardingError(error);
+      await rollbackFailedSignup(cred.user);
+      throw mappedError;
+    }
+  } finally {
+    signupBootstrap.finish();
   }
 }
