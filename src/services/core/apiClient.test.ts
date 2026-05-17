@@ -82,6 +82,51 @@ describe("apiClient", () => {
     );
   });
 
+  it("force-refreshes Firebase token and retries once after first 401", async () => {
+    const currentUser = { uid: "u1" };
+    mockGetAuth.mockReturnValue({
+      currentUser,
+    });
+    mockGetIdToken
+      .mockResolvedValueOnce("stale-token")
+      .mockResolvedValueOnce("fresh-token")
+      .mockResolvedValueOnce("fresh-token");
+
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () => JSON.stringify({ detail: "expired token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ ok: true }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await expect(get("/users/me/profile")).resolves.toEqual({ ok: true });
+
+    expect(mockGetIdToken).toHaveBeenNthCalledWith(1, currentUser, false);
+    expect(mockGetIdToken).toHaveBeenNthCalledWith(2, currentUser, true);
+    expect(mockGetIdToken).toHaveBeenNthCalledWith(3, currentUser, false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const firstHeaders = fetchMock.mock.calls[0]?.[1]?.headers as Record<
+      string,
+      string
+    >;
+    const secondHeaders = fetchMock.mock.calls[1]?.[1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(firstHeaders.Authorization).toBe("Bearer stale-token");
+    expect(secondHeaders.Authorization).toBe("Bearer fresh-token");
+  });
+
   it("omits Authorization header when no current user exists", async () => {
     mockGetAuth.mockReturnValue({
       currentUser: null,
