@@ -4,6 +4,7 @@ import "react-native-get-random-values";
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
+import * as SplashScreen from "expo-splash-screen";
 
 import { ThemeController } from "@/theme/ThemeController";
 import AppNavigator from "@/navigation/AppNavigator";
@@ -14,7 +15,9 @@ import {
   navigationRef,
 } from "@/navigation/navigate";
 import { AuthProvider } from "@/context/AuthContext";
+import { useAuthContext } from "@/context/AuthContext";
 import { UserProvider } from "@/context/UserContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { MealDraftProvider } from "@/context/MealDraftContext";
 import { PremiumProvider } from "@/context/PremiumContext";
 import { HistoryProvider } from "@/context/HistoryContext";
@@ -61,6 +64,7 @@ import { warnMissingEnv } from "@/services/core/envValidation";
 import { getLaunchReadinessIssue } from "@/services/release/launchReadiness";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useProductReadiness } from "@/hooks/useProductReadiness";
+import { shouldHideNativeSplash } from "@/services/core/splashReadiness";
 
 const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
 const sentryDsn = typeof extra?.sentryDsn === "string" ? extra.sentryDsn : "";
@@ -72,6 +76,11 @@ const isPhysicalDevice = Device.isDevice === true;
 const shouldDisableSentryReplay = !isPhysicalDevice;
 const shouldEnableSentryDebug = sentryEnvironment !== "production" && isPhysicalDevice;
 const shouldTrackAppHangs = sentryEnvironment === "production";
+let nativeSplashHidden = false;
+
+void SplashScreen.preventAutoHideAsync().catch((error) => {
+  logWarning("native splash prevent auto hide failed", null, error);
+});
 
 function runBestEffortStartupTask(
   taskName: string,
@@ -79,6 +88,16 @@ function runBestEffortStartupTask(
 ): void {
   void task().catch((error) => {
     logWarning("startup_task_failed", { taskName }, error);
+  });
+}
+
+function hideNativeSplash(reason: string): void {
+  if (nativeSplashHidden) return;
+  nativeSplashHidden = true;
+
+  void SplashScreen.hideAsync().catch((error) => {
+    nativeSplashHidden = false;
+    logWarning("native splash hide failed", { reason }, error);
   });
 }
 
@@ -126,6 +145,12 @@ function Root() {
     captureException("launch_readiness_blocked", {
       reason: launchReadinessIssue,
     });
+  }, [launchReadinessIssue]);
+
+  useEffect(() => {
+    if (launchReadinessIssue) {
+      hideNativeSplash("launch_readiness_blocked");
+    }
   }, [launchReadinessIssue]);
 
   useEffect(() => {
@@ -212,6 +237,10 @@ function Root() {
       }}
     >
       <UserProvider>
+        <NativeSplashGate
+          fontsLoaded={fontsLoaded}
+          launchReadinessIssue={launchReadinessIssue}
+        />
         <ProductRuntimeBootstrap launchReadinessIssue={launchReadinessIssue} />
         <AccessProvider>
           <AiCreditsProvider>
@@ -230,6 +259,32 @@ function Root() {
       </UserProvider>
     </NavigationContainer>
   );
+}
+
+function NativeSplashGate({
+  fontsLoaded,
+  launchReadinessIssue,
+}: {
+  fontsLoaded: boolean;
+  launchReadinessIssue: string | null;
+}) {
+  const { authLoading, isAuthenticated } = useAuthContext();
+  const { profileBootstrapState } = useUserProfileContext();
+  const shouldHide = shouldHideNativeSplash({
+    fontsLoaded,
+    launchReadinessIssue,
+    authLoading,
+    isAuthenticated,
+    profileBootstrapState,
+  });
+
+  useEffect(() => {
+    if (shouldHide) {
+      hideNativeSplash("bootstrap_ready");
+    }
+  }, [shouldHide]);
+
+  return null;
 }
 
 function ProductRuntimeBootstrap({
