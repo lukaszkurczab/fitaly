@@ -13,6 +13,12 @@ import {
   subscribeToUserProfile,
 } from "@/services/user/userProfileRepository";
 import {
+  normalizeBootstrapProfile,
+  profileCacheKey,
+  readProfileCache,
+  writeProfileCache,
+} from "@/services/user/profileCache";
+import {
   getSyncCounts,
   enqueueUserProfileUpdate,
   retryDeadLetterOps,
@@ -27,6 +33,10 @@ import type { QueueKind } from "@/services/offline/queue.repo";
 import { captureException, logError, logWarning } from "@/services/core/errorLogger";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { parseUserProfile } from "@/services/user/profile.dto";
+import {
+  isProfileBootstrapPending,
+  waitForProfileBootstrap,
+} from "@/services/session/signupProfileBootstrap";
 
 const PROFILE_SYNC_KINDS: QueueKind[] = [
   "update_user_profile",
@@ -98,58 +108,8 @@ async function withProfileCacheLock<T>(
   }
 }
 
-function profileCacheKey(uid: string): string {
-  return `user:profile:${uid}`;
-}
-
-function isValidBootstrapProfile(uid: string, value: unknown): value is UserData {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<UserData>;
-  return (
-    candidate.uid === uid &&
-    typeof candidate.username === "string" &&
-    candidate.username.trim().length > 0
-  );
-}
-
-function normalizeBootstrapProfile(
-  uid: string,
-  value: unknown,
-): UserData | null {
-  if (!isValidBootstrapProfile(uid, value)) return null;
-  const candidate = value as UserData;
-  return {
-    ...candidate,
-    profile: parseUserProfile(candidate.profile),
-  };
-}
-
 function avatarCachePath(uid: string): string {
   return `${FileSystem.documentDirectory}users/${uid}/images/avatar.jpg`;
-}
-
-async function readProfileCache(uid: string): Promise<UserData | null> {
-  try {
-    const cached = await AsyncStorage.getItem(profileCacheKey(uid));
-    if (!cached) return null;
-    const parsed = normalizeBootstrapProfile(uid, JSON.parse(cached));
-    if (!parsed) {
-      logWarning("profile cache invalid for bootstrap", { uid });
-      return null;
-    }
-    return parsed;
-  } catch (error) {
-    logWarning("profile cache read failed", null, error);
-    return null;
-  }
-}
-
-async function writeProfileCache(uid: string, profile: UserData): Promise<void> {
-  try {
-    await AsyncStorage.setItem(profileCacheKey(uid), JSON.stringify(profile));
-  } catch (error) {
-    logWarning("profile cache write failed", null, error);
-  }
 }
 
 async function mergeProfileCache(
@@ -593,6 +553,20 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       }
 
       if (!isCurrent()) return;
+      if (isProfileBootstrapPending(uid)) {
+        await waitForProfileBootstrap(uid);
+        if (!isCurrent()) return;
+        if (userDataRef.current?.uid === uid) return;
+        const cachedAfterBootstrap = await readProfileCache(uid);
+        if (cachedAfterBootstrap) {
+          await applyProfileData(cachedAfterBootstrap, {
+            bootstrapState: "profileReady",
+            isCurrent,
+          });
+          if (!isCurrent()) return;
+          if (userDataRef.current?.uid === uid) return;
+        }
+      }
       await fetchUserFromCloud({ isCurrent });
     })();
 

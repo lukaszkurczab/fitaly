@@ -54,6 +54,27 @@ export function subscribeSignupProfileBootstrap(
   };
 }
 
+export function waitForSignupProfileBootstrap(
+  uid?: string | null,
+): Promise<void> {
+  if (!isSignupProfileBootstrapPending(uid)) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const unsubscribe = subscribeSignupProfileBootstrap(() => {
+      if (isSignupProfileBootstrapPending(uid)) return;
+      unsubscribe();
+      resolve();
+    });
+  });
+}
+
+export const beginProfileBootstrap = beginSignupProfileBootstrap;
+export const isProfileBootstrapPending = isSignupProfileBootstrapPending;
+export const subscribeProfileBootstrap = subscribeSignupProfileBootstrap;
+export const waitForProfileBootstrap = waitForSignupProfileBootstrap;
+
 export function __resetSignupProfileBootstrapForTests(): void {
   currentSession = null;
   listeners.clear();

@@ -153,6 +153,40 @@ describe("apiClient", () => {
     );
   });
 
+  it("treats stale Firebase current user token failures as signed out", async () => {
+    const currentUser = { uid: "u1" };
+    mockGetAuth.mockReturnValue({
+      currentUser,
+    });
+    mockGetIdToken.mockRejectedValueOnce(
+      Object.assign(
+        new Error("[auth/no-current-user] No user currently signed in."),
+        { code: "auth/no-current-user" },
+      ),
+    );
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await get("/health");
+
+    expect(mockGetIdToken).toHaveBeenCalledWith(currentUser, false);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/health",
+      expect.objectContaining({
+        headers: expect.not.objectContaining({
+          Authorization: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("keeps multipart uploads authenticated without forcing JSON content type", async () => {
     mockGetIdToken.mockResolvedValue("token-456");
     mockGetAuth.mockReturnValue({

@@ -9,7 +9,7 @@ import {
 import { getApp } from "@react-native-firebase/app";
 import {
   getAuth,
-  onAuthStateChanged,
+  onIdTokenChanged,
   type FirebaseAuthTypes,
 } from "@react-native-firebase/auth";
 import * as Sentry from "@sentry/react-native";
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let active = true;
     let authStateVersion = 0;
 
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onIdTokenChanged(auth, (user) => {
       const version = ++authStateVersion;
       const previousUid = lastUidRef.current;
       const nextUid = user?.uid ?? null;

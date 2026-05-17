@@ -26,11 +26,16 @@ const mockInitializeUserOnboardingProfile = jest.fn<
 >();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockLogError = jest.fn<(...args: unknown[]) => void>();
+const mockFetchUserProfileRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockEmitUserProfileChanged = jest.fn<(...args: unknown[]) => void>();
+const mockNormalizeBootstrapProfile = jest.fn<(...args: unknown[]) => unknown>();
+const mockWriteProfileCache = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockDelete = jest.fn<() => Promise<void>>();
 const mockSignOut = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockSignInWithEmailAndPassword = jest.fn<
   (...args: unknown[]) => Promise<{ user: { uid: string } }>
 >();
+const mockGetIdToken = jest.fn<(...args: unknown[]) => Promise<string>>();
 const mockSendPasswordResetEmail = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockResetUserRuntime = jest.fn<
   (...args: unknown[]) => Promise<void>
@@ -45,6 +50,7 @@ jest.mock("@react-native-firebase/auth", () => ({
   signOut: (...args: unknown[]) => mockSignOut(...args),
   signInWithEmailAndPassword: (...args: unknown[]) =>
     mockSignInWithEmailAndPassword(...args),
+  getIdToken: (...args: unknown[]) => mockGetIdToken(...args),
   sendPasswordResetEmail: (...args: unknown[]) =>
     mockSendPasswordResetEmail(...args),
   createUserWithEmailAndPassword: (...args: unknown[]) =>
@@ -57,6 +63,19 @@ jest.mock("@/services/core/apiClient", () => ({
 
 jest.mock("@/services/core/errorLogger", () => ({
   logError: (...args: unknown[]) => mockLogError(...args),
+}));
+
+jest.mock("@/services/user/userProfileRepository", () => ({
+  fetchUserProfileRemote: (...args: unknown[]) =>
+    mockFetchUserProfileRemote(...args),
+  emitUserProfileChanged: (...args: unknown[]) =>
+    mockEmitUserProfileChanged(...args),
+}));
+
+jest.mock("@/services/user/profileCache", () => ({
+  normalizeBootstrapProfile: (...args: unknown[]) =>
+    mockNormalizeBootstrapProfile(...args),
+  writeProfileCache: (...args: unknown[]) => mockWriteProfileCache(...args),
 }));
 
 jest.mock("@/services/session/resetUserRuntime", () => ({
@@ -91,6 +110,16 @@ describe("authService", () => {
     mockSignInWithEmailAndPassword.mockResolvedValue({
       user: { uid: "user-1" },
     });
+    mockGetIdToken.mockResolvedValue("firebase-id-token");
+    mockFetchUserProfileRemote.mockResolvedValue({
+      uid: "user-1",
+      username: "neo",
+    });
+    mockNormalizeBootstrapProfile.mockReturnValue({
+      uid: "user-1",
+      username: "neo",
+    });
+    mockWriteProfileCache.mockResolvedValue(undefined);
     mockSendPasswordResetEmail.mockResolvedValue(undefined);
     mockResetUserRuntime.mockResolvedValue(undefined);
     mockPost.mockResolvedValue({ deleted: true });
@@ -149,6 +178,16 @@ describe("authService", () => {
       "user@example.com",
       "Strong1!",
     );
+    expect(mockGetIdToken).toHaveBeenCalledWith({ uid: "user-1" }, true);
+    expect(mockFetchUserProfileRemote).toHaveBeenCalledWith("user-1");
+    expect(mockWriteProfileCache).toHaveBeenCalledWith("user-1", {
+      uid: "user-1",
+      username: "neo",
+    });
+    expect(mockEmitUserProfileChanged).toHaveBeenCalledWith("user-1", {
+      uid: "user-1",
+      username: "neo",
+    });
     expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(
       expect.anything(),
       "user@example.com",
@@ -161,6 +200,62 @@ describe("authService", () => {
     expect(mockInitializeUserOnboardingProfile).toHaveBeenCalledWith(
       "neo",
       "en",
+    );
+  });
+
+  it("does not complete login until Firebase returns a fresh ID token", async () => {
+    let resolveToken!: (token: string) => void;
+    mockGetIdToken.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveToken = resolve;
+      }),
+    );
+
+    const login = authLogin("user@example.com", "Strong1!");
+    await Promise.resolve();
+
+    expect(mockSignInWithEmailAndPassword).toHaveBeenCalled();
+    let settled = false;
+    void login.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    resolveToken("fresh-token");
+
+    await expect(login).resolves.toMatchObject({ uid: "user-1" });
+  });
+
+  it("signs out and returns a login error when profile bootstrap fails", async () => {
+    const profileError = new Error("profile failed");
+    mockFetchUserProfileRemote.mockRejectedValueOnce(profileError);
+
+    await expect(
+      authLogin("user@example.com", "Strong1!"),
+    ).rejects.toMatchObject({
+      code: "auth/profile-bootstrap-failed",
+      source: "AuthService",
+      retryable: true,
+    });
+
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockResetUserRuntime).toHaveBeenCalledWith("user-1", {
+      reason: "logout",
+    });
+    expect(mockWriteProfileCache).not.toHaveBeenCalled();
+    expect(mockEmitUserProfileChanged).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the Firebase ID token before backend signup initialization", async () => {
+    await authRegister("user@example.com", "Strong1!", "Neo");
+
+    expect(mockGetIdToken).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: "user-1" }),
+      true,
+    );
+    expect(mockGetIdToken.mock.invocationCallOrder[0]).toBeLessThan(
+      mockInitializeUserOnboardingProfile.mock.invocationCallOrder[0],
     );
   });
 

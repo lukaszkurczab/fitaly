@@ -21,7 +21,7 @@ jest.mock("@react-native-firebase/app", () => ({
 
 jest.mock("@react-native-firebase/auth", () => ({
   getAuth: jest.fn(() => ({ app: "auth" })),
-  onAuthStateChanged: (_auth: unknown, callback: AuthStateCallback) => {
+  onIdTokenChanged: (_auth: unknown, callback: AuthStateCallback) => {
     authStateCallback = callback;
     return mockUnsubscribe;
   },
@@ -54,6 +54,24 @@ describe("AuthContext", () => {
     jest.clearAllMocks();
     authStateCallback = null;
     mockResetUserRuntime.mockResolvedValue(undefined);
+  });
+
+  it("publishes auth state from ID token events", async () => {
+    const renderedUids: Array<string | null> = [];
+    render(
+      <AuthProvider>
+        <Probe onRender={(uid) => renderedUids.push(uid)} />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      authStateCallback?.({ uid: "user-token", email: "token@example.com" });
+      await Promise.resolve();
+    });
+
+    expect(lastRenderedUid(renderedUids)).toBe("user-token");
+    expect(mockSentrySetUser).toHaveBeenLastCalledWith({ id: "user-token" });
+    expect(mockSetTelemetryUserId).toHaveBeenLastCalledWith("user-token");
   });
 
   it("resets previous user runtime before publishing switched account", async () => {

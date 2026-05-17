@@ -1,6 +1,7 @@
 import { getApp } from "@react-native-firebase/app";
 import {
   getAuth,
+  getIdToken,
   signOut,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -15,7 +16,18 @@ import {
 import { logError } from "@/services/core/errorLogger";
 import { initializeUserOnboardingProfile } from "@/services/user/userService";
 import { resetUserRuntime } from "@/services/session/resetUserRuntime";
-import { beginSignupProfileBootstrap } from "@/services/session/signupProfileBootstrap";
+import {
+  beginProfileBootstrap,
+  beginSignupProfileBootstrap,
+} from "@/services/session/signupProfileBootstrap";
+import {
+  emitUserProfileChanged,
+  fetchUserProfileRemote,
+} from "@/services/user/userProfileRepository";
+import {
+  normalizeBootstrapProfile,
+  writeProfileCache,
+} from "@/services/user/profileCache";
 import i18n from "@/i18n";
 
 function resolveInitialLanguage(language: string | undefined): "en" | "pl" {
@@ -69,14 +81,71 @@ async function rollbackFailedSignup(user: FirebaseAuthTypes.User): Promise<void>
   }
 }
 
+async function cleanupFailedLogin(
+  uid: string,
+  auth: ReturnType<typeof getAuth>,
+): Promise<void> {
+  try {
+    await signOut(auth);
+  } catch (signOutError) {
+    logError(
+      "authLogin: failed signOut after profile bootstrap failure",
+      { uid },
+      signOutError,
+    );
+  }
+
+  await resetUserRuntime(uid, { reason: "logout" });
+}
+
+async function bootstrapLoginProfile(user: FirebaseAuthTypes.User): Promise<void> {
+  const remoteProfile = await fetchUserProfileRemote(user.uid);
+  const profile = normalizeBootstrapProfile(user.uid, remoteProfile);
+
+  if (!profile) {
+    throw createServiceError({
+      code: "auth/profile-bootstrap-failed",
+      source: "AuthService",
+      retryable: true,
+      message: "Authenticated user profile is missing or invalid",
+    });
+  }
+
+  await writeProfileCache(user.uid, profile);
+  emitUserProfileChanged(user.uid, profile);
+}
+
 export async function authLogin(email: string, password: string) {
   const auth = getAuth(getApp());
-  const cred = await signInWithEmailAndPassword(
-    auth,
-    normalizeEmail(email),
-    password
-  );
-  return cred.user;
+  const profileBootstrap = beginProfileBootstrap();
+  let signedInUser: FirebaseAuthTypes.User | null = null;
+
+  try {
+    const cred = await signInWithEmailAndPassword(
+      auth,
+      normalizeEmail(email),
+      password
+    );
+    signedInUser = cred.user;
+    profileBootstrap.attachUid(cred.user.uid);
+    await getIdToken(cred.user, true);
+    await bootstrapLoginProfile(cred.user);
+    return cred.user;
+  } catch (error) {
+    if (signedInUser) {
+      await cleanupFailedLogin(signedInUser.uid, auth);
+      throw createServiceError({
+        code: "auth/profile-bootstrap-failed",
+        source: "AuthService",
+        retryable: true,
+        message: "Could not load user profile after login",
+        cause: error,
+      });
+    }
+    throw error;
+  } finally {
+    profileBootstrap.finish();
+  }
 }
 
 export async function authSendPasswordReset(email: string) {
@@ -114,6 +183,7 @@ export async function authRegister(
   try {
     const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
     signupBootstrap.attachUid(cred.user.uid);
+    await getIdToken(cred.user, true);
     const initialLanguage = resolveInitialLanguage(
       i18n.resolvedLanguage ?? i18n.language,
     );

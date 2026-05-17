@@ -89,6 +89,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isFirebaseNoCurrentUserError(error: unknown): boolean {
+  const code = isRecord(error) ? asString(error.code) : undefined;
+  if (code === "auth/no-current-user") {
+    return true;
+  }
+
+  return (
+    error instanceof Error &&
+    error.message.includes("[auth/no-current-user]")
+  );
+}
+
 async function getAuthToken(forceRefresh = false): Promise<string | null> {
   const auth = getAuth(getApp());
   const currentUser = auth.currentUser;
@@ -114,6 +126,11 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
         }, AUTH_TOKEN_TIMEOUT_MS);
       }),
     ]);
+  } catch (error) {
+    if (isFirebaseNoCurrentUserError(error)) {
+      return null;
+    }
+    throw error;
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
