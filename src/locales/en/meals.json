@@ -167,7 +167,7 @@
   "ingredient_name_required": "Ingredient name is required",
   "ingredient_invalid_values": "Values must be non-negative and amount must be greater than 0",
   "add_meal": "+ Add meal",
-  "add_ingredient": "+ Add ingredient",
+  "add_ingredient": "Add ingredient",
   "confirm_exit_title": "Leave meal creation?",
   "confirm_exit_message": "You have unsaved changes. If you leave now, they won't be saved.",
   "show_ingredients": "Show ingredients",

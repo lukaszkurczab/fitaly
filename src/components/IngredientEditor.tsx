@@ -12,6 +12,7 @@ import type { Ingredient } from "@/types";
 import { NumberInput } from "./NumberInput";
 import { TextInput } from "./TextInput";
 import { Button } from "./Button";
+import { Modal as AppModal } from "./Modal";
 
 type Props = {
   initial: Ingredient;
@@ -594,45 +595,6 @@ export const IngredientEditor: React.FC<Props> = ({
         </>
       )}
 
-      {recalcPromptVisible ? (
-        <View style={styles.recalcCard}>
-          <Text style={styles.recalcTitle}>
-            {t("recalc_title", {
-              ns: "meals",
-              defaultValue: "Recalculate values?",
-            })}
-          </Text>
-          <Text style={styles.recalcMessage}>
-            {t("recalc_message", {
-              ns: "meals",
-              defaultValue:
-                "Adjust protein, carbs, fat and kcal proportionally to the new amount?",
-            })}
-          </Text>
-          <View style={styles.recalcActions}>
-            <Button
-              variant="secondary"
-              style={styles.recalcActionButton}
-              fullWidth={false}
-              label={t("recalc_keep_values", {
-                ns: "meals",
-                defaultValue: "Keep macros",
-              })}
-              onPress={() => applyAmountRecalcChoice(false)}
-            />
-            <Button
-              style={styles.recalcActionButton}
-              fullWidth={false}
-              label={t("recalc_confirm", {
-                ns: "meals",
-                defaultValue: "Recalculate now",
-              })}
-              onPress={() => applyAmountRecalcChoice(true)}
-            />
-          </View>
-        </View>
-      ) : null}
-
       {showDelete ? (
         <Pressable onPress={onDelete} style={styles.deleteLink}>
           <Text style={styles.deleteLinkText}>
@@ -647,6 +609,34 @@ export const IngredientEditor: React.FC<Props> = ({
         </Pressable>
       ) : null}
 
+      <AppModal
+        visible={recalcPromptVisible}
+        title={t("recalc_title", {
+          ns: "meals",
+          defaultValue: "Recalculate values?",
+        })}
+        message={t("recalc_message", {
+          ns: "meals",
+          defaultValue:
+            "Adjust protein, carbs, fat and kcal proportionally to the new amount?",
+        })}
+        primaryAction={{
+          label: t("recalc_confirm", {
+            ns: "meals",
+            defaultValue: "Recalculate now",
+          }),
+          onPress: () => applyAmountRecalcChoice(true),
+        }}
+        secondaryAction={{
+          label: t("recalc_keep_values", {
+            ns: "meals",
+            defaultValue: "Keep macros",
+          }),
+          onPress: () => applyAmountRecalcChoice(false),
+          tone: "secondary",
+        }}
+        onClose={() => setRecalcPromptVisible(false)}
+      />
     </View>
   );
 };
@@ -694,7 +684,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     sheetField: {
       minHeight: 54,
-      borderRadius: theme.rounded.md,
+      borderRadius: theme.rounded.sm,
+      borderColor: theme.input.border,
+      backgroundColor: theme.input.background,
     },
     inputError: {
       borderColor: theme.input.borderError,
@@ -763,34 +755,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
-    },
-    recalcCard: {
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.backgroundSecondary,
-      borderRadius: theme.rounded.md,
-      padding: theme.spacing.md,
-      gap: theme.spacing.sm,
-      marginTop: theme.spacing.sm,
-    },
-    recalcTitle: {
-      color: theme.text,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
-      fontFamily: theme.typography.fontFamily.semiBold,
-    },
-    recalcMessage: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
-    },
-    recalcActions: {
-      flexDirection: "row",
-      gap: theme.spacing.sm,
-    },
-    recalcActionButton: {
-      flex: 1,
     },
     sheetActions: {
       flexDirection: "row",

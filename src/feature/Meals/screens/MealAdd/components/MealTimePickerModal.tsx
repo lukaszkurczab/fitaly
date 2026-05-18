@@ -1,7 +1,15 @@
-import { Modal as RNModal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal as RNModal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { Button, Clock12h, Clock24h } from "@/components";
 import { useTheme } from "@/theme/useTheme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type MealTimePickerModalProps = {
   visible: boolean;
@@ -21,14 +29,22 @@ export default function MealTimePickerModal({
   onApply,
 }: MealTimePickerModalProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { t } = useTranslation(["meals", "common"]);
   const styles = createStyles(theme);
+  const sheetMaxHeight = Math.max(
+    280,
+    Math.min(windowHeight * 0.68, windowHeight - insets.top - theme.spacing.md),
+  );
 
   return (
     <RNModal
       transparent
       animationType="fade"
       visible={visible}
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View style={styles.sheetOverlay}>
@@ -41,7 +57,15 @@ export default function MealTimePickerModal({
             defaultValue: "Close meal time picker",
           })}
         />
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: theme.spacing.xl + insets.bottom,
+              maxHeight: sheetMaxHeight,
+            },
+          ]}
+        >
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>
             {t("meal_time", { ns: "meals", defaultValue: "Meal time" })}
@@ -87,7 +111,7 @@ export default function MealTimePickerModal({
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     sheetOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      flex: 1,
       justifyContent: "flex-end",
     },
     sheetBackdrop: {
@@ -102,7 +126,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       borderTopRightRadius: theme.rounded.xxl,
       paddingTop: theme.spacing.sm,
       paddingHorizontal: theme.spacing.bottomSheetPadding,
-      paddingBottom: theme.spacing.xl,
       gap: theme.spacing.sm,
       shadowColor: theme.shadow,
       shadowOpacity: theme.isDark ? 0.4 : 0.18,

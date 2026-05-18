@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Keyboard } from "react-native";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 import type { Ingredient, Meal, MealType } from "@/types/meal";
@@ -146,6 +147,7 @@ export function useMealDetailsForm({
   }, [mealTimestamp]);
 
   const handleOpenTimePicker = useCallback(() => {
+    Keyboard.dismiss();
     setPickerDate(getMealDateOrNow(mealTimestamp));
     setTimePickerVisible(true);
   }, [mealTimestamp]);

@@ -212,7 +212,7 @@ describe("IngredientEditor", () => {
 
   it("asks after amount blur and recalculates fields without committing", () => {
     const onCommit = jest.fn();
-    const { getByDisplayValue, getByText } = renderWithTheme(
+    const { getByDisplayValue, getByText, queryByText } = renderWithTheme(
       <IngredientEditor
         initial={{
           id: "ing-6",
@@ -240,6 +240,7 @@ describe("IngredientEditor", () => {
     fireEvent.press(getByText("meals:recalc_confirm"));
 
     expect(onCommit).not.toHaveBeenCalled();
+    expect(queryByText("meals:recalc_title")).toBeNull();
     expect(getByDisplayValue("12")).toBeTruthy();
     expect(getByDisplayValue("84")).toBeTruthy();
     expect(getByDisplayValue("2.4")).toBeTruthy();
@@ -257,5 +258,39 @@ describe("IngredientEditor", () => {
       fat: 2.4,
       kcal: 396,
     });
+  });
+
+  it("keeps macros after amount prompt without committing", () => {
+    const onCommit = jest.fn();
+    const { getByDisplayValue, getByText, queryByText } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-7",
+          name: "Rice",
+          amount: 250,
+          unit: "g",
+          protein: 10,
+          carbs: 70,
+          fat: 2,
+          kcal: 330,
+        }}
+        variant="sheet"
+        onCommit={onCommit}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    const amountInput = getByDisplayValue("250");
+    fireEvent.changeText(amountInput, "300");
+    fireEvent(amountInput, "blur");
+    fireEvent.press(getByText("meals:recalc_keep_values"));
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(queryByText("meals:recalc_title")).toBeNull();
+    expect(getByDisplayValue("10")).toBeTruthy();
+    expect(getByDisplayValue("70")).toBeTruthy();
+    expect(getByDisplayValue("2")).toBeTruthy();
+    expect(getByDisplayValue("330")).toBeTruthy();
   });
 });

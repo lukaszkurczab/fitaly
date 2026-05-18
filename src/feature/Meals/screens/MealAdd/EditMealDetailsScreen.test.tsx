@@ -1,5 +1,6 @@
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Keyboard } from "react-native";
 import EditMealDetailsScreen from "@/feature/Meals/screens/MealAdd/EditMealDetailsScreen";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -166,6 +167,7 @@ const buildProps = () =>
 
 describe("EditMealDetailsScreen", () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
     mockUseUserContext.mockReturnValue({ userData: { uid: "user-1" } });
     mockUseMeals.mockReturnValue({ addMeal: jest.fn(async () => undefined) });
@@ -220,5 +222,34 @@ describe("EditMealDetailsScreen", () => {
       id: "meal-1",
       skipDetection: true,
     });
+  });
+
+  it("dismisses the keyboard before opening the time picker sheet", () => {
+    const dismissSpy = jest.spyOn(Keyboard, "dismiss").mockImplementation(jest.fn());
+    const setMeal = jest.fn();
+    const props = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: buildMeal(),
+      loadDraft: jest.fn(async () => undefined),
+      saveDraft: jest.fn(async () => undefined),
+      setMeal,
+      setLastScreen: jest.fn(async () => undefined),
+      clearMeal: jest.fn(),
+    });
+
+    const { getByLabelText, getByText, queryByText } = renderWithTheme(
+      <EditMealDetailsScreen {...props} />,
+    );
+
+    fireEvent.press(getByLabelText("Time"));
+
+    expect(dismissSpy).toHaveBeenCalledTimes(1);
+    expect(getByText("Meal time")).toBeTruthy();
+
+    fireEvent.press(getByText("common:cancel"));
+
+    expect(queryByText("Meal time")).toBeNull();
+    expect(setMeal).not.toHaveBeenCalled();
   });
 });

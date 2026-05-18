@@ -134,6 +134,14 @@ export default function SelectSavedMealScreen({
     navigation.navigate("Home");
   }, [navigation]);
 
+  const closeButton = (
+    <ScreenCornerNavButton
+      icon="close"
+      onPress={handleExit}
+      accessibilityLabel={t("common:close", { defaultValue: "Close" })}
+    />
+  );
+
   if (loading) {
     return (
       <Layout disableScroll showNavigation={false}>
@@ -146,6 +154,8 @@ export default function SelectSavedMealScreen({
     const isOfflineEmpty = !isOnline && !queryText.trim();
     return (
       <Layout disableScroll showNavigation={false} style={styles.layout}>
+        {closeButton}
+
         <View style={styles.screen}>
           <View style={styles.searchWrap}>
             <TextInput
@@ -211,11 +221,7 @@ export default function SelectSavedMealScreen({
 
   return (
     <Layout disableScroll showNavigation={false} style={styles.layout}>
-      <ScreenCornerNavButton
-        icon="close"
-        onPress={handleExit}
-        accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-      />
+      {closeButton}
 
       <View style={styles.screen}>
         <View style={styles.searchWrap}>

@@ -197,11 +197,12 @@ describe("SelectSavedMealScreen", () => {
       viewabilityConfig: {},
     });
 
-    const { getByText } = renderWithTheme(
+    const { getByText, queryByText } = renderWithTheme(
       <SelectSavedMealScreen navigation={{} as never} />,
     );
 
     expect(getByText("full-screen-loader")).toBeTruthy();
+    expect(queryByText("close-button")).toBeNull();
   });
 
   it("shows the empty state and supports starting over", () => {
@@ -232,6 +233,35 @@ describe("SelectSavedMealScreen", () => {
     expect(getByText("No saved meals yet")).toBeTruthy();
     expect(setQueryText).toHaveBeenCalledWith("pasta");
     expect(handleStartOver).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows close button on empty state and uses back navigation when available", () => {
+    const goBack = jest.fn();
+    const navigate = jest.fn();
+    mockUseSelectSavedMealsState.mockReturnValue({
+      step: 20,
+      queryText: "",
+      setQueryText: jest.fn(),
+      loading: false,
+      pageItems: [],
+      refresh: jest.fn(),
+      handleAddMeal: jest.fn(),
+      handleStartOver: jest.fn(),
+      keyExtractor: jest.fn(),
+      onViewableItemsChanged: { current: jest.fn() },
+      viewabilityConfig: {},
+    });
+
+    const { getByLabelText } = renderWithTheme(
+      <SelectSavedMealScreen
+        navigation={{ canGoBack: () => true, goBack, navigate } as never}
+      />,
+    );
+
+    fireEvent.press(getByLabelText("common:close"));
+
+    expect(goBack).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("shows offline-empty state copy when there are no local saved meals", () => {
@@ -273,16 +303,21 @@ describe("SelectSavedMealScreen", () => {
       viewabilityConfig: {},
     });
 
-    const { getByText } = renderWithTheme(
-      <SelectSavedMealScreen navigation={{} as never} />,
+    const navigate = jest.fn();
+    const { getByText, getByLabelText } = renderWithTheme(
+      <SelectSavedMealScreen
+        navigation={{ canGoBack: () => false, goBack: jest.fn(), navigate } as never}
+      />,
     );
 
     fireEvent.press(getByText("add:Chicken pasta"));
+    fireEvent.press(getByLabelText("common:close"));
 
     expect(getByText("input:chi")).toBeTruthy();
     expect(handleAddMeal).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Chicken pasta" }),
     );
+    expect(navigate).toHaveBeenCalledWith("Home");
   });
 
   it("passes working sync and navigation callbacks to state hook", async () => {

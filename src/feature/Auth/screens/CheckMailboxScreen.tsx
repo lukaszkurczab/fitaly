@@ -123,43 +123,45 @@ export default function CheckMailboxScreen({ navigation }: Props) {
         containerStyle={styles.topLeftAction}
       />
 
-      <View style={styles.illustrationWrap}>
-        <View style={styles.iconCard}>
-          <AppIcon name="email" size={128} color={theme.primary} />
+      <View style={styles.contentCenter}>
+        <View style={styles.contentStack}>
+          <View style={styles.illustrationWrap}>
+            <View style={styles.iconCard}>
+              <AppIcon name="email" size={128} color={theme.primary} />
+            </View>
+          </View>
+
+          <Text style={styles.title} accessibilityRole="header">
+            {t("checkMailboxTitle")}
+          </Text>
+
+          <Text style={styles.subtitle}>
+            {t("checkMailboxDesc", {
+              email: email.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+            })}
+          </Text>
+
+          <Text style={styles.subtitleWide}>{t("successGeneric")}</Text>
+
+          {error ? <ErrorBox message={error} style={styles.errorSpacing} /> : null}
+
+          <GlobalActionButtons
+            label={t("backToLogin")}
+            onPress={() => navigation.navigate("Login")}
+            primaryStyle={styles.primaryAction}
+            secondaryLabel={
+              sendAgainDisabled
+                ? t("sendAgainInfo", { seconds: timer })
+                : t("sendAgain")
+            }
+            secondaryOnPress={handleSendAgain}
+            secondaryDisabled={sending || sendAgainDisabled || noInternet}
+            secondaryLoading={sending}
+            secondaryStyle={styles.secondaryAction}
+            containerStyle={styles.actionSpacing}
+          />
         </View>
       </View>
-
-      <Text style={styles.title} accessibilityRole="header">
-        {t("checkMailboxTitle")}
-      </Text>
-
-      <Text style={styles.subtitle}>
-        {t("checkMailboxDesc", {
-          email: email.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-        })}
-      </Text>
-
-      <Text style={styles.subtitleWide}>{t("successGeneric")}</Text>
-
-      {error ? <ErrorBox message={error} style={styles.errorSpacing} /> : null}
-
-      <GlobalActionButtons
-        label={t("backToLogin")}
-        onPress={() => navigation.navigate("Login")}
-        primaryStyle={styles.primaryAction}
-        secondaryLabel={
-          sendAgainDisabled
-            ? t("sendAgainInfo", { seconds: timer })
-            : t("sendAgain")
-        }
-        secondaryOnPress={handleSendAgain}
-        secondaryDisabled={sending || sendAgainDisabled || noInternet}
-        secondaryLoading={sending}
-        secondaryStyle={styles.secondaryAction}
-        containerStyle={styles.actionSpacing}
-      />
-
-      <View style={styles.bottomSpacer} />
     </Layout>
   );
 }
@@ -169,6 +171,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     topLeftAction: {
       top: 0,
       left: 0,
+    },
+    contentCenter: {
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: theme.spacing.xxxl,
+    },
+    contentStack: {
+      width: "100%",
+      maxWidth: 420,
+      alignSelf: "center",
+      alignItems: "stretch",
     },
     illustrationWrap: {
       alignItems: "center",
@@ -204,6 +218,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
       marginBottom: theme.spacing.md,
       fontFamily: theme.typography.fontFamily.regular,
+      width: "100%",
+      flexShrink: 1,
     },
     subtitleWide: {
       fontSize: theme.typography.size.bodyL,
@@ -212,6 +228,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
       marginBottom: theme.spacing.lg,
       fontFamily: theme.typography.fontFamily.regular,
+      width: "100%",
+      flexShrink: 1,
     },
     errorSpacing: {
       marginBottom: theme.spacing.md,
@@ -224,8 +242,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     secondaryAction: {
       width: "100%",
-    },
-    bottomSpacer: {
-      height: theme.spacing.md,
     },
   });
