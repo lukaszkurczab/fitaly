@@ -6,6 +6,11 @@ import { stopSyncLoop } from "@/services/offline/sync.engine";
 import { resetOfflineStorage } from "@/services/offline/db";
 import { setE2EForcedOffline } from "@/services/e2e/connectivity";
 import { isE2EModeEnabled } from "@/services/e2e/config";
+import {
+  markE2EResetReady,
+  markE2EResetStarted,
+  type E2EReadyTarget,
+} from "@/services/e2e/status";
 
 type ResetOptions = {
   forceOffline: boolean;
@@ -45,13 +50,29 @@ function isResetDeepLink(url: string): boolean {
   return normalized.startsWith(RESET_PATH);
 }
 
-function resetToAuthOrHome(logout: boolean) {
+function resolveNavigationTarget(logout: boolean): "Login" | "Home" {
   const auth = getAuth(getApp());
-  const target = logout || !auth.currentUser ? "Login" : "Home";
-  resetNavigation(target);
+  return logout || !auth.currentUser ? "Login" : "Home";
+}
+
+function resetToAuthOrHome(logout: boolean): "Login" | "Home" {
+  const target = resolveNavigationTarget(logout);
+  if (target === "Home") {
+    resetNavigation(target);
+  }
+  return target;
+}
+
+function toReadyTarget(
+  navigationTarget: "Login" | "Home",
+  forceOffline: boolean,
+): E2EReadyTarget {
+  if (forceOffline) return "offline";
+  return navigationTarget === "Login" ? "login" : "home";
 }
 
 async function runReset(options: ResetOptions) {
+  markE2EResetStarted();
   stopSyncLoop();
   setE2EForcedOffline(false);
 
@@ -76,7 +97,8 @@ async function runReset(options: ResetOptions) {
   }
 
   setE2EForcedOffline(options.forceOffline);
-  resetToAuthOrHome(options.logout);
+  const navigationTarget = resetToAuthOrHome(options.logout);
+  markE2EResetReady(toReadyTarget(navigationTarget, options.forceOffline));
 }
 
 export async function handleE2EDeepLink(url: string): Promise<boolean> {

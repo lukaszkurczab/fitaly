@@ -39,6 +39,7 @@ export default function DataAiClarityScreen({
 
   return (
     <FormScreenShell
+      testID="data-ai-clarity-screen"
       title={t("dataAiClarityTitle", {
         defaultValue: "Data & AI clarity",
       })}

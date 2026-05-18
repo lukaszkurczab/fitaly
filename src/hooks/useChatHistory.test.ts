@@ -39,6 +39,7 @@ const mockCacheAssistantChatMessageProjection = jest.fn<
 const mockMarkChatMessageProjectionSynced = jest.fn<
   (params: unknown) => Promise<void>
 >();
+const mockGetE2EMockChatReply = jest.fn<() => string | null>();
 const mockPushQueue = jest.fn<(uid: string) => Promise<void>>();
 const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
 
@@ -84,6 +85,10 @@ jest.mock("@/services/core/apiClient", () => ({
 jest.mock("@/services/core/errorLogger", () => ({
   captureException: (message: string, context?: unknown, error?: unknown) =>
     mockCaptureException(message, context, error),
+}));
+
+jest.mock("@/services/e2e/config", () => ({
+  getE2EMockChatReply: () => mockGetE2EMockChatReply(),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -182,6 +187,7 @@ describe("useChatHistory", () => {
     mockCacheUserChatMessageProjection.mockResolvedValue();
     mockCacheAssistantChatMessageProjection.mockResolvedValue();
     mockMarkChatMessageProjectionSynced.mockResolvedValue();
+    mockGetE2EMockChatReply.mockReturnValue(null);
     mockPushQueue.mockResolvedValue();
     mockPullChatChanges.mockResolvedValue();
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length}`);
@@ -297,6 +303,49 @@ describe("useChatHistory", () => {
     });
     expect(mockPushQueue).not.toHaveBeenCalled();
     expect(mockRefreshAccess).not.toHaveBeenCalled();
+  });
+
+  it("uses the E2E mock reply without calling the AI backend", async () => {
+    mockGetE2EMockChatReply.mockReturnValue(
+      "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+    );
+    mockUuid
+      .mockReturnValueOnce("request-1")
+      .mockReturnValueOnce("thread-created")
+      .mockReturnValueOnce("user-msg")
+      .mockReturnValueOnce("ai-msg");
+
+    const { result } = await renderChatHistoryHook();
+
+    let createdThreadId: string | null = null;
+    await act(async () => {
+      createdThreadId = await result.current.send("hello");
+    });
+
+    expect(createdThreadId).toBe("thread-created");
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockApplyCreditsFromResponse).not.toHaveBeenCalled();
+    expect(mockApplyAccessFromResponse).not.toHaveBeenCalled();
+    expect(mockMarkChatMessageProjectionSynced).toHaveBeenCalledWith({
+      userUid: "user-1",
+      threadId: "thread-created",
+      messageId: "user-msg",
+      lastSyncedAt: expect.any(Number),
+    });
+    expect(mockCacheAssistantChatMessageProjection).toHaveBeenCalledWith({
+      userUid: "user-1",
+      threadId: "thread-created",
+      messageId: "ai-msg",
+      content: "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+      createdAt: expect.any(Number),
+    });
+    expect(result.current.messages.map((message) => message.content)).toEqual(
+      expect.arrayContaining([
+        "hello",
+        "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+      ]),
+    );
+    expect(result.current.messages).toHaveLength(2);
   });
 
   it("refreshes credits after backend 402 and persists limit fallback", async () => {

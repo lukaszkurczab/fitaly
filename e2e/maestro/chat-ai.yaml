@@ -3,9 +3,17 @@ appId: com.lkurczab.fitaly
 - runFlow: login.yaml
 - tapOn:
     id: tab-chat
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
 - tapOn:
     id: chat-input
 - inputText: "Plan a balanced dinner for today"
 - tapOn:
     id: chat-send-button
-- assertVisible: "E2E_MOCK_CHAT_REPLY"
+- assertVisible:
+    id: chat-message-ai

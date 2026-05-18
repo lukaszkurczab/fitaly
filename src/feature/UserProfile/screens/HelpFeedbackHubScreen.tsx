@@ -33,6 +33,7 @@ export default function HelpFeedbackHubScreen({
 
   return (
     <FormScreenShell
+      testID="help-feedback-screen"
       title={t("helpFeedbackHubTitle", {
         defaultValue: "Help & feedback",
       })}

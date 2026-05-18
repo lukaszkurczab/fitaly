@@ -8,6 +8,11 @@ on:
         required: false
         default: ios
         type: string
+    secrets:
+      SMOKE_EXPORT_TEST_EMAIL:
+        required: false
+      SMOKE_EXPORT_TEST_PASSWORD:
+        required: false
   workflow_dispatch:
     inputs:
       platform:
@@ -32,6 +37,8 @@ jobs:
 
     env:
       E2E_PLATFORM: ${{ inputs.platform || github.event.inputs.platform || 'ios' }}
+      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
 
     steps:
       - name: Checkout repository

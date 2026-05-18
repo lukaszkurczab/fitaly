@@ -29,6 +29,7 @@ export default function EditUserDataScreen({
 
   return (
     <FormScreenShell
+      testID="profile-details-screen"
       title={t("profileDetailsTitle", { defaultValue: "Profile details" })}
       intro={t("profileDetailsIntro", {
         defaultValue: "Update how your account appears and how you sign in.",

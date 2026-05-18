@@ -57,6 +57,7 @@ export default function ProfilePhotoPreviewScreen({
   return (
     <>
       <FormScreenShell
+        testID="profile-photo-screen"
         title={t("photoSourceTitle")}
         intro={t("profilePhotoScreenIntro", {
           defaultValue:
@@ -93,12 +94,14 @@ export default function ProfilePhotoPreviewScreen({
           >
             <SettingsRow
               title={t("makePhoto")}
+              testID="profile-photo-camera-row"
               onPress={() =>
                 navigation.navigate("AvatarCamera", { returnDepth: 2 })
               }
             />
             <SettingsRow
               title={t("addFromGallery")}
+              testID="profile-photo-gallery-row"
               onPress={() => {
                 void handlePickFromGallery();
               }}

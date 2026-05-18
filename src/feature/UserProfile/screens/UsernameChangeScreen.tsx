@@ -195,6 +195,7 @@ export default function UsernameChangeScreen({
 
   return (
     <FormScreenShell
+      testID="username-change-screen"
       title={t("changeUsername")}
       intro={t("changeUsernameIntro", {
       })}

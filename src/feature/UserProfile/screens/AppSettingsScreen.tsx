@@ -48,6 +48,7 @@ export default function AppSettingsScreen({
   return (
     <>
       <FormScreenShell
+        testID="app-settings-screen"
         title={t("appSettingsTitle", { defaultValue: "App settings" })}
         intro={t("appSettingsIntro", {
           defaultValue:

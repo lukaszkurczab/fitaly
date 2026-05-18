@@ -1,12 +1,27 @@
 appId: com.lkurczab.fitaly
 env:
   E2E_EMAIL: e2e@example.com
-  E2E_PASSWORD: password123
+  E2E_PASSWORD: Test@1234
   E2E_ALT_EMAIL: e2e-alt@example.com
-  E2E_ALT_PASSWORD: password123
+  E2E_ALT_PASSWORD: Test@1234
 ---
-- launchApp
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- assertVisible:
+    id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1
+- assertVisible:
+    id: e2e-ready-login
 - assertVisible:
     id: login-email-input
 
@@ -23,22 +38,48 @@ env:
 - tapOn:
     id: account-logout-row
 - assertVisible:
+    id: account-logout-confirm-button
+- tapOn:
+    id: account-logout-confirm-button
+- assertVisible:
     id: login-email-input
 
 - tapOn:
     id: login-email-input
 - eraseText
-- inputText: ${E2E_ALT_EMAIL}
+- inputText: ${E2E_EMAIL}
 - tapOn:
     id: login-password-input
 - eraseText
-- inputText: ${E2E_ALT_PASSWORD}
+- inputText: ${E2E_PASSWORD}
 - tapOn:
     id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
 - assertVisible:
     id: tab-home
 
 - stopApp
-- launchApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- assertVisible:
+    id: e2e-booted
 - assertVisible:
     id: tab-home

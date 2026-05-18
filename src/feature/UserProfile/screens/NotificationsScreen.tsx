@@ -236,6 +236,7 @@ export default function NotificationsScreen({
   return (
     <>
       <FormScreenShell
+        testID="notifications-screen"
         title={t("screen.title")}
         intro={t("screen.intro")}
         onBack={handleBack}

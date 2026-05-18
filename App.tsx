@@ -35,6 +35,7 @@ import { useAppFonts } from "@hooks/useAppFonts";
 import { ToastBridge } from "@/components";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { handleE2EDeepLink } from "@/services/e2e/deepLink";
+import { E2EStatusOverlay } from "@/services/e2e/status";
 import {
   initNotificationTelemetry,
   stopNotificationTelemetry,
@@ -250,6 +251,7 @@ function Root() {
                   <ThemeController>
                     <AppNavigator />
                     <ToastBridge />
+                    <E2EStatusOverlay />
                   </ThemeController>
                 </HistoryProvider>
               </MealDraftProvider>

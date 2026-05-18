@@ -54,6 +54,7 @@ export default function DeleteAccountScreen({
   return (
     <>
       <FormScreenShell
+        testID="delete-account-screen"
         title={t("deleteAccount")}
         onBack={() => navigation.goBack()}
         actionLabel={t("deleteAccount")}

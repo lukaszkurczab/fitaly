@@ -1,11 +1,26 @@
 appId: com.lkurczab.fitaly
 env:
-  E2E_CONFLICT_USERNAME: e2e-user
-  E2E_REGISTER_EMAIL: e2e-conflict@example.com
-  E2E_REGISTER_PASSWORD: password123
+  E2E_CONFLICT_USERNAME: e2e
+  E2E_REGISTER_EMAIL: e2e-conflict-username@example.com
+  E2E_REGISTER_PASSWORD: Test1234.
 ---
-- launchApp
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- assertVisible:
+    id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1
+- assertVisible:
+    id: e2e-ready-login
 - assertVisible:
     id: login-email-input
 - tapOn:
@@ -22,6 +37,10 @@ env:
 - eraseText
 - inputText: ${E2E_REGISTER_EMAIL}
 - tapOn:
+    id: register-password-visibility-toggle
+- tapOn:
+    id: register-confirm-password-visibility-toggle
+- tapOn:
     id: register-password-input
 - eraseText
 - inputText: ${E2E_REGISTER_PASSWORD}
@@ -29,11 +48,13 @@ env:
     id: register-confirm-password-input
 - eraseText
 - inputText: ${E2E_REGISTER_PASSWORD}
+- hideKeyboard
+- tapOn: "Utwórz konto"
 - tapOn:
     id: register-terms-checkbox
 - tapOn:
     id: register-submit-button
 
-- assertVisible: "This username is already taken"
+- assertVisible: "Ta nazwa użytkownika jest już zajęta."
 - assertVisible:
     id: register-username-input

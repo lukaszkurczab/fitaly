@@ -238,6 +238,7 @@ export default function ManageSubscriptionScreen({
     if (!isOnline) {
       return (
         <FormScreenShell
+          testID="manage-subscription-screen"
           title={t("manageSubscription.title")}
           onBack={() => {
             if (navigation.canGoBack()) {
@@ -281,6 +282,7 @@ export default function ManageSubscriptionScreen({
   return (
     <>
       <FormScreenShell
+        testID="manage-subscription-screen"
         title={t("manageSubscription.title")}
         intro={t("manageSubscription.screenIntro", {
           defaultValue:

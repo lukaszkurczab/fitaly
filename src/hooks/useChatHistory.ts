@@ -22,6 +22,7 @@ import {
   type AiChatBackendErrorCode,
   type AiUxErrorType,
 } from "@/services/ai/uxError";
+import { getE2EMockChatReply } from "@/services/e2e/config";
 import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
 import {
@@ -353,36 +354,41 @@ export function useChatHistory(
         let chatRunFailed = false;
         let assistantReply: string | null = null;
         let assistantMessageIdFromServer: string | null = null;
+        const e2eMockChatReply = getE2EMockChatReply();
         try {
           if (!isRequestActive()) return null;
-          const chatRunPayload: AiChatRunRequest = {
-            threadId: createdThreadId,
-            clientMessageId: userMsgId,
-            message: trimmed,
-            language: i18next.language === "pl" ? "pl" : "en",
-          };
-          const aiResponse = await post<AiChatRunResponse>(
-            "/api/v2/ai/chat/runs",
-            chatRunPayload,
-            {
-              signal: chatRunAbortController.signal,
-              retryMode: "idempotent",
-            },
-          );
+          if (e2eMockChatReply) {
+            assistantReply = e2eMockChatReply;
+          } else {
+            const chatRunPayload: AiChatRunRequest = {
+              threadId: createdThreadId,
+              clientMessageId: userMsgId,
+              message: trimmed,
+              language: i18next.language === "pl" ? "pl" : "en",
+            };
+            const aiResponse = await post<AiChatRunResponse>(
+              "/api/v2/ai/chat/runs",
+              chatRunPayload,
+              {
+                signal: chatRunAbortController.signal,
+                retryMode: "idempotent",
+              },
+            );
 
-          if (!isRequestActive()) return null;
+            if (!isRequestActive()) return null;
 
-          assistantReply = aiResponse.reply?.trim() ? aiResponse.reply : null;
-          assistantMessageIdFromServer =
-            typeof aiResponse.assistantMessageId === "string" &&
-            aiResponse.assistantMessageId.trim().length > 0
-              ? aiResponse.assistantMessageId
-              : null;
-          if (!assistantReply) {
-            setSendErrorType("unknown");
+            assistantReply = aiResponse.reply?.trim() ? aiResponse.reply : null;
+            assistantMessageIdFromServer =
+              typeof aiResponse.assistantMessageId === "string" &&
+              aiResponse.assistantMessageId.trim().length > 0
+                ? aiResponse.assistantMessageId
+                : null;
+            if (!assistantReply) {
+              setSendErrorType("unknown");
+            }
+            applyCreditsFromResponse(aiResponse);
+            applyAccessFromResponse(aiResponse);
           }
-          applyCreditsFromResponse(aiResponse);
-          applyAccessFromResponse(aiResponse);
         } catch (error) {
           if (isServiceError(error) && error.code === "api/aborted") {
             return null;

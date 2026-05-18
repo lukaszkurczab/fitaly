@@ -80,6 +80,7 @@ export default function LegalPrivacyHubScreen({
   return (
     <>
       <FormScreenShell
+        testID="legal-privacy-screen"
         title={t("legalPrivacyHubTitle", {
           defaultValue: "Legal & privacy",
         })}

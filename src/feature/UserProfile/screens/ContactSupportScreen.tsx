@@ -92,6 +92,7 @@ export default function ContactSupportScreen({
 
   return (
     <FormScreenShell
+      testID="contact-support-screen"
       title={t("contactSupportTitle", {
         defaultValue: "Contact support",
       })}

@@ -130,6 +130,7 @@ export default function ChangeEmailScreen({
 
   return (
     <FormScreenShell
+      testID="email-change-screen"
       title={t("changeEmail")}
       intro={t("changeEmailIntro", {
       })}

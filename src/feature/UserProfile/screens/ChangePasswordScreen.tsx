@@ -125,6 +125,7 @@ export default function ChangePasswordScreen({
 
   return (
     <FormScreenShell
+      testID="password-change-screen"
       title={t("change_password")}
       intro={t("changePasswordIntro", {
         defaultValue:

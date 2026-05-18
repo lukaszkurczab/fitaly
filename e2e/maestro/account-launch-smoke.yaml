@@ -3,70 +3,106 @@ appId: com.lkurczab.fitaly
 - runFlow: login.yaml
 - tapOn:
     id: tab-profile
-- assertVisible: "Account"
+- assertVisible:
+    id: account-profile-details-row
 
 - tapOn:
     id: account-profile-details-row
-- assertVisible: "Profile details"
+- assertVisible:
+    id: profile-details-screen
 
 - tapOn:
     id: profile-details-photo-row
-- assertVisible: "Update profile photo"
-- back
+- assertVisible:
+    id: profile-photo-screen
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: profile-details-username-row
-- assertVisible: "Change username"
-- back
+- assertVisible:
+    id: username-change-screen
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: profile-details-email-row
-- assertVisible: "Change email"
-- back
+- assertVisible:
+    id: email-change-screen
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: profile-details-password-row
-- assertVisible: "Change password"
-- back
-- back
+- assertVisible:
+    id: password-change-screen
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: account-manage-subscription-row
-- assertVisible: "Manage subscription"
-- back
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: account-legal-privacy-row
-- assertVisible: "Legal & privacy"
+- assertVisible:
+    id: legal-privacy-screen
 - tapOn:
     id: legal-data-ai-row
-- assertVisible: "Data & AI clarity"
-- back
-- back
+- assertVisible:
+    id: data-ai-clarity-screen
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
 
 - tapOn:
     id: account-help-feedback-row
-- assertVisible: "Help & feedback"
+- assertVisible:
+    id: help-feedback-screen
 - tapOn:
     id: help-contact-support-row
-- assertVisible: "Contact support"
-- back
+- assertVisible:
+    id: contact-support-screen
+- tapOn:
+    id: back-title-header-back
 - tapOn:
     id: help-send-feedback-row
-- assertVisible: "Send feedback"
-- back
-- back
+- assertVisible:
+    id: send-feedback-screen
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
 
+- runFlow:
+    when:
+      visible: "Zamknij"
+    commands:
+      - tapOn: "Zamknij"
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
 - tapOn:
     id: account-app-settings-row
-- assertVisible: "App settings"
+- assertVisible:
+    id: app-settings-screen
 - tapOn:
     id: app-settings-notifications-row
-- assertVisible: "Notifications"
-- tapOn: "Create reminder"
-- assertVisible: "Create reminder"
-- back
-- back
+- assertVisible:
+    id: notifications-screen
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
 
 - scrollUntilVisible:
     element:
@@ -74,4 +110,5 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - tapOn:
     id: account-delete-account-row
-- assertVisible: "Delete account"
+- assertVisible:
+    id: delete-account-screen

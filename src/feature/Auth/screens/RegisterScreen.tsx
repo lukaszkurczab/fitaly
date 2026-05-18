@@ -131,8 +131,13 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     );
   };
 
-  const renderEyeIcon = (show: boolean, toggle: () => void) => (
+  const renderEyeIcon = (
+    show: boolean,
+    toggle: () => void,
+    testID: string,
+  ) => (
     <Pressable
+      testID={testID}
       onPress={toggle}
       accessibilityLabel={t("toggle_password_visibility")}
       hitSlop={8}
@@ -229,7 +234,11 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
           error={passwordError}
           accessibilityLabel={t("password", { ns: "login" })}
-          icon={renderEyeIcon(showPassword, () => setShowPassword((v) => !v))}
+          icon={renderEyeIcon(
+            showPassword,
+            () => setShowPassword((v) => !v),
+            "register-password-visibility-toggle",
+          )}
           iconPosition="right"
           editable={!loading}
           style={styles.field}
@@ -251,7 +260,11 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           }
           error={confirmPasswordError}
           accessibilityLabel={t("confirm_password")}
-          icon={renderEyeIcon(showConfirm, () => setShowConfirm((v) => !v))}
+          icon={renderEyeIcon(
+            showConfirm,
+            () => setShowConfirm((v) => !v),
+            "register-confirm-password-visibility-toggle",
+          )}
           iconPosition="right"
           editable={!loading}
           style={styles.confirmField}

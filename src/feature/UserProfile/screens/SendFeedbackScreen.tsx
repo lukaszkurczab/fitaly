@@ -151,6 +151,7 @@ export default function SendFeedbackScreen({
   return (
     <>
       <FormScreenShell
+        testID="send-feedback-screen"
         title={t("sendFeedback", { defaultValue: "Send feedback" })}
         intro={
           sent

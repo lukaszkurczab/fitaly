@@ -3,5 +3,9 @@ appId: com.lkurczab.fitaly
 - runFlow: login.yaml
 - openLink: fitaly://e2e/reset?offline=1&logout=0
 - assertVisible:
+    id: e2e-ready-offline
+- assertVisible:
     id: offline-banner
 - openLink: fitaly://e2e/reset?offline=0&logout=0
+- assertVisible:
+    id: e2e-ready-home
