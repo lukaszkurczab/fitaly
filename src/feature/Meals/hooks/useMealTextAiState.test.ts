@@ -11,6 +11,7 @@ const mockPost = jest.fn<(url: string, data?: unknown) => Promise<unknown>>();
 const mockUseAccessContext = jest.fn();
 const mockCanUseFeature = jest.fn(() => true);
 const mockRefreshAccess = jest.fn<() => Promise<unknown>>();
+const mockGetE2EAccessState = jest.fn<() => unknown>();
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
@@ -28,6 +29,14 @@ jest.mock("@/context/AccessContext", () => ({
   useAccessContext: () => mockUseAccessContext(),
 }));
 
+jest.mock("@/context/AuthContext", () => ({
+  useAuthContext: () => ({ uid: "user-1" }),
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  getE2EAccessState: () => mockGetE2EAccessState(),
+}));
+
 describe("useMealTextAiState", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,6 +50,7 @@ describe("useMealTextAiState", () => {
     mockPost.mockResolvedValue(null);
     mockCanUseFeature.mockReturnValue(true);
     mockRefreshAccess.mockResolvedValue(null);
+    mockGetE2EAccessState.mockReturnValue(null);
     mockUseAiCreditsContext.mockReturnValue({
       credits: {
         userId: "user-1",

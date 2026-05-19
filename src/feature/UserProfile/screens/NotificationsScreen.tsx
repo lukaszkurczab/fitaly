@@ -246,6 +246,7 @@ export default function NotificationsScreen({
 
           {systemAllowed === false ? (
             <Button
+              testID="notifications-open-settings-button"
               label={t("permissions.openSettings")}
               variant="secondary"
               fullWidth={false}
@@ -261,6 +262,7 @@ export default function NotificationsScreen({
               subtitle={t("screen.smartReminderHint")}
               trailing={
                 <ButtonToggle
+                  testID="notifications-smart-reminders-toggle"
                   value={smartRemindersEnabled}
                   onToggle={(enabled) => {
                     void onToggleSmartReminders(enabled);
@@ -273,6 +275,7 @@ export default function NotificationsScreen({
               subtitle={t("screen.motivationSubtitle")}
               trailing={
                 <ButtonToggle
+                  testID="notifications-motivation-toggle"
                   value={motivationEnabled}
                   onToggle={(enabled) => {
                     void onToggleMotivation(enabled);
@@ -285,6 +288,7 @@ export default function NotificationsScreen({
               subtitle={t("screen.statsSubtitle")}
               trailing={
                 <ButtonToggle
+                  testID="notifications-stats-toggle"
                   value={statsEnabled}
                   onToggle={(enabled) => {
                     void onToggleStats(enabled);
@@ -314,6 +318,7 @@ export default function NotificationsScreen({
                   />
                 ))}
                 <Button
+                  testID="notifications-refresh-diagnostics-button"
                   label={
                     diagnostics.loading
                       ? "Refreshing diagnostics..."
@@ -340,6 +345,7 @@ export default function NotificationsScreen({
       </FormScreenShell>
 
       <Modal
+        testID="notifications-permission-modal"
         visible={settingsCtaVisible}
         title={t("permissions.title")}
         message={t("permissions.message")}

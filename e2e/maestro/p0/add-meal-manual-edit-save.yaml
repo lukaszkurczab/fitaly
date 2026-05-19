@@ -1,0 +1,72 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../login.yaml
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: P0 Manual Bowl
+- hideKeyboard
+- tapOn:
+    id: meal-type-picker-trigger
+- assertVisible:
+    id: meal-type-picker-sheet
+- tapOn:
+    id: meal-type-picker-option-lunch
+- tapOn:
+    id: meal-type-picker-apply-button
+- tapOn:
+    id: meal-time-picker-trigger
+- assertVisible:
+    id: meal-time-picker-sheet
+- tapOn:
+    id: meal-time-picker-apply-button
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Chicken
+- assertVisible:
+    id: ingredient-editor-submit-button
+- hideKeyboard
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-today-meal-row-0
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- assertVisible:
+    id: history-list-screen
+- assertVisible:
+    id: history-meal-row-0

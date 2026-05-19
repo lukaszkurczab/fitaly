@@ -20,8 +20,11 @@ import {
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { useTheme } from "@/theme/useTheme";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 const TEXT_PREVIEW_HEIGHT = 441;
+const E2E_TEXT_PREVIEW_HEIGHT = 300;
+const E2E_DESCRIPTION_LINES = 3;
 
 export default function DescribeMealScreen({
   navigation,
@@ -135,6 +138,7 @@ export default function DescribeMealScreen({
   const canStepBack = flow.canGoBack();
   const hasUnsavedChanges =
     name.trim().length > 0 || quickDescription.trim().length > 0;
+  const isE2E = isE2EModeEnabled();
 
   const guard = useUnsavedChangesGuard({
     navigation,
@@ -149,16 +153,34 @@ export default function DescribeMealScreen({
     },
   });
 
+  const renderAnalyzeButton = () => (
+    <Button
+      testID="add-meal-text-analyze-button"
+      label={t("describe_meal_primary_cta", { ns: "meals" })}
+      onPress={onAnalyze}
+      disabled={analyzeDisabled}
+      loading={loading}
+      style={styles.primaryButton}
+    />
+  );
+
   return (
     <>
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <Pressable style={styles.fill} onPress={Keyboard.dismiss}>
+        <Pressable
+          style={styles.fill}
+          onPress={Keyboard.dismiss}
+          testID="add-meal-text-screen"
+        >
           <MealAddPhotoScaffold
             topInset={previewTopInset}
-            previewHeight={TEXT_PREVIEW_HEIGHT}
+            previewHeight={
+              isE2E ? E2E_TEXT_PREVIEW_HEIGHT : TEXT_PREVIEW_HEIGHT
+            }
             preview={
               <View style={styles.preview}>
                 <TextInput
+                  testID="add-meal-text-name-input"
                   label={t("meal_name", { ns: "meals" })}
                   value={name}
                   onChangeText={onNameChange}
@@ -171,6 +193,7 @@ export default function DescribeMealScreen({
                   maxLength={80}
                 />
                 <TextInput
+                  testID="add-meal-text-description-input"
                   label={t("describe_meal_quick_description_label", {
                     ns: "meals",
                   })}
@@ -183,12 +206,17 @@ export default function DescribeMealScreen({
                     },
                   )}
                   multiline
-                  numberOfLines={10}
+                  numberOfLines={isE2E ? E2E_DESCRIPTION_LINES : 10}
                   autoCapitalize="none"
                   autoCorrect={false}
                   spellCheck={false}
                   maxLength={300}
                 />
+                {isE2E ? (
+                  <View style={styles.e2eAnalyzeButtonWrap}>
+                    {renderAnalyzeButton()}
+                  </View>
+                ) : null}
               </View>
             }
             topAction={
@@ -216,31 +244,33 @@ export default function DescribeMealScreen({
                 {descriptionError || submitError ? (
                   <ErrorBox message={descriptionError ?? submitError ?? ""} />
                 ) : null}
-                <Button
-                  label={t("describe_meal_primary_cta", { ns: "meals" })}
-                  onPress={onAnalyze}
-                  disabled={analyzeDisabled}
-                  loading={loading}
-                  style={styles.primaryButton}
-                />
+                {isE2E ? null : renderAnalyzeButton()}
                 {ctaHelperText ? (
-                  <Text
-                    style={[
-                      styles.inlineNote,
-                      creditsNoteWarning ? styles.inlineNoteWarning : null,
-                    ]}
+                  <View
+                    testID="add-meal-text-credits-explanation"
+                    accessible
+                    accessibilityLabel="add-meal-text-credits-explanation"
                   >
-                    {ctaHelperText}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.inlineNote,
+                        creditsNoteWarning ? styles.inlineNoteWarning : null,
+                      ]}
+                    >
+                      {ctaHelperText}
+                    </Text>
+                  </View>
                 ) : null}
                 {showUpgradeLink ? (
                   <MealAddTextLink
+                    testID="add-meal-text-upgrade-button"
                     label={t("limit.upgradeCta", { ns: "chat" })}
                     onPress={openPaywall}
                     disabled={loading}
                   />
                 ) : null}
                 <MealAddTextLink
+                  testID="add-meal-text-change-method-button"
                   label={t("change_method", { ns: "meals" })}
                   onPress={() =>
                     navigation.navigate("MealAddMethod", {
@@ -256,6 +286,7 @@ export default function DescribeMealScreen({
         </Pressable>
 
         <Modal
+          testID="add-meal-text-limit-modal"
           visible={showLimitModal}
           title={t("limit.reachedTitle", { ns: "chat" })}
           message={t("limit.reachedShort", {
@@ -264,10 +295,12 @@ export default function DescribeMealScreen({
             limit: creditAllocation,
           })}
           primaryAction={{
+            testID: "add-meal-text-limit-upgrade-button",
             label: t("limit.upgradeCta", { ns: "chat" }),
             onPress: openPaywall,
           }}
           secondaryAction={{
+            testID: "add-meal-text-limit-cancel-button",
             label: t("cancel", { ns: "common" }),
             onPress: closeLimitModal,
           }}
@@ -327,6 +360,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     primaryButton: {
       minHeight: 48,
       borderRadius: theme.rounded.sm,
+    },
+    e2eAnalyzeButtonWrap: {
+      position: "absolute",
+      left: 24,
+      right: 24,
+      bottom: 12,
     },
     inlineNote: {
       color: theme.textTertiary,

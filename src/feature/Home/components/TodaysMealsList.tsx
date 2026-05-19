@@ -19,7 +19,7 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="home-today-meals-list">
       {meals.map((meal, index) => {
         const kcal =
           Array.isArray(meal.ingredients) && meal.ingredients.length
@@ -40,6 +40,7 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
         return (
           <Pressable
             key={meal.cloudId || meal.mealId || `${meal.name}-${meal.timestamp}`}
+            testID={`home-today-meal-row-${index}`}
             onPress={onOpenMeal ? () => onOpenMeal(meal) : undefined}
             accessibilityRole="button"
             accessibilityLabel={`${meal.name || t("meal")}, ${numberFormatter.format(Math.max(0, Math.round(kcal)))} kcal`}

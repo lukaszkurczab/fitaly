@@ -113,6 +113,7 @@ export default function CheckMailboxScreen({ navigation }: Props) {
   return (
     <Layout showNavigation={false}>
       <ScreenCornerNavButton
+        testID="check-mailbox-close-button"
         icon="close"
         onPress={() =>
           navigation.canGoBack()
@@ -123,7 +124,7 @@ export default function CheckMailboxScreen({ navigation }: Props) {
         containerStyle={styles.topLeftAction}
       />
 
-      <View style={styles.contentCenter}>
+      <View style={styles.contentCenter} testID="check-mailbox-screen">
         <View style={styles.contentStack}>
           <View style={styles.illustrationWrap}>
             <View style={styles.iconCard}>
@@ -146,6 +147,7 @@ export default function CheckMailboxScreen({ navigation }: Props) {
           {error ? <ErrorBox message={error} style={styles.errorSpacing} /> : null}
 
           <GlobalActionButtons
+            primaryTestID="check-mailbox-login-button"
             label={t("backToLogin")}
             onPress={() => navigation.navigate("Login")}
             primaryStyle={styles.primaryAction}
@@ -155,6 +157,7 @@ export default function CheckMailboxScreen({ navigation }: Props) {
                 : t("sendAgain")
             }
             secondaryOnPress={handleSendAgain}
+            secondaryTestID="check-mailbox-send-again-button"
             secondaryDisabled={sending || sendAgainDisabled || noInternet}
             secondaryLoading={sending}
             secondaryStyle={styles.secondaryAction}

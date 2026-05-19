@@ -262,6 +262,7 @@ export default function ManageSubscriptionScreen({
             />
 
             <Button
+              testID="manage-subscription-retry-button"
               label={t("retry", { ns: "common" })}
               onPress={() => {
                 void refreshPremium();
@@ -394,6 +395,7 @@ export default function ManageSubscriptionScreen({
           {primaryCtaLabel ? (
             <View style={styles.primaryActionWrap}>
               <Button
+                testID="manage-subscription-primary-button"
                 label={primaryCtaLabel}
                 onPress={() => {
                   clearActionFeedback();
@@ -416,6 +418,7 @@ export default function ManageSubscriptionScreen({
             })}
           >
             <SettingsRow
+              testID="manage-subscription-status-row"
               title={t("manageSubscription.yourSubscription")}
               value={headerStatus}
             />
@@ -442,18 +445,21 @@ export default function ManageSubscriptionScreen({
             })}
           >
             <SettingsRow
+              testID="manage-subscription-credits-balance-row"
               title={t("manageSubscription.aiCreditsBalance", {
                 defaultValue: "Balance",
               })}
               value={creditsLoading ? "..." : `${credits?.balance ?? "-"}`}
             />
             <SettingsRow
+              testID="manage-subscription-credits-allocation-row"
               title={t("manageSubscription.aiCreditsAllocation", {
                 defaultValue: "Allocation",
               })}
               value={creditsLoading ? "..." : `${credits?.allocation ?? "-"}`}
             />
             <SettingsRow
+              testID="manage-subscription-tier-row"
               title={t("manageSubscription.aiCreditsTier", {
                 defaultValue: "Tier",
               })}
@@ -511,6 +517,7 @@ export default function ManageSubscriptionScreen({
             })}
           >
             <SettingsRow
+              testID="manage-subscription-restore-row"
               title={t("manageSubscription.restorePurchases", {
                 defaultValue: "Restore purchases",
               })}

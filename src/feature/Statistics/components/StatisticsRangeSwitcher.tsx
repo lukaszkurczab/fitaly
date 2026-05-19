@@ -14,13 +14,14 @@ export function StatisticsRangeSwitcher({ active, onChange, options }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID="statistics-range-switcher">
       {options.map((option) => {
         const isActive = option.key === active;
 
         return (
           <Pressable
             key={option.key}
+            testID={`statistics-range-${option.key}-button`}
             accessibilityRole="button"
             accessibilityLabel={option.label}
             onPress={() => onChange(option.key)}

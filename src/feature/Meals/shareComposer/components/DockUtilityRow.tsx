@@ -30,8 +30,9 @@ export default function DockUtilityRow({
   const theme = useTheme();
 
   return (
-    <View style={styles.utilityRow}>
+    <View style={styles.utilityRow} testID="share-utility-row">
       <Pressable
+        testID="share-add-text-button"
         onPress={onAddTextLayer}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"
@@ -43,6 +44,7 @@ export default function DockUtilityRow({
         </Text>
       </Pressable>
       <Pressable
+        testID="share-add-chart-button"
         onPress={onEnsureChartLayer}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"
@@ -54,6 +56,7 @@ export default function DockUtilityRow({
         </Text>
       </Pressable>
       <Pressable
+        testID="share-add-card-button"
         onPress={onEnsureCardLayer}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"
@@ -65,6 +68,7 @@ export default function DockUtilityRow({
         </Text>
       </Pressable>
       <Pressable
+        testID="share-add-photo-button"
         onPress={onAddOrReplaceAdditionalPhoto}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"
@@ -76,6 +80,7 @@ export default function DockUtilityRow({
         </Text>
       </Pressable>
       <Pressable
+        testID="share-reset-composition-button"
         onPress={onResetComposition}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"

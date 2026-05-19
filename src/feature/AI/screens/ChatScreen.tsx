@@ -254,7 +254,8 @@ export default function ChatScreen() {
       style={styles.layout}
       keyboardAvoiding
     >
-      <ChatHeader
+      <View testID="chat-screen" style={styles.screenMarker}>
+        <ChatHeader
         title={t("header.title")}
         subtitle={t("header.subtitle")}
         onOpenHistory={() => {
@@ -263,9 +264,11 @@ export default function ChatScreen() {
         }}
         historyButtonLabel={t("history.open")}
       />
+      </View>
 
       {hasMessages && !isOffline && limitReached ? (
         <ChatStatusBanner
+          testID="chat-credits-banner"
           variant="credits"
           title={t("lock.creditsTitle")}
           body={t("limit.body", {
@@ -339,6 +342,7 @@ export default function ChatScreen() {
       />
 
       <Modal
+        testID="chat-legal-modal"
         visible={legalAckVisible}
         title={t("legal.title")}
         secondaryAction={{
@@ -402,6 +406,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       minHeight: 0,
     },
+    screenMarker: {},
     emptyStateWrap: {
       flex: 1,
       paddingTop: theme.spacing.xxl,

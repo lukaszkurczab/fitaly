@@ -8,6 +8,7 @@ import { getErrorStatus } from "@/services/contracts/serviceError";
 import { post } from "@/services/core/apiClient";
 import { handleAiError } from "@/services/ai/handleAiError";
 import { logWarning } from "@/services/core/errorLogger";
+import { resolveE2ETextMealAnalysis } from "@/services/e2e/fixtures";
 
 const _inFlight = new Set<string>();
 
@@ -36,6 +37,11 @@ export async function extractIngredientsFromText(
   opts?: { lang?: string },
 ): Promise<TextMealAnalyzeResult | null> {
   if (!uid) return null;
+
+  const e2eFixture = await resolveE2ETextMealAnalysis(uid);
+  if (e2eFixture) {
+    return e2eFixture;
+  }
 
   // Prevent duplicate concurrent calls for the same user
   if (_inFlight.has(uid)) {

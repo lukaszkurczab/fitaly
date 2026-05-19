@@ -23,6 +23,7 @@ import {
   type AiUxErrorType,
 } from "@/services/ai/uxError";
 import { getE2EMockChatReply } from "@/services/e2e/config";
+import { resolveE2EChatRun } from "@/services/e2e/fixtures";
 import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
 import {
@@ -357,7 +358,13 @@ export function useChatHistory(
         const e2eMockChatReply = getE2EMockChatReply();
         try {
           if (!isRequestActive()) return null;
-          if (e2eMockChatReply) {
+          const e2eChatRun = resolveE2EChatRun();
+          if (e2eChatRun && "error" in e2eChatRun) {
+            throw e2eChatRun.error;
+          }
+          if (e2eChatRun && "reply" in e2eChatRun) {
+            assistantReply = e2eChatRun.reply;
+          } else if (e2eMockChatReply) {
             assistantReply = e2eMockChatReply;
           } else {
             const chatRunPayload: AiChatRunRequest = {

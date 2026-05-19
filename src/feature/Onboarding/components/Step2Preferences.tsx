@@ -62,7 +62,7 @@ export default function Step2Preferences({
   const calorieAdjustmentError = errors.calorieAdjustment;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="onboarding-step-2">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -77,6 +77,7 @@ export default function Step2Preferences({
 
         <View style={styles.panel}>
           <CheckboxDropdown
+            testID="onboarding-preferences-dropdown"
             label={t("step2.preferencesLabel")}
             options={PREFERENCE_OPTIONS.map((option) => ({
               value: option.value,
@@ -97,6 +98,7 @@ export default function Step2Preferences({
 
         <View style={styles.panel}>
           <Dropdown
+            testID="onboarding-activity-dropdown"
             label={t("step2.activityLabel")}
             options={ACTIVITY_OPTIONS.map((option) => ({
               value: option.value,
@@ -130,6 +132,7 @@ export default function Step2Preferences({
 
         <View style={styles.panel}>
           <RowPicker
+            testID="onboarding-goal-picker"
             label={t("step2.goalLabel")}
             options={GOAL_OPTIONS.map((option) => ({
               value: option.value,
@@ -175,6 +178,7 @@ export default function Step2Preferences({
                   : t("step2.calorieDecreaseHelper")}
               </Text>
               <Slider
+                testID="onboarding-calorie-adjustment-slider"
                 value={calorieAdjustmentValue}
                 minimumValue={MIN_CALORIE_ADJUSTMENT}
                 maximumValue={MAX_CALORIE_ADJUSTMENT}
@@ -202,11 +206,13 @@ export default function Step2Preferences({
       </ScrollView>
 
       <GlobalActionButtons
+        primaryTestID="onboarding-step-2-next-button"
         label={t("step2.primaryCta")}
         onPress={onContinue}
         loading={submitting}
         secondaryLabel={t("common:back")}
         secondaryOnPress={onBack}
+        secondaryTestID="onboarding-step-2-back-button"
         containerStyle={styles.footer}
       />
     </View>

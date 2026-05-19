@@ -1,0 +1,62 @@
+appId: com.lkurczab.fitaly
+env:
+  E2E_EMAIL: e2e@example.com
+  E2E_PASSWORD: Test@1234
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- assertVisible:
+    id: e2e-booted
+- openLink: fitaly://e2e/reset?logout=1
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-screen
+- tapOn:
+    id: login-email-input
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: WrongPassword1!
+- tapOn:
+    id: login-submit-button
+- extendedWaitUntil:
+    visible:
+      id: login-password-error
+    timeout: 15000
+- assertVisible:
+    id: login-screen
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz"
+    commands:
+      - tapOn: "Nie teraz"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 20000
+- assertVisible:
+    id: tab-home

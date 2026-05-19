@@ -24,6 +24,7 @@ type Props = {
   variant?: "default" | "sheet";
   submitLabel?: string;
   showDelete?: boolean;
+  testIDPrefix?: string;
 };
 
 const parseNum = (v: string) => {
@@ -45,6 +46,7 @@ export const IngredientEditor: React.FC<Props> = ({
   variant = "default",
   submitLabel,
   showDelete = true,
+  testIDPrefix = "ingredient-editor",
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -309,7 +311,10 @@ export const IngredientEditor: React.FC<Props> = ({
   }, [onChangePartial]);
 
   return (
-    <View style={[styles.box, isSheetVariant ? styles.sheetBox : null]}>
+    <View
+      style={[styles.box, isSheetVariant ? styles.sheetBox : null]}
+      testID={`${testIDPrefix}-root`}
+    >
       {isSheetVariant ? (
         <Text style={styles.sectionTitle}>
           {t("review_meal_edit_ingredient_basics", {
@@ -321,6 +326,7 @@ export const IngredientEditor: React.FC<Props> = ({
 
       <View style={isSheetVariant ? styles.fieldGroup : undefined}>
         <TextInput
+          testID={`${testIDPrefix}-name-input`}
           style={isSheetVariant ? styles.sheetFieldContainer : styles.nameField}
           fieldStyle={isSheetVariant ? styles.sheetField : undefined}
           label={
@@ -345,6 +351,7 @@ export const IngredientEditor: React.FC<Props> = ({
         {isSheetVariant ? (
           <View style={styles.fieldColumn}>
             <NumberInput
+              testID={`${testIDPrefix}-amount-input`}
               style={styles.sheetFieldContainer}
               fieldStyle={[
                 styles.sheetField,
@@ -375,6 +382,7 @@ export const IngredientEditor: React.FC<Props> = ({
               )}
             </Text>
             <NumberInput
+              testID={`${testIDPrefix}-amount-input`}
               fieldStyle={[
                 errors.amount && amountTouched ? styles.inputError : null,
               ]}
@@ -408,6 +416,7 @@ export const IngredientEditor: React.FC<Props> = ({
             <View style={styles.row}>
               <View style={styles.fieldColumn}>
                 <NumberInput
+                  testID={`${testIDPrefix}-kcal-input`}
                   style={styles.sheetFieldContainer}
                   fieldStyle={[styles.sheetField, errors.kcal ? styles.inputError : null]}
                   label={t("calories", { ns: "meals" })}
@@ -425,6 +434,7 @@ export const IngredientEditor: React.FC<Props> = ({
 
               <View style={styles.fieldColumn}>
                 <NumberInput
+                  testID={`${testIDPrefix}-protein-input`}
                   style={styles.sheetFieldContainer}
                   fieldStyle={[
                     styles.sheetField,
@@ -449,6 +459,7 @@ export const IngredientEditor: React.FC<Props> = ({
             <View style={styles.row}>
               <View style={styles.fieldColumn}>
                 <NumberInput
+                  testID={`${testIDPrefix}-carbs-input`}
                   style={styles.sheetFieldContainer}
                   fieldStyle={[
                     styles.sheetField,
@@ -469,6 +480,7 @@ export const IngredientEditor: React.FC<Props> = ({
 
               <View style={styles.fieldColumn}>
                 <NumberInput
+                  testID={`${testIDPrefix}-fat-input`}
                   style={styles.sheetFieldContainer}
                   fieldStyle={[
                     styles.sheetField,
@@ -493,6 +505,7 @@ export const IngredientEditor: React.FC<Props> = ({
         <>
           <Text style={styles.editLabel}>{t("protein", { ns: "meals" })} [g]</Text>
           <NumberInput
+            testID={`${testIDPrefix}-protein-input`}
             fieldStyle={[
               styles.macroProteinField,
               errors.protein ? styles.inputError : null,
@@ -512,6 +525,7 @@ export const IngredientEditor: React.FC<Props> = ({
 
           <Text style={styles.editLabel}>{t("carbs", { ns: "meals" })} [g]</Text>
           <NumberInput
+            testID={`${testIDPrefix}-carbs-input`}
             fieldStyle={[
               styles.macroCarbsField,
               errors.carbs ? styles.inputError : null,
@@ -529,6 +543,7 @@ export const IngredientEditor: React.FC<Props> = ({
 
           <Text style={styles.editLabel}>{t("fat", { ns: "meals" })} [g]</Text>
           <NumberInput
+            testID={`${testIDPrefix}-fat-input`}
             fieldStyle={[
               styles.macroFatField,
               errors.fat ? styles.inputError : null,
@@ -548,6 +563,7 @@ export const IngredientEditor: React.FC<Props> = ({
             {t("calories", { ns: "meals" })} [kcal]
           </Text>
           <NumberInput
+            testID={`${testIDPrefix}-kcal-input`}
             value={kcal}
             onChangeText={(v) => handleNumericChange(v, setKcal, "kcal")}
             blurFallback="0"
@@ -562,6 +578,7 @@ export const IngredientEditor: React.FC<Props> = ({
       {isSheetVariant ? (
         <View style={styles.sheetActions}>
           <Button
+            testID={`${testIDPrefix}-cancel-button`}
             variant="secondary"
             style={styles.sheetActionButton}
             fullWidth={false}
@@ -570,6 +587,7 @@ export const IngredientEditor: React.FC<Props> = ({
           />
 
           <Button
+            testID={`${testIDPrefix}-submit-button`}
             style={styles.sheetActionButton}
             fullWidth={false}
             onPress={commit}
@@ -580,6 +598,7 @@ export const IngredientEditor: React.FC<Props> = ({
       ) : (
         <>
           <Button
+            testID={`${testIDPrefix}-submit-button`}
             style={styles.primaryBtn}
             onPress={commit}
             disabled={hasBlockingErrors}
@@ -587,6 +606,7 @@ export const IngredientEditor: React.FC<Props> = ({
           />
 
           <Button
+            testID={`${testIDPrefix}-cancel-button`}
             variant="destructive"
             style={styles.cancelBtn}
             onPress={onCancel}
@@ -596,7 +616,11 @@ export const IngredientEditor: React.FC<Props> = ({
       )}
 
       {showDelete ? (
-        <Pressable onPress={onDelete} style={styles.deleteLink}>
+        <Pressable
+          testID={`${testIDPrefix}-delete-button`}
+          onPress={onDelete}
+          style={styles.deleteLink}
+        >
           <Text style={styles.deleteLinkText}>
             {t("review_meal_edit_remove_ingredient", {
               ns: "meals",
@@ -610,6 +634,7 @@ export const IngredientEditor: React.FC<Props> = ({
       ) : null}
 
       <AppModal
+        testID={`${testIDPrefix}-recalc-modal`}
         visible={recalcPromptVisible}
         title={t("recalc_title", {
           ns: "meals",
@@ -621,6 +646,7 @@ export const IngredientEditor: React.FC<Props> = ({
             "Adjust protein, carbs, fat and kcal proportionally to the new amount?",
         })}
         primaryAction={{
+          testID: `${testIDPrefix}-recalc-confirm-button`,
           label: t("recalc_confirm", {
             ns: "meals",
             defaultValue: "Recalculate now",
@@ -628,6 +654,7 @@ export const IngredientEditor: React.FC<Props> = ({
           onPress: () => applyAmountRecalcChoice(true),
         }}
         secondaryAction={{
+          testID: `${testIDPrefix}-recalc-keep-button`,
           label: t("recalc_keep_values", {
             ns: "meals",
             defaultValue: "Keep macros",

@@ -733,8 +733,9 @@ export default function MealShareScreen() {
           paddingRight: theme.spacing.md,
         }}
       >
-        <View style={styles.invalidContainer}>
+        <View style={styles.invalidContainer} testID="share-unavailable-state">
           <Pressable
+            testID="share-unavailable-close-button"
             onPress={handleClose}
             accessibilityRole="button"
             accessibilityLabel={t("common:close", { defaultValue: "Close" })}
@@ -790,6 +791,7 @@ export default function MealShareScreen() {
     >
       <View style={styles.screen}>
         <Pressable
+          testID="share-close-button"
           onPress={handleClose}
           accessibilityRole="button"
           accessibilityLabel={t("common:close", { defaultValue: "Close" })}
@@ -800,6 +802,7 @@ export default function MealShareScreen() {
 
         <View style={[styles.modeSwitch, { borderColor: theme.border }]}>
           <Pressable
+            testID="share-mode-quick-button"
             onPress={() => handleSwitchMode("quick")}
             accessibilityRole="button"
             accessibilityLabel={t("share_mode_quick", {
@@ -825,6 +828,7 @@ export default function MealShareScreen() {
             </Text>
           </Pressable>
           <Pressable
+            testID="share-mode-customize-button"
             onPress={() => handleSwitchMode("customize")}
             accessibilityRole="button"
             accessibilityLabel={t("share_mode_customize", {
@@ -852,6 +856,7 @@ export default function MealShareScreen() {
         </View>
 
         <View
+          testID="share-composer-canvas-frame"
           style={[
             styles.canvasFrame,
             {

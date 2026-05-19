@@ -62,10 +62,12 @@ export default function DeleteAccountScreen({
           void handleDelete();
         }}
         actionTone="destructive"
+        actionTestID="delete-account-confirm-button"
         actionLoading={deleting}
         actionDisabled={!password.trim() || deleting}
         secondaryActionLabel={t("cancel")}
         secondaryActionPress={() => navigation.goBack()}
+        secondaryActionTestID="delete-account-cancel-button"
       >
         <View style={styles.content}>
           <InfoBlock
@@ -82,6 +84,7 @@ export default function DeleteAccountScreen({
           />
 
           <TextInput
+            testID="delete-account-password-input"
             label={t("password")}
             placeholder={t("enterPassword")}
             value={password}
@@ -95,10 +98,12 @@ export default function DeleteAccountScreen({
       </FormScreenShell>
 
       <Modal
+        testID="delete-account-error-modal"
         visible={errorVisible}
         title={t("deleteAccountError")}
         message={t("wrongPasswordOrUnknownError")}
         primaryAction={{
+          testID: "delete-account-error-confirm-button",
           label: t("confirm"),
           onPress: () => setErrorVisible(false),
         }}

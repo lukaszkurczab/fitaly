@@ -145,7 +145,9 @@ export default function SelectSavedMealScreen({
   if (loading) {
     return (
       <Layout disableScroll showNavigation={false}>
-        <FullScreenLoader />
+        <View testID="select-saved-meal-loading-state" style={styles.screen}>
+          <FullScreenLoader />
+        </View>
       </Layout>
     );
   }
@@ -156,9 +158,10 @@ export default function SelectSavedMealScreen({
       <Layout disableScroll showNavigation={false} style={styles.layout}>
         {closeButton}
 
-        <View style={styles.screen}>
+        <View style={styles.screen} testID="select-saved-meal-screen">
           <View style={styles.searchWrap}>
             <TextInput
+              testID="select-saved-meal-search-input"
               value={queryText}
               onChangeText={setQueryText}
               placeholder={t(
@@ -173,7 +176,7 @@ export default function SelectSavedMealScreen({
             />
           </View>
 
-          <View style={styles.emptyContent}>
+          <View style={styles.emptyContent} testID="select-saved-meal-empty-state">
             {!queryText.trim() ? (
               <>
                 <View style={styles.emptyIconTile}>
@@ -195,6 +198,7 @@ export default function SelectSavedMealScreen({
                       )}
                 </Text>
                 <Button
+                  testID="select-saved-meal-empty-change-method-button"
                   label={t("saved_list_empty_cta", "Choose another method")}
                   variant="secondary"
                   onPress={handleStartOver}
@@ -223,9 +227,10 @@ export default function SelectSavedMealScreen({
     <Layout disableScroll showNavigation={false} style={styles.layout}>
       {closeButton}
 
-      <View style={styles.screen}>
+      <View style={styles.screen} testID="select-saved-meal-screen">
         <View style={styles.searchWrap}>
           <TextInput
+            testID="select-saved-meal-search-input"
             value={queryText}
             onChangeText={setQueryText}
             placeholder={t(
@@ -240,6 +245,7 @@ export default function SelectSavedMealScreen({
           />
         </View>
         <FlatList
+          testID="select-saved-meal-list"
           style={styles.list}
           data={pageItems}
           keyExtractor={keyExtractor}

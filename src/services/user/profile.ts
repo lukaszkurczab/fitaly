@@ -21,6 +21,7 @@ import {
   mergeUserProfileRemote,
   uploadUserAvatarRemote,
 } from "@/services/user/userProfileRepository";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 function requireCurrentUser(
   user: FirebaseAuthTypes.User | null
@@ -142,6 +143,17 @@ export async function deleteAccountService({
 }) {
   const auth = getAuth(getApp());
   const current = requireCurrentUser(auth.currentUser);
+  const currentEmail = current.email ?? "";
+
+  if (
+    isE2EModeEnabled() &&
+    /^fitaly-e2e-[^@]+@example\.com$/i.test(currentEmail)
+  ) {
+    await current.delete();
+    await resetUserRuntime(uid, { reason: "delete_account" });
+    return;
+  }
+
   const cred = EmailAuthProvider.credential(current.email!, password);
   await reauthenticateWithCredential(current, cred);
   await post("/users/me/delete");

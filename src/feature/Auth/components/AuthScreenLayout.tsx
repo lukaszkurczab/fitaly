@@ -8,6 +8,7 @@ type AuthScreenLayoutProps = {
   brand: string;
   title: string;
   description?: string;
+  testID?: string;
   banner?: ReactNode;
   bottomAction?: ReactNode;
   footer?: ReactNode;
@@ -18,6 +19,7 @@ export function AuthScreenLayout({
   brand,
   title,
   description,
+  testID,
   banner,
   bottomAction,
   footer,
@@ -28,7 +30,7 @@ export function AuthScreenLayout({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
-      <View style={styles.container}>
+      <View style={styles.container} testID={testID}>
         <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}

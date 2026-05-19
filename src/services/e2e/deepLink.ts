@@ -7,10 +7,16 @@ import { resetOfflineStorage } from "@/services/offline/db";
 import { setE2EForcedOffline } from "@/services/e2e/connectivity";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
+  markE2ESeedReady,
   markE2EResetReady,
   markE2EResetStarted,
   type E2EReadyTarget,
 } from "@/services/e2e/status";
+import {
+  applyE2ESeedCommand,
+  parseE2ESeedCommand,
+  resetE2EFixtureState,
+} from "@/services/e2e/fixtures";
 
 type ResetOptions = {
   forceOffline: boolean;
@@ -18,6 +24,7 @@ type ResetOptions = {
 };
 
 const RESET_PATH = "fitaly://e2e/reset";
+const SEED_PATH = "fitaly://e2e/seed";
 
 function parseBoolFlag(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
@@ -48,6 +55,11 @@ function parseQueryParams(url: string): Record<string, string> {
 function isResetDeepLink(url: string): boolean {
   const normalized = url.trim().toLowerCase();
   return normalized.startsWith(RESET_PATH);
+}
+
+function isSeedDeepLink(url: string): boolean {
+  const normalized = url.trim().toLowerCase();
+  return normalized.startsWith(SEED_PATH);
 }
 
 function resolveNavigationTarget(logout: boolean): "Login" | "Home" {
@@ -88,6 +100,12 @@ async function runReset(options: ResetOptions) {
     // Async storage reset is best-effort for E2E runs.
   }
 
+  try {
+    await resetE2EFixtureState();
+  } catch {
+    // Fixture reset is best-effort and should not block existing reset flows.
+  }
+
   if (options.logout) {
     try {
       await signOut(getAuth(getApp()));
@@ -103,12 +121,27 @@ async function runReset(options: ResetOptions) {
 
 export async function handleE2EDeepLink(url: string): Promise<boolean> {
   if (!isE2EModeEnabled()) return false;
-  if (!isResetDeepLink(url)) return false;
 
-  const params = parseQueryParams(url);
-  const forceOffline = parseBoolFlag(params.offline, false);
-  const logout = parseBoolFlag(params.logout, true);
+  if (isResetDeepLink(url)) {
+    const params = parseQueryParams(url);
+    const forceOffline = parseBoolFlag(params.offline, false);
+    const logout = parseBoolFlag(params.logout, true);
 
-  await runReset({ forceOffline, logout });
-  return true;
+    await runReset({ forceOffline, logout });
+    return true;
+  }
+
+  if (isSeedDeepLink(url)) {
+    const params = parseQueryParams(url);
+    const auth = getAuth(getApp());
+    const markers = await applyE2ESeedCommand({
+      uid: auth.currentUser?.uid ?? null,
+      command: parseE2ESeedCommand(params),
+    });
+    if (markers.length === 0) return false;
+    markE2ESeedReady(markers);
+    return true;
+  }
+
+  return false;
 }

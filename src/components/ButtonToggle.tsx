@@ -10,6 +10,7 @@ type ButtonToggleProps = {
   thumbColor?: string;
   borderColor?: string;
   disabled?: boolean;
+  testID?: string;
 };
 
 export const ButtonToggle: React.FC<ButtonToggleProps> = ({
@@ -20,6 +21,7 @@ export const ButtonToggle: React.FC<ButtonToggleProps> = ({
   thumbColor,
   borderColor,
   disabled = false,
+  testID,
 }) => {
   const theme = useTheme();
   const resolvedActiveTrack = trackColor ?? theme.primary;
@@ -45,6 +47,7 @@ export const ButtonToggle: React.FC<ButtonToggleProps> = ({
 
   return (
     <Pressable
+      testID={testID}
       onPress={() => {
         if (!disabled) onToggle(!value);
       }}

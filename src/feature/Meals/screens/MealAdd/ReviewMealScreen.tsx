@@ -326,7 +326,7 @@ export default function ReviewMealScreen({
   if (!meal || !uid) {
     return (
       <Layout showNavigation={false}>
-        <View style={styles.emptyWrap}>
+        <View style={styles.emptyWrap} testID="review-meal-empty-state">
           <Text style={styles.emptyTitle}>
             {t("reviewMealUnavailable.title", { ns: "meals" })}
           </Text>
@@ -338,6 +338,7 @@ export default function ReviewMealScreen({
                 : t("reviewMealUnavailable.offlineDesc", { ns: "meals" })}
           </Text>
           <Button
+            testID="review-meal-empty-retry-button"
             label={t("retry", { ns: "common" })}
             onPress={() => {
               void retryLoadDraft();
@@ -346,6 +347,7 @@ export default function ReviewMealScreen({
             style={styles.emptyAction}
           />
           <Button
+            testID="review-meal-empty-home-button"
             variant="secondary"
             label={t("back_home", { ns: "meals" })}
             onPress={() => navigation.navigate("Home")}
@@ -382,7 +384,7 @@ export default function ReviewMealScreen({
         testID="review-meal-close"
       />
 
-      <View style={styles.screen}>
+      <View style={styles.screen} testID="review-meal-screen">
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           contentContainerStyle={[
@@ -486,7 +488,11 @@ export default function ReviewMealScreen({
               {ingredientPreview.items.length > 0 ? (
                 <>
                   {ingredientPreview.items.map((ingredient, index) => (
-                    <View key={ingredient.id} style={styles.itemRow}>
+                    <View
+                      key={ingredient.id}
+                      style={styles.itemRow}
+                      testID={`review-meal-ingredient-row-${index}`}
+                    >
                       <Text style={styles.itemName}>{ingredient.name}</Text>
                       <Text style={styles.itemValue}>
                         {formatIngredientValue(
@@ -511,7 +517,10 @@ export default function ReviewMealScreen({
                   ) : null}
                 </>
               ) : (
-                <Text style={styles.emptyIngredientsText}>
+                <Text
+                  style={styles.emptyIngredientsText}
+                  testID="review-meal-empty-ingredients"
+                >
                   {t("review_meal_edit_no_ingredients_title", {
                     ns: "meals",
                     defaultValue: "No ingredients yet",
@@ -523,6 +532,7 @@ export default function ReviewMealScreen({
 
           <View style={styles.preferenceRow}>
             <Checkbox
+              testID="review-meal-save-to-my-meals-checkbox"
               checked={saveToMyMeals}
               onChange={!saving ? setSaveToMyMeals : () => {}}
               style={styles.checkboxSpacing}
@@ -541,6 +551,7 @@ export default function ReviewMealScreen({
 
         <View style={[styles.footer, { paddingBottom: footerBottomInset }]}>
           <Button
+            testID="review-meal-edit-button"
             variant="secondary"
             label={t("review_meal_edit_cta", {
               ns: "meals",
@@ -566,6 +577,7 @@ export default function ReviewMealScreen({
           />
           {image ? (
             <TextButton
+              testID="review-meal-save-share-button"
               label={t("review_meal_save_share_cta", {
                 ns: "meals",
                 defaultValue: "Save and share",

@@ -78,17 +78,20 @@ function HeaderButton({
   onPress,
   accessibilityLabel,
   disabled = false,
+  testID,
 }: {
   icon: React.ReactNode;
   onPress: () => void;
   accessibilityLabel: string;
   disabled?: boolean;
+  testID?: string;
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
@@ -117,6 +120,7 @@ function WeeklyReportHeader({
   return (
     <View style={styles.header}>
       <HeaderButton
+        testID="weekly-report-back-button"
         icon={<AppIcon name="arrow" size={18} color={theme.text} />}
         onPress={onBack}
         accessibilityLabel={t("weeklyReport.back")}
@@ -126,6 +130,7 @@ function WeeklyReportHeader({
 
       {onRefresh ? (
         <HeaderButton
+          testID="weekly-report-refresh-button"
           icon={
             <AppIcon
               name="refresh"
@@ -292,7 +297,7 @@ function LoadingState({
   const { t, i18n } = useTranslation("home");
 
   return (
-    <View style={styles.content}>
+    <View style={styles.content} testID="weekly-report-loading-state">
       <View style={styles.loadingHero}>
         <StatusPill
           label={`${t("weeklyReport.closedWeekPill")} · ${formatWeeklyPeriod(report.period, i18n.language)}`}
@@ -377,7 +382,7 @@ function InsufficientDataState({
   const { t, i18n } = useTranslation("home");
 
   return (
-    <View style={styles.content}>
+    <View style={styles.content} testID="weekly-report-insufficient-state">
       <StatusPill label={`${t("weeklyReport.closedWeekPill")} · ${formatWeeklyPeriod(report.period, i18n.language)}`} />
 
       <StateCard
@@ -394,6 +399,7 @@ function InsufficientDataState({
       </StateCard>
 
       <Button
+        testID="weekly-report-back-home-button"
         label={t("weeklyReport.backToHome")}
         variant="secondary"
         style={styles.secondaryButton}
@@ -417,7 +423,7 @@ function UnavailableState({
   const { t } = useTranslation("home");
 
   return (
-    <View style={styles.content}>
+    <View style={styles.content} testID="weekly-report-unavailable-state">
       <View style={styles.stateCard}>
         <StatusPill label={t("weeklyReport.temporarilyUnavailablePill")} tone="warm" />
 
@@ -433,6 +439,7 @@ function UnavailableState({
       </View>
 
       <Button
+        testID="weekly-report-retry-button"
         label={t("weeklyReport.tryAgain")}
         onPress={onRetry}
         loading={retrying}
@@ -440,6 +447,7 @@ function UnavailableState({
       />
 
       <Pressable
+        testID="weekly-report-unavailable-back-button"
         accessibilityRole="button"
         accessibilityLabel={t("weeklyReport.back")}
         onPress={onBack}
@@ -461,7 +469,7 @@ function LockedState({
   const { t } = useTranslation("home");
 
   return (
-    <View style={styles.content}>
+    <View style={styles.content} testID="weekly-report-locked-state">
       <StateCard
         title={t("weeklyReport.lockedTitle", {
           defaultValue: "Weekly Report is a Premium feature",
@@ -477,6 +485,7 @@ function LockedState({
         }
       >
         <Button
+          testID="weekly-report-manage-subscription-button"
           label={t("weeklyReport.unlockCta", {
             defaultValue: "Manage subscription",
           })}
@@ -502,7 +511,7 @@ function DegradedAccessState({
   const { t } = useTranslation("home");
 
   return (
-    <View style={styles.content}>
+    <View style={styles.content} testID="weekly-report-access-issue-state">
       <StateCard
         title={t("weeklyReport.accessIssueTitle", {
           defaultValue: "Weekly Report access needs attention",
@@ -519,6 +528,7 @@ function DegradedAccessState({
       >
         <View style={styles.stateActions}>
           <Button
+            testID="weekly-report-retry-access-button"
             label={t("weeklyReport.retryAccessCta", {
               defaultValue: "Retry access check",
             })}
@@ -527,6 +537,7 @@ function DegradedAccessState({
             style={styles.primaryButton}
           />
           <Button
+            testID="weekly-report-restore-access-button"
             label={t("weeklyReport.restoreAccessCta", {
               defaultValue: "Manage subscription",
             })}
@@ -695,7 +706,7 @@ export default function WeeklyReportScreen({ navigation }: Props) {
         refreshDisabled={refreshing}
       />
 
-      <View style={styles.screen}>
+      <View style={styles.screen} testID="weekly-report-screen">
         {accessState === "unknown" ? (
           <LoadingState
             report={weeklyReport.report}
@@ -722,7 +733,7 @@ export default function WeeklyReportScreen({ navigation }: Props) {
         ) : weeklyReport.loading ? (
           <LoadingState report={weeklyReport.report} />
         ) : isReady ? (
-          <View style={styles.content}>
+          <View style={styles.content} testID="weekly-report-ready-state">
             <ReflectionHero report={weeklyReport.report} locale={i18n.language} />
             <SignalsCard insights={weeklyReport.report.insights} />
             <CarryForwardCard priorities={weeklyReport.report.priorities} />

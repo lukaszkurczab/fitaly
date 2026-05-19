@@ -44,6 +44,7 @@ type CheckboxDropdownProps<T extends string | number> = {
   disabledValues?: T[];
   style?: StyleProp<ViewStyle>;
   renderLabel?: (option: Option<T>) => React.ReactNode;
+  testID?: string;
 };
 
 type DropdownPosition = {
@@ -63,6 +64,7 @@ export function CheckboxDropdown<T extends string | number>({
   disabledValues,
   style,
   renderLabel,
+  testID,
 }: CheckboxDropdownProps<T>) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -159,7 +161,7 @@ export function CheckboxDropdown<T extends string | number>({
   );
 
   return (
-    <View style={style}>
+    <View style={style} testID={testID}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
 
       <Pressable
@@ -174,7 +176,7 @@ export function CheckboxDropdown<T extends string | number>({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled, expanded: open }}
-        testID="checkbox-dropdown-field"
+        testID={testID ? `${testID}-field` : "checkbox-dropdown-field"}
       >
         <Text
           style={[

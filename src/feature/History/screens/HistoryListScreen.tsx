@@ -52,6 +52,7 @@ function formatMealTime(
 
 type HistoryMealRowProps = {
   meal: Meal;
+  index: number;
   locale?: string;
   kcalLabel: string;
   fallbackMealName: string;
@@ -62,6 +63,7 @@ type HistoryMealRowProps = {
 
 const HistoryMealRowComponent = ({
   meal,
+  index,
   locale,
   kcalLabel,
   fallbackMealName,
@@ -81,6 +83,7 @@ const HistoryMealRowComponent = ({
 
   return (
     <Pressable
+      testID={`history-meal-row-${index}`}
       onPress={() => onPress(meal)}
       accessibilityRole="button"
       accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${getMealKcal(meal)} ${kcalLabel}`}
@@ -144,6 +147,7 @@ const HistorySectionCardComponent = ({
           <View key={meal.cloudId || meal.mealId}>
             <HistoryMealRow
               meal={meal}
+              index={index}
               locale={locale}
               kcalLabel={kcalLabel}
               fallbackMealName={fallbackMealName}
@@ -330,6 +334,8 @@ export default function HistoryListScreen({
     state.dataState !== "loading" && state.dataState !== "ready" ? (
       <View style={styles.emptyWrap}>
         <EmptyState
+          testID="history-list-empty-state"
+          actionTestID="history-list-empty-add-meal-button"
           eyebrow={
             query.trim().length === 0 && state.dataState === "empty"
               ? t("emptyEyebrow", {
@@ -370,7 +376,7 @@ export default function HistoryListScreen({
   return (
     <Layout disableScroll showOfflineBanner={false}>
       {state.showFilters ? (
-        <View style={styles.fullHeight}>
+        <View style={styles.fullHeight} testID="history-filter-panel">
           <FilterPanel
             scope="history"
             isPremium={state.isPremium}
@@ -380,6 +386,7 @@ export default function HistoryListScreen({
         </View>
       ) : (
         <FlatList
+          testID="history-list-screen"
           data={state.dataState === "ready" ? sections : []}
           keyExtractor={keyExtractor}
           renderItem={renderSection}

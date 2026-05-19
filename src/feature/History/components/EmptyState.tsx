@@ -10,6 +10,8 @@ type Props = {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  testID?: string;
+  actionTestID?: string;
 };
 
 export const EmptyState: React.FC<Props> = ({
@@ -18,12 +20,14 @@ export const EmptyState: React.FC<Props> = ({
   description,
   actionLabel,
   onAction,
+  testID,
+  actionTestID,
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID={testID}>
       <View style={styles.iconBox}>
         <View style={styles.iconInner}>
           <AppIcon name="empty-meals" size={30} color={theme.textTertiary} />
@@ -39,6 +43,7 @@ export const EmptyState: React.FC<Props> = ({
 
       {actionLabel && onAction ? (
         <Button
+          testID={actionTestID}
           label={actionLabel}
           onPress={onAction}
           fullWidth={false}

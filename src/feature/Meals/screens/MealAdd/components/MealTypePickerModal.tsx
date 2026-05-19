@@ -49,7 +49,7 @@ export default function MealTypePickerModal({
             defaultValue: "Close meal type picker",
           })}
         />
-        <View style={styles.sheet}>
+        <View style={styles.sheet} testID="meal-type-picker-sheet">
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>
             {t("review_meal_type_label", {
@@ -63,6 +63,7 @@ export default function MealTypePickerModal({
               return (
                 <Pressable
                   key={option.value}
+                  testID={`meal-type-picker-option-${option.value}`}
                   accessibilityRole="button"
                   accessibilityLabel={t(option.labelKey, { ns: "meals" })}
                   onPress={() => onTypeDraftChange(option.value)}
@@ -89,6 +90,7 @@ export default function MealTypePickerModal({
           </View>
           <View style={styles.sheetActions}>
             <Button
+              testID="meal-type-picker-cancel-button"
               variant="secondary"
               label={t("cancel", { ns: "common" })}
               onPress={onClose}
@@ -96,6 +98,7 @@ export default function MealTypePickerModal({
               fullWidth={false}
             />
             <Button
+              testID="meal-type-picker-apply-button"
               label={t("apply", {
                 ns: "common",
                 defaultValue: "Apply",

@@ -51,6 +51,9 @@ export function ChatStatusBanner({
         <Pressable
           onPress={onActionPress}
           disabled={actionDisabled}
+          testID={
+            testID && isPrimaryAction ? `${testID}-action-button` : undefined
+          }
           style={({ pressed }) => [
             isPrimaryAction ? styles.primaryAction : styles.linkAction,
             pressed && !actionDisabled ? styles.actionPressed : null,

@@ -41,6 +41,7 @@ import {
 import { MealAddBarcodePreview } from "@/feature/Meals/components/MealAddBarcodePreview";
 import { buildBarcodeDraft } from "@/feature/Meals/utils/buildBarcodeDraft";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 
 const BARCODE_PREVIEW_HEIGHT = 280;
 
@@ -72,6 +73,7 @@ export default function BarcodeScanScreen({
   const [manualCode, setManualCode] = useState(params.code ?? "");
   const [manualError, setManualError] = useState<string | undefined>();
   const [lookupError, setLookupError] = useState<string | undefined>();
+  const e2eBarcodeSimulation = getE2EFixtureState()?.barcode === "known";
 
   const canStepBack = flow.canGoBack();
   const barcodeTypes = useMemo<BarcodeType[]>(
@@ -96,6 +98,16 @@ export default function BarcodeScanScreen({
     setManualError(undefined);
     setLookupError(undefined);
   }, [params.code, params.codeSource, params.showManualEntry]);
+
+  useEffect(() => {
+    const fixture = getE2EFixtureState();
+    if (fixture?.barcode !== "known") return;
+    setDetectedCode("5901234123457");
+    setCodeSource("scan");
+    setManualCode("5901234123457");
+    setLookupError(undefined);
+    setManualError(undefined);
+  }, []);
 
   useEffect(() => {
     if (uid) {
@@ -291,19 +303,19 @@ export default function BarcodeScanScreen({
           "Point the camera at the barcode. We will ask you to confirm the number before searching.",
       });
 
-  if (!permission) {
+  if (!permission && !e2eBarcodeSimulation) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.flexBackground} />
+        <View style={styles.flexBackground} testID="barcode-loading-state" />
       </Layout>
     );
   }
 
-  if (!permission.granted) {
+  if (!e2eBarcodeSimulation && !permission.granted) {
     const blocked = permission.canAskAgain === false;
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.permissionWrap}>
+        <View style={styles.permissionWrap} testID="barcode-permission-state">
           <Text style={styles.permissionTitle}>
             {tCommon("camera_permission_title")}
           </Text>
@@ -316,6 +328,7 @@ export default function BarcodeScanScreen({
               : tCommon("camera_permission_message")}
           </Text>
           <Button
+            testID="barcode-permission-button"
             label={tCommon("continue")}
             onPress={blocked ? () => Linking.openSettings() : requestPermission}
             style={styles.permissionButton}
@@ -327,7 +340,7 @@ export default function BarcodeScanScreen({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
-      <View style={styles.fill}>
+      <View style={styles.fill} testID="barcode-scan-screen">
         <MealAddPhotoScaffold
           topInset={previewTopInset}
           previewHeight={BARCODE_PREVIEW_HEIGHT}
@@ -336,13 +349,18 @@ export default function BarcodeScanScreen({
               label={previewLabel}
               detectedCode={detectedCode}
             >
-              <CameraView
-                style={styles.camera}
-                onBarcodeScanned={
-                  lookupLoading ? undefined : handleBarcodeScanned
-                }
-                barcodeScannerSettings={{ barcodeTypes }}
-              />
+              {e2eBarcodeSimulation ? (
+                <View testID="barcode-e2e-preview" style={styles.camera} />
+              ) : (
+                <CameraView
+                  testID="barcode-camera-preview"
+                  style={styles.camera}
+                  onBarcodeScanned={
+                    lookupLoading ? undefined : handleBarcodeScanned
+                  }
+                  barcodeScannerSettings={{ barcodeTypes }}
+                />
+              )}
             </MealAddBarcodePreview>
           }
           topAction={
@@ -370,10 +388,15 @@ export default function BarcodeScanScreen({
                 />
               ) : null}
 
-              {lookupError ? <ErrorBox message={lookupError} /> : null}
+              {lookupError ? (
+                <View testID="barcode-lookup-error">
+                  <ErrorBox message={lookupError} />
+                </View>
+              ) : null}
 
               {detectedCode ? (
                 <Button
+                  testID="barcode-lookup-button"
                   label={tMeals("barcode_scan_search_cta", {
                     defaultValue: "Search product",
                   })}
@@ -385,6 +408,7 @@ export default function BarcodeScanScreen({
               ) : null}
 
               <Button
+                testID="barcode-open-manual-button"
                 label={tMeals("barcode_scan_manual_cta", {
                   defaultValue: "Enter code manually",
                 })}
@@ -394,6 +418,7 @@ export default function BarcodeScanScreen({
               />
 
               <MealAddTextLink
+                testID="barcode-change-method-button"
                 label={tMeals("change_method", {
                   defaultValue: "Change add method",
                 })}
@@ -415,6 +440,7 @@ export default function BarcodeScanScreen({
             />
 
             <View
+              testID="barcode-manual-sheet"
               style={[
                 styles.manualSheet,
                 {
@@ -454,10 +480,15 @@ export default function BarcodeScanScreen({
                 })}
                 error={manualError}
               />
-              {lookupError ? <ErrorBox message={lookupError} /> : null}
+              {lookupError ? (
+                <View testID="barcode-manual-error">
+                  <ErrorBox message={lookupError} />
+                </View>
+              ) : null}
 
               <View style={styles.manualActions}>
                 <Button
+                  testID="barcode-manual-submit-button"
                   label={tMeals("barcode_scan_search_cta", {
                     defaultValue: "Search product",
                   })}
@@ -465,6 +496,7 @@ export default function BarcodeScanScreen({
                   loading={lookupLoading}
                 />
                 <Button
+                  testID="barcode-manual-cancel-button"
                   label={tMeals("barcode_scan_back_to_scan", {
                     defaultValue: "Back to scan",
                   })}

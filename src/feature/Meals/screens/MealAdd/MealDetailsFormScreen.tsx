@@ -170,7 +170,7 @@ function MealDetailsFormScreenInner({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
-      <View style={styles.screen}>
+      <View style={styles.screen} testID="meal-details-form-screen">
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           contentContainerStyle={[

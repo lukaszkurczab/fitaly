@@ -391,6 +391,7 @@ export default function PreparingReviewPhotoScreen({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
+      <View testID="add-meal-photo-preparing-screen" style={styles.screen}>
       <MealAddPhotoScaffold
         topInset={previewTopInset}
         preview={
@@ -419,12 +420,14 @@ export default function PreparingReviewPhotoScreen({
         }
         content={
           uiState === "preparing" ? (
-            <MealAddStatusBanner
-              label={t("preparing_review_status", {
-                ns: "meals",
-                defaultValue: "Photo analysis started",
-              })}
-            />
+            <View testID="add-meal-photo-preparing-state">
+              <MealAddStatusBanner
+                label={t("preparing_review_status", {
+                  ns: "meals",
+                  defaultValue: "Photo analysis started",
+                })}
+              />
+            </View>
           ) : (
             <View style={styles.actions}>
               <Button
@@ -473,6 +476,7 @@ export default function PreparingReviewPhotoScreen({
           )
         }
       />
+      </View>
     </Layout>
   );
 }
@@ -484,6 +488,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
+    },
+    screen: {
+      flex: 1,
     },
     previewImage: {
       width: "100%",

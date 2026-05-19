@@ -24,6 +24,7 @@ type RowPickerProps<T extends string> = {
   error?: string;
   style?: StyleProp<ViewStyle>;
   size?: "default" | "compact";
+  testID?: string;
 };
 
 export function RowPicker<T extends string>({
@@ -34,12 +35,13 @@ export function RowPicker<T extends string>({
   error,
   style,
   size = "default",
+  testID,
 }: RowPickerProps<T>) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View style={style}>
+    <View style={style} testID={testID}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
 
       <View accessibilityRole="radiogroup" style={styles.row}>

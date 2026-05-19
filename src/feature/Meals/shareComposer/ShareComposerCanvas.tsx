@@ -479,6 +479,7 @@ export default function ShareComposerCanvas({
 
   return (
     <View
+      testID="share-composer-canvas"
       style={[
         stylesWithTheme.canvasRoot,
         {

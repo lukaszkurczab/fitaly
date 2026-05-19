@@ -211,7 +211,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <Layout>
-      <View style={[styles.screen, styles.screenGap]}>
+      <View style={[styles.screen, styles.screenGap]} testID="home-screen">
         <WeekStrip
           days={last7Days}
           selectedDate={selectedDate}
@@ -283,6 +283,7 @@ export default function HomeScreen({ navigation }: Props) {
         ) : null}
 
         <Pressable
+          testID="home-view-history-button"
           onPress={() => navigation.navigate("HistoryList")}
           accessibilityRole="button"
           accessibilityLabel={t("home:viewHistory")}
@@ -295,16 +296,19 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       <Modal
+        testID="home-resume-draft-modal"
         visible={mealAddEntry.showResumeModal}
         title={t("meals:continue_draft_title")}
         message={t("meals:continue_draft_message")}
         primaryAction={{
+          testID: "home-resume-draft-continue-button",
           label: t("meals:continue"),
           onPress: () => {
             void mealAddEntry.handleContinueDraft();
           },
         }}
         secondaryAction={{
+          testID: "home-resume-draft-discard-button",
           label: t("meals:discard"),
           onPress: () => {
             void mealAddEntry.handleDiscardDraft();

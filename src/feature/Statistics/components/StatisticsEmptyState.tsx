@@ -49,7 +49,7 @@ export function StatisticsEmptyState({
       : t("statistics:empty.foot");
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID={`statistics-empty-state-${kind}`}>
       <View style={styles.motifCluster}>
         <View style={styles.motifFrame}>
           <AppIcon name="trend-up" size={32} color={theme.primaryStrong} />
@@ -61,6 +61,7 @@ export function StatisticsEmptyState({
 
       {isLimitedByFreeWindow && onManageSubscription ? (
         <Pressable
+          testID="statistics-empty-manage-subscription-button"
           accessibilityRole="button"
           accessibilityLabel={t("statistics:limitedRange.cta")}
           onPress={onManageSubscription}

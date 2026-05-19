@@ -156,9 +156,15 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       title={t("create_account")}
       banner={
         !isConnected ? (
-          <ErrorBox message={t("common:no_internet")} />
+          <ErrorBox
+            message={t("common:no_internet")}
+            testID="register-error-banner"
+          />
         ) : errors.general ? (
-          <ErrorBox message={t(errors.general)} />
+          <ErrorBox
+            message={t(errors.general)}
+            testID="register-error-banner"
+          />
         ) : null
       }
       footer={

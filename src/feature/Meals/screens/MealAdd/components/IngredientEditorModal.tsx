@@ -95,6 +95,7 @@ export default function IngredientEditorModal({
               contentContainerStyle={styles.ingredientEditorContent}
             >
               <IngredientEditor
+                testIDPrefix="ingredient-editor"
                 key={ingredientDraft.id}
                 initial={ingredientDraft}
                 variant="sheet"

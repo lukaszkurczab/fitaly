@@ -44,7 +44,7 @@ export default function UserProfileScreen({
   if (state.loadingUser) {
     return (
       <Layout>
-        <View style={styles.emptyStateWrap}>
+        <View style={styles.emptyStateWrap} testID="account-loading-state">
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.emptyStateDescription}>
             {t("common:loading")}
@@ -57,7 +57,7 @@ export default function UserProfileScreen({
   if (!state.userData) {
     return (
       <Layout>
-        <View style={styles.emptyStateWrap}>
+        <View style={styles.emptyStateWrap} testID="account-empty-state">
           <Text style={styles.emptyStateTitle}>
             {t("profileUnavailableTitle")}
           </Text>
@@ -67,6 +67,7 @@ export default function UserProfileScreen({
               : t("profileUnavailableOfflineDesc")}
           </Text>
           <Button
+            testID="account-empty-retry-button"
             label={t("common:retry")}
             onPress={() => {
               void state.handleRetryProfileLoad();
@@ -88,7 +89,7 @@ export default function UserProfileScreen({
         : t("manageSubscription.free");
   return (
     <Layout>
-      <View style={styles.content}>
+      <View style={styles.content} testID="account-screen">
         <View style={styles.hero}>
           <AccountIdentityCard
             avatar={
@@ -143,6 +144,7 @@ export default function UserProfileScreen({
 
               {state.syncState === "conflict" ? (
                 <Button
+                  testID="account-sync-retry-button"
                   label={t("sync.retry")}
                   variant="secondary"
                   fullWidth={false}
@@ -220,6 +222,7 @@ export default function UserProfileScreen({
       </View>
 
       <Modal
+        testID="account-logout-modal"
         visible={isLogoutModalVisible}
         title={t("logOutConfirmTitle")}
         message={t("logOutConfirmMessage")}

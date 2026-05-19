@@ -88,7 +88,7 @@ export default function Step1BasicData({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="onboarding-step-1">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -104,6 +104,7 @@ export default function Step1BasicData({
         <View style={styles.panel}>
           <View style={styles.topRow}>
             <RowPicker
+              testID="onboarding-units-picker"
               label={t("step1.unitsLabel")}
               options={UNITS_OPTIONS.map((option) => ({
                 value: option.value,
@@ -122,6 +123,7 @@ export default function Step1BasicData({
 
           <View style={styles.topRow}>
             <RowPicker
+              testID="onboarding-sex-picker"
               label={t("step1.sexLabel")}
               options={SEX_OPTIONS.map((option) => ({
                 value: option.value,
@@ -141,6 +143,7 @@ export default function Step1BasicData({
           </View>
 
           <NumberInput
+            testID="onboarding-age-input"
             label={t("age")}
             value={getString(form.age)}
             onChangeText={(nextAge) => {
@@ -160,6 +163,7 @@ export default function Step1BasicData({
 
           {form.unitsSystem === "metric" ? (
             <NumberInput
+              testID="onboarding-height-input"
               label={t("height")}
               value={getString(form.height)}
               onChangeText={(nextHeight) => {
@@ -179,6 +183,7 @@ export default function Step1BasicData({
           ) : (
             <View style={styles.row}>
               <NumberInput
+                testID="onboarding-height-ft-input"
                 label={t("heightFt")}
                 value={displayFt ? String(displayFt) : ""}
                 onChangeText={handleHeightFeetChange}
@@ -191,6 +196,7 @@ export default function Step1BasicData({
                 style={styles.rowItem}
               />
               <NumberInput
+                testID="onboarding-height-in-input"
                 label={t("heightIn")}
                 value={String(displayInch || "")}
                 onChangeText={handleHeightInchChange}
@@ -206,6 +212,7 @@ export default function Step1BasicData({
           )}
 
           <NumberInput
+            testID="onboarding-weight-input"
             label={t("weight")}
             value={
               form.unitsSystem === "metric"
@@ -236,11 +243,13 @@ export default function Step1BasicData({
       </ScrollView>
 
       <GlobalActionButtons
+        primaryTestID="onboarding-step-1-next-button"
         label={t("step1.primaryCta")}
         onPress={onContinue}
         loading={submitting}
         secondaryLabel={showSecondaryAction ? t("common:cancel") : undefined}
         secondaryOnPress={onSecondaryAction}
+        secondaryTestID="onboarding-step-1-cancel-button"
         secondaryTone="secondary"
         containerStyle={styles.footer}
       />

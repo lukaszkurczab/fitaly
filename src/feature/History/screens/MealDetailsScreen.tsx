@@ -117,7 +117,10 @@ export default function MealDetailsScreen() {
           onBack={state.handleBack}
           titleSize="h2"
         />
-        <View style={[styles.emptyWrap, contentInsetsStyle]}>
+        <View
+          style={[styles.emptyWrap, contentInsetsStyle]}
+          testID="history-meal-details-empty-state"
+        >
           <Text style={styles.emptyTitle}>
             {t("detailsUnavailable.title", { ns: "meals" })}
           </Text>
@@ -127,6 +130,7 @@ export default function MealDetailsScreen() {
               : t("detailsUnavailable.offlineDesc", { ns: "meals" })}
           </Text>
           <Button
+            testID="history-meal-details-empty-retry-button"
             label={t("retry", { ns: "common" })}
             onPress={() => {
               void state.reloadFromLocal();
@@ -146,7 +150,10 @@ export default function MealDetailsScreen() {
   return (
     <Layout showNavigation={false} style={styles.layout}>
       <>
-        <View style={[styles.content, contentInsetsStyle]}>
+        <View
+          style={[styles.content, contentInsetsStyle]}
+          testID="history-meal-details-screen"
+        >
           <BackTitleHeader
             title={t("navText", { ns: "history" })}
             onBack={state.handleBack}
@@ -171,6 +178,7 @@ export default function MealDetailsScreen() {
                     />
                     {canShareMeal ? (
                       <Pressable
+                        testID="history-meal-share-button"
                         onPress={state.goShare}
                         accessibilityRole="button"
                         accessibilityLabel={t("share", { ns: "common" })}
@@ -278,10 +286,13 @@ export default function MealDetailsScreen() {
                 </View>
               </View>
 
-              <View style={styles.ingredientsCard}>
+              <View style={styles.ingredientsCard} testID="history-meal-ingredients-list">
                 {state.draft.ingredients.map((ingredient, idx) => (
                   <View key={ingredient.id || String(idx)}>
-                    <View style={styles.ingredientRow}>
+                    <View
+                      style={styles.ingredientRow}
+                      testID={`history-meal-ingredient-row-${idx}`}
+                    >
                       <Text numberOfLines={1} style={styles.ingredientName}>
                         {ingredient.name}
                       </Text>
@@ -304,6 +315,7 @@ export default function MealDetailsScreen() {
 
           <View style={styles.actionsWrap}>
             <Button
+              testID="history-meal-edit-button"
               variant="secondary"
               label={t("edit_meal", {
                 ns: "meals",
@@ -315,6 +327,7 @@ export default function MealDetailsScreen() {
             />
 
             <Pressable
+              testID="history-meal-delete-button"
               onPress={state.openDeleteModal}
               accessibilityRole="button"
               accessibilityLabel={t("delete_meal", {
@@ -335,6 +348,7 @@ export default function MealDetailsScreen() {
         </View>
 
         <Modal
+          testID="history-meal-delete-modal"
           visible={state.showDeleteModal}
           title={t("deleteMealTitle", {
             ns: "history",
@@ -343,6 +357,7 @@ export default function MealDetailsScreen() {
             ns: "history",
           })}
           primaryAction={{
+            testID: "history-meal-delete-confirm-button",
             label: t("delete", {
               ns: "common",
             }),
@@ -354,6 +369,7 @@ export default function MealDetailsScreen() {
             disabled: state.deleting,
           }}
           secondaryAction={{
+            testID: "history-meal-delete-cancel-button",
             label: t("cancel", {
               ns: "common",
             }),

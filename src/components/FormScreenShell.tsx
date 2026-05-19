@@ -31,11 +31,13 @@ export type FormScreenShellProps = {
   actionLoading?: boolean;
   actionDisabled?: boolean;
   actionTone?: ActionTone;
+  actionTestID?: string;
   secondaryActionLabel?: string;
   secondaryActionPress?: () => void;
   secondaryActionLoading?: boolean;
   secondaryActionDisabled?: boolean;
   secondaryActionTone?: ActionTone;
+  secondaryActionTestID?: string;
   actionsLayout?: "column" | "row";
   actionsRowOrder?: "primary-secondary" | "secondary-primary";
   stickyActions?: boolean;
@@ -58,11 +60,13 @@ export function FormScreenShell({
   actionLoading = false,
   actionDisabled = false,
   actionTone = "primary",
+  actionTestID,
   secondaryActionLabel,
   secondaryActionPress,
   secondaryActionLoading = false,
   secondaryActionDisabled = false,
   secondaryActionTone = "secondary",
+  secondaryActionTestID,
   actionsLayout = "column",
   actionsRowOrder = "primary-secondary",
   stickyActions = true,
@@ -90,11 +94,13 @@ export function FormScreenShell({
         tone={actionTone}
         primaryLoading={actionLoading}
         primaryDisabled={actionDisabled || !actionLabel}
+        primaryTestID={actionTestID}
         secondaryLabel={secondaryActionLabel}
         secondaryOnPress={secondaryActionPress}
         secondaryLoading={secondaryActionLoading}
         secondaryDisabled={secondaryActionDisabled}
         secondaryTone={secondaryActionTone}
+        secondaryTestID={secondaryActionTestID}
         layout={actionsLayout}
         rowOrder={actionsRowOrder}
       />

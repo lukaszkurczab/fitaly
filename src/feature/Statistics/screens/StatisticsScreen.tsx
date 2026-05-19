@@ -53,7 +53,7 @@ export default function StatisticsScreen({ navigation }: Props) {
 
   return (
     <Layout disableScroll style={styles.layout} showOfflineBanner={showAnalytics}>
-      <View style={styles.container}>
+      <View style={styles.container} testID="statistics-screen">
         <View style={styles.header}>
           <Text style={styles.title}>{t("statistics:title")}</Text>
           <Text style={styles.subtitle}>{t("statistics:subtitle")}</Text>
@@ -81,9 +81,11 @@ export default function StatisticsScreen({ navigation }: Props) {
           />
         ) : null}
 
-        <View style={styles.content}>
+        <View style={styles.content} testID="statistics-content">
           {state.loadingMeals ? (
-            <FullScreenLoader label={t("common:loading")} />
+            <View testID="statistics-loading-state" style={styles.loaderWrap}>
+              <FullScreenLoader label={t("common:loading")} />
+            </View>
           ) : showAnalytics ? (
             <ScrollView
               contentContainerStyle={styles.scrollContent}
@@ -168,6 +170,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     content: {
       flex: 1,
       marginTop: theme.spacing.sm,
+    },
+    loaderWrap: {
+      flex: 1,
     },
     scrollContent: {
       paddingBottom: theme.spacing.sm,

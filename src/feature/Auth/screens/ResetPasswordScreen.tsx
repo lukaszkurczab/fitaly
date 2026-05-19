@@ -113,12 +113,21 @@ export default function ResetPasswordScreen({ navigation }: Props) {
 
   return (
     <AuthScreenLayout
+      testID="reset-password-screen"
       brand={t("common:app_title")}
       title={t("title")}
       description={t("description")}
-      banner={bannerError ? <ErrorBox message={bannerError} /> : null}
+      banner={
+        bannerError ? (
+          <ErrorBox
+            message={bannerError}
+            testID="reset-password-error-banner"
+          />
+        ) : null
+      }
       bottomAction={
         <Button
+          testID="reset-password-submit-button"
           label={t("resetBtn")}
           onPress={onSubmit}
           loading={loading}
@@ -130,6 +139,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
         <View style={styles.footerRow}>
           <Text style={styles.footerText}>{t("rememberPassword")} </Text>
           <LinkText
+            testID="reset-password-login-link"
             onPress={() => navigation.navigate("Login")}
             accessibilityRole="link"
             disabled={loading}
@@ -141,6 +151,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
     >
       <View style={styles.formBlock}>
         <TextInput
+          testID="reset-password-email-input"
           ref={inputRef}
           label={t("email")}
           placeholder={t("emailPlaceholder")}

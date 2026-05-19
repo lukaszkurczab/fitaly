@@ -21,6 +21,7 @@ export default function MealDetailsFooter({
   return (
     <View style={[styles.footer, { paddingBottom: footerBottomInset }]}>
       <Button
+        testID="meal-details-form-submit-button"
         label={
           reviewSubmitLabel ??
           t("review_meal_edit_done", {

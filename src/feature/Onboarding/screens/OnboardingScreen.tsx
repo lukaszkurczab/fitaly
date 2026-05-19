@@ -62,7 +62,7 @@ export default function OnboardingScreen({
   if (!state.isLoaded) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.loadingWrap}>
+        <View style={styles.loadingWrap} testID="onboarding-loading-state">
           <ActivityIndicator color={theme.primary} />
           <Text style={styles.loadingText}>{t("common:loading")}</Text>
         </View>
@@ -73,6 +73,7 @@ export default function OnboardingScreen({
   return (
     <>
       <Layout showNavigation={false} disableScroll style={styles.layout}>
+        <View testID="onboarding-screen" style={styles.screenMarker}>
         <ProgressDots
           step={state.step}
           total={state.totalSteps}
@@ -127,14 +128,17 @@ export default function OnboardingScreen({
             submitting={state.submitting}
           />
         ) : null}
+        </View>
       </Layout>
 
       <Modal
+        testID="onboarding-confirm-modal"
         visible={!!state.modalState}
         title={modalCopy?.title}
         message={modalCopy?.message}
         onClose={state.handleModalClose}
         primaryAction={{
+          testID: "onboarding-confirm-primary-button",
           label: modalCopy?.primaryLabel ?? "",
           onPress:
             state.modalState?.type === "exit_refill"
@@ -143,6 +147,7 @@ export default function OnboardingScreen({
           loading: state.submitting,
         }}
         secondaryAction={{
+          testID: "onboarding-confirm-secondary-button",
           label: modalCopy?.secondaryLabel ?? "",
           onPress:
             state.modalState?.type === "exit_refill"
@@ -177,5 +182,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     progress: {
       marginBottom: theme.spacing.xl,
+    },
+    screenMarker: {
+      flex: 1,
     },
   });

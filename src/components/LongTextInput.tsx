@@ -18,6 +18,7 @@ type Props = {
   onBlur?: () => void;
   onFocus?: () => void;
   maxLength?: number;
+  testID?: string;
 };
 
 const DEFAULT_MAX_LENGTH = 250;
@@ -38,6 +39,7 @@ export const LongTextInput = forwardRef<RNTextInput, Props>(
       onBlur,
       onFocus,
       maxLength = DEFAULT_MAX_LENGTH,
+      testID,
     },
     ref,
   ) => {
@@ -55,6 +57,7 @@ export const LongTextInput = forwardRef<RNTextInput, Props>(
     return (
       <View style={style}>
         <AppTextInput
+          testID={testID}
           ref={ref}
           label={label}
           value={value}

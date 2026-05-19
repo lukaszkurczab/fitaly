@@ -19,6 +19,9 @@ import {
   type AccessState,
 } from "@/services/access/accessState";
 import { useProductReadiness } from "@/hooks/useProductReadiness";
+import { on } from "@/services/core/events";
+import { getE2EAccessState } from "@/services/e2e/fixtures";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 type AccessContextValue = {
   accessState: AccessState | null;
@@ -92,6 +95,17 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     const token = {};
     const promise = (async () => {
       try {
+        const e2eAccessState = getE2EAccessState(requestUid);
+        if (e2eAccessState) {
+          if (
+            uidRef.current === requestUid
+            && refreshInFlightRef.current?.token === token
+          ) {
+            updateAccess(e2eAccessState);
+          }
+          return e2eAccessState;
+        }
+
         const response = await get<unknown>("/billing/access-state");
         const parsed = parseAccessState(response);
         if (!parsed) return null;
@@ -131,6 +145,16 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
 
     void refreshAccess();
   }, [productReadyUid, refreshAccess, uid, updateAccess]);
+
+  useEffect(() => {
+    if (!isE2EModeEnabled()) return undefined;
+    const unsubscribe = on("e2e:seeded", () => {
+      void refreshAccess({ force: true });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [refreshAccess]);
 
   const getFeature = useCallback(
     (feature: AccessFeatureKey) => getAccessFeature(accessState, feature),

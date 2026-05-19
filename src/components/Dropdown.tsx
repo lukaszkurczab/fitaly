@@ -34,6 +34,7 @@ type Props<T extends string> = {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   renderLabel?: (option: Option<T>) => React.ReactNode;
+  testID?: string;
 };
 
 type DropdownPosition = {
@@ -52,6 +53,7 @@ export function Dropdown<T extends string>({
   disabled,
   style,
   renderLabel,
+  testID,
 }: Props<T>) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -123,7 +125,7 @@ export function Dropdown<T extends string>({
   );
 
   return (
-    <View style={style}>
+    <View style={style} testID={testID}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
 
       <Pressable
@@ -138,7 +140,7 @@ export function Dropdown<T extends string>({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled, expanded: open }}
-        testID="dropdown-field"
+        testID={testID ? `${testID}-field` : "dropdown-field"}
       >
         <View style={styles.fieldContent}>
           {selected ? (

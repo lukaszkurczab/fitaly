@@ -5,16 +5,22 @@ import { useTheme } from "@/theme/useTheme";
 type ErrorBoxProps = {
   message: string;
   style?: ViewStyle;
+  testID?: string;
 };
 
-export const ErrorBox: React.FC<ErrorBoxProps> = ({ message, style }) => {
+export const ErrorBox: React.FC<ErrorBoxProps> = ({ message, style, testID }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (!message) return null;
 
   return (
-    <View style={[styles.box, style]} accessible accessibilityRole="alert">
+    <View
+      style={[styles.box, style]}
+      accessible
+      accessibilityRole="alert"
+      testID={testID}
+    >
       <Text style={styles.message}>{message}</Text>
     </View>
   );

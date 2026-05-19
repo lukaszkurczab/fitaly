@@ -12,6 +12,7 @@ import {
   hasRevenueCatApiKey,
   isBillingDisabled,
 } from "@/services/billing/revenuecat";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { hasPremiumAccess } from "@/services/billing/subscriptionStateMachine";
 import {
   trackEntitlementConfirmationFailed,
@@ -218,6 +219,10 @@ export function useManageSubscriptionState(params: {
   );
 
   useEffect(() => {
+    if (getE2EFixtureState()?.billing) {
+      setBillingAvailability("ready");
+      return;
+    }
     setBillingAvailability(
       isBillingDisabled()
         ? "disabled"
@@ -332,6 +337,7 @@ export function useManageSubscriptionState(params: {
         void trackRestoreSucceeded({ confirmed: confirmation.confirmed });
         if (confirmation.confirmed) {
           void trackEntitlementConfirmed({ source: "restore" });
+          setPaywallVisible(false);
           setActionFeedback({
             tone: "success",
             title: params.t("manageSubscription.restoreSuccessTitle", {

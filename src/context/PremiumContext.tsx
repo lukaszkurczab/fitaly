@@ -26,6 +26,10 @@ import {
   rcLogOut,
   rcSetAttributes,
 } from "@/services/billing/revenuecat";
+import {
+  getE2EAccessState,
+  getE2EFixtureState,
+} from "@/services/e2e/fixtures";
 import { useProductReadiness } from "@/hooks/useProductReadiness";
 import {
   hasPremiumAccess,
@@ -259,6 +263,15 @@ export const PremiumProvider = ({
       return false;
     }
 
+    const e2eAccess = getE2EAccessState(productReadyUid);
+    if (e2eAccess) {
+      const premium = hasConfirmedPremiumAccess(e2eAccess);
+      revenueCatActivePremiumRef.current = premium;
+      revenueCatUserIdRef.current = premium ? productReadyUid : null;
+      applyAccessCredits(e2eAccess);
+      return setSubscriptionFromAccessState(e2eAccess);
+    }
+
     if (isBillingDisabled()) {
       setSubscriptionUnknown();
       setPremiumIssueReason("rc_not_configured");
@@ -289,7 +302,9 @@ export const PremiumProvider = ({
       return false;
     }
   }, [
+    applyAccessCredits,
     setSubscriptionFromPremium,
+    setSubscriptionFromAccessState,
     setSubscriptionFromRevenueCat,
     setSubscriptionUnknown,
     productReadyUid,
@@ -316,6 +331,27 @@ export const PremiumProvider = ({
       if (!productReadyUid) {
         setSubscriptionFromPremium(false);
         return { confirmed: false, reason: "sync_tier_failed" as const };
+      }
+
+      const e2eBilling = getE2EFixtureState()?.billing;
+      const e2eAccess = getE2EAccessState(productReadyUid);
+      if (e2eAccess) {
+        const shouldConfirm =
+          e2eBilling === "premium" || e2eBilling === "restoreSuccess";
+        revenueCatActivePremiumRef.current = shouldConfirm;
+        revenueCatUserIdRef.current = shouldConfirm ? productReadyUid : null;
+        applyAccessCredits(e2eAccess);
+        const confirmed =
+          shouldConfirm && setSubscriptionFromAccessState(e2eAccess);
+        if (!confirmed) {
+          const reason =
+            e2eBilling === "restoreFailure"
+              ? "no_active_entitlement"
+              : resolveAccessFailureReason(e2eAccess);
+          setPremiumIssueReason(reason);
+          return { confirmed: false, reason };
+        }
+        return { confirmed: true };
       }
 
       await checkPremiumStatus();

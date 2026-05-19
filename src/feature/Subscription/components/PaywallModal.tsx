@@ -49,6 +49,7 @@ export const PaywallModal: React.FC<Props> = ({
 
   return (
     <Modal
+      testID="paywall-modal"
       visible={visible}
       fullScreen
       onClose={busy ? undefined : onClose}
@@ -103,6 +104,7 @@ export const PaywallModal: React.FC<Props> = ({
         </View>
 
         <TouchableOpacity
+          testID="paywall-restore-button"
           onPress={onRestore}
           disabled={busy}
           activeOpacity={0.7}
@@ -137,6 +139,7 @@ export const PaywallModal: React.FC<Props> = ({
         {!!termsUrl && !!privacyUrl && (
           <View style={styles.linksRow}>
             <TouchableOpacity
+              testID="paywall-terms-button"
               onPress={() => Linking.openURL(termsUrl)}
               activeOpacity={0.7}
               disabled={busy}
@@ -149,6 +152,7 @@ export const PaywallModal: React.FC<Props> = ({
             </TouchableOpacity>
 
             <TouchableOpacity
+              testID="paywall-privacy-button"
               onPress={() => Linking.openURL(privacyUrl)}
               activeOpacity={0.7}
               disabled={busy}

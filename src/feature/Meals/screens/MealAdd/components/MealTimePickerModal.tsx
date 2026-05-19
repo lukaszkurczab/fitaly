@@ -58,6 +58,7 @@ export default function MealTimePickerModal({
           })}
         />
         <View
+          testID="meal-time-picker-sheet"
           style={[
             styles.sheet,
             {
@@ -86,6 +87,7 @@ export default function MealTimePickerModal({
 
           <View style={styles.sheetActions}>
             <Button
+              testID="meal-time-picker-cancel-button"
               variant="secondary"
               label={t("cancel", { ns: "common" })}
               onPress={onClose}
@@ -93,6 +95,7 @@ export default function MealTimePickerModal({
               fullWidth={false}
             />
             <Button
+              testID="meal-time-picker-apply-button"
               label={t("apply", {
                 ns: "common",
                 defaultValue: "Apply",

@@ -15,7 +15,7 @@ export function StatisticsPremiumBanner({ onPress, days }: Props) {
   const { t } = useTranslation(["statistics"]);
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID="statistics-premium-banner">
       <View style={styles.content}>
         <View style={styles.eyebrowPill}>
           <View style={styles.eyebrowDot} />
@@ -26,6 +26,7 @@ export function StatisticsPremiumBanner({ onPress, days }: Props) {
         <Text style={styles.body}>{t("statistics:limitedHistory.body", { days })}</Text>
 
         <Pressable
+          testID="statistics-premium-banner-cta-button"
           accessibilityRole="button"
           accessibilityLabel={t("statistics:limitedHistory.cta")}
           onPress={onPress}

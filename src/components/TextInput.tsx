@@ -50,6 +50,7 @@ type Props = {
   rightLabel?: string;
   maxLength?: number;
   testID?: string;
+  errorTestID?: string;
 };
 
 const DEFAULT_ICON_SIZE = 22;
@@ -107,6 +108,7 @@ export const TextInput = forwardRef<RNTextInput, Props>(
       rightLabel,
       maxLength = 128,
       testID,
+      errorTestID,
     },
     ref,
   ) => {
@@ -274,7 +276,10 @@ export const TextInput = forwardRef<RNTextInput, Props>(
         </View>
 
         {helperMessage ? (
-          <Text style={hasError ? styles.errorText : styles.helperText}>
+          <Text
+            testID={hasError ? errorTestID : undefined}
+            style={hasError ? styles.errorText : styles.helperText}
+          >
             {helperMessage}
           </Text>
         ) : null}

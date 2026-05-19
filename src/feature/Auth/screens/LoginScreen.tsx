@@ -107,11 +107,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   return (
     <AuthScreenLayout
+      testID="login-screen"
       brand={t("common:app_title")}
       title={t("welcome_back")}
       banner={
         displayCriticalError ? (
-          <ErrorBox message={displayCriticalError} />
+          <ErrorBox
+            message={displayCriticalError}
+            testID="login-error-banner"
+          />
         ) : null
       }
       bottomAction={
@@ -164,12 +168,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             autoComplete="password"
             textContentType="password"
             error={passwordError}
+            errorTestID="login-password-error"
             editable={!loading}
             placeholder={t("enter_password")}
             accessibilityLabel={t("password")}
             style={styles.passwordField}
             icon={
               <Pressable
+                testID="login-password-visibility-toggle"
                 onPress={() => setShowPassword((v) => !v)}
                 hitSlop={8}
                 accessibilityLabel={t("toggle_password_visibility")}
@@ -185,6 +191,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           />
 
           <LinkText
+            testID="login-forgot-password-link"
             onPress={() => navigation.navigate("ResetPassword")}
             disabled={loading}
             style={styles.forgotPasswordLink}

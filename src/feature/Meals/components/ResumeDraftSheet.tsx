@@ -34,8 +34,13 @@ export function ResumeDraftSheet({
   );
 
   return (
-    <View pointerEvents="box-none" style={styles.overlay}>
+    <View
+      pointerEvents="box-none"
+      style={styles.overlay}
+      testID="resume-draft-sheet"
+    >
       <Pressable
+        testID="resume-draft-close-button"
         accessibilityRole="button"
         onPress={onClose}
         style={styles.scrim}
@@ -87,10 +92,12 @@ export function ResumeDraftSheet({
 
         <View style={styles.actions}>
           <Button
+            testID="resume-draft-resume-button"
             label={t("resume_draft_sheet_resume", "Resume")}
             onPress={onResume}
           />
           <Button
+            testID="resume-draft-discard-button"
             label={t("resume_draft_sheet_discard", "Discard")}
             variant="secondary"
             onPress={onDiscard}

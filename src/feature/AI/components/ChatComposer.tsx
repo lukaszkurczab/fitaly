@@ -124,6 +124,7 @@ export function ChatComposer({
 
       <View style={styles.helperRow}>
         <Text
+          testID={helperText ? "chat-error-state" : undefined}
           style={[
             styles.helperText,
             !hasHelperText ? styles.helperTextPlaceholder : null,
@@ -134,7 +135,7 @@ export function ChatComposer({
 
         {helperActionLabel && onHelperActionPress ? (
           <Pressable
-            testID="chat-helper-action"
+            testID="chat-retry-button"
             onPress={onHelperActionPress}
             disabled={helperActionDisabled}
             accessibilityRole="button"

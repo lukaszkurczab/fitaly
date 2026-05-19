@@ -6,6 +6,7 @@ type FlowActionButtonProps = {
   primary: boolean;
   loading: boolean;
   onPress: () => void;
+  testID?: string;
 };
 
 export default function FlowActionButton({
@@ -13,11 +14,13 @@ export default function FlowActionButton({
   primary,
   loading,
   onPress,
+  testID,
 }: FlowActionButtonProps) {
   const theme = useTheme();
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={loading ? undefined : onPress}

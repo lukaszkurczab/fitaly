@@ -62,7 +62,7 @@ export default function EmptyDayView({
         : null);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="home-empty-state">
       <Text style={styles.title}>{titleText}</Text>
 
       {subtitleText ? (
@@ -77,11 +77,16 @@ export default function EmptyDayView({
       ) : null}
 
       {isToday && onAddMeal ? (
-        <Button label={t("emptyDay.addMeal")} onPress={onAddMeal} />
+        <Button
+          testID="home-empty-add-meal-button"
+          label={t("emptyDay.addMeal")}
+          onPress={onAddMeal}
+        />
       ) : null}
 
       {!isToday && onOpenHistory ? (
         <Button
+          testID="home-empty-open-history-button"
           variant="secondary"
           label={t("emptyDay.openHistory")}
           onPress={onOpenHistory}

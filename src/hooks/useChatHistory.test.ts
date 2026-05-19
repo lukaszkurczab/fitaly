@@ -40,6 +40,9 @@ const mockMarkChatMessageProjectionSynced = jest.fn<
   (params: unknown) => Promise<void>
 >();
 const mockGetE2EMockChatReply = jest.fn<() => string | null>();
+const mockResolveE2EChatRun = jest.fn<
+  () => { reply: string } | { error: Error } | null
+>();
 const mockPushQueue = jest.fn<(uid: string) => Promise<void>>();
 const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
 
@@ -89,6 +92,10 @@ jest.mock("@/services/core/errorLogger", () => ({
 
 jest.mock("@/services/e2e/config", () => ({
   getE2EMockChatReply: () => mockGetE2EMockChatReply(),
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  resolveE2EChatRun: () => mockResolveE2EChatRun(),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -188,6 +195,7 @@ describe("useChatHistory", () => {
     mockCacheAssistantChatMessageProjection.mockResolvedValue();
     mockMarkChatMessageProjectionSynced.mockResolvedValue();
     mockGetE2EMockChatReply.mockReturnValue(null);
+    mockResolveE2EChatRun.mockReturnValue(null);
     mockPushQueue.mockResolvedValue();
     mockPullChatChanges.mockResolvedValue();
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length}`);
@@ -346,6 +354,54 @@ describe("useChatHistory", () => {
       ]),
     );
     expect(result.current.messages).toHaveLength(2);
+  });
+
+  it("uses deterministic E2E chat success without calling the AI backend", async () => {
+    mockResolveE2EChatRun.mockReturnValue({
+      reply: "E2E chat response: keep hydration consistent and plan the next meal.",
+    });
+    mockUuid
+      .mockReturnValueOnce("request-1")
+      .mockReturnValueOnce("thread-created")
+      .mockReturnValueOnce("user-msg")
+      .mockReturnValueOnce("ai-msg");
+
+    const { result } = await renderChatHistoryHook();
+
+    await act(async () => {
+      await result.current.send("hello");
+    });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockCacheAssistantChatMessageProjection).toHaveBeenCalledWith({
+      userUid: "user-1",
+      threadId: "thread-created",
+      messageId: "ai-msg",
+      content:
+        "E2E chat response: keep hydration consistent and plan the next meal.",
+      createdAt: expect.any(Number),
+    });
+  });
+
+  it("uses deterministic E2E chat failure without persisting an assistant reply", async () => {
+    mockResolveE2EChatRun.mockReturnValue({
+      error: new Error("E2E deterministic chat failure"),
+    });
+    mockUuid
+      .mockReturnValueOnce("request-1")
+      .mockReturnValueOnce("thread-created")
+      .mockReturnValueOnce("user-msg")
+      .mockReturnValueOnce("ai-msg");
+
+    const { result } = await renderChatHistoryHook();
+
+    await act(async () => {
+      await result.current.send("hello");
+    });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(result.current.sendErrorType).toBe("unknown");
+    expect(mockCacheAssistantChatMessageProjection).not.toHaveBeenCalled();
   });
 
   it("refreshes credits after backend 402 and persists limit fallback", async () => {

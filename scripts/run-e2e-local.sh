@@ -27,6 +27,10 @@ E2E_ALT_PASSWORD="${E2E_ALT_PASSWORD:-Test@1234}"
 E2E_CONFLICT_USERNAME="${E2E_CONFLICT_USERNAME:-e2e}"
 E2E_REGISTER_EMAIL="${E2E_REGISTER_EMAIL:-e2e-conflict-username@example.com}"
 E2E_REGISTER_PASSWORD="${E2E_REGISTER_PASSWORD:-Test1234.}"
+E2E_RUN_ID="${E2E_RUN_ID:-$(date +%s)-$$}"
+E2E_DISPOSABLE_EMAIL="${E2E_DISPOSABLE_EMAIL:-fitaly-e2e-${E2E_RUN_ID}@example.com}"
+E2E_DISPOSABLE_USERNAME="${E2E_DISPOSABLE_USERNAME:-e2e${E2E_RUN_ID//[^A-Za-z0-9]/}}"
+E2E_DISPOSABLE_PASSWORD="${E2E_DISPOSABLE_PASSWORD:-Test1234.}"
 
 EXPO_LOG="/tmp/expo-e2e.log"
 
@@ -114,13 +118,25 @@ cp -R "${ROOT_DIR}/e2e/maestro/." "${FLOW_WORKDIR}/"
 export E2E_EXPO_URL="${EXPO_URL}"
 export E2E_EMAIL E2E_PASSWORD E2E_ALT_EMAIL E2E_ALT_PASSWORD
 export E2E_CONFLICT_USERNAME E2E_REGISTER_EMAIL E2E_REGISTER_PASSWORD
-perl -0pi -e 's/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${FLOW_WORKDIR}"/*.yaml
+export E2E_RUN_ID E2E_DISPOSABLE_EMAIL E2E_DISPOSABLE_USERNAME E2E_DISPOSABLE_PASSWORD
+while IFS= read -r -d '' flow_file; do
+  perl -0pi -e 's/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
+done < <(find "${FLOW_WORKDIR}" -type f -name '*.yaml' -print0)
 
-FLOW_BASENAME="$(basename "${FLOW_PATH}")"
-if [[ -f "${FLOW_WORKDIR}/${FLOW_BASENAME}" ]]; then
-  MAESTRO_FLOW_PATH="${FLOW_WORKDIR}/${FLOW_BASENAME}"
-else
+FLOW_RELATIVE="${FLOW_PATH#e2e/maestro/}"
+if [[ "${FLOW_PATH}" == "e2e/maestro" ]]; then
   MAESTRO_FLOW_PATH="${FLOW_WORKDIR}"
+elif [[ -f "${FLOW_WORKDIR}/${FLOW_RELATIVE}" ]]; then
+  MAESTRO_FLOW_PATH="${FLOW_WORKDIR}/${FLOW_RELATIVE}"
+elif [[ -d "${FLOW_WORKDIR}/${FLOW_RELATIVE}" ]]; then
+  MAESTRO_FLOW_PATH="${FLOW_WORKDIR}/${FLOW_RELATIVE}"
+else
+  FLOW_BASENAME="$(basename "${FLOW_PATH}")"
+  if [[ -f "${FLOW_WORKDIR}/${FLOW_BASENAME}" ]]; then
+    MAESTRO_FLOW_PATH="${FLOW_WORKDIR}/${FLOW_BASENAME}"
+  else
+    MAESTRO_FLOW_PATH="${FLOW_WORKDIR}"
+  fi
 fi
 
 MAESTRO_CMD=(maestro test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${RESULTS_PATH}")

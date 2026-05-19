@@ -66,7 +66,7 @@ export default function Step3Health({
     !!form.lifestyle?.trim();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="onboarding-step-3">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -117,6 +117,7 @@ export default function Step3Health({
 
           {hasChronicOther ? (
             <TextInput
+              testID="onboarding-conditions-other-input"
               label={t("step3.conditionsOtherLabel")}
               value={form.chronicDiseasesOther ?? ""}
               onChangeText={(nextValue) => {
@@ -170,6 +171,7 @@ export default function Step3Health({
 
           {hasAllergyOther ? (
             <TextInput
+              testID="onboarding-allergies-other-input"
               label={t("step3.allergiesOtherLabel")}
               value={form.allergiesOther ?? ""}
               onChangeText={(nextValue) => {
@@ -190,6 +192,7 @@ export default function Step3Health({
 
         <View style={styles.panel}>
           <LongTextInput
+            testID="onboarding-lifestyle-notes-input"
             label={t("step3.notesLabel")}
             value={form.lifestyle ?? ""}
             onChangeText={(nextValue) => {
@@ -206,11 +209,13 @@ export default function Step3Health({
 
       <View style={styles.footer}>
         <GlobalActionButtons
+          primaryTestID="onboarding-step-3-next-button"
           label={hasHealthInput ? t("step3.primaryCta") : t("step3.skipCta")}
           onPress={hasHealthInput ? onContinue : onSkip}
           loading={submitting}
           secondaryLabel={t("common:back")}
           secondaryOnPress={onBack}
+          secondaryTestID="onboarding-step-3-back-button"
         />
       </View>
     </View>

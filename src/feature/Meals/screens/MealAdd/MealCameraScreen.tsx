@@ -20,6 +20,7 @@ import {
   MealAddPhotoScaffold,
   MealAddTextLink,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -38,6 +39,7 @@ export default function MealCameraScreen({
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
   const simulatorCreditsState = params.simulatorCreditsState ?? "ok";
+  const e2ePhotoSimulation = getE2EFixtureState()?.ai === "photoSuccess";
 
   const previewTopInset = useMemo(
     () =>
@@ -149,19 +151,19 @@ export default function MealCameraScreen({
             defaultValue: "✦ {{count}} credits remaining",
           });
 
-  if (!permission) {
+  if (!permission && !e2ePhotoSimulation) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.flexBackground} />
+        <View style={styles.flexBackground} testID="add-meal-photo-loading-state" />
       </Layout>
     );
   }
 
-  if (!permission.granted) {
+  if (!e2ePhotoSimulation && !permission.granted) {
     const blocked = permission.canAskAgain === false;
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.permissionWrap}>
+        <View style={styles.permissionWrap} testID="add-meal-photo-permission-state">
           <Text style={styles.permissionTitle}>
             {tCommon("camera_permission_title")}
           </Text>
@@ -171,6 +173,7 @@ export default function MealCameraScreen({
               : tCommon("camera_permission_message")}
           </Text>
           <Pressable
+            testID="add-meal-photo-permission-button"
             onPress={blocked ? () => Linking.openSettings() : requestPermission}
             style={styles.permissionButton}
             accessibilityRole="button"
@@ -201,15 +204,20 @@ export default function MealCameraScreen({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
-      <View style={styles.fill}>
+      <View style={styles.fill} testID="add-meal-photo-screen">
         <MealAddPhotoScaffold
           topInset={previewTopInset}
           preview={
-            <CameraView
-              ref={cameraRef}
-              style={styles.camera}
-              onCameraReady={() => setIsCameraReady(true)}
-            />
+            e2ePhotoSimulation ? (
+              <View testID="add-meal-photo-e2e-preview" style={styles.camera} />
+            ) : (
+              <CameraView
+                testID="add-meal-photo-camera-preview"
+                ref={cameraRef}
+                style={styles.camera}
+                onCameraReady={() => setIsCameraReady(true)}
+              />
+            )
           }
           topAction={
             <ScreenCornerNavButton
@@ -235,6 +243,7 @@ export default function MealCameraScreen({
             <>
               {!showNoCreditsState ? (
                 <Button
+                  testID="add-meal-photo-capture-button"
                   label={tCommon("camera_take_photo", {
                     defaultValue: "Take photo",
                   })}
@@ -257,6 +266,7 @@ export default function MealCameraScreen({
 
               {!skipDetection ? (
                 <MealAddTextLink
+                  testID="add-meal-photo-change-method-button"
                   label={tMeals("change_method", {
                     defaultValue: "Change add method",
                   })}
@@ -269,6 +279,7 @@ export default function MealCameraScreen({
       </View>
 
       <Modal
+        testID="add-meal-photo-premium-modal"
         visible={premiumModal}
         title={tChat("limit.reachedTitle")}
         message={tChat("limit.photoRequired", {
@@ -276,10 +287,12 @@ export default function MealCameraScreen({
         })}
         onClose={closePremiumModal}
         primaryAction={{
+          testID: "add-meal-photo-premium-upgrade-button",
           label: tChat("limit.upgradeCta"),
           onPress: goManagePremium,
         }}
         secondaryAction={{
+          testID: "add-meal-photo-premium-cancel-button",
           label: tCommon("cancel"),
           onPress: closePremiumModal,
         }}

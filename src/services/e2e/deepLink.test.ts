@@ -10,6 +10,9 @@ const mockResetOfflineStorage = jest.fn();
 const mockSetE2EForcedOffline = jest.fn();
 const mockMarkE2EResetStarted = jest.fn();
 const mockMarkE2EResetReady = jest.fn();
+const mockMarkE2ESeedReady = jest.fn();
+const mockApplyE2ESeedCommand = jest.fn<(input: unknown) => Promise<string[]>>();
+const mockResetE2EFixtureState = jest.fn<() => Promise<void>>();
 
 let mockE2EEnabled = true;
 let mockCurrentUser: { uid: string } | null = null;
@@ -49,8 +52,22 @@ jest.mock("@/services/e2e/config", () => ({
 }));
 
 jest.mock("@/services/e2e/status", () => ({
+  markE2ESeedReady: (...args: unknown[]) => mockMarkE2ESeedReady(...args),
   markE2EResetStarted: () => mockMarkE2EResetStarted(),
   markE2EResetReady: (...args: unknown[]) => mockMarkE2EResetReady(...args),
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  parseE2ESeedCommand: (params: Record<string, string>) => ({
+    fixture: params.fixture,
+    credits: params.credits,
+    ai: params.ai,
+    barcode: params.barcode,
+    billing: params.billing,
+    chat: params.chat,
+  }),
+  applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
+  resetE2EFixtureState: () => mockResetE2EFixtureState(),
 }));
 
 describe("handleE2EDeepLink", () => {
@@ -58,6 +75,8 @@ describe("handleE2EDeepLink", () => {
     jest.clearAllMocks();
     mockAsyncStorageClear.mockResolvedValue(undefined);
     mockSignOut.mockResolvedValue(undefined);
+    mockApplyE2ESeedCommand.mockResolvedValue([]);
+    mockResetE2EFixtureState.mockResolvedValue(undefined);
     mockE2EEnabled = true;
     mockCurrentUser = { uid: "user-1" };
   });
@@ -106,5 +125,43 @@ describe("handleE2EDeepLink", () => {
     expect(handled).toBe(false);
     expect(mockResetNavigation).not.toHaveBeenCalled();
     expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
+  });
+
+  it("applies seed links and marks all seeded targets ready", async () => {
+    mockApplyE2ESeedCommand.mockResolvedValue([
+      "fixture-user-with-today-meal",
+      "credits-none",
+    ]);
+
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockApplyE2ESeedCommand).toHaveBeenCalledWith({
+      uid: "user-1",
+      command: {
+        fixture: "user-with-today-meal",
+        credits: "none",
+        ai: undefined,
+        barcode: undefined,
+        billing: undefined,
+        chat: undefined,
+      },
+    });
+    expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([
+      "fixture-user-with-today-meal",
+      "credits-none",
+    ]);
+    expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
+  });
+
+  it("ignores seed links with no valid seed command", async () => {
+    mockApplyE2ESeedCommand.mockResolvedValue([]);
+
+    const handled = await handleE2EDeepLink("fitaly://e2e/seed?fixture=unknown");
+
+    expect(handled).toBe(false);
+    expect(mockMarkE2ESeedReady).not.toHaveBeenCalled();
   });
 });

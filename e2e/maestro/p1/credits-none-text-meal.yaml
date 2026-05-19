@@ -1,0 +1,40 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-none
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Credits blocked bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado and tahini
+- hideKeyboard
+- tapOn:
+    id: add-meal-text-screen
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-credits-explanation
+- assertVisible:
+    id: add-meal-text-upgrade-button
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal

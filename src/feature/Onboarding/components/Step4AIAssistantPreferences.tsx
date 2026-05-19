@@ -33,7 +33,7 @@ export default function Step4AIAssistantPreferences({
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="onboarding-step-4">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -71,11 +71,13 @@ export default function Step4AIAssistantPreferences({
 
       <View style={styles.footer}>
         <GlobalActionButtons
+          primaryTestID="onboarding-step-4-submit-button"
           label={t("step4.primaryCta")}
           onPress={onContinue}
           loading={submitting}
           secondaryLabel={t("common:back")}
           secondaryOnPress={onBack}
+          secondaryTestID="onboarding-step-4-back-button"
         />
       </View>
     </View>

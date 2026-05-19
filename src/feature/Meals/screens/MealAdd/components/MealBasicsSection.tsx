@@ -61,6 +61,7 @@ export default function MealBasicsSection({
 
         <View style={styles.fieldRow}>
           <Pressable
+            testID="meal-type-picker-trigger"
             accessibilityRole="button"
             accessibilityLabel={t("review_meal_type_label", {
               defaultValue: "Meal type",
@@ -88,6 +89,7 @@ export default function MealBasicsSection({
           </Pressable>
 
           <Pressable
+            testID="meal-time-picker-trigger"
             accessibilityRole="button"
             accessibilityLabel={t("review_meal_time_label", {
               defaultValue: "Time",

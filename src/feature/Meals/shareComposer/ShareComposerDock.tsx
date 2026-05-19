@@ -276,7 +276,10 @@ export default function ShareComposerDock({
   };
 
   return (
-    <View style={[stylesWithTheme.dock, typeof width === "number" ? { width } : null]}>
+    <View
+      style={[stylesWithTheme.dock, typeof width === "number" ? { width } : null]}
+      testID="share-composer-dock"
+    >
       <View style={stylesWithTheme.grabber} />
       <View style={stylesWithTheme.contentSlot}>
         {mode === "quick" ? (
@@ -366,12 +369,14 @@ export default function ShareComposerDock({
 
       <View style={stylesWithTheme.flowFooter}>
         <FlowActionButton
+          testID="share-save-gallery-button"
           label={t("dock.save_to_gallery")}
           primary={false}
           loading={isSaving}
           onPress={onSaveToGallery}
         />
         <FlowActionButton
+          testID="share-system-share-button"
           label={t("share")}
           primary
           loading={isSharing}

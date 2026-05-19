@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 
-export type E2EReadyTarget = "home" | "login" | "offline";
+export type E2EReadyTarget = string;
 
 type E2EStatus =
   | { phase: "idle"; target: null }
   | { phase: "resetting"; target: null }
-  | { phase: "ready"; target: E2EReadyTarget };
+  | { phase: "ready"; target: E2EReadyTarget; targets: E2EReadyTarget[] };
 
 type Listener = (status: E2EStatus) => void;
 
@@ -28,7 +28,14 @@ export function markE2EResetStarted(): void {
 
 export function markE2EResetReady(target: E2EReadyTarget): void {
   if (!isE2EModeEnabled()) return;
-  emitStatus({ phase: "ready", target });
+  emitStatus({ phase: "ready", target, targets: [target] });
+}
+
+export function markE2ESeedReady(targets: E2EReadyTarget[]): void {
+  if (!isE2EModeEnabled()) return;
+  const safeTargets = targets.filter((target) => target.trim().length > 0);
+  if (safeTargets.length === 0) return;
+  emitStatus({ phase: "ready", target: safeTargets[0], targets: safeTargets });
 }
 
 export function __resetE2EStatusForTests(): void {
@@ -60,15 +67,21 @@ export function E2EStatusOverlay() {
       testID="e2e-booted"
     >
       {status.phase === "ready" && status.target ? (
-        <Text testID="e2e-ready" style={styles.text}>
+        <Text testID="e2e-ready" style={[styles.text, styles.marker]}>
           {`e2e-ready:${status.target}`}
         </Text>
       ) : null}
-      {status.phase === "ready" && status.target ? (
-        <Text testID={`e2e-ready-${status.target}`} style={styles.text}>
-          {`e2e-ready:${status.target}`}
-        </Text>
-      ) : null}
+      {status.phase === "ready"
+        ? status.targets.map((target) => (
+            <Text
+              key={target}
+              testID={`e2e-ready-${target}`}
+              style={[styles.text, styles.marker]}
+            >
+              {`e2e-ready:${target}`}
+            </Text>
+          ))
+        : null}
     </View>
   );
 }
@@ -80,7 +93,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 8,
     height: 8,
-    overflow: "hidden",
+    overflow: "visible",
+  },
+  marker: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
   },
   text: {
     color: "transparent",

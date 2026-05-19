@@ -10,6 +10,7 @@ import { debugScope } from "@/utils/debug";
 import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { getErrorStatus } from "@/services/contracts/serviceError";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import type { Meal } from "@/types";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
 
@@ -187,6 +188,7 @@ export function useMealCameraState({
 
   const handleTakePicture = useCallback(async () => {
     const canUsePhotoAi = canUsePhotoAnalysis;
+    const e2eFixture = getE2EFixtureState();
     log.log("takePicture start", {
       skipDetection,
       canUsePhotoAi,
@@ -211,6 +213,16 @@ export function useMealCameraState({
         await handleAccept(uri);
       } catch {
         // Ignore missing local sample image on simulator preview.
+      }
+      return;
+    }
+
+    if (e2eFixture?.ai === "photoSuccess") {
+      try {
+        const uri = await getSampleMealUri();
+        await handleAccept(uri);
+      } catch {
+        // Ignore missing local sample image in E2E; the flow can still use seeded photo meals.
       }
       return;
     }

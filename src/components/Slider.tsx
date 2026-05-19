@@ -16,6 +16,7 @@ type SliderProps = {
   maximumValue?: number;
   step?: number;
   disabled?: boolean;
+  testID?: string;
 };
 
 const THUMB_SIZE = 24;
@@ -29,6 +30,7 @@ export function Slider({
   maximumValue = 100,
   step = 1,
   disabled = false,
+  testID,
 }: SliderProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -101,7 +103,7 @@ export function Slider({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={testID}>
       <Pressable
         accessibilityRole="button"
         style={[styles.track, disabled && styles.trackDisabled]}

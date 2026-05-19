@@ -5,6 +5,7 @@ import {
   isRevenueCatConfigured,
   rcLogIn,
 } from "@/services/billing/revenuecat";
+import { resolveE2EBillingPurchaseResult } from "@/services/e2e/fixtures";
 
 export type PurchaseErrorCode =
   | "billing_not_initialized"
@@ -80,6 +81,9 @@ function mapPurchaseError(meta: PurchaseErrorMeta): PurchaseErrorCode {
 export async function startOrRenewSubscription(
   uid?: string | null,
 ): Promise<PurchaseResult> {
+  const e2eResult = resolveE2EBillingPurchaseResult("purchase");
+  if (e2eResult) return e2eResult;
+
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
   }
@@ -167,6 +171,9 @@ export async function startOrRenewSubscription(
 export async function restorePurchases(
   uid?: string | null,
 ): Promise<PurchaseResult> {
+  const e2eResult = resolveE2EBillingPurchaseResult("restore");
+  if (e2eResult) return e2eResult;
+
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
   }

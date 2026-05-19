@@ -32,6 +32,7 @@ export type ModalAction = {
 
 export type ModalProps = {
   visible: boolean;
+  testID?: string;
   title?: string;
   message?: string;
   children?: React.ReactNode;
@@ -47,6 +48,7 @@ export type ModalProps = {
 
 export const Modal: React.FC<ModalProps> = ({
   visible,
+  testID,
   title,
   message,
   children,
@@ -103,6 +105,7 @@ export const Modal: React.FC<ModalProps> = ({
             pointerEvents="box-none"
           >
             <View
+              testID={testID}
               style={[
                 styles.modalContainer,
                 {

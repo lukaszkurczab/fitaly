@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { v4 as uuidv4 } from "uuid";
+import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
 import type { RootStackParamList } from "@/navigation/navigate";
 import type { AiCreditsStatus } from "@/services/ai/contracts";
+import { getE2EAccessState } from "@/services/e2e/fixtures";
 import { trackPaywallViewed } from "@/services/telemetry/telemetryInstrumentation";
 import type {
   MealAddFlowApi,
@@ -21,8 +23,11 @@ export function useMealTextAiState(params: {
 }) {
   const { t, flow, initialValues } = params;
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { uid } = useAuthContext();
   const { accessState, canUseFeature, refreshAccess } = useAccessContext();
-  const credits = accessState?.credits ?? null;
+  const e2eAccessState = uid ? getE2EAccessState(uid) : null;
+  const effectiveAccessState = e2eAccessState ?? accessState;
+  const credits = effectiveAccessState?.credits ?? null;
 
   const [name, setName] = useState(initialValues?.name ?? "");
   const [quickDescription, setQuickDescription] = useState(
@@ -84,7 +89,11 @@ export function useMealTextAiState(params: {
       } as const;
       let resolvedCredits = credits;
 
-      if (canUseFeature("textMealAnalysis")) {
+      const canUseTextMealAnalysis =
+        e2eAccessState?.features.textMealAnalysis.enabled ??
+        canUseFeature("textMealAnalysis");
+
+      if (canUseTextMealAnalysis) {
         flow.goTo("TextAnalyzing", textAnalyzingParams);
         return;
       }
@@ -108,8 +117,9 @@ export function useMealTextAiState(params: {
       setLoading(false);
     }
   }, [
-    canUseFeature,
     credits,
+    e2eAccessState?.features.textMealAnalysis.enabled,
+    canUseFeature,
     flow,
     name,
     quickDescription,

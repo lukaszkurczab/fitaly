@@ -13,6 +13,7 @@ import { post } from "@/services/core/apiClient";
 import { handleAiError } from "@/services/ai/handleAiError";
 import type { AiPhotoAnalyzeResponse } from "@/services/ai/contracts";
 import { isOfflineNetState } from "@/services/core/networkState";
+import { resolveE2EPhotoAnalysis } from "@/services/e2e/fixtures";
 
 const log = debugScope("Vision");
 const AI_UNAVAILABLE_CODE = "ai/unavailable";
@@ -78,6 +79,10 @@ export async function detectIngredientsWithVision(
   opts?: VisionOpts,
 ): Promise<VisionAnalyzeResult | null> {
   const userLang = (opts?.lang || "pl").toLowerCase();
+  const e2eFixture = await resolveE2EPhotoAnalysis(userUid);
+  if (e2eFixture) {
+    return e2eFixture;
+  }
 
   // Prevent duplicate concurrent calls for the same user
   if (_inFlight.has(userUid)) {

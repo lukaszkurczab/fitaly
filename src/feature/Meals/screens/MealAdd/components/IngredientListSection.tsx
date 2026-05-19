@@ -23,7 +23,7 @@ export default function IngredientListSection({
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.sectionBlock}>
+    <View style={styles.sectionBlock} testID="ingredient-list-section">
       <View style={styles.ingredientsHeader}>
         <Text style={styles.ingredientsTitle}>
           {t("review_meal_ingredients_title", {
@@ -42,6 +42,7 @@ export default function IngredientListSection({
           {ingredients.map((ingredient, index) => (
             <Pressable
               key={ingredient.id || `ingredient-${index}`}
+              testID={`ingredient-row-${index}`}
               accessibilityRole="button"
               accessibilityLabel={`${t("edit_ingredient", {
                 defaultValue: "Edit ingredient",
@@ -68,7 +69,7 @@ export default function IngredientListSection({
           ))}
         </View>
       ) : (
-        <View style={styles.emptyIngredientsCard}>
+        <View style={styles.emptyIngredientsCard} testID="ingredient-empty-state">
           <Text style={styles.emptyIngredientsTitle}>
             {t("review_meal_edit_no_ingredients_title", {
               defaultValue: "No ingredients yet",
@@ -83,6 +84,7 @@ export default function IngredientListSection({
       )}
 
       <Pressable
+        testID="ingredient-add-button"
         accessibilityRole="button"
         accessibilityLabel={t(
           ingredients.length > 0

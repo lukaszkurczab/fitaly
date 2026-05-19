@@ -2,6 +2,7 @@ import type { Ingredient } from "@/types";
 import { decodeHtmlEntities } from "@/utils/decodeHtmlEntities";
 import { parseOffProductResponse } from "@/services/barcode/off.dto";
 import { debugScope } from "@/utils/debug";
+import { resolveE2EBarcodeLookup } from "@/services/e2e/fixtures";
 
 const log = debugScope("BarcodeService");
 
@@ -22,6 +23,11 @@ const toNumber = (v: unknown): number => {
 export async function lookupBarcodeProduct(
   barcode: string,
 ): Promise<BarcodeLookupResult> {
+  const e2eFixture = resolveE2EBarcodeLookup();
+  if (e2eFixture) {
+    return e2eFixture;
+  }
+
   try {
     const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(
       barcode,
