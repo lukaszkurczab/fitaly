@@ -1,0 +1,26 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-today-meal
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertNotVisible:
+    id: history-meal-share-button
+- assertVisible:
+    id: history-meal-edit-button
+- assertVisible:
+    id: history-meal-delete-button

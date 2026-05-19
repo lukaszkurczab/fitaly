@@ -1,0 +1,43 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=restoreFailure"
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-restoreFailure
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- inputText: Paywall layout bowl
+- tapOn:
+    id: add-meal-text-description-input
+- inputText: Rice chicken avocado
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-upgrade-button
+    direction: DOWN
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal
+- assertVisible:
+    id: paywall-subscribe-button
+- scrollUntilVisible:
+    element:
+      id: paywall-restore-button
+    direction: DOWN
+- assertVisible:
+    id: paywall-restore-button

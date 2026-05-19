@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useNetInfo } from "@react-native-community/netinfo";
@@ -24,6 +25,8 @@ import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
 import { acceptAiHealthDataConsentRemote } from "@/services/user/userProfileRepository";
 import { useProductReadiness } from "@/hooks/useProductReadiness";
 import type { ReadinessStatus } from "@/types";
+
+const activeThreadStorageKey = (uid: string) => `chat-active-thread-${uid}`;
 
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -68,8 +71,10 @@ export default function ChatScreen() {
 
   const isOffline = net.isConnected === false;
   const hasMessages = messages.length > 0;
+  const aiChatFeature = accessState?.features.aiChat ?? null;
   const limitReached =
-    !canSend || sendErrorType === "AI_CREDITS_EXHAUSTED";
+    aiChatFeature?.reason === "insufficient_credits" ||
+    sendErrorType === "AI_CREDITS_EXHAUSTED";
   const renewalDateLabel = formatLocalDateTime(credits?.periodEndAt, {
     locale: i18n?.language,
   });
@@ -93,6 +98,28 @@ export default function ChatScreen() {
     setLegalAckSubmitting(false);
     setLegalAckError(false);
   }, [uid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreActiveThread() {
+      if (!uid || !serverConfirmedReady) return;
+      const storedThreadId = await AsyncStorage.getItem(
+        activeThreadStorageKey(uid),
+      );
+      if (!cancelled && storedThreadId) {
+        setThreadId((current) =>
+          current.startsWith("local-") ? storedThreadId : current,
+        );
+      }
+    }
+
+    void restoreActiveThread().catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [serverConfirmedReady, uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,9 +226,17 @@ export default function ChatScreen() {
       if (isOffline || !canSend || legalGateActive || !profileReadyForAi)
         return;
       const createdThreadId = await send(text);
-      if (createdThreadId) setThreadId(createdThreadId);
+      if (createdThreadId) {
+        setThreadId(createdThreadId);
+        if (uid) {
+          void AsyncStorage.setItem(
+            activeThreadStorageKey(uid),
+            createdThreadId,
+          ).catch(() => undefined);
+        }
+      }
     },
-    [canSend, isOffline, legalGateActive, profileReadyForAi, send],
+    [canSend, isOffline, legalGateActive, profileReadyForAi, send, uid],
   );
 
   const handleRetry = useCallback(() => {
@@ -256,17 +291,17 @@ export default function ChatScreen() {
     >
       <View testID="chat-screen" style={styles.screenMarker}>
         <ChatHeader
-        title={t("header.title")}
-        subtitle={t("header.subtitle")}
-        onOpenHistory={() => {
-          if (legalGateActive) return;
-          setHistoryOpen(true);
-        }}
-        historyButtonLabel={t("history.open")}
-      />
+          title={t("header.title")}
+          subtitle={t("header.subtitle")}
+          onOpenHistory={() => {
+            if (legalGateActive) return;
+            setHistoryOpen(true);
+          }}
+          historyButtonLabel={t("history.open")}
+        />
       </View>
 
-      {hasMessages && !isOffline && limitReached ? (
+      {!isOffline && limitReached ? (
         <ChatStatusBanner
           testID="chat-credits-banner"
           variant="credits"
@@ -338,7 +373,14 @@ export default function ChatScreen() {
         onClose={() => setHistoryOpen(false)}
         userUid={chatUid}
         activeThreadId={threadId}
-        onSelectThread={(id) => setThreadId(id)}
+        onSelectThread={(id) => {
+          setThreadId(id);
+          if (uid) {
+            void AsyncStorage.setItem(activeThreadStorageKey(uid), id).catch(
+              () => undefined,
+            );
+          }
+        }}
       />
 
       <Modal

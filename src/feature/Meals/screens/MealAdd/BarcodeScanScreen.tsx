@@ -73,7 +73,8 @@ export default function BarcodeScanScreen({
   const [manualCode, setManualCode] = useState(params.code ?? "");
   const [manualError, setManualError] = useState<string | undefined>();
   const [lookupError, setLookupError] = useState<string | undefined>();
-  const e2eBarcodeSimulation = getE2EFixtureState()?.barcode === "known";
+  const e2eBarcodeFixture = getE2EFixtureState()?.barcode;
+  const e2eBarcodeSimulation = Boolean(e2eBarcodeFixture);
 
   const canStepBack = flow.canGoBack();
   const barcodeTypes = useMemo<BarcodeType[]>(
@@ -100,14 +101,13 @@ export default function BarcodeScanScreen({
   }, [params.code, params.codeSource, params.showManualEntry]);
 
   useEffect(() => {
-    const fixture = getE2EFixtureState();
-    if (fixture?.barcode !== "known") return;
+    if (e2eBarcodeFixture !== "known") return;
     setDetectedCode("5901234123457");
     setCodeSource("scan");
     setManualCode("5901234123457");
     setLookupError(undefined);
     setManualError(undefined);
-  }, []);
+  }, [e2eBarcodeFixture]);
 
   useEffect(() => {
     if (uid) {

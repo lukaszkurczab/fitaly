@@ -28,7 +28,7 @@ jobs:
     params:
       build_id: ${{ needs.build_android_e2e.outputs.build_id }}
       flow_path:
-        - e2e/maestro/login.yaml
-        - e2e/maestro/add-meal.yaml
-        - e2e/maestro/chat-ai.yaml
-        - e2e/maestro/offline-error.yaml
+        - e2e/maestro/smoke/login.yaml
+        - e2e/maestro/smoke/add-meal.yaml
+        - e2e/maestro/smoke/chat-ai.yaml
+        - e2e/maestro/smoke/offline-error.yaml

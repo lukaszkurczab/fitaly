@@ -130,7 +130,7 @@ Description:
   - production builds: `https://fitaly-backend-production.up.railway.app`
 - `EXPO_PUBLIC_API_VERSION` - backend API version prefix used by the app.
 - `EXPO_PUBLIC_ENABLE_BACKEND_LOGGING` - enables forwarding selected client errors to the backend logging endpoint.
-- `EXPO_PUBLIC_ENABLE_TELEMETRY` - enables mobile telemetry batching and P0 event emission. **Also requires backend `TELEMETRY_ENABLED=true`.**
+- `EXPO_PUBLIC_ENABLE_TELEMETRY` - enables mobile telemetry batching and release-critical event emission. **Also requires backend `TELEMETRY_ENABLED=true`.**
 - `RC_IOS_API_KEY` - RevenueCat iOS API key (required for iOS subscriptions).
 - `RC_ANDROID_API_KEY` - RevenueCat Android API key (required for Android subscriptions).
 - `TERMS_URL` - terms and conditions URL (used in paywall/subscription screens).
@@ -243,20 +243,24 @@ npm run test:targeted -- --coverage --runTestsByPath src/services/release/checkL
 
 - Run the full test suite before releases, large refactors, or cross-feature changes.
 
-## E2E Smoke
+## E2E Maestro
 
-High-value Maestro smoke flows are available under `e2e/maestro/`.
+Maestro flows are grouped by role under `e2e/maestro/`. The canonical suites are `smoke`, `release-gate`, `nightly-regression`, and `platform-layout`.
 
 ```bash
-# foundation smoke: login + add meal + chat + offline banner
-npm run e2e:foundation
+# minimal startup/account smoke
+npm run e2e:smoke:foundation
+npm run e2e:smoke:account-launch
 
-# existing focused flows
-npm run e2e:login
-npm run e2e:add-meal
-npm run e2e:chat-ai
-npm run e2e:offline-error
+# release candidate gate
+npm run e2e:release-gate
+
+# broader scheduled/manual checks
+npm run e2e:nightly-regression
+npm run e2e:platform-layout
 ```
+
+See [E2E Maestro Test Matrix](./docs/e2e-test-matrix.md) for fixture/deep link contracts, CI classification, and selector rules.
 
 ## Operator docs
 

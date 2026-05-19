@@ -342,6 +342,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     historyLink: {
       alignItems: "center",
+      justifyContent: "center",
+      minHeight: 48,
       paddingVertical: theme.spacing.sm,
     },
     historyLinkPressed: {

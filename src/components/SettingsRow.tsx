@@ -23,6 +23,7 @@ export type SettingsRowProps = {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  valueTestID?: string;
 } & Pick<
   PressableProps,
   "onPress" | "testID" | "accessibilityLabel" | "accessibilityHint"
@@ -41,6 +42,7 @@ export function SettingsRow({
   loading = false,
   style,
   testID,
+  valueTestID,
   accessibilityLabel,
   accessibilityHint,
 }: SettingsRowProps) {
@@ -105,6 +107,7 @@ export function SettingsRow({
         <View style={styles.trailingWrap}>
           {value ? (
             <Text
+              testID={valueTestID}
               style={[styles.value, isInactive ? styles.copyDisabled : null]}
               numberOfLines={2}
             >

@@ -1,230 +1,154 @@
-# E2E Test Matrix and Selector Contract
+# E2E Maestro Test Matrix
 
-## Current State
+This document is the canonical map for Fitaly Maestro coverage. The suite names describe how the tests are used, not when they were implemented.
 
-Confirmed from the mobile repo on 2026-05-18:
+## Suites
 
-- Maestro flows live in `e2e/maestro`.
-- The local runner is `scripts/run-e2e-local.sh`.
-- Package scripts expose `npm run e2e`, foundation/auth/add-meal smoke scripts, P0/P1 account lifecycle scripts, P0 Add Meal scripts, P0/P2 layout scripts, P0/P1 chat and paywall scripts, and `e2e:offline-error`.
-- `.github/workflows/e2e-smoke-gate.yml` runs `foundation-smoke.yaml` and `account-launch-smoke.yaml` on a self-hosted runner. `.github/workflows/release-candidate.yml` calls that smoke gate.
-- Current Maestro coverage is smoke-level only:
-  - `login.yaml`: reset, login, land on Home.
-  - `auth-bootstrap.yaml`: login, logout, login again, app restart session persistence.
-  - `register-conflict.yaml`: registration username conflict validation.
-  - `add-meal.yaml`: login, open Add Meal, choose manual, save, return Home.
-  - `chat-ai.yaml`: login, accept chat legal gate if present, send one message, assert AI response.
-  - `offline-error.yaml`: force E2E offline mode and assert offline banner.
-  - `foundation-smoke.yaml`: combines login, manual meal save, chat mock, and offline banner.
-  - `account-launch-smoke.yaml`: navigates key Account/Profile sub-screens.
-- E2E runtime support is guarded by `E2E=true` through `app.config.js`, `src/services/e2e/config.ts`, `src/services/e2e/deepLink.ts`, `src/services/e2e/status.tsx`, and `src/services/e2e/connectivity.ts`.
-- The current E2E reset link is `fitaly://e2e/reset` with `logout` and `offline` flags. It clears local offline storage and `AsyncStorage`, can sign out, and exposes hidden status IDs such as `e2e-booted`, `e2e-ready-login`, `e2e-ready-home`, and `e2e-ready-offline`.
-- Existing product surfaces are under `src/feature/Auth`, `Onboarding`, `Meals`, `Home`, `History`, `Statistics`, `AI`, `Subscription`, and `UserProfile`.
-
-## Strategy
-
-Automated E2E should cover functional behavior. Manual QA should be limited to subjective visual polish, copy feel, device-specific visual review, and final App Store / Play Store asset review.
-
-Priority levels:
-
-- `P0 release-gate`: must pass before release candidate approval. These flows protect account access, onboarding, meal logging, local-first propagation, payment gates, offline/sync basics, and high-risk runtime guards.
-- `P1 nightly regression`: runs on schedule and before major release branches. These flows broaden functional coverage for secondary paths, edits, filters, reports, settings, and repeated-use behavior.
-- `P2 platform/layout/permission`: runs on targeted device/platform matrices or before store submission. These flows focus on iOS/Android permission prompts, keyboard/sheet layout, occlusion, and platform-specific sharing/camera behavior.
+| Suite | Purpose | Command | CI / local | Notes |
+| --- | --- | --- | --- | --- |
+| `smoke` | Minimal startup, login, add-meal, chat, offline, and account launch checks. | `npm run e2e:smoke` or focused `npm run e2e:smoke:*` scripts | CI self-hosted, EAS Android smoke, local | Used by `.github/workflows/e2e-smoke-gate.yml` and `.eas/workflows/e2e-maestro.yml`. |
+| `release-gate` | Stable release candidate gate for account access, onboarding, meal save propagation, payments, offline/sync, reports, notifications, share, and destructive guards. | `npm run e2e:release-gate` | CI self-hosted and local | Used by release branches and `.github/workflows/release-candidate.yml`. |
+| `nightly-regression` | Wider deterministic regression for failure states, account cleanup, report content, share errors, billing states, and offline conflict/failure surfaces. | `npm run e2e:nightly-regression` | CI self-hosted scheduled/manual and local | Runs on schedule in `.github/workflows/e2e-regression.yml`. |
+| `platform-layout` | Small-screen, keyboard, sheet, modal, and permission-safe layout checks. | `npm run e2e:platform-layout` | Manual CI dispatch on self-hosted runner and local | Use targeted simulator/device profiles through `E2E_UDID` or platform selection. |
 
 ## Runner Contract
 
-- Use `scripts/run-e2e-local.sh <flow-or-directory>` as the canonical local runner.
-- The runner starts Expo with `CI=1 E2E=true`, injects `EXPO_PUBLIC_API_BASE_URL`, waits for Metro, primes the dev client, copies flow files to a temp directory, substitutes `__E2E_EXPO_URL__` and `${E2E_*}` variables, then runs `maestro test`.
-- Default smoke API is `https://fitaly-backend-smoke.up.railway.app`.
-- Override only through documented E2E env vars: `E2E_PLATFORM`, `E2E_EXPO_PORT`, `E2E_EXPO_HOST`, `E2E_RESULTS_PATH`, `E2E_UDID`, `E2E_API_BASE_URL`, `E2E_EXPO_URL`, `E2E_EMAIL`, `E2E_PASSWORD`, `E2E_ALT_EMAIL`, `E2E_ALT_PASSWORD`, `E2E_CONFLICT_USERNAME`, `E2E_REGISTER_EMAIL`, and `E2E_REGISTER_PASSWORD`.
-- Keep smoke flows deterministic. Network-dependent flows must use smoke backend accounts or explicit E2E mocks; they must not depend on personal accounts.
+`scripts/run-e2e-local.sh` starts Expo with `E2E=true`, verifies the smoke API health endpoint unless `E2E_SKIP_API_HEALTH=1`, substitutes `${E2E_*}` placeholders in copied Maestro flows, and writes JUnit results to `E2E_RESULTS_PATH`.
 
-## Fixture and Mock Rules
+Required or commonly used environment variables:
 
-- E2E-only fixtures, deep links, overlays, network overrides, AI mock replies, fake connectivity, seeded profile data, and permission shortcuts must be guarded by `E2E=true`.
-- E2E guards must fail closed: when `E2E=true` is absent, the code path must be inert and must not affect production runtime.
-- Do not add kill switches as hidden fallbacks to old architecture. Kill switches are allowed only for AI, reminders, weekly reports, payments, or costly backend surfaces.
-- E2E mocks should simulate external boundaries, not replace canonical app state propagation. For meals, tests must still assert local-first writes and shared selector propagation through Home, History, and Statistics.
-- Deterministic seed links supported by the current harness include fixture, credits, AI meal analysis, barcode, billing, and chat states, for example `fitaly://e2e/seed?credits=ok&chat=success`, `chat=failure`, `billing=free`, `billing=premium`, `billing=restoreSuccess`, and `billing=restoreFailure`. These states are inert unless `E2E=true`.
+| Variable | Purpose |
+| --- | --- |
+| `E2E_PLATFORM` | `ios` or `android`; defaults to `ios`. |
+| `E2E_UDID` | Optional simulator/device target. |
+| `E2E_API_BASE_URL` | Backend API used by auth/smoke flows; defaults to the smoke backend URL. |
+| `E2E_SKIP_API_HEALTH` | Set to `1` only when deliberately testing unavailable backend behavior. |
+| `E2E_EMAIL`, `E2E_PASSWORD` | Canonical smoke user credentials. |
+| `E2E_ALT_EMAIL`, `E2E_ALT_PASSWORD` | Alternate smoke user credentials for account isolation. |
+| `E2E_DISPOSABLE_EMAIL`, `E2E_DISPOSABLE_USERNAME`, `E2E_DISPOSABLE_PASSWORD` | Disposable registration user; the release-gate registration flow deletes it before finishing. |
+| `E2E_RESULTS_PATH` | JUnit output path. |
 
-## Maestro Naming
+## Flow Matrix
 
-Use this file naming convention:
-
-- `p0-<surface>-<behavior>.yaml` for release gates.
-- `p1-<surface>-<behavior>.yaml` for nightly regressions.
-- `p2-<surface>-<behavior>-<platform-or-layout>.yaml` for platform, permission, and layout coverage.
-- Shared helper flows use `_helper-<purpose>.yaml`.
-- Current smoke files can remain while coverage is being expanded, but new launch-grade flows should use the priority prefix.
-
-Examples:
-
-- `p0-auth-login-session.yaml`
-- `p0-add-meal-manual-save-propagates.yaml`
-- `p1-history-filter-edit-delete.yaml`
-- `p2-add-meal-text-keyboard-occlusion-ios.yaml`
-- `_helper-login-smoke-user.yaml`
+| Suite | Flow | File | Coverage | Seed / fixture | CI safety |
+| --- | --- | --- | --- | --- | --- |
+| `smoke` | Login | `e2e/maestro/smoke/login.yaml` | Dev client launch, smoke login, Home readiness | Smoke backend user | Self-hosted/local |
+| `smoke` | Foundation | `e2e/maestro/smoke/foundation.yaml` | Login, add meal, chat, offline banner | Smoke backend user | Self-hosted/local |
+| `smoke` | Add meal | `e2e/maestro/smoke/add-meal.yaml` | Manual meal save smoke | Smoke backend user | Self-hosted/local |
+| `smoke` | Chat AI | `e2e/maestro/smoke/chat-ai.yaml` | Chat smoke path | Smoke backend user and mock reply env | Self-hosted/local |
+| `smoke` | Offline error | `e2e/maestro/smoke/offline-error.yaml` | Forced offline banner | `fitaly://e2e/connectivity` | Self-hosted/local |
+| `smoke` | Account launch | `e2e/maestro/smoke/account-launch.yaml` | Account screen navigation | Smoke backend user | Self-hosted/local |
+| `smoke` | Auth bootstrap | `e2e/maestro/smoke/auth-bootstrap.yaml` | Login bootstrap and ready state | Smoke backend user | Self-hosted/local |
+| `smoke` | Register conflict | `e2e/maestro/smoke/register-conflict.yaml` | Duplicate/invalid registration guard | Smoke backend state | Self-hosted/local |
+| `release-gate` | Register and onboarding | `e2e/maestro/release-gate/auth-register-onboarding.yaml` | Register, onboarding, restart session persistence, disposable user cleanup | Disposable user env | Self-hosted/local |
+| `release-gate` | Login validation | `e2e/maestro/release-gate/auth-login-validation.yaml` | Login validation and recovery | Smoke backend user | Self-hosted/local |
+| `release-gate` | Manual meal propagation | `e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml` | Manual add, review edit, save, Home, History | `activated-user-empty` | Self-hosted/local |
+| `release-gate` | Text meal propagation | `e2e/maestro/release-gate/add-meal-text-save-propagates.yaml` | Text AI fixture, Review, save, Home, History | `credits=ok`, `ai=textSuccess` | Self-hosted/local |
+| `release-gate` | Photo meal propagation | `e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml` | Camera-safe photo fixture, Review, save, Home, History | `credits=ok`, `ai=photoSuccess` | Self-hosted/local |
+| `release-gate` | Barcode meal propagation | `e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml` | Camera-safe barcode fixture, Review, save, Home, History | `barcode=known` | Self-hosted/local |
+| `release-gate` | Saved meal template | `e2e/maestro/release-gate/add-meal-saved-template.yaml` | Save-to-my-meals from Review, then create meal from saved template | `activated-user-empty` | Self-hosted/local |
+| `release-gate` | Review edit layout | `e2e/maestro/release-gate/review-edit-layout.yaml` | Review edit details, time picker, ingredient editor, keyboard reachability | `user-with-draft` | Self-hosted/local |
+| `release-gate` | History edit/delete | `e2e/maestro/release-gate/history-edit-delete.yaml` | History details, edit, delete, empty state consistency | `user-with-today-meal` | Self-hosted/local |
+| `release-gate` | Home/History/Statistics | `e2e/maestro/release-gate/home-history-statistics-after-save.yaml` | Local-first propagation through shared selectors | `activated-user-empty` | Self-hosted/local |
+| `release-gate` | Chat history | `e2e/maestro/release-gate/chat-basic-history.yaml` | Legal gate, send, mock reply, history persists after tab switch | `credits=ok`, `chat=success` | Self-hosted/local |
+| `release-gate` | Premium and restore success | `e2e/maestro/release-gate/premium-paywall-restore.yaml` | No-credit text meal gate, paywall, restore success mock | `credits=none`, `billing=free`, then `restoreSuccess` | Self-hosted/local |
+| `release-gate` | Offline save/sync | `e2e/maestro/release-gate/offline-save-sync.yaml` | Forced offline save, pending badge, reconnect to synced state | `activated-user-empty`, connectivity deep link | Self-hosted/local |
+| `release-gate` | Notifications preferences | `e2e/maestro/release-gate/notifications-preferences.yaml` | Account entry, notification settings, permission-safe preference surface | `notificationPermission=denied` or app default | Self-hosted/local |
+| `release-gate` | Weekly report entry unavailable | `e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml` | Home/report entry and unavailable state | `weeklyReport=unavailable` | Self-hosted/local |
+| `release-gate` | Share save and share | `e2e/maestro/release-gate/share-save-and-share.yaml` | Save-and-share composer path | `shareExport=success` | Self-hosted/local |
+| `release-gate` | Account delete cancel | `e2e/maestro/release-gate/account-delete-cancel.yaml` | Destructive delete guard can be cancelled | Smoke backend user | Self-hosted/local |
+| `nightly-regression` | Account disposable delete | `e2e/maestro/nightly-regression/account-delete-disposable-user.yaml` | Full disposable account deletion | Disposable user env | Self-hosted/local |
+| `nightly-regression` | Reset password | `e2e/maestro/nightly-regression/auth-reset-password.yaml` | Reset request and check-mailbox navigation | Smoke-safe email | Self-hosted/local |
+| `nightly-regression` | Chat error | `e2e/maestro/nightly-regression/chat-error-state.yaml` | Chat deterministic transport failure and retry surface | `chat=failure` | Self-hosted/local |
+| `nightly-regression` | Chat no credits | `e2e/maestro/nightly-regression/chat-no-credits.yaml` | Empty chat no-credit banner and upgrade navigation | `credits=none`, `billing=free` | Self-hosted/local |
+| `nightly-regression` | Credits none text meal | `e2e/maestro/nightly-regression/credits-none-text-meal.yaml` | Text meal no-credit explanation and upgrade path | `credits=none`, `billing=free` | Self-hosted/local |
+| `nightly-regression` | Billing restore failure | `e2e/maestro/nightly-regression/billing-restore-failure.yaml` | Restore failure feedback without real billing | `billing=restoreFailure` | Self-hosted/local |
+| `nightly-regression` | Billing entitlement states | `e2e/maestro/nightly-regression/billing-entitlement-states.yaml` | Free and premium access rows on manage subscription | `billing=free`, then `billing=premium` | Self-hosted/local |
+| `nightly-regression` | Text meal AI failure | `e2e/maestro/nightly-regression/text-meal-ai-failure.yaml` | AI analysis failure returns to Describe Meal with error and CTA | `ai=failure` | Self-hosted/local |
+| `nightly-regression` | Barcode not found | `e2e/maestro/nightly-regression/barcode-not-found.yaml` | Manual barcode lookup not found state without camera | `barcode=unknown` | Self-hosted/local |
+| `nightly-regression` | Offline failed/conflict states | `e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml` | Visible failed and conflict meal badges in Home and History | `user-with-failed-meal`, `user-with-conflict-meal` | Self-hosted/local |
+| `nightly-regression` | Reminders disabled | `e2e/maestro/nightly-regression/reminders-disabled-state.yaml` | Disabled/degraded reminder state | `reminder=disabled` | Self-hosted/local |
+| `nightly-regression` | Weekly report ready | `e2e/maestro/nightly-regression/weekly-report-open.yaml` | Ready weekly report sections | `weeklyReport=available` | Self-hosted/local |
+| `nightly-regression` | Share customize | `e2e/maestro/nightly-regression/share-customize-basic.yaml` | Share composer customization basics | `shareExport=success` | Self-hosted/local |
+| `nightly-regression` | Share export error | `e2e/maestro/nightly-regression/share-export-error.yaml` | Export/share error state | `shareExport=failure` | Self-hosted/local |
+| `nightly-regression` | Share invalid no photo | `e2e/maestro/nightly-regression/share-invalid-no-photo.yaml` | Share composer invalid/no-photo guard | `user-with-today-meal` | Self-hosted/local |
+| `platform-layout` | Small-screen forms | `e2e/maestro/platform-layout/small-screen-forms.yaml` | Review form, ingredient editor, fixed footer reachability | `user-with-draft` | Manual self-hosted/local |
+| `platform-layout` | Text meal keyboard | `e2e/maestro/platform-layout/text-meal-keyboard.yaml` | Text meal inputs and CTA remain reachable with keyboard | `activated-user-empty`, `ai=textSuccess` | Manual self-hosted/local |
+| `platform-layout` | Chat long input keyboard | `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml` | Chat composer growth and send action reachability | `credits=ok`, `chat=success` | Manual self-hosted/local |
+| `platform-layout` | Barcode manual sheet | `e2e/maestro/platform-layout/barcode-manual-sheet.yaml` | Manual barcode bottom sheet compression and actions | `barcode=unknown` | Manual self-hosted/local |
+| `platform-layout` | Paywall open layout | `e2e/maestro/platform-layout/paywall-open-layout.yaml` | Paywall modal root and primary/restore actions are visible | `credits=none`, `billing=restoreFailure` | Manual self-hosted/local |
 
 ## Selector Contract
 
-Use `testID` selectors instead of translated text whenever possible. Text selectors are allowed only for verifying copy-specific behavior or while a missing `testID` is being added in the same change set.
+New Maestro assertions should use stable `testID` selectors. Translated text is acceptable only when the test is explicitly validating copy. Reusable components should accept a `testID` prop when they expose one of these critical surfaces:
 
-Recommended `testID` format:
+| Surface | Required selectors |
+| --- | --- |
+| Screen root | `<surface>-screen` |
+| Inputs | `<surface>-<field>-input` |
+| Primary CTA | `<surface>-<action>-button` |
+| Close/back | Explicit close/back testID when the flow must assert escape behavior |
+| Sheet/modal root | `<surface>-sheet` or `<surface>-modal` |
+| Error/disabled state | `<surface>-error`, `<surface>-disabled-reason`, or a more specific suffix |
+| Empty state | `<surface>-empty-state` plus escape CTA when applicable |
+| Rows/items | Stable domain IDs when available; index IDs are acceptable only for deterministic single-item fixtures |
+| Sync state | `home-meal-sync-<state>-<index>`, `history-meal-sync-<state>-<index>`, or detail-specific equivalents |
 
-- Stable, lowercase kebab-case.
-- Prefix by surface or component owner: `login-*`, `register-*`, `onboarding-*`, `meal-add-*`, `review-meal-*`, `home-*`, `history-*`, `statistics-*`, `chat-*`, `paywall-*`, `notifications-*`, `weekly-report-*`, `share-*`, `account-*`, `settings-*`, `e2e-*`.
-- Screen roots use `<surface>-screen`, for example `history-list-screen` or `statistics-screen`.
-- Primary CTAs use `<surface>-primary-button` only when there is one clear primary action; otherwise name the action, for example `review-meal-save-button`.
-- Repeated rows use semantic IDs where stable, for example `history-meal-row-${mealId}` or `saved-meal-add-${mealId}`. Avoid index-only IDs except for static controls.
-- Modal and sheet roots use `<surface>-sheet` or `<surface>-modal`.
-- Inputs use `<surface>-<field>-input`.
-- Toggles and checkboxes use `<surface>-<setting>-toggle` or `<surface>-<setting>-checkbox`.
-- Error and state banners use `<surface>-<state>-banner`, for example `chat-disabled-banner` or `offline-banner`.
+Recent selector/testability additions:
 
-Current confirmed selectors already used by Maestro include:
+| Selector | File | Reason |
+| --- | --- | --- |
+| `chat-credits-banner` and `chat-credits-banner-action-button` on empty no-credit chat | `src/feature/AI/screens/ChatScreen.tsx`, `src/feature/AI/components/ChatStatusBanner.tsx` | Allows deterministic no-credit chat gate without sending a prompt. |
+| `manage-subscription-action-feedback-<tone>` | `src/feature/Subscription/screens/ManageSubscriptionScreen.tsx` | Allows billing restore failure/success feedback assertions. |
+| `manage-subscription-tier-value-<tier>` | `src/components/SettingsRow.tsx`, `src/feature/Subscription/screens/ManageSubscriptionScreen.tsx` | Allows billing free/premium assertions without translated text selectors. |
+| `add-meal-text-error` | `src/feature/Meals/screens/MealAdd/DescribeMealScreen.tsx` | Allows AI analysis failure assertions after returning from analyzing. |
+| Barcode E2E simulation for all barcode fixture states | `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.tsx` | Allows known, not-found, invalid, and offline barcode states without camera permissions. |
 
-- Auth: `login-email-input`, `login-password-input`, `login-submit-button`, `login-register-link`, `register-username-input`, `register-email-input`, `register-password-input`, `register-confirm-password-input`, `register-password-visibility-toggle`, `register-confirm-password-visibility-toggle`, `register-terms-checkbox`, `register-submit-button`.
-- Tabs: `tab-home`, `tab-statistics`, `tab-add-meal`, `tab-chat`, `tab-profile`.
-- Add Meal / Review: `meal-add-option-manual`, `meal-add-option-photo`, `meal-add-option-text`, `meal-add-option-barcode`, `meal-add-option-saved`, `review-meal-save-button`, `review-meal-close`, `review-meal-photo`, `meal-name-input`, `barcode-manual-input`, `ingredient-editor-sheet`.
-- Chat: `chat-input`, `chat-send-button`, `chat-message-ai`, `chat-message-user`, `chat-legal-accept`, `chat-disabled-banner`, `chat-context-unavailable-banner`, `chat-error-state`, `chat-retry-button`, `chat-credits-banner`, `chat-credits-banner-action-button`.
-- Account / settings: `account-profile-details-row`, `profile-details-screen`, `profile-photo-screen`, `username-change-screen`, `email-change-screen`, `password-change-screen`, `manage-subscription-screen`, `legal-privacy-screen`, `data-ai-clarity-screen`, `help-feedback-screen`, `contact-support-screen`, `send-feedback-screen`, `app-settings-screen`, `notifications-screen`, `delete-account-screen`.
-- Runtime: `e2e-booted`, `e2e-ready-login`, `e2e-ready-home`, `e2e-ready-offline`, `offline-banner`.
+## E2E Fixture Contract
 
-Additional launch-grade selectors added for new Maestro flows include:
+All fixture paths are fail-closed behind `E2E=true`. Outside E2E mode, `getE2EFixtureState()` returns `null`, deep links do nothing, and production SDK/backend paths remain canonical.
 
-- Auth reset/check mailbox: `login-screen`, `login-forgot-password-link`, `reset-password-screen`, `reset-password-email-input`, `reset-password-submit-button`, `check-mailbox-screen`, `check-mailbox-login-button`, `check-mailbox-send-again-button`.
-- Onboarding: `onboarding-screen`, `onboarding-loading-state`, `onboarding-step-1`, `onboarding-age-input`, `onboarding-height-input`, `onboarding-weight-input`, `onboarding-step-1-next-button`, `onboarding-step-2`, `onboarding-preferences-dropdown`, `onboarding-activity-dropdown`, `onboarding-goal-picker`, `onboarding-step-3`, `onboarding-lifestyle-notes-input`, `onboarding-step-4`, `onboarding-step-4-submit-button`, `onboarding-confirm-modal`.
-- Add Meal text/photo/barcode: `add-meal-text-screen`, `add-meal-text-name-input`, `add-meal-text-description-input`, `add-meal-text-analyze-button`, `add-meal-photo-screen`, `add-meal-photo-capture-button`, `barcode-scan-screen`, `barcode-open-manual-button`, `barcode-manual-sheet`, `barcode-manual-submit-button`.
-- Review/edit: `review-meal-screen`, `review-meal-edit-button`, `review-meal-save-share-button`, `review-meal-save-to-my-meals-checkbox`, `meal-details-form-screen`, `meal-type-picker-trigger`, `meal-time-picker-trigger`, `ingredient-row-0`, `ingredient-add-button`, `ingredient-editor-name-input`, `ingredient-editor-submit-button`.
-- Home/History/Statistics: `home-screen`, `home-today-meals-list`, `home-today-meal-row-0`, `home-empty-state`, `history-list-screen`, `history-meal-row-0`, `history-meal-details-screen`, `history-meal-edit-button`, `history-meal-delete-button`, `statistics-screen`, `statistics-range-7d-button`, `statistics-empty-state-no_history`, `statistics-premium-banner`.
-- Chat/premium/notifications/weekly/share/account: `chat-screen`, `chat-legal-modal`, `paywall-modal`, `paywall-restore-button`, `manage-subscription-primary-button`, `manage-subscription-status-row`, `manage-subscription-tier-row`, `add-meal-text-credits-explanation`, `notifications-smart-reminders-toggle`, `weekly-report-screen`, `weekly-report-refresh-button`, `share-mode-quick-button`, `share-mode-customize-button`, `share-save-gallery-button`, `share-system-share-button`, `account-screen`, `delete-account-password-input`, `delete-account-confirm-button`.
+Seed deep link:
 
-Missing selector contract items should be added before or with new flows. Do not write new Maestro flows that depend on translated Polish or English labels when the UI control can expose a stable `testID`.
+```text
+fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess
+```
 
-## Layout and Occlusion Rule
+Supported seed keys:
 
-Layout/occlusion tests must assert visibility and interactability of inputs, sheets, and CTAs after keyboard and sheet interactions.
+| Key | Values |
+| --- | --- |
+| `fixture` | `activated-user-empty`, `user-with-today-meal`, `user-with-photo-meal`, `user-with-saved-meals`, `user-with-draft`, `user-with-failed-meal`, `user-with-conflict-meal` |
+| `credits` | `ok`, `low`, `none` |
+| `ai` | `textSuccess`, `photoSuccess`, `failure`, `timeout`, `insufficientCredits` |
+| `barcode` | `known`, `unknown`, `invalid`, `offline` |
+| `billing` | `free`, `premium`, `restoreSuccess`, `restoreFailure` |
+| `chat` | `success`, `failure` |
+| `shareExport` | `success`, `failure`, `permissionDenied`, `shareUnavailable` |
+| `notificationPermission` | `allowed`, `denied` |
+| `reminder` | `send`, `suppress`, `noop`, `disabled` |
+| `weeklyReport` | `available`, `unavailable`, `disabled`, `forbidden` |
 
-These are functional layout tests, not screenshot or per-pixel visual tests. They should fail when a user cannot reach an active field, bottom sheet action, fixed footer CTA, modal dismissal, or save/submit action. They should not assert exact spacing, colors, typography, or visual polish; those remain manual QA scope unless a stable semantic state can be asserted.
+Status IDs are emitted as `e2e-ready-<key>-<value>`, for example `e2e-ready-ai-failure`. Connectivity can be forced with:
 
-Required checks:
+```text
+fitaly://e2e/connectivity?offline=1
+fitaly://e2e/connectivity?offline=0
+```
 
-- Focus an input, type, and assert the submit/continue CTA is visible and tappable.
-- Open bottom sheets and modals, scroll if needed, then assert close, primary, and destructive actions remain visible and tappable.
-- On small-screen profiles, assert keyboard does not cover login/register/onboarding/add-meal/chat inputs or primary CTAs.
-- For Add Meal review/edit, assert ingredient editor, time/type pickers, save CTA, and save-and-share CTA remain reachable after sheet interactions.
-- Run layout flows on iOS and Android when permissions, keyboard behavior, camera, date/time picker, share sheet, or notification settings differ by platform.
+## CI Classification
 
-Current functional layout flows:
+| Workflow | What it runs | Runner | Blocking intent |
+| --- | --- | --- | --- |
+| `.github/workflows/e2e-smoke-gate.yml` | `e2e:smoke:foundation`, `e2e:smoke:account-launch` | self-hosted | Blocks smoke gate and release candidate workflow dependency. |
+| `.github/workflows/e2e-regression.yml` | `release-gate` on release branches/manual, `nightly-regression` on schedule/manual, `platform-layout` on manual dispatch | self-hosted | Release branches block only on `release-gate`; nightly/platform are broader diagnostics. |
+| `.github/workflows/release-candidate.yml` | Mobile/backend CI, smoke E2E, release-gate E2E, backend smoke contracts, release evidence | self-hosted for Maestro, hosted for non-device jobs | Blocks release candidate evidence. |
+| `.eas/workflows/e2e-maestro.yml` | Android smoke flows | EAS nested virtualization | Optional smoke validation for Android build artifacts. |
 
-- `e2e/maestro/p0/review-edit-layout.yaml`: release-gate coverage for Review Meal -> Edit details, time picker sheet reachability, ingredient editor keyboard reachability, submit, save, Home, and History propagation.
-- `e2e/maestro/p2/layout-small-screen-forms.yaml`: small-screen profile coverage for long meal/ingredient names and fixed footer reachability. Run this on a small simulator/device profile through the runner's `E2E_UDID` or platform-specific device selection.
+## Known Gaps
 
-## Matrix
-
-| Surface | Priority | Flow | Current Maestro Coverage | Missing / Required Coverage |
-| --- | --- | --- | --- | --- |
-| Auth | P0 | Login with smoke user, logout, login again, restart with persisted session | Partial: `login.yaml`, `auth-bootstrap.yaml` | Convert to `p0-auth-login-session.yaml`; assert loading settles, Home tab is interactable, logout confirmation uses IDs only. |
-| Auth | P0 | Register validation and duplicate username/email handling | Partial: `register-conflict.yaml` | Add duplicate email, weak password, terms unchecked, keyboard occlusion, and successful disposable registration cleanup path where backend supports it. |
-| Auth | P1 | Reset password and check-mailbox navigation | None confirmed | Add reset request happy path with smoke-safe account and invalid email validation. |
-| Onboarding | P0 | First-run onboarding completion creates ready profile and enters Home | None confirmed | Add full flow across basic data, preferences, health, AI preferences, consent/readiness gates. Must use E2E seeded or disposable user and assert Home ready. |
-| Onboarding | P1 | Resume/refill onboarding after interruption | None confirmed | Restart mid-flow, assert saved fields, complete without duplicate profile state. |
-| Onboarding | P2 | Keyboard/layout for numeric fields and dropdowns | None confirmed | Assert age, height, weight, selectors, and CTAs remain visible/tappable on small iOS and Android viewports. |
-| Add Meal: manual | P0 | Manual save propagates immediately to Home, History, and Statistics | Partial: `add-meal.yaml`, `foundation-smoke.yaml` only assert return Home | Add canonical flow: Add tab -> manual -> review -> save -> Home today list/totals -> History row -> Statistics aggregate. Must validate local-first state, pending/failed/conflict indicators where applicable. |
-| Add Meal: text | P0 | Text meal AI analysis to review/save | None confirmed | Add E2E-safe AI fixture guarded by `E2E=true`; assert text input, analyzing state, review contents, save, propagation. |
-| Add Meal: photo | P0 | Photo capture or fixture analysis to review/save | None confirmed | Add E2E camera/photo fixture guarded by `E2E=true`; cover permission granted path and review/save propagation. |
-| Add Meal: barcode | P0 | Barcode scan/manual-code lookup to review/save | None confirmed | Add deterministic barcode fixture or smoke product code; assert manual sheet, lookup result, review, save, propagation. |
-| Add Meal: saved | P0 | Save reusable meal and add from saved meal | None confirmed | Add save-to-my-meals path from review, then saved meal picker add path. Assert saved template appears and new logged meal is created. |
-| Add Meal: draft recovery | P1 | Resume/discard in-progress draft | None confirmed | Create draft, leave flow, return, assert resume sheet, resume path, discard path. |
-| Add Meal: failures | P1 | AI failure, barcode not found, offline save queue | Partial offline banner only | Add visible failure/retry states and queued local save behavior. No backend refetch fallback. |
-| Add Meal: layout | P2 | Keyboard/sheet occlusion in text/manual/review/barcode | Added: `p2/layout-small-screen-forms.yaml` covers review edit form and ingredient editor on a small-screen profile | Add text input, barcode manual input sheet, and platform-specific permission layout coverage. |
-| Review/Edit | P0 | Review edit name/type/time/ingredients before save | Added: `p0/review-edit-layout.yaml` covers draft resume, edit details, time picker, ingredient editor keyboard reachability, save, Home, and History propagation | Add value-level edit assertions and History details edit/delete coverage. |
-| Review/Edit | P1 | Edit/delete historical meal | None confirmed | Open History meal details, edit fields, assert Home/History/Statistics update; delete and assert removal across selectors. |
-| Home | P0 | Today state after meal save and offline pending state | Partial return Home only | Assert hero/totals/today meals list from shared local selectors, pending/failed/conflict states, and Add CTA/method selector. |
-| Home | P1 | Weekly progress and coach insight card interactions | None confirmed | Assert weekly progress graph states, coach insight CTA opens Add Meal, empty day state. |
-| History | P0 | Saved meal appears in History after local save | None confirmed | Assert row, day grouping by `dayKey`, details navigation, pending/failed/conflict indicators. |
-| History | P1 | Filters, pagination/refresh, saved meals list | None confirmed | Add date/type/filter flows, saved meals duplicate/edit/delete, pull-to-refresh if supported. |
-| Statistics | P0 | Statistics aggregate updates after local save | None confirmed | Assert daily/range totals after saving known fixture meal. Must share same dayKey model as Home/History. |
-| Statistics | P1 | Range switcher, custom range, premium/limited state | None confirmed | Assert 7/30/custom ranges, empty state, limited history CTA/paywall behavior. |
-| AI Chat | P0 | Legal gate, send prompt, receive E2E mock reply, return later with history intact | Added: `p0/chat-basic-history.yaml`; legacy `chat-ai.yaml` and `foundation-smoke.yaml` still cover basic smoke | Add new thread/history sheet management and long-message keyboard layout. |
-| AI Chat | P1 | Chat transport failure and retry/error state | Added: `p1/chat-error-state.yaml` with `chat=failure` and no persisted assistant reply | Add credits-low warning and gateway/context-unavailable variants. |
-| AI Chat | P2 | Keyboard occlusion and long message layout | None confirmed | Assert composer/send button visibility after long input and keyboard open on small screens. |
-| Premium/Paywall | P0 | Paywall opens from gated Add Meal text path and restore is safe | Added: `p0/premium-paywall-restore.yaml` with `billing=free` then `billing=restoreSuccess`; RevenueCat is bypassed under `E2E=true` | Add subscribe-success mock and close/legal-link paths. |
-| Premium/Paywall | P1 | Manage subscription screen, entitlement state display, credits-none meal gate | Added: `p1/credits-none-text-meal.yaml` for no-credits Add Meal text upgrade to paywall | Add restore failure and billing premium/free row assertions. |
-| Notifications/Reminders | P0 | Notifications settings toggles and permission request path | Partial account nav reaches screen | Add notification screen state, permission CTA, not-now path, reminder toggle persistence, no ghost schedules when denied. |
-| Notifications/Reminders | P1 | Smart reminder decision/scheduling smoke | None confirmed in Maestro; unit coverage exists | Add E2E fixture for backend decision guarded by `E2E=true`, assert scheduled/suppressed/noop user-visible state where exposed. |
-| Notifications/Reminders | P2 | iOS/Android permission prompt handling | None confirmed | Platform flows for denied/granted/system settings paths. |
-| Weekly Reports | P0 | Weekly report entry from Home and unavailable/locked state | None confirmed | Assert weekly report card/screen, loading, locked/403 or ready state using smoke backend contract. |
-| Weekly Reports | P1 | Refresh and ready report content sections | None confirmed | Assert refresh action, summary/insights/recommendations sections with deterministic fixture. |
-| Share | P0 | Save-and-share opens share composer from meal review/details | None confirmed | Add review save-and-share or History details share path; assert composer opens and export/share CTA is interactable. |
-| Share | P1 | Customize composer layers/presets | None confirmed | Assert preset selection, text/card/chart/photo tools, color picker, reset, close without data loss. |
-| Share | P2 | Native share sheet/platform permissions | None confirmed | iOS/Android share sheet smoke, screenshot/export layout, cancel path. |
-| Account/Settings | P0 | Account navigation and logout/delete-account guard | Partial: `account-launch-smoke.yaml` | Keep as P0 or P1 depending release gate scope; add asserts for destructive confirmation, no accidental delete. |
-| Account/Settings | P1 | Profile details, username/email/password forms, language, legal/help/feedback | Partial navigation only | Add form validation, keyboard layout, submit/cancel paths with smoke-safe fixtures. |
-| Offline/Sync | P0 | Forced offline banner and local-first meal queue | Partial: `offline-error.yaml`, `foundation-smoke.yaml` banner only | Add save while offline, visible pending state, reconnect, synced state. Must not use backend refetch/timestamp fallback for immediate UI consistency. |
-| Offline/Sync | P1 | Retry/failure/conflict surfaces | None confirmed | Add queued retry, failed operation, conflict indicator, dead-letter/user recovery if exposed. |
-| Telemetry smoke | P0 | Telemetry client initializes safely and critical events do not block UX | None confirmed in Maestro; unit tests exist under telemetry services | Add E2E-safe telemetry sink guarded by `E2E=true`; assert login/add meal/chat/paywall actions continue when telemetry is disabled or sink fails. |
-| Telemetry smoke | P1 | Navigation/session event smoke | None confirmed | Add smoke assertions through E2E sink or logs, without exposing personal data. |
-
-## P0 Release Gate Set
-
-Build this set before expanding lower-priority flows:
-
-1. `p0-auth-login-session.yaml`
-2. `p0-onboarding-first-run-ready-profile.yaml`
-3. `p0-add-meal-manual-save-propagates.yaml`
-4. `p0-add-meal-text-save-propagates.yaml`
-5. `p0-add-meal-photo-save-propagates.yaml`
-6. `p0-add-meal-barcode-save-propagates.yaml`
-7. `p0-add-meal-saved-template.yaml`
-8. `p0-review-edit-save-propagates.yaml`
-9. `p0-history-details-edit-delete.yaml`
-10. `p0-statistics-after-save.yaml`
-11. `p0/chat-basic-history.yaml`
-12. `p0/premium-paywall-restore.yaml`
-13. `p0-notifications-settings.yaml`
-14. `p0-weekly-report-entry.yaml`
-15. `p0-share-meal-composer.yaml`
-16. `p0-offline-save-sync.yaml`
-17. `p0-telemetry-smoke.yaml`
-
-## P1 Nightly Regression Set
-
-Run nightly and on release branches after P0 is stable:
-
-- Auth reset/check-mailbox.
-- Onboarding resume/refill.
-- Add Meal draft recovery and failure/retry paths.
-- History filters, saved meal management, pagination/refresh.
-- Statistics ranges and limited/premium states.
-- AI chat error/retry variants, new thread, credits/gateway errors.
-- Manage subscription, restore failure, billing free/premium entitlement states, and `p1/credits-none-text-meal.yaml`.
-- Smart reminder decision/scheduling fixture.
-- Weekly report ready/refresh states.
-- Share composer customization.
-- Account/settings form validation and language/legal/help/feedback paths.
-- Offline retry/failure/conflict recovery.
-- Telemetry navigation/session smoke.
-
-## P2 Platform/Layout/Permission Set
-
-Run on targeted iOS and Android device profiles:
-
-- Login/register/onboarding keyboard occlusion.
-- Add Meal text/manual/review/barcode bottom sheet and keyboard occlusion.
-- Chat long-input keyboard occlusion.
-- Camera/photo permission granted/denied/limited paths.
-- Barcode camera permission paths.
-- Notification permission granted/denied/system settings paths.
-- Native share sheet open/cancel/export paths.
-- Date/time picker platform behavior.
-- Small-screen and large-font layout for inputs, sheets, and CTAs.
-
-## Manual QA Scope
-
-Manual QA should not be the primary validator for functional behavior listed above. After P0/P1/P2 automation is in place, manual QA should focus on:
-
-- Subjective visual polish.
-- Copy tone and localization feel.
-- Final App Store / Play Store screenshots, preview assets, and metadata.
-- Exploratory checks around animation feel and device-specific polish that is not practical to assert deterministically.
+| Gap | Reason | Risk | Recommended action |
+| --- | --- | --- | --- |
+| Native OS permission prompts are not a hard gate. | Permission prompts vary by simulator state and platform. Current platform-layout flows prefer E2E fixture surfaces over OS dialogs. | Store-submission-only regressions may need manual confirmation. | Keep fixture assertions in Maestro and run manual OS prompt checks before store submission. |
+| Screenshot baselines are not canonical. | Mechanical visibility/reachability assertions are the current gate. | Visual polish regressions still require manual review. | Add optional local screenshot flows only for high-risk surfaces after mechanical selectors are exhausted. |
+| Nightly report/reminder backend smoke remains mostly fixture-driven in Maestro. | Backend-owned contract checks live in smoke flow scripts and backend CI. | Maestro may not catch backend contract drift alone. | Keep backend smoke contract workflow in release-candidate and add mobile contract tests when API shape changes. |

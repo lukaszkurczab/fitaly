@@ -1,0 +1,44 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=known"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-known
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-e2e-preview
+- assertVisible:
+    id: barcode-lookup-button
+- tapOn:
+    id: barcode-lookup-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-today-meal-row-0
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0

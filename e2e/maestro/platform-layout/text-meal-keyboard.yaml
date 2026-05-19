@@ -1,0 +1,32 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Small screen text meal
+- assertVisible:
+    id: add-meal-text-name-input
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce for a long text meal keyboard layout assertion.
+- assertVisible:
+    id: add-meal-text-description-input
+- assertVisible:
+    id: add-meal-text-analyze-button
+- hideKeyboard
+- assertVisible:
+    id: add-meal-text-analyze-button
+

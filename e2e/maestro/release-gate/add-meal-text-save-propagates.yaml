@@ -1,0 +1,58 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-ai-textSuccess
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Release Text Bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken and avocado
+- hideKeyboard
+- tapOn:
+    id: add-meal-text-screen
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- assertVisible:
+    id: add-meal-text-analyzing-screen
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-today-meal-row-0
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0

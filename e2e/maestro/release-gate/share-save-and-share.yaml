@@ -1,0 +1,48 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-share-button
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-mode-quick-button
+- assertVisible:
+    id: share-canvas
+- assertVisible:
+    id: share-preset-quickClassic
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-success
+    timeout: 10000
+- assertVisible:
+    id: share-canvas
+- assertVisible:
+    id: share-system-share-button

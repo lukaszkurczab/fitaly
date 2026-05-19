@@ -1,0 +1,43 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- assertVisible:
+    id: manage-subscription-status-row
+- assertVisible:
+    id: manage-subscription-tier-row
+- assertVisible:
+    id: manage-subscription-tier-value-free
+- assertVisible:
+    id: manage-subscription-credits-balance-row
+- openLink: "fitaly://e2e/seed?credits=ok&billing=premium"
+- assertVisible:
+    id: e2e-ready-billing-premium
+- assertVisible:
+    id: manage-subscription-screen
+- assertVisible:
+    id: manage-subscription-status-row
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-tier-row
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-tier-value-premium
+    timeout: 15000
+- assertVisible:
+    id: manage-subscription-credits-allocation-row

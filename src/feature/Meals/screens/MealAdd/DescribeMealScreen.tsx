@@ -171,6 +171,7 @@ export default function DescribeMealScreen({
           style={styles.fill}
           onPress={Keyboard.dismiss}
           testID="add-meal-text-screen"
+          accessible={false}
         >
           <MealAddPhotoScaffold
             topInset={previewTopInset}
@@ -242,16 +243,19 @@ export default function DescribeMealScreen({
             content={
               <>
                 {descriptionError || submitError ? (
-                  <ErrorBox message={descriptionError ?? submitError ?? ""} />
+                  <ErrorBox
+                    testID="add-meal-text-error"
+                    message={descriptionError ?? submitError ?? ""}
+                  />
                 ) : null}
                 {isE2E ? null : renderAnalyzeButton()}
                 {ctaHelperText ? (
                   <View
-                    testID="add-meal-text-credits-explanation"
                     accessible
                     accessibilityLabel="add-meal-text-credits-explanation"
                   >
                     <Text
+                      testID="add-meal-text-credits-explanation"
                       style={[
                         styles.inlineNote,
                         creditsNoteWarning ? styles.inlineNoteWarning : null,

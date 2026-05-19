@@ -19,6 +19,7 @@ const mockMultiRemove = jest.fn<(keys: string[]) => Promise<void>>();
 const mockRemoveItem = jest.fn<(key: string) => Promise<void>>();
 const mockResetOfflineStorage = jest.fn();
 const mockSaveMealTransaction = jest.fn<(input: unknown) => Promise<unknown>>();
+const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
 
@@ -42,6 +43,10 @@ jest.mock("@/services/meals/mealSaveTransaction", () => ({
   saveMealTransaction: (input: unknown) => mockSaveMealTransaction(input),
 }));
 
+jest.mock("@/services/offline/meals.repo", () => ({
+  upsertMealLocal: (meal: unknown) => mockUpsertMealLocal(meal),
+}));
+
 jest.mock("@/services/meals/myMealService", () => ({
   upsertMyMealLocal: (uid: string, meal: unknown) =>
     mockUpsertMyMealLocal(uid, meal),
@@ -59,6 +64,7 @@ describe("E2E fixtures", () => {
     mockMultiRemove.mockResolvedValue(undefined);
     mockRemoveItem.mockResolvedValue(undefined);
     mockSaveMealTransaction.mockResolvedValue({});
+    mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
     __resetE2EFixturesForTests();
   });
@@ -66,7 +72,7 @@ describe("E2E fixtures", () => {
   it("parses only supported seed values", () => {
     expect(
       parseE2ESeedCommand({
-        fixture: "user-with-today-meal",
+        fixture: "user-with-failed-meal",
         credits: "none",
         ai: "textSuccess",
         barcode: "known",
@@ -78,7 +84,7 @@ describe("E2E fixtures", () => {
         weeklyReport: "available",
       }),
     ).toEqual({
-      fixture: "user-with-today-meal",
+      fixture: "user-with-failed-meal",
       credits: "none",
       ai: "textSuccess",
       barcode: "known",
@@ -117,6 +123,7 @@ describe("E2E fixtures", () => {
     expect(markers).toEqual([]);
     expect(mockResetOfflineStorage).not.toHaveBeenCalled();
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
     expect(getE2EAccessState("user-1")).toBeNull();
     expect(resolveE2EBarcodeLookup()).toBeNull();
     expect(resolveE2ENotificationPermission()).toBeNull();
@@ -180,6 +187,37 @@ describe("E2E fixtures", () => {
     expect(mockSetItem).toHaveBeenCalledWith(
       "current_meal_draft_screen_user-1",
       "AddMeal",
+    );
+  });
+
+  it("seeds failed and conflict meals as visible local-only sync states", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-failed-meal" },
+    });
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-conflict-meal" },
+    });
+
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "E2E Failed Meal",
+        syncState: "failed",
+      }),
+    );
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "E2E Conflict Meal",
+        syncState: "conflict",
+      }),
+    );
+    expect(mockEmit).toHaveBeenCalledWith(
+      "meal:local:upserted",
+      expect.objectContaining({
+        uid: "user-1",
+        meal: expect.objectContaining({ syncState: "failed" }),
+      }),
     );
   });
 

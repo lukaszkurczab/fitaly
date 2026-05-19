@@ -1,0 +1,28 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?credits=ok&chat=success"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-screen
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
+- tapOn:
+    id: chat-input
+- inputText: This is a deliberately long E2E chat prompt that keeps the keyboard open while the composer grows enough to verify that the input and send action remain reachable on a small screen.
+- assertVisible:
+    id: chat-input
+- assertVisible:
+    id: chat-send-button
+- hideKeyboard
+- assertVisible:
+    id: chat-send-button
+

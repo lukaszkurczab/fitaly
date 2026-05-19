@@ -56,12 +56,12 @@ jobs:
       - name: Run foundation smoke flow
         env:
           E2E_RESULTS_PATH: /tmp/maestro-${{ env.E2E_PLATFORM }}-foundation-results.xml
-        run: npm run e2e:foundation
+        run: npm run e2e:smoke:foundation
 
       - name: Run account launch smoke flow
         env:
           E2E_RESULTS_PATH: /tmp/maestro-${{ env.E2E_PLATFORM }}-account-results.xml
-        run: bash scripts/run-e2e-local.sh e2e/maestro/account-launch-smoke.yaml
+        run: npm run e2e:smoke:account-launch
 
       - name: Upload smoke E2E artifacts
         if: ${{ always() }}

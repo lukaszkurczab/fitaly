@@ -8,6 +8,8 @@ import {
 
 const mockUseAuthContext = jest.fn();
 const mockGet = jest.fn<(url: string) => Promise<unknown>>();
+const mockGetE2EAccessState = jest.fn();
+let mockIsE2EModeEnabled = false;
 let mockProductReadyUid: string | null = null;
 
 jest.mock("@/context/AuthContext", () => ({
@@ -22,6 +24,16 @@ jest.mock("@/hooks/useProductReadiness", () => ({
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (url: string) => mockGet(url),
+}));
+
+jest.mock("@/services/e2e/config", () => ({
+  __esModule: true,
+  isE2EModeEnabled: () => mockIsE2EModeEnabled,
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  __esModule: true,
+  getE2EAccessState: (uid: string) => mockGetE2EAccessState(uid),
 }));
 
 function creditsSnapshot(tier: "free" | "premium") {
@@ -79,6 +91,8 @@ describe("AccessContext", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuthContext.mockReturnValue({ uid: null });
+    mockGetE2EAccessState.mockReturnValue(null);
+    mockIsE2EModeEnabled = false;
     mockProductReadyUid = null;
     mockGet.mockResolvedValue(accessStateSnapshot("free"));
   });
@@ -227,5 +241,21 @@ describe("AccessContext", () => {
       expect(result.current.accessState?.tier).toBe("free");
     });
     expect(mockGet).toHaveBeenCalledWith("/billing/access-state");
+  });
+
+  it("applies E2E fixture access before product readiness without backend access", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockProductReadyUid = null;
+    mockIsE2EModeEnabled = true;
+    mockGetE2EAccessState.mockReturnValue(accessStateSnapshot("premium"));
+
+    const { result } = renderHook(() => useAccessContext(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.accessState?.tier).toBe("premium");
+    });
+
+    expect(mockGetE2EAccessState).toHaveBeenCalledWith("user-1");
+    expect(mockGet).not.toHaveBeenCalled();
   });
 });

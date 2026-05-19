@@ -46,7 +46,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -z "${E2E_EXPO_PORT:-}" ]]; then
-  while curl -fsS "http://localhost:${EXPO_PORT}/status" >/dev/null 2>&1; do
+  while curl -fsS --max-time 2 "http://localhost:${EXPO_PORT}/status" >/dev/null 2>&1; do
     echo "[e2e] Expo port ${EXPO_PORT} is already in use; trying $((EXPO_PORT + 1))..."
     EXPO_PORT=$((EXPO_PORT + 1))
   done
@@ -93,7 +93,7 @@ echo "[e2e] Runtime: platform=${PLATFORM} host=${EXPO_HOST} api=${API_BASE_URL} 
 echo "[e2e] Waiting for Metro to be ready..."
 READY=0
 for _ in $(seq 1 90); do
-  STATUS="$(curl -fsS "http://localhost:${EXPO_PORT}/status" 2>/dev/null || true)"
+  STATUS="$(curl -fsS --max-time 2 "http://localhost:${EXPO_PORT}/status" 2>/dev/null || true)"
   if printf "%s" "${STATUS}" | rg -q "packager-status:running"; then
     READY=1
     break

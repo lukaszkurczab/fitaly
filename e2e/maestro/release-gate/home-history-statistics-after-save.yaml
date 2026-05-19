@@ -1,0 +1,137 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: E2E Stats Bowl
+- hideKeyboard
+- assertVisible:
+    id: meal-details-form-submit-button
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: E2E deterministic chicken
+- tapOn:
+    id: ingredient-editor-kcal-input
+- eraseText
+- inputText: "512"
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+- tapOn:
+    id: ingredient-editor-protein-input
+- eraseText
+- inputText: "42"
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-carbs-input
+    direction: DOWN
+- tapOn:
+    id: ingredient-editor-carbs-input
+- eraseText
+- inputText: "48"
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-fat-input
+    direction: DOWN
+- tapOn:
+    id: ingredient-editor-fat-input
+- eraseText
+- inputText: "16"
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+- assertVisible:
+    id: meal-details-form-submit-button
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- assertVisible:
+    id: review-meal-save-button
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- assertVisible:
+    id: home-hero-card
+- assertVisible:
+    id: home-hero-meta
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- assertVisible:
+    id: statistics-range-7d-button
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- assertVisible:
+    id: statistics-trend-metric-value
+- scrollUntilVisible:
+    element:
+      id: statistics-daily-averages-section
+    direction: DOWN
+- assertVisible:
+    id: statistics-average-kcal
+- assertVisible:
+    id: statistics-average-protein

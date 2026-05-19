@@ -1,0 +1,149 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Small Screen Long Meal Name With Many Words For Footer Reachability
+- assertVisible:
+    id: meal-name-input
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: meal-type-picker-trigger
+    direction: DOWN
+- assertVisible:
+    id: meal-type-picker-trigger
+- scrollUntilVisible:
+    element:
+      id: meal-time-picker-trigger
+    direction: DOWN
+- assertVisible:
+    id: meal-time-picker-trigger
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-add-button
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Very Long Ingredient Name For Small Screen Keyboard And Footer Reachability
+- assertVisible:
+    id: ingredient-editor-name-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-amount-input
+- assertVisible:
+    id: ingredient-editor-amount-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-kcal-input
+- assertVisible:
+    id: ingredient-editor-kcal-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-protein-input
+- assertVisible:
+    id: ingredient-editor-protein-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-carbs-input
+- assertVisible:
+    id: ingredient-editor-carbs-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-fat-input
+- assertVisible:
+    id: ingredient-editor-fat-input
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-1
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+- assertVisible:
+    id: meal-details-form-submit-button
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000

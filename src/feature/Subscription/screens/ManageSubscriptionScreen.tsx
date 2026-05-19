@@ -350,6 +350,7 @@ export default function ManageSubscriptionScreen({
 
           {actionFeedback && !confirmationWarningFeedback ? (
             <InfoBlock
+              testID={`manage-subscription-action-feedback-${actionFeedback.tone}`}
               title={actionFeedback.title}
               body={actionFeedback.message}
               tone={actionFeedback.tone}
@@ -419,6 +420,7 @@ export default function ManageSubscriptionScreen({
           >
             <SettingsRow
               testID="manage-subscription-status-row"
+              valueTestID={`manage-subscription-status-value-${state}`}
               title={t("manageSubscription.yourSubscription")}
               value={headerStatus}
             />
@@ -446,6 +448,9 @@ export default function ManageSubscriptionScreen({
           >
             <SettingsRow
               testID="manage-subscription-credits-balance-row"
+              valueTestID={`manage-subscription-credits-balance-value-${
+                credits?.balance ?? "missing"
+              }`}
               title={t("manageSubscription.aiCreditsBalance", {
                 defaultValue: "Balance",
               })}
@@ -453,6 +458,9 @@ export default function ManageSubscriptionScreen({
             />
             <SettingsRow
               testID="manage-subscription-credits-allocation-row"
+              valueTestID={`manage-subscription-credits-allocation-value-${
+                credits?.allocation ?? "missing"
+              }`}
               title={t("manageSubscription.aiCreditsAllocation", {
                 defaultValue: "Allocation",
               })}
@@ -460,6 +468,9 @@ export default function ManageSubscriptionScreen({
             />
             <SettingsRow
               testID="manage-subscription-tier-row"
+              valueTestID={`manage-subscription-tier-value-${
+                credits?.tier ?? "missing"
+              }`}
               title={t("manageSubscription.aiCreditsTier", {
                 defaultValue: "Tier",
               })}

@@ -4,6 +4,7 @@ import { createServiceError } from "@/services/contracts/serviceError";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
 import { resetOfflineStorage } from "@/services/offline/db";
+import { upsertMealLocal } from "@/services/offline/meals.repo";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
@@ -28,7 +29,9 @@ export type E2EFixtureName =
   | "user-with-today-meal"
   | "user-with-photo-meal"
   | "user-with-saved-meals"
-  | "user-with-draft";
+  | "user-with-draft"
+  | "user-with-failed-meal"
+  | "user-with-conflict-meal";
 export type E2ECreditsSeed = "ok" | "low" | "none";
 export type E2EAiSeed =
   | "textSuccess"
@@ -77,6 +80,8 @@ const VALID_FIXTURES = new Set<E2EFixtureName>([
   "user-with-photo-meal",
   "user-with-saved-meals",
   "user-with-draft",
+  "user-with-failed-meal",
+  "user-with-conflict-meal",
 ]);
 const VALID_CREDITS = new Set<E2ECreditsSeed>(["ok", "low", "none"]);
 const VALID_AI = new Set<E2EAiSeed>([
@@ -308,6 +313,11 @@ async function seedLoggedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
   });
 }
 
+async function seedVisibleMeal(uid: string, fixtureMeal: Meal): Promise<void> {
+  await upsertMealLocal(fixtureMeal);
+  emit("meal:local:upserted", { uid, meal: fixtureMeal });
+}
+
 async function seedSavedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
   await upsertMyMealLocal(uid, {
     ...fixtureMeal,
@@ -334,6 +344,38 @@ async function applyNamedFixture(
         name: "E2E Today Meal",
         inputMethod: "manual",
       }),
+    );
+    return;
+  }
+
+  if (fixture === "user-with-failed-meal") {
+    await seedVisibleMeal(
+      uid,
+      {
+        ...meal({
+          uid,
+          id: "e2e-failed-meal",
+          name: "E2E Failed Meal",
+          inputMethod: "manual",
+        }),
+        syncState: "failed",
+      },
+    );
+    return;
+  }
+
+  if (fixture === "user-with-conflict-meal") {
+    await seedVisibleMeal(
+      uid,
+      {
+        ...meal({
+          uid,
+          id: "e2e-conflict-meal",
+          name: "E2E Conflict Meal",
+          inputMethod: "manual",
+        }),
+        syncState: "conflict",
+      },
     );
     return;
   }

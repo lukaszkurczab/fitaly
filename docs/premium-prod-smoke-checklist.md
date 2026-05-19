@@ -27,7 +27,7 @@ Run this on a real iOS/Android device with the intended production or smoke buil
    - `purchase_started`
    - `purchase_succeeded`
    - `entitlement_confirmed`
-   - If `purchase_succeeded` is followed by `entitlement_confirmation_failed`, treat it as a P0/P1 guardrail and inspect the `reason`.
+   - If `purchase_succeeded` is followed by `entitlement_confirmation_failed`, treat it as a release/nightly guardrail and inspect the `reason`.
 5. Verify backend `/api/v1/ai/credits/sync-tier` logs `revenuecat_sync_tier_reconciled` for the same UID.
 6. Verify `/api/v1/billing/access-state` returns:
    - `tier: "premium"`

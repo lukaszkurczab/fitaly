@@ -51,31 +51,31 @@ Solo-release convention:
 - Cross-repo contract sync job is green.
 - `Release Candidate` workflow is green and produced `release-evidence`.
 - RC smoke E2E passes on prepared runner via `E2E Smoke Gate`:
-  - `foundation-smoke.yaml`
-  - `account-launch-smoke.yaml`
+  - `e2e/maestro/smoke/foundation.yaml`
+  - `e2e/maestro/smoke/account-launch.yaml`
 - RC smoke flow-contract verification passes:
   - `GET /api/v1/ai/credits` returns valid contract payload
   - `GET /api/v2/users/me/reports/weekly` returns expected free-user denial (`403 WEEKLY_REPORT_PREMIUM_REQUIRED`) on smoke
-- P0.1 chat integrity evidence is green:
+- Chat integrity evidence is green:
   - automated hook tests cover timeout/offline/429/navigate-away/double-tap
   - weak-network manual chat smoke evidence is attached
-- P0.2 onboarding is backend-owned and contract-safe:
+- Onboarding evidence is backend-owned and contract-safe:
   - `POST /api/v1/users/me/onboarding` contract test is green
   - forced-failure signup rollback note is attached
-- P0.3 weekly report premium boundary is backend-true:
+- Weekly report premium boundary is backend-true:
   - free-user direct API verification returns `403 WEEKLY_REPORT_PREMIUM_REQUIRED`
-- P0.4 paywall is truthful to real purchase flow:
+- Paywall evidence is truthful to real purchase flow:
   - only purchasable offer is visible
   - purchase/restore smoke note is attached for that offer
-- P0.5 privacy-safe logging and Sentry hardening evidence is attached:
+- Privacy-safe logging and Sentry hardening evidence is attached:
   - fake-PII payload does not appear in backend logs or Sentry event payload
   - Sentry data-scrubbing and retention screenshots are linked
-- P0.6 compliance packet is attached:
+- Compliance packet is attached:
   - telemetry retention policy snapshot
   - processor matrix
   - DPA/SCC status snapshot
   - export/delete/store-disclosure evidence links
-- P0.7 release rehearsal packet is attached:
+- Release rehearsal packet is attached:
   - distributable build IDs (version/build number + identifiers)
   - rollback rehearsal note
   - signed launch checklist
@@ -107,7 +107,7 @@ Solo-release convention:
 
 1. Build RC with `smoke` (or `internal`) profile.
 2. Run `Release Candidate` workflow and provide disposable smoke delete evidence URL if this is a production approval run.
-3. Review `release-evidence` artifact and use it as an operator checklist for backup/restore and P0.1-P0.7 evidence links.
+3. Review `release-evidence` artifact and use it as an operator checklist for backup/restore and release evidence links.
 4. Approve the release directly as the release owner.
 5. Execute manual sanity check on both platforms.
 6. Build production artifacts (`publish:android`, `publish:ios`).

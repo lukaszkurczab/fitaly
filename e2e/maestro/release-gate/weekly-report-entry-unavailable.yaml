@@ -1,0 +1,30 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=unavailable"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: e2e-ready-weeklyReport-unavailable
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: weekly-report-card
+    direction: DOWN
+- tapOn:
+    id: weekly-report-card
+- assertVisible:
+    id: weekly-report-screen
+- extendedWaitUntil:
+    visible:
+      id: weekly-report-unavailable-state
+    timeout: 15000
+- assertVisible:
+    id: weekly-report-retry-button
+- assertVisible:
+    id: weekly-report-unavailable-back-button
+- tapOn:
+    id: weekly-report-unavailable-back-button
+- assertVisible:
+    id: home-screen

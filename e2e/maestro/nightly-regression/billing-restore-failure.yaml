@@ -1,0 +1,34 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreFailure"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-restoreFailure
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-restore-row
+    direction: DOWN
+- tapOn:
+    id: manage-subscription-restore-row
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-action-feedback-error
+    direction: UP
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-action-feedback-error
+    timeout: 15000
+- assertVisible:
+    id: manage-subscription-screen

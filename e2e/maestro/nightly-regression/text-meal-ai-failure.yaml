@@ -1,0 +1,37 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=failure"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-ai-failure
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: AI failure bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado and tahini
+- hideKeyboard
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: add-meal-text-error
+    timeout: 15000
+- assertVisible:
+    id: add-meal-text-screen
+- assertVisible:
+    id: add-meal-text-analyze-button

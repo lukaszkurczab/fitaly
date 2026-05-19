@@ -1,0 +1,68 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?notificationPermission=allowed&reminder=send
+- assertVisible:
+    id: e2e-ready-notificationPermission-allowed
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- assertVisible:
+    id: notifications-smart-reminders-toggle
+- tapOn:
+    id: notifications-smart-reminders-toggle
+- extendedWaitUntil:
+    visible:
+      id: notifications-prefs-sync-success
+    timeout: 10000
+- assertVisible:
+    id: notifications-smart-reminders-state-off
+- assertVisible:
+    id: notifications-motivation-toggle
+- tapOn:
+    id: notifications-motivation-toggle
+- extendedWaitUntil:
+    visible:
+      id: notifications-prefs-sync-success
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: notifications-motivation-state-on
+    direction: DOWN
+- assertVisible:
+    id: notifications-motivation-state-on
+- assertVisible:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- scrollUntilVisible:
+    element:
+      id: notifications-smart-reminders-state-off
+    direction: DOWN
+- assertVisible:
+    id: notifications-smart-reminders-state-off
+- scrollUntilVisible:
+    element:
+      id: notifications-motivation-state-on
+    direction: DOWN
+- assertVisible:
+    id: notifications-motivation-state-on

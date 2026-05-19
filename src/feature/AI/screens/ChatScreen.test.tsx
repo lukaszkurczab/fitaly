@@ -75,6 +75,7 @@ let mockUserData: UserData | null = buildUserData(readyReadiness);
 let mockLoadingUser = false;
 let mockIsProductReady = true;
 let mockCanRenderProductStack = true;
+let mockAccessCreditsBalance = 18;
 
 const baseMessages: ChatMessage[] = [
   {
@@ -203,6 +204,29 @@ jest.mock("@/context/UserProfileContext", () => ({
   }),
 }));
 
+jest.mock("@/context/AccessContext", () => ({
+  useAccessContext: () => ({
+    accessState: {
+      credits: {
+        balance: mockAccessCreditsBalance,
+        allocation: 100,
+        periodEndAt: "2026-06-01T00:00:00.000Z",
+        costs: { chat: 1, textMeal: 1, photo: 1 },
+      },
+      features: {
+        aiChat: {
+          enabled: mockAccessCreditsBalance > 0,
+          status: mockAccessCreditsBalance > 0 ? "enabled" : "disabled",
+          reason:
+            mockAccessCreditsBalance > 0 ? null : "insufficient_credits",
+          requiredCredits: 1,
+          remainingCredits: mockAccessCreditsBalance,
+        },
+      },
+    },
+  }),
+}));
+
 jest.mock("@/services/user/userProfileRepository", () => ({
   acceptAiHealthDataConsentRemote: (uid: string) =>
     mockAcceptAiHealthDataConsentRemote(uid),
@@ -300,6 +324,7 @@ describe("ChatScreen", () => {
     mockLoadingUser = false;
     mockIsProductReady = true;
     mockCanRenderProductStack = true;
+    mockAccessCreditsBalance = 18;
     mockChatHistoryState = {
       messages: [],
       loading: false,
@@ -449,6 +474,7 @@ describe("ChatScreen", () => {
   it("renders no-credits lock state for existing conversation and navigates on upgrade", async () => {
     mockChatHistoryState.messages = baseMessages;
     mockChatHistoryState.canSend = false;
+    mockAccessCreditsBalance = 0;
 
     const screen = renderWithTheme(<ChatScreen />);
     expect(screen.getByText("lock.creditsTitle")).toBeTruthy();
@@ -457,6 +483,21 @@ describe("ChatScreen", () => {
     expect(screen.getByTestId("chat-input").props.editable).toBe(false);
 
     fireEvent.press(screen.getByText("lock.creditsAction"));
+    expect(mockNavigate).toHaveBeenCalledWith("ManageSubscription");
+  });
+
+  it("renders no-credits lock state before a conversation starts", async () => {
+    mockChatHistoryState.canSend = false;
+    mockAccessCreditsBalance = 0;
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(screen.getByTestId("chat-credits-banner")).toBeTruthy();
+    expect(screen.getByTestId("chat-credits-banner-action-button")).toBeTruthy();
+    expect(await screen.findByPlaceholderText("composer.lockedCredits")).toBeTruthy();
+    expect(screen.getByTestId("chat-input").props.editable).toBe(false);
+
+    fireEvent.press(screen.getByTestId("chat-credits-banner-action-button"));
     expect(mockNavigate).toHaveBeenCalledWith("ManageSubscription");
   });
 

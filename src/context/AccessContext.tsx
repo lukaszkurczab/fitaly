@@ -80,19 +80,32 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   const refreshAccess = useCallback((
     options?: { force?: boolean },
   ): Promise<AccessState | null> => {
-    if (!uid || !productReadyUid) {
+    const e2eAccessUid = isE2EModeEnabled() ? uid : null;
+    const accessUid = productReadyUid ?? e2eAccessUid;
+
+    if (!uid || !accessUid) {
       updateAccess(null);
       return Promise.resolve(null);
     }
 
     const inFlight = refreshInFlightRef.current;
-    if (!options?.force && inFlight?.uid === productReadyUid) {
+    if (!options?.force && inFlight?.uid === accessUid) {
       return inFlight.promise;
     }
 
     setLoading(true);
-    const requestUid = productReadyUid;
+    const requestUid = accessUid;
     const token = {};
+    const currentRequest: {
+      uid: string;
+      token: object;
+      promise: Promise<AccessState | null>;
+    } = {
+      uid: requestUid,
+      token,
+      promise: Promise.resolve(null),
+    };
+    refreshInFlightRef.current = currentRequest;
     const promise = (async () => {
       try {
         const e2eAccessState = getE2EAccessState(requestUid);
@@ -104,6 +117,16 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
             updateAccess(e2eAccessState);
           }
           return e2eAccessState;
+        }
+
+        if (!productReadyUid) {
+          if (
+            uidRef.current === requestUid
+            && refreshInFlightRef.current?.token === token
+          ) {
+            updateAccess(null);
+          }
+          return null;
         }
 
         const response = await get<unknown>("/billing/access-state");
@@ -133,12 +156,12 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    refreshInFlightRef.current = { uid: requestUid, token, promise };
+    currentRequest.promise = promise;
     return promise;
   }, [productReadyUid, uid, updateAccess]);
 
   useEffect(() => {
-    if (!uid || !productReadyUid) {
+    if (!uid || (!productReadyUid && !isE2EModeEnabled())) {
       updateAccess(null);
       return;
     }

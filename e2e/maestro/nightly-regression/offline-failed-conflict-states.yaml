@@ -1,0 +1,48 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=user-with-failed-meal"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-failed-meal
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-meal-sync-failed-0
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-sync-failed-0
+- openLink: "fitaly://e2e/seed?fixture=user-with-conflict-meal"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-conflict-meal
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-meal-sync-conflict-0
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-sync-conflict-0
+
