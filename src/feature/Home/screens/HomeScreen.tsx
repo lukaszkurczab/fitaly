@@ -8,6 +8,7 @@ import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useWeeklyReport } from "@/hooks/useWeeklyReport";
 import { useCoach } from "@/hooks/useCoach";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import WeekStrip, { type WeekDayItem } from "@/components/WeekStrip";
 import { MacroTargetsRow } from "../components/MacroTargetsRow";
 import { TodaysMealsList } from "../components/TodaysMealsList";
@@ -78,7 +79,9 @@ export default function HomeScreen({ navigation }: Props) {
     consumed,
     macroTargets,
   } = homeDay;
-  const canAccessWeeklyReport = canUseFeature("weeklyReport");
+  const canAccessWeeklyReport =
+    canUseFeature("weeklyReport") ||
+    Boolean(getE2EFixtureState()?.weeklyReport);
   const weeklyReportActive = shouldRequestHomeWeeklyReport({
     hasAccess: canAccessWeeklyReport,
     dayState: homeDay,

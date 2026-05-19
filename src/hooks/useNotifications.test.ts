@@ -22,6 +22,10 @@ jest.mock("@/services/notifications/notificationsRepository", () => ({
     mockUpdateNotificationPrefs(uid, notifications),
 }));
 
+jest.mock("@/services/e2e/fixtures", () => ({
+  getE2EFixtureState: () => null,
+}));
+
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
   default: {

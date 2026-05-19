@@ -28,6 +28,10 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-screen
 - waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-credits-explanation
+    direction: DOWN
 - assertVisible:
     id: add-meal-text-credits-explanation
 - tapOn:

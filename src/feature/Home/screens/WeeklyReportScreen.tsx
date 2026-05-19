@@ -11,6 +11,7 @@ import type {
   WeeklyReportInsight,
   WeeklyReportPriority,
 } from "@/services/weeklyReport/weeklyReportTypes";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import {
@@ -174,7 +175,7 @@ function ReflectionHero({ report, locale }: { report: WeeklyReport; locale?: str
   const { t } = useTranslation("home");
 
   return (
-    <View style={styles.heroCard}>
+    <View style={styles.heroCard} testID="weekly-report-summary-section">
       <StatusPill label={t("weeklyReport.closedWeekPill")} />
       <Text style={styles.metaText}>{formatWeeklyPeriod(report.period, locale)}</Text>
       <Text style={styles.heroHeadline}>
@@ -212,7 +213,7 @@ function SignalsCard({ insights }: { insights: WeeklyReportInsight[] }) {
   const visibleInsights = insights.slice(0, 2);
 
   return (
-    <View style={styles.section}>
+    <View style={styles.section} testID="weekly-report-signals-section">
       <Text style={styles.sectionLabel}>{t("weeklyReport.signalsBehindIt")}</Text>
       <View style={styles.signalsCard}>
         {visibleInsights.map((insight, index) => (
@@ -252,7 +253,7 @@ function CarryForwardCard({ priorities }: { priorities: WeeklyReportPriority[] }
   const { t } = useTranslation("home");
 
   return (
-    <View style={styles.carryCard}>
+    <View style={styles.carryCard} testID="weekly-report-priorities-section">
       <Text style={styles.carryTitle}>{t("weeklyReport.carryForwardTitle")}</Text>
       <Text style={styles.carryBody}>{t("weeklyReport.carryForwardBody")}</Text>
 
@@ -558,10 +559,13 @@ export default function WeeklyReportScreen({ navigation }: Props) {
   const { uid } = useAuthContext();
   const { getFeature, refreshAccess } = useAccessContext();
   const weeklyReportFeature = getFeature("weeklyReport");
-  const accessState = resolveWeeklyReportAccessState(
-    weeklyReportFeature?.status ?? null,
-    weeklyReportFeature?.reason,
-  );
+  const hasE2EWeeklyReport = Boolean(getE2EFixtureState()?.weeklyReport);
+  const accessState = hasE2EWeeklyReport
+    ? "premium"
+    : resolveWeeklyReportAccessState(
+        weeklyReportFeature?.status ?? null,
+        weeklyReportFeature?.reason,
+      );
   const weeklyReport = useWeeklyReport({
     uid,
     active: accessState === "premium",

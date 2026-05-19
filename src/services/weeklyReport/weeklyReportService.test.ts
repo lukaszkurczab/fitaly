@@ -5,6 +5,7 @@ import { createServiceError } from "@/services/contracts/serviceError";
 const mockGet = jest.fn<(path: string, options?: unknown) => Promise<unknown>>();
 const mockReadPublicEnv = jest.fn<(name: string) => string | undefined>();
 const mockWarn = jest.fn<(...args: unknown[]) => void>();
+const mockResolveE2EWeeklyReport = jest.fn();
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (path: string, options?: unknown) => mockGet(path, options),
@@ -12,6 +13,13 @@ jest.mock("@/services/core/apiClient", () => ({
 
 jest.mock("@/services/core/publicEnv", () => ({
   readPublicEnv: (name: string) => mockReadPublicEnv(name),
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  resolveE2EWeeklyReport: (
+    uid: string | null | undefined,
+    weekEnd: string,
+  ) => mockResolveE2EWeeklyReport(uid, weekEnd),
 }));
 
 jest.mock("@/utils/debug", () => ({
@@ -64,6 +72,7 @@ describe("weeklyReportService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockResolveE2EWeeklyReport.mockReturnValue(null);
     mockReadPublicEnv.mockImplementation((name: string) => {
       if (name === "EXPO_PUBLIC_ENABLE_WEEKLY_REPORTS") {
         return "true";
@@ -90,6 +99,31 @@ describe("weeklyReportService", () => {
     expect(result.status).toBe("live_success");
     expect(result.report.status).toBe("ready");
     expect(result.report.insights[0]?.type).toBe("consistency");
+  });
+
+  it("returns deterministic E2E weekly report without backend fetch", async () => {
+    mockResolveE2EWeeklyReport.mockReturnValue({
+      report: createPayload(),
+      source: "remote",
+      status: "live_success",
+      enabled: true,
+      error: null,
+    });
+
+    const service =
+      jest.requireActual("@/services/weeklyReport/weeklyReportService") as typeof import("@/services/weeklyReport/weeklyReportService");
+
+    const result = await service.getWeeklyReport("user-1", {
+      weekEnd: "2026-03-15",
+    });
+
+    expect(mockResolveE2EWeeklyReport).toHaveBeenCalledWith(
+      "user-1",
+      "2026-03-15",
+    );
+    expect(result.source).toBe("remote");
+    expect(result.status).toBe("live_success");
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("derives the default weekEnd from UTC yesterday", () => {

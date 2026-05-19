@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 
 const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__;
 
-const loadDebugModule = (devValue: boolean | undefined) => {
+const loadDebugModule = (
+  devValue: boolean | undefined,
+  options?: { e2e?: boolean },
+) => {
   jest.resetModules();
   (globalThis as { __DEV__?: boolean }).__DEV__ = devValue;
+  jest.doMock("@/services/e2e/config", () => ({
+    isE2EModeEnabled: () => options?.e2e === true,
+  }));
   let mod: unknown;
   jest.isolateModules(() => {
     mod = jest.requireActual("@/utils/debug");
@@ -66,5 +72,15 @@ describe("debugScope", () => {
 
     expect(console.warn).toHaveBeenCalledWith("[Parent:Child]", "child-warning");
     expect(console.error).toHaveBeenCalledWith("[Sync]", "sync-error");
+  });
+
+  it("routes debug errors to log in E2E mode to avoid blocking LogBox overlays", () => {
+    const { debugScope } = loadDebugModule(true, { e2e: true });
+    const logger = debugScope("Sync");
+
+    logger.error("startup:failed");
+
+    expect(console.log).toHaveBeenCalledWith("[Sync]", "startup:failed");
+    expect(console.error).not.toHaveBeenCalled();
   });
 });

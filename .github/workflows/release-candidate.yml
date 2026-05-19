@@ -44,6 +44,42 @@ jobs:
       platform: ${{ inputs.platform || 'ios' }}
     secrets: inherit
 
+  p0-e2e:
+    name: P0 E2E
+    runs-on: self-hosted
+    timeout-minutes: 90
+    env:
+      E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
+      E2E_RESULTS_PATH: /tmp/maestro-${{ inputs.platform || 'ios' }}-p0-results.xml
+      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run P0 E2E suite
+        run: npm run e2e:p0
+
+      - name: Upload P0 E2E artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-p0-${{ env.E2E_PLATFORM }}
+          path: |
+            ${{ env.E2E_RESULTS_PATH }}
+            /tmp/expo-e2e.log
+            ~/.maestro/tests
+          if-no-files-found: ignore
+
   smoke-export:
     name: Smoke export verification
     runs-on: ubuntu-latest
@@ -204,6 +240,7 @@ jobs:
       - mobile-ci
       - backend-ci
       - smoke-e2e
+      - p0-e2e
       - smoke-export
       - smoke-flow-contracts
       - ops-evidence
@@ -235,7 +272,11 @@ jobs:
           BACKEND_SHA: ${{ needs.ops-evidence.outputs.backend_sha }}
           MOBILE_CI_STATUS: passed
           BACKEND_CI_STATUS: passed
+          E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
           SMOKE_E2E_STATUS: passed
+          P0_E2E_STATUS: passed
+          E2E_RESULTS_ARTIFACT_PATH: e2e-p0-${{ inputs.platform || 'ios' }}
+          E2E_SKIPPED_SUITES: P1 nightly regression and P2 manual layout/permission suites were not required for this RC run.
           SMOKE_EXPORT_STATUS: passed
           SMOKE_FLOW_CONTRACT_STATUS: passed
           TARGET_SDK_STATUS: passed via launch-readiness gate
@@ -276,6 +317,7 @@ jobs:
       - mobile-ci
       - backend-ci
       - smoke-e2e
+      - p0-e2e
       - smoke-export
       - smoke-flow-contracts
       - ops-evidence

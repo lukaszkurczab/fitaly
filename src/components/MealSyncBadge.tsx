@@ -7,6 +7,7 @@ import type { MealSyncState } from "@/types/meal";
 type Props = {
   syncState: MealSyncState;
   lastSyncedAt?: number | null;
+  testID?: string;
 };
 
 type BadgeTone = "success" | "warning" | "error";
@@ -33,7 +34,7 @@ function formatLastSyncedAt(value?: number | null): string | null {
   });
 }
 
-export function MealSyncBadge({ syncState, lastSyncedAt }: Props) {
+export function MealSyncBadge({ syncState, lastSyncedAt, testID }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation("meals");
@@ -51,6 +52,7 @@ export function MealSyncBadge({ syncState, lastSyncedAt }: Props) {
 
   return (
     <View
+      testID={testID ?? `meal-sync-badge-${syncState}`}
       style={[
         styles.badge,
         tone === "success"

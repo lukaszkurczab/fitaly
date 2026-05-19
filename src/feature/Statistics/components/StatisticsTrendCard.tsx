@@ -59,7 +59,7 @@ export function StatisticsTrendCard({
       : `${Math.round(metricAverage)} ${t("common:gram")}`;
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID="statistics-trend-card">
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Text style={styles.title}>{t("statistics:trend.title")}</Text>
@@ -69,7 +69,9 @@ export function StatisticsTrendCard({
         </View>
 
         <View style={styles.valueRow}>
-          <Text style={styles.metricValue}>{metricValue}</Text>
+          <Text testID="statistics-trend-metric-value" style={styles.metricValue}>
+            {metricValue}
+          </Text>
           <Text style={styles.metricMeta}>{t("statistics:trend.avgPerDay")}</Text>
         </View>
       </View>
@@ -88,6 +90,7 @@ export function StatisticsTrendCard({
           return (
             <Pressable
               key={metricKey}
+              testID={`statistics-metric-${metricKey}-button`}
               accessibilityRole="button"
               accessibilityLabel={metricChipText[metricKey]}
               onPress={() => onChangeMetric(metricKey)}

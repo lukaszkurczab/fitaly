@@ -1,6 +1,7 @@
 import NetInfo from "@react-native-community/netinfo";
 import { Sync } from "@/utils/debug";
 import { isOfflineNetState } from "@/services/core/networkState";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
   createServiceError,
   normalizeServiceError,
@@ -36,6 +37,15 @@ const RECONNECT_DEBOUNCE_MS = 1200;
 const RECONNECT_THROTTLE_MS = 15_000;
 const DEFAULT_STALE_MS = 6 * 60 * 60 * 1000;
 const CHAT_STALE_MS = 10 * 60 * 1000;
+
+function logRuntimeFailure(event: string, payload: unknown): void {
+  if (isE2EModeEnabled()) {
+    log.log(event, payload);
+    return;
+  }
+
+  log.error(event, payload);
+}
 
 export type SyncDomain = "meals" | "myMeals" | "chat" | "images" | "userProfile";
 export type SyncReason =
@@ -334,14 +344,21 @@ async function runReconcile(
         return result;
       }
 
+      const skipRemotePulls = isE2EModeEnabled();
       const domainsSelectedBeforePush = new Set<Exclude<SyncDomain, "images" | "userProfile">>();
-      for (const domain of ["meals", "myMeals", "chat"] as const) {
-        if (await shouldPullDomain(uid, domain, reason)) {
-          domainsSelectedBeforePush.add(domain);
+      if (!skipRemotePulls) {
+        for (const domain of ["meals", "myMeals", "chat"] as const) {
+          if (await shouldPullDomain(uid, domain, reason)) {
+            domainsSelectedBeforePush.add(domain);
+          }
         }
       }
 
-      await maybeProcessImages(uid, result, reason === "manual");
+      if (skipRemotePulls) {
+        result.skipped.images = "e2e";
+      } else {
+        await maybeProcessImages(uid, result, reason === "manual");
+      }
 
       if (await hasAnyQueuedOps(uid)) {
         try {
@@ -354,6 +371,14 @@ async function runReconcile(
         }
       } else {
         result.skipped.push = "clean";
+      }
+
+      if (skipRemotePulls) {
+        result.skipped.meals = "e2e";
+        result.skipped.myMeals = "e2e";
+        result.skipped.chat = "e2e";
+        runLog.log("skip:remote-pull:e2e", { uid });
+        return result;
       }
 
       for (const domain of ["meals", "myMeals", "chat"] as const) {
@@ -466,7 +491,7 @@ function scheduleReconnect(uid: string) {
     void runReconnectReconcile(uid)
       .then((result) => {
         if (!result.ok) {
-          log.error("reconnect:failed", {
+          logRuntimeFailure("reconnect:failed", {
             uid,
             failures: result.failures,
           });
@@ -474,7 +499,7 @@ function scheduleReconnect(uid: string) {
       })
       .catch((error) => {
         const err = toSyncError(error);
-        log.error("reconnect:error", {
+        logRuntimeFailure("reconnect:error", {
           uid,
           code: err.code,
           message: err.message,
@@ -510,7 +535,7 @@ export function startSyncLoop(uid: string) {
   void runStartupReconcile(uid)
     .then((result) => {
       if (!result.ok) {
-        log.error("startup:failed", {
+        logRuntimeFailure("startup:failed", {
           uid,
           failures: result.failures,
         });
@@ -518,7 +543,7 @@ export function startSyncLoop(uid: string) {
     })
     .catch((error) => {
       const err = toSyncError(error);
-      log.error("startup:error", {
+      logRuntimeFailure("startup:error", {
         uid,
         code: err.code,
         message: err.message,

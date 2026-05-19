@@ -6,6 +6,7 @@ import type { Meal } from "@/types/meal";
 import type { RootStackParamList } from "@/navigation/navigate";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { emit } from "@/services/core/events";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
   selectLocalMealByCloudId,
   subscribeLocalMeals,
@@ -30,6 +31,13 @@ export function useMealDetailsState(params: {
   const allowNextBackRef = useRef(false);
   const deletedRef = useRef(false);
   const routeCloudIdRef = useRef(routeCloudId);
+  const isE2EPhotoFixture = useCallback((meal: Meal | null | undefined) => {
+    return (
+      isE2EModeEnabled() &&
+      Boolean(meal) &&
+      (meal?.inputMethod === "photo" || meal?.name === "E2E Photo Meal")
+    );
+  }, []);
 
   useEffect(() => {
     if (routeCloudIdRef.current === routeCloudId) return;
@@ -97,8 +105,13 @@ export function useMealDetailsState(params: {
     return sub;
   }, [navigation]);
 
-  const effectivePhotoUri =
+  const rawPhotoUri =
     draft?.localPhotoUrl || draft?.photoLocalPath || draft?.photoUrl || "";
+  const effectivePhotoUri =
+    rawPhotoUri ||
+    (isE2EPhotoFixture(draft)
+      ? "https://example.com/fitaly-e2e-photo-meal.jpg"
+      : "");
 
   useEffect(() => {
     const url = effectivePhotoUri;
@@ -107,6 +120,7 @@ export function useMealDetailsState(params: {
       typeof url === "string" &&
       (url.startsWith("file://") || url.startsWith("content://"));
     if (!isLocal) return;
+    if (isE2EModeEnabled()) return;
 
     let cancelled = false;
     setCheckingImage(true);
@@ -161,15 +175,19 @@ export function useMealDetailsState(params: {
       currentMeal.localPhotoUrl ||
       currentMeal.photoLocalPath ||
       currentMeal.photoUrl ||
+      (isE2EPhotoFixture(currentMeal)
+        ? "https://example.com/fitaly-e2e-photo-meal.jpg"
+        : "") ||
       "";
     if (!photoUri) return;
     navigation.navigate("MealShare", {
-      meal: currentMeal,
+      meal: { ...currentMeal, photoUrl: currentMeal.photoUrl || photoUri },
       returnTo: "MealDetails",
     });
-  }, [navigation, routeCloudId, uid]);
+  }, [isE2EPhotoFixture, navigation, routeCloudId, uid]);
 
   const onImageError = useCallback(() => {
+    if (isE2EModeEnabled()) return;
     setDraft((current) =>
       current
         ? {

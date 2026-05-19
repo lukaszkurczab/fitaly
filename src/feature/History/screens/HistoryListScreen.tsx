@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
+import { MealSyncBadge } from "@/components/MealSyncBadge";
 import { Layout, SearchBox } from "@/components";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
@@ -96,6 +97,11 @@ const HistoryMealRowComponent = ({
         <Text numberOfLines={1} style={styles.mealName}>
           {meal.name || fallbackMealName}
         </Text>
+        <MealSyncBadge
+          syncState={meal.syncState}
+          lastSyncedAt={meal.lastSyncedAt}
+          testID={`history-meal-sync-${meal.syncState}-${index}`}
+        />
         <Text numberOfLines={1} style={styles.mealMeta}>
           {meta}
         </Text>

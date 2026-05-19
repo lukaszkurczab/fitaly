@@ -36,6 +36,10 @@ function formatIds(ids: string[]): string {
   return ids.join(", ");
 }
 
+function toTestIdPart(value: string): string {
+  return value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "");
+}
+
 export default function NotificationsScreen({
   navigation,
 }: NotificationsScreenProps) {
@@ -212,6 +216,7 @@ export default function NotificationsScreen({
   const permissionBlock =
     systemAllowed === false ? (
       <InfoBlock
+        testID="notifications-permission-denied-state"
         title={t("screen.permissionOffTitle")}
         body={t("screen.permissionOffBody")}
         tone="warning"
@@ -219,6 +224,7 @@ export default function NotificationsScreen({
       />
     ) : systemAllowed === true ? (
       <InfoBlock
+        testID="notifications-permission-allowed-state"
         title={t("screen.permissionOnTitle")}
         body={t("screen.permissionOnBody")}
         tone="success"
@@ -226,6 +232,7 @@ export default function NotificationsScreen({
       />
     ) : (
       <InfoBlock
+        testID="notifications-permission-checking-state"
         title={t("screen.permissionCheckingTitle")}
         body={t("screen.permissionCheckingBody")}
         tone="neutral"
@@ -300,10 +307,34 @@ export default function NotificationsScreen({
 
           {__DEV__ ? (
             <>
+              <SettingsSection title="Preference sync">
+                <SettingsRow
+                  testID={`notifications-prefs-sync-${lastPrefsSyncStatus}`}
+                  title="Preference sync"
+                  value={lastPrefsSyncStatus}
+                />
+                <SettingsRow
+                  testID={`notifications-smart-reminders-state-${
+                    smartRemindersEnabled ? "on" : "off"
+                  }`}
+                  title="Smart reminders state"
+                  value={smartRemindersEnabled ? "on" : "off"}
+                />
+                <SettingsRow
+                  testID={`notifications-motivation-state-${
+                    motivationEnabled ? "on" : "off"
+                  }`}
+                  title="Motivation state"
+                  value={motivationEnabled ? "on" : "off"}
+                />
+              </SettingsSection>
               <SettingsSection title={t("screen.smartReminderDebugTitle")}>
                 {smartReminderQaRows.map((row) => (
                   <SettingsRow
                     key={row.label}
+                    testID={`notifications-reminder-qa-${toTestIdPart(
+                      row.label,
+                    )}-${toTestIdPart(row.value)}`}
                     title={row.label}
                     value={row.value}
                   />
@@ -313,6 +344,7 @@ export default function NotificationsScreen({
                 {notificationDiagnosticsRows.map((row) => (
                   <SettingsRow
                     key={row.label}
+                    testID={`notifications-diagnostics-${toTestIdPart(row.label)}`}
                     title={row.label}
                     value={row.value}
                   />

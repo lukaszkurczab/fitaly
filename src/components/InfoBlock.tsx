@@ -16,6 +16,7 @@ export type InfoBlockProps = {
   icon?: ReactNode;
   tone?: InfoBlockTone;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
 export function InfoBlock({
@@ -24,6 +25,7 @@ export function InfoBlock({
   icon,
   tone = "neutral",
   style,
+  testID,
 }: InfoBlockProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -31,6 +33,7 @@ export function InfoBlock({
 
   return (
     <View
+      testID={testID}
       style={[
         styles.container,
         {

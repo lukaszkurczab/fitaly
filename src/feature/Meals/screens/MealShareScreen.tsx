@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { emit } from "@/services/core/events";
+import { resolveE2EShareExport } from "@/services/e2e/fixtures";
 import ShareComposerCanvas from "@/feature/Meals/shareComposer/ShareComposerCanvas";
 import ShareComposerDock from "@/feature/Meals/shareComposer/ShareComposerDock";
 import {
@@ -186,9 +187,9 @@ export default function MealShareScreen() {
       }
 
       if (selectedLayerId) return;
-      setSelectedLayerId(composition.widgets.card ? "cardWidget" : null);
+      setSelectedLayerId(null);
     },
-    [composition.widgets.card, mode, selectedLayerId, trackShareEvent],
+    [mode, selectedLayerId, trackShareEvent],
   );
 
   const handlePresetSelect = useCallback(
@@ -335,7 +336,7 @@ export default function MealShareScreen() {
       ...prev,
       textLayers: [...prev.textLayers, next],
     }));
-    setSelectedLayerId(next.id);
+    setSelectedLayerId(null);
     void trackShareEvent("interaction.share.text_added");
   }, [trackShareEvent]);
 
@@ -352,7 +353,7 @@ export default function MealShareScreen() {
         },
       };
     });
-    setSelectedLayerId("chartWidget");
+    setSelectedLayerId(null);
     void trackShareEvent("interaction.share.widget_added", {
       widget_type: "chart",
     });
@@ -376,7 +377,7 @@ export default function MealShareScreen() {
         },
       };
     });
-    setSelectedLayerId("cardWidget");
+    setSelectedLayerId(null);
     void trackShareEvent("interaction.share.widget_added", {
       widget_type: "card",
     });
@@ -626,9 +627,9 @@ export default function MealShareScreen() {
         titleText: mealTitle,
       }),
     );
-    setSelectedLayerId(mode === "customize" ? "cardWidget" : null);
+    setSelectedLayerId(null);
     void trackShareEvent("interaction.share.reset_used");
-  }, [mealTitle, mode, selectedPreset, trackShareEvent]);
+  }, [mealTitle, selectedPreset, trackShareEvent]);
 
   const captureCanvasUri = useCallback(async () => {
     if (!shotRef.current) {
@@ -648,14 +649,23 @@ export default function MealShareScreen() {
       const action = destination === "gallery" ? "save_to_gallery" : "share";
       setExportState({ action, error: null });
       try {
-        const assetUri = await captureCanvasUri();
+        const e2eExport = resolveE2EShareExport(destination);
+        if (e2eExport?.status === "error") {
+          throw new Error(e2eExport.code);
+        }
+        const assetUri =
+          e2eExport?.status === "success"
+            ? e2eExport.assetUri
+            : await captureCanvasUri();
 
         if (destination === "gallery") {
-          const permission = await MediaLibrary.requestPermissionsAsync();
-          if (!permission.granted) {
-            throw new Error("gallery_permission_denied");
+          if (!e2eExport) {
+            const permission = await MediaLibrary.requestPermissionsAsync();
+            if (!permission.granted) {
+              throw new Error("gallery_permission_denied");
+            }
+            await MediaLibrary.createAssetAsync(assetUri);
           }
-          await MediaLibrary.createAssetAsync(assetUri);
           emit("ui:toast", {
             text: t("share_saved_to_gallery", {
               ns: "share",
@@ -666,11 +676,13 @@ export default function MealShareScreen() {
             destination_type: destination,
           });
         } else {
-          const canShare = await Sharing.isAvailableAsync();
-          if (!canShare) {
-            throw new Error("share_unavailable");
+          if (!e2eExport) {
+            const canShare = await Sharing.isAvailableAsync();
+            if (!canShare) {
+              throw new Error("share_unavailable");
+            }
+            await Sharing.shareAsync(assetUri);
           }
-          await Sharing.shareAsync(assetUri);
         }
 
         setCompleted(true);
@@ -789,7 +801,7 @@ export default function MealShareScreen() {
         paddingRight: theme.spacing.md,
       }}
     >
-      <View style={styles.screen}>
+      <View style={styles.screen} testID="share-screen">
         <Pressable
           testID="share-close-button"
           onPress={handleClose}
@@ -856,7 +868,7 @@ export default function MealShareScreen() {
         </View>
 
         <View
-          testID="share-composer-canvas-frame"
+          testID="share-canvas"
           style={[
             styles.canvasFrame,
             {
@@ -917,6 +929,14 @@ export default function MealShareScreen() {
           onEnsureCardLayer={handleEnsureCardLayer}
           onAddOrReplaceAdditionalPhoto={handleAddOrReplaceAdditionalPhoto}
         />
+        {completed ? (
+          <Text testID="share-export-success" style={styles.exportSuccess}>
+            {t("share_saved_to_gallery", {
+              ns: "share",
+              defaultValue: "Saved to gallery.",
+            })}
+          </Text>
+        ) : null}
       </View>
     </Layout>
   );
@@ -980,6 +1000,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 20,
+  },
+  exportSuccess: {
+    color: "#3A4834",
+    fontFamily: "Inter-SemiBold",
+    fontSize: 11,
+    lineHeight: 13,
   },
   invalidClose: {
     position: "absolute",

@@ -7,6 +7,7 @@ import {
 } from "@/services/contracts/guards";
 import { getErrorStatus } from "@/services/contracts/serviceError";
 import { debugScope } from "@/utils/debug";
+import { resolveE2EWeeklyReport } from "@/services/e2e/fixtures";
 import {
   isWeeklyReportDayKey,
   isWeeklyReportInsightImportance,
@@ -258,6 +259,9 @@ export async function getWeeklyReport(
   options?: { weekEnd?: string | null },
 ): Promise<WeeklyReportResult> {
   const weekEnd = normalizeWeekEnd(options?.weekEnd);
+
+  const e2eResult = resolveE2EWeeklyReport(uid, weekEnd);
+  if (e2eResult) return e2eResult;
 
   if (!uid) {
     return buildWeeklyReportResult({

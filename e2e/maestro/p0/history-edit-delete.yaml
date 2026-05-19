@@ -1,0 +1,93 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-today-meal
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-today-meal-row-0
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- assertVisible:
+    id: history-list-screen
+- assertVisible:
+    id: history-meal-row-0
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-edit-button
+- tapOn:
+    id: history-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: E2E Edited Meal
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+- assertVisible:
+    id: meal-details-form-submit-button
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-details-title
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: history-list-screen
+- assertVisible:
+    id: history-meal-row-0
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-today-meal-row-0
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-delete-button
+- tapOn:
+    id: history-meal-delete-button
+- assertVisible:
+    id: history-meal-delete-modal
+- assertVisible:
+    id: history-meal-delete-cancel-button
+- assertVisible:
+    id: history-meal-delete-confirm-button
+- tapOn:
+    id: history-meal-delete-confirm-button
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-hero-card
+- assertNotVisible:
+    id: home-today-meal-row-0
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- assertVisible:
+    id: history-list-screen
+- assertNotVisible:
+    id: history-meal-row-0

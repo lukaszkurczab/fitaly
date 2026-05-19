@@ -50,6 +50,10 @@ jest.mock("expo-notifications", () => ({
   requestPermissionsAsync: () => mockRequestPermissionsAsync(),
 }));
 
+jest.mock("@/services/e2e/fixtures", () => ({
+  resolveE2ENotificationPermission: () => null,
+}));
+
 jest.mock("@/hooks/useNotifications", () => ({
   useNotifications: () => ({
     loading: false,

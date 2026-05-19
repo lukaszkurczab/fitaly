@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { NativeModules, StyleSheet, Text, View } from "react-native";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 
 export type E2EReadyTarget = string;
@@ -13,6 +13,16 @@ type Listener = (status: E2EStatus) => void;
 
 let currentStatus: E2EStatus = { phase: "idle", target: null };
 const listeners = new Set<Listener>();
+const DEV_MENU_E2E_PREFERENCES = {
+  motionGestureEnabled: false,
+  touchGestureEnabled: false,
+  showsAtLaunch: false,
+  showFloatingActionButton: false,
+};
+
+type DevMenuPreferencesModule = {
+  setPreferencesAsync?: (settings: typeof DEV_MENU_E2E_PREFERENCES) => Promise<void>;
+};
 
 function emitStatus(next: E2EStatus): void {
   currentStatus = next;
@@ -45,6 +55,14 @@ export function __resetE2EStatusForTests(): void {
 
 export function E2EStatusOverlay() {
   const [status, setStatus] = useState<E2EStatus>(currentStatus);
+
+  useEffect(() => {
+    if (!isE2EModeEnabled()) return;
+    const devMenuPreferences = NativeModules.DevMenuPreferences as
+      | DevMenuPreferencesModule
+      | undefined;
+    void devMenuPreferences?.setPreferencesAsync?.(DEV_MENU_E2E_PREFERENCES);
+  }, []);
 
   useEffect(() => {
     const listener: Listener = (next) => {

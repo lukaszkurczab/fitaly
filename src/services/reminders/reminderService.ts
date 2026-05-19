@@ -5,6 +5,7 @@ import { isRecord } from "@/services/contracts/guards";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { trackSmartReminderDecisionFailed } from "@/services/telemetry/telemetryInstrumentation";
 import { debugScope } from "@/utils/debug";
+import { resolveE2EReminderDecision } from "@/services/e2e/fixtures";
 import {
   NOOP_REMINDER_REASON_CODES,
   REMINDER_DECISION_TYPES,
@@ -307,6 +308,9 @@ export async function getReminderDecision(
   options?: { dayKey?: string | null; productReady?: boolean },
 ): Promise<ReminderDecisionResult> {
   const dayKey = normalizeDayKey(options?.dayKey);
+  const e2eResult = resolveE2EReminderDecision(uid, dayKey);
+  if (e2eResult) return e2eResult;
+
   const enabled = isSmartRemindersEnabled();
 
   if (!enabled) {

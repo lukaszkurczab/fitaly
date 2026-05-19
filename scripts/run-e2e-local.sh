@@ -108,9 +108,25 @@ if [[ "${READY}" -ne 1 ]]; then
 fi
 
 if [[ "${PLATFORM}" == "ios" ]]; then
+  for BUNDLE_ID in "com.lkurczab.fitaly" "com.lkurczab.foodscannerai"; do
+    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowFloatingActionButton -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuTouchGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuMotionGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowsAtLaunch -bool false >/dev/null 2>&1 || true
+  done
+
   echo "[e2e] Priming iOS dev client with ${EXPO_URL} ..."
   xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
+
+  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX.yaml")"
+  cat >"${DEV_MENU_DISMISS_FLOW}" <<'YAML'
+appId: com.lkurczab.fitaly
+---
+- tapOn: "Close"
+YAML
+  maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  rm -f "${DEV_MENU_DISMISS_FLOW}"
 fi
 
 FLOW_WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/fitaly-e2e-flows.XXXXXX")"

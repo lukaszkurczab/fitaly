@@ -35,14 +35,18 @@ export function HomeHeroCard({
 
   return (
     <View
+      testID="home-hero-card"
       style={[styles.card, isSuccess ? styles.cardSuccess : styles.cardDefault]}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, isSuccess ? styles.titleSuccess : null]}>
+        <Text
+          testID="home-hero-title"
+          style={[styles.title, isSuccess ? styles.titleSuccess : null]}
+        >
           {title}
         </Text>
         <View style={styles.metaBlock}>
-          <Text style={styles.meta}>{meta}</Text>
+          <Text testID="home-hero-meta" style={styles.meta}>{meta}</Text>
           {typeof progress === "number" ? (
             <View style={styles.progressTrack}>
               <View

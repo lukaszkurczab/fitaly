@@ -25,6 +25,7 @@ type ResetOptions = {
 
 const RESET_PATH = "fitaly://e2e/reset";
 const SEED_PATH = "fitaly://e2e/seed";
+const CONNECTIVITY_PATH = "fitaly://e2e/connectivity";
 
 function parseBoolFlag(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
@@ -60,6 +61,11 @@ function isResetDeepLink(url: string): boolean {
 function isSeedDeepLink(url: string): boolean {
   const normalized = url.trim().toLowerCase();
   return normalized.startsWith(SEED_PATH);
+}
+
+function isConnectivityDeepLink(url: string): boolean {
+  const normalized = url.trim().toLowerCase();
+  return normalized.startsWith(CONNECTIVITY_PATH);
 }
 
 function resolveNavigationTarget(logout: boolean): "Login" | "Home" {
@@ -140,6 +146,15 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
     });
     if (markers.length === 0) return false;
     markE2ESeedReady(markers);
+    return true;
+  }
+
+  if (isConnectivityDeepLink(url)) {
+    const params = parseQueryParams(url);
+    const forceOffline = parseBoolFlag(params.offline, false);
+    setE2EForcedOffline(forceOffline);
+    const navigationTarget = resolveNavigationTarget(false);
+    markE2EResetReady(toReadyTarget(navigationTarget, forceOffline));
     return true;
   }
 

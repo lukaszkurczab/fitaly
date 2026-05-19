@@ -5,6 +5,7 @@ import {
   updateNotificationPrefs,
 } from "@/services/notifications/notificationsRepository";
 import { logWarning } from "@/services/core/errorLogger";
+import { getE2EFixtureState } from "@/services/e2e/fixtures";
 
 type BoolPrefs = { enabled: boolean };
 
@@ -75,7 +76,9 @@ async function savePref(
   enabled: boolean,
 ): Promise<void> {
   try {
-    await updateNotificationPrefs(uid, { [config.field]: enabled });
+    if (!getE2EFixtureState()?.notificationPermission) {
+      await updateNotificationPrefs(uid, { [config.field]: enabled });
+    }
     await AsyncStorage.setItem(
       cacheKey(uid, config),
       JSON.stringify({ enabled }),
@@ -91,11 +94,13 @@ export function useNotifications(uid: string | null) {
   const loadAllPrefs = useCallback(async (uidLocal: string) => {
     let prefsData: Awaited<ReturnType<typeof fetchNotificationPrefs>> | null =
       null;
-    try {
-      prefsData = await fetchNotificationPrefs(uidLocal);
-    } catch (error) {
-      logWarning("notification prefs fetch failed", null, error);
-      // Fall through — loadPref will use cached values.
+    if (!getE2EFixtureState()?.notificationPermission) {
+      try {
+        prefsData = await fetchNotificationPrefs(uidLocal);
+      } catch (error) {
+        logWarning("notification prefs fetch failed", null, error);
+        // Fall through - loadPref will use cached values.
+      }
     }
 
     const [motivation, smartReminders, stats] = await Promise.all([

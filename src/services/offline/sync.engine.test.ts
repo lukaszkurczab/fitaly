@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockNetInfoFetch = jest.fn<() => Promise<{ isConnected: boolean }>>();
@@ -20,6 +21,7 @@ const mockGetLastPullCheckTs = jest.fn<
   (...args: unknown[]) => Promise<string | null>
 >();
 const mockSetLastPullCheckTs = jest.fn<(...args: unknown[]) => Promise<void>>();
+let mockE2EEnabled = false;
 
 jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
@@ -40,6 +42,10 @@ jest.mock("./queue.repo", () => ({
 
 jest.mock("./images.repo", () => ({
   getPendingUploads: (...args: unknown[]) => mockGetPendingUploads(...args),
+}));
+
+jest.mock("@/services/e2e/config", () => ({
+  isE2EModeEnabled: () => mockE2EEnabled,
 }));
 
 jest.mock("./sync.storage", () => ({
@@ -98,6 +104,7 @@ describe("offline sync.engine selective coordinator", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockE2EEnabled = false;
     jest.useRealTimers();
     jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-04-28T10:00:00.000Z"));
     mockNetInfoFetch.mockResolvedValue({ isConnected: true });
@@ -226,6 +233,37 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockChatPull).not.toHaveBeenCalled();
   });
 
+  it("keeps E2E reconcile local-first by pushing but skipping remote pulls", async () => {
+    mockE2EEnabled = true;
+    mockGetQueuedOpsCount.mockImplementation(async (_uid, options) => {
+      if (!options) return 1;
+      return 0;
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runReconnectReconcile } = require("@/services/offline/sync.engine");
+
+    const result = await runReconnectReconcile("user-1");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pulled: {},
+        skipped: expect.objectContaining({
+          images: "e2e",
+          meals: "e2e",
+          myMeals: "e2e",
+          chat: "e2e",
+        }),
+      }),
+    );
+    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockMealsPull).not.toHaveBeenCalled();
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockProcessImageUploads).not.toHaveBeenCalled();
+  });
+
   it("stale reconnect pulls only stale domains", async () => {
     mockGetLastPullCheckTs.mockImplementation(async (_uid, domain) =>
       domain === "meals"
@@ -301,6 +339,30 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledWith("user-1");
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+  });
+
+  it("routes exported pull and upload helpers through their canonical strategies", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {
+      pullMyMealChanges,
+      pullChatChanges,
+      processImageUploads,
+      pushQueue,
+    } = require("@/services/offline/sync.engine");
+
+    await pullMyMealChanges("user-1");
+    await pullChatChanges("user-1");
+    await processImageUploads("user-1");
+    await pushQueue("user-1");
+
+    expect(mockMyMealsPull).toHaveBeenCalledWith("user-1");
+    expect(mockChatPull).toHaveBeenCalledWith("user-1");
+    expect(mockProcessImageUploads).toHaveBeenCalledWith("user-1");
+    expect(mockRunPushQueue).toHaveBeenCalledWith(
+      "user-1",
+      expect.any(Number),
+      expect.any(Array),
+    );
   });
 
   it("does not pull chat after a meal-only change", async () => {

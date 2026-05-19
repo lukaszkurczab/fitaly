@@ -1,0 +1,142 @@
+name: E2E Regression
+
+on:
+  push:
+    branches:
+      - release/**
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "E2E suite to run"
+        required: true
+        default: p0
+        type: choice
+        options:
+          - p0
+          - p1
+          - p2
+      platform:
+        description: "Target platform for Maestro tests"
+        required: true
+        default: ios
+        type: choice
+        options:
+          - ios
+          - android
+  schedule:
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  p0:
+    name: P0 E2E
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'p0') }}
+    runs-on: self-hosted
+    timeout-minutes: 90
+    env:
+      E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
+      E2E_RESULTS_PATH: /tmp/maestro-${{ inputs.platform || 'ios' }}-p0-results.xml
+      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run P0 E2E suite
+        run: npm run e2e:p0
+
+      - name: Upload P0 E2E artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-p0-${{ env.E2E_PLATFORM }}
+          path: |
+            ${{ env.E2E_RESULTS_PATH }}
+            /tmp/expo-e2e.log
+            ~/.maestro/tests
+          if-no-files-found: ignore
+
+  p1:
+    name: P1 E2E
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'p1') }}
+    runs-on: self-hosted
+    timeout-minutes: 90
+    env:
+      E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
+      E2E_RESULTS_PATH: /tmp/maestro-${{ inputs.platform || 'ios' }}-p1-results.xml
+      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run P1 E2E suite
+        run: npm run e2e:p1
+
+      - name: Upload P1 E2E artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-p1-${{ env.E2E_PLATFORM }}
+          path: |
+            ${{ env.E2E_RESULTS_PATH }}
+            /tmp/expo-e2e.log
+            ~/.maestro/tests
+          if-no-files-found: ignore
+
+  p2:
+    name: P2 E2E
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.suite == 'p2' }}
+    runs-on: self-hosted
+    timeout-minutes: 90
+    env:
+      E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
+      E2E_RESULTS_PATH: /tmp/maestro-${{ inputs.platform || 'ios' }}-p2-results.xml
+      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run P2 E2E suite
+        run: npm run e2e:p2
+
+      - name: Upload P2 E2E artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-p2-${{ env.E2E_PLATFORM }}
+          path: |
+            ${{ env.E2E_RESULTS_PATH }}
+            /tmp/expo-e2e.log
+            ~/.maestro/tests
+          if-no-files-found: ignore

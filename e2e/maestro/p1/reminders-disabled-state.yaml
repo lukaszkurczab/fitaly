@@ -1,0 +1,34 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../login.yaml
+- openLink: fitaly://e2e/seed?notificationPermission=allowed&reminder=disabled
+- assertVisible:
+    id: e2e-ready-reminder-disabled
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- scrollUntilVisible:
+    element:
+      id: notifications-reminder-qa-status-disabled
+    direction: DOWN
+- assertVisible:
+    id: notifications-reminder-qa-status-disabled
+- assertVisible:
+    id: notifications-reminder-qa-source-disabled
+- assertVisible:
+    id: notifications-reminder-qa-enabled-false
+- assertNotVisible:
+    id: legacy-reminders-screen

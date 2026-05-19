@@ -361,7 +361,11 @@ export default function ShareComposerDock({
 
       <View style={stylesWithTheme.errorSlot}>
         {exportState.error ? (
-          <Text numberOfLines={1} style={stylesWithTheme.errorText}>
+          <Text
+            testID="share-export-error"
+            numberOfLines={1}
+            style={stylesWithTheme.errorText}
+          >
             {exportState.error}
           </Text>
         ) : null}

@@ -13,6 +13,14 @@ import type {
   AiTextMealAnalyzeResponse,
 } from "@/services/ai/contracts";
 import type { BarcodeLookupResult } from "@/services/barcode/barcodeService";
+import type {
+  ReminderDecision,
+  ReminderDecisionResult,
+} from "@/services/reminders/reminderTypes";
+import type {
+  WeeklyReport,
+  WeeklyReportResult,
+} from "@/services/weeklyReport/weeklyReportTypes";
 import type { Ingredient, Meal } from "@/types/meal";
 
 export type E2EFixtureName =
@@ -35,6 +43,18 @@ export type E2EBillingSeed =
   | "restoreSuccess"
   | "restoreFailure";
 export type E2EChatSeed = "success" | "failure";
+export type E2EShareExportSeed =
+  | "success"
+  | "failure"
+  | "permissionDenied"
+  | "shareUnavailable";
+export type E2ENotificationPermissionSeed = "allowed" | "denied";
+export type E2EReminderSeed = "send" | "suppress" | "noop" | "disabled";
+export type E2EWeeklyReportSeed =
+  | "available"
+  | "unavailable"
+  | "disabled"
+  | "forbidden";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -43,6 +63,10 @@ export type E2ESeedCommand = {
   barcode?: E2EBarcodeSeed;
   billing?: E2EBillingSeed;
   chat?: E2EChatSeed;
+  shareExport?: E2EShareExportSeed;
+  notificationPermission?: E2ENotificationPermissionSeed;
+  reminder?: E2EReminderSeed;
+  weeklyReport?: E2EWeeklyReportSeed;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -75,6 +99,26 @@ const VALID_BILLING = new Set<E2EBillingSeed>([
   "restoreFailure",
 ]);
 const VALID_CHAT = new Set<E2EChatSeed>(["success", "failure"]);
+const VALID_SHARE_EXPORT = new Set<E2EShareExportSeed>([
+  "success",
+  "failure",
+  "permissionDenied",
+  "shareUnavailable",
+]);
+const VALID_NOTIFICATION_PERMISSION =
+  new Set<E2ENotificationPermissionSeed>(["allowed", "denied"]);
+const VALID_REMINDER = new Set<E2EReminderSeed>([
+  "send",
+  "suppress",
+  "noop",
+  "disabled",
+]);
+const VALID_WEEKLY_REPORT = new Set<E2EWeeklyReportSeed>([
+  "available",
+  "unavailable",
+  "disabled",
+  "forbidden",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 let fixtureState: E2EFixtureState = {};
@@ -110,6 +154,13 @@ export function parseE2ESeedCommand(
     barcode: asValid(params.barcode, VALID_BARCODE),
     billing: asValid(params.billing, VALID_BILLING),
     chat: asValid(params.chat, VALID_CHAT),
+    shareExport: asValid(params.shareExport, VALID_SHARE_EXPORT),
+    notificationPermission: asValid(
+      params.notificationPermission,
+      VALID_NOTIFICATION_PERMISSION,
+    ),
+    reminder: asValid(params.reminder, VALID_REMINDER),
+    weeklyReport: asValid(params.weeklyReport, VALID_WEEKLY_REPORT),
   };
 }
 
@@ -120,7 +171,11 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.ai ||
       command.barcode ||
       command.billing ||
-      command.chat,
+      command.chat ||
+      command.shareExport ||
+      command.notificationPermission ||
+      command.reminder ||
+      command.weeklyReport,
   );
 }
 
@@ -132,6 +187,12 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   if (command.barcode) markers.push(`barcode-${command.barcode}`);
   if (command.billing) markers.push(`billing-${command.billing}`);
   if (command.chat) markers.push(`chat-${command.chat}`);
+  if (command.shareExport) markers.push(`shareExport-${command.shareExport}`);
+  if (command.notificationPermission) {
+    markers.push(`notificationPermission-${command.notificationPermission}`);
+  }
+  if (command.reminder) markers.push(`reminder-${command.reminder}`);
+  if (command.weeklyReport) markers.push(`weeklyReport-${command.weeklyReport}`);
   return markers;
 }
 
@@ -286,7 +347,7 @@ async function applyNamedFixture(
         name: "E2E Photo Meal",
         source: "ai",
         inputMethod: "photo",
-        photoUrl: "file:///tmp/fitaly-e2e-photo-meal.jpg",
+        photoUrl: "https://example.com/fitaly-e2e-photo-meal.jpg",
       }),
     );
     return;
@@ -498,6 +559,210 @@ function e2eAiIngredient(): Ingredient {
     carbs: 45,
     fat: 13,
   });
+}
+
+function addDaysToDayKey(dayKey: string, offset: number): string {
+  const date = new Date(`${dayKey}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function e2eUtc(dayKey: string, hour: number): string {
+  return `${dayKey}T${String(hour).padStart(2, "0")}:00:00Z`;
+}
+
+export function resolveE2ENotificationPermission():
+  | { granted: boolean; status: "granted" | "denied"; canAskAgain: boolean }
+  | null {
+  if (!isE2EModeEnabled()) return null;
+  if (fixtureState.notificationPermission === "allowed") {
+    return { granted: true, status: "granted", canAskAgain: true };
+  }
+  if (fixtureState.notificationPermission === "denied") {
+    return { granted: false, status: "denied", canAskAgain: false };
+  }
+  return null;
+}
+
+export function resolveE2EReminderDecision(
+  uid: string | null | undefined,
+  dayKey: string,
+): ReminderDecisionResult | null {
+  if (!isE2EModeEnabled() || !fixtureState.reminder) return null;
+
+  if (fixtureState.reminder === "disabled") {
+    return {
+      decision: null,
+      source: "disabled",
+      status: "disabled",
+      enabled: false,
+      error: null,
+    };
+  }
+
+  if (!uid) {
+    return {
+      decision: null,
+      source: "fallback",
+      status: "no_user",
+      enabled: true,
+      error: null,
+    };
+  }
+
+  const base = {
+    dayKey,
+    computedAt: e2eUtc(dayKey, 9),
+    confidence: 0.92,
+    validUntil: e2eUtc(dayKey, 23),
+  };
+  let decision: ReminderDecision;
+
+  if (fixtureState.reminder === "send") {
+    decision = {
+      ...base,
+      decision: "send",
+      kind: "log_next_meal",
+      reasonCodes: ["day_partially_logged"],
+      scheduledAtUtc: e2eUtc(dayKey, 12),
+    };
+  } else if (fixtureState.reminder === "suppress") {
+    decision = {
+      ...base,
+      decision: "suppress",
+      kind: null,
+      reasonCodes: ["already_logged_recently"],
+      scheduledAtUtc: null,
+    };
+  } else {
+    decision = {
+      ...base,
+      decision: "noop",
+      kind: null,
+      reasonCodes: ["insufficient_signal"],
+      scheduledAtUtc: null,
+    };
+  }
+
+  return {
+    decision,
+    source: "remote",
+    status: "live_success",
+    enabled: true,
+    error: null,
+  };
+}
+
+function e2eWeeklyReport(weekEnd: string): WeeklyReport {
+  return {
+    status: "ready",
+    period: {
+      startDay: addDaysToDayKey(weekEnd, -6),
+      endDay: weekEnd,
+    },
+    summary: "E2E weekly report: calories and protein stayed consistent.",
+    insights: [
+      {
+        type: "consistency",
+        importance: "high",
+        tone: "positive",
+        title: "Consistent logging",
+        body: "Most meals were logged close to the planned day windows.",
+        reasonCodes: ["e2e_consistency"],
+      },
+      {
+        type: "logging_coverage",
+        importance: "medium",
+        tone: "neutral",
+        title: "Coverage is improving",
+        body: "Lunch and dinner have enough signal for a useful review.",
+        reasonCodes: ["e2e_coverage"],
+      },
+    ],
+    priorities: [
+      {
+        type: "maintain_consistency",
+        text: "Keep logging your first meal before noon.",
+        reasonCodes: ["e2e_priority"],
+      },
+      {
+        type: "increase_logging_coverage",
+        text: "Add missing snacks when they affect your daily totals.",
+        reasonCodes: ["e2e_snacks"],
+      },
+    ],
+  };
+}
+
+export function resolveE2EWeeklyReport(
+  uid: string | null | undefined,
+  weekEnd: string,
+): WeeklyReportResult | null {
+  if (!isE2EModeEnabled() || !fixtureState.weeklyReport) return null;
+
+  if (!uid) {
+    return {
+      report: e2eWeeklyReport(weekEnd),
+      source: "fallback",
+      status: "no_user",
+      enabled: true,
+      error: null,
+    };
+  }
+
+  if (fixtureState.weeklyReport === "available") {
+    return {
+      report: e2eWeeklyReport(weekEnd),
+      source: "remote",
+      status: "live_success",
+      enabled: true,
+      error: null,
+    };
+  }
+
+  const report: WeeklyReport = {
+    ...e2eWeeklyReport(weekEnd),
+    status: "not_available",
+    summary: null,
+    insights: [],
+    priorities: [],
+  };
+  const status =
+    fixtureState.weeklyReport === "forbidden"
+      ? "premium_required"
+      : fixtureState.weeklyReport === "disabled"
+        ? "feature_disabled"
+        : "service_unavailable";
+
+  return {
+    report,
+    source: fixtureState.weeklyReport === "disabled" ? "disabled" : "fallback",
+    status,
+    enabled: fixtureState.weeklyReport !== "disabled",
+    error: new Error(`E2E weekly report ${fixtureState.weeklyReport}`),
+  };
+}
+
+export function resolveE2EShareExport(
+  destination: "gallery" | "share_sheet",
+):
+  | { status: "success"; assetUri: string }
+  | { status: "error"; code: "permission" | "share_unavailable" | "failure" }
+  | null {
+  if (!isE2EModeEnabled() || !fixtureState.shareExport) return null;
+  if (fixtureState.shareExport === "success") {
+    return {
+      status: "success",
+      assetUri: `file:///tmp/fitaly-e2e-share-${destination}.png`,
+    };
+  }
+  if (fixtureState.shareExport === "permissionDenied") {
+    return { status: "error", code: "permission" };
+  }
+  if (fixtureState.shareExport === "shareUnavailable") {
+    return { status: "error", code: "share_unavailable" };
+  }
+  return { status: "error", code: "failure" };
 }
 
 function insufficientCreditsError(source: string): Error {

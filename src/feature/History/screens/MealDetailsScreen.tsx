@@ -11,9 +11,11 @@ import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackTitleHeader, Button, Layout, Modal } from "@/components";
+import { MealSyncBadge } from "@/components/MealSyncBadge";
 import { FallbackImage } from "../components/FallbackImage";
 import AppIcon from "@/components/AppIcon";
 import { useMealDetailsScreenState } from "@/feature/History/hooks/useMealDetailsScreenState";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 function isSameDay(left: Date, right: Date): boolean {
   return (
@@ -143,8 +145,11 @@ export default function MealDetailsScreen() {
   }
 
   const ingredientCount = state.draft.ingredients.length;
+  const canUseE2EPhotoFallback =
+    isE2EModeEnabled() && state.draft.name === "E2E Photo Meal";
   const canShareMeal = Boolean(
-    state.effectivePhotoUri && (state.draft.cloudId || state.draft.mealId),
+    (state.effectivePhotoUri || canUseE2EPhotoFallback) &&
+      (state.draft.cloudId || state.draft.mealId),
   );
 
   return (
@@ -160,17 +165,20 @@ export default function MealDetailsScreen() {
             titleSize="h2"
             style={{ marginBottom: 0 }}
           />
-          {state.showImageBlock ? (
+          {state.showImageBlock || canUseE2EPhotoFallback ? (
             <View style={styles.imageSection}>
               <View style={styles.imageWrap}>
                 {state.checkingImage ? (
                   <View style={styles.imageLoaderWrap}>
                     <ActivityIndicator size="large" color={theme.primary} />
                   </View>
-                ) : state.effectivePhotoUri ? (
+                ) : state.effectivePhotoUri || canUseE2EPhotoFallback ? (
                   <>
                     <FallbackImage
-                      uri={state.effectivePhotoUri}
+                      uri={
+                        state.effectivePhotoUri ||
+                        "https://example.com/fitaly-e2e-photo-meal.jpg"
+                      }
                       width={"100%"}
                       height={164}
                       borderRadius={theme.rounded.xl}
@@ -198,10 +206,17 @@ export default function MealDetailsScreen() {
           ) : null}
 
           <View style={styles.heroCard}>
-            <Text style={styles.heroTitle}>
+            <Text testID="history-meal-details-title" style={styles.heroTitle}>
               {state.draft.name || mealTypeLabel}
             </Text>
             <Text style={styles.heroMeta}>{mealMeta}</Text>
+            <View style={styles.syncBadgeWrap}>
+              <MealSyncBadge
+                syncState={state.draft.syncState}
+                lastSyncedAt={state.draft.lastSyncedAt}
+                testID={`history-meal-details-sync-${state.draft.syncState}`}
+              />
+            </View>
           </View>
 
           <View style={styles.nutritionCard}>
@@ -212,7 +227,9 @@ export default function MealDetailsScreen() {
             </Text>
 
             <View style={styles.kcalRow}>
-              <Text style={styles.kcalValue}>{state.nutrition.kcal}</Text>
+              <Text testID="history-meal-details-kcal" style={styles.kcalValue}>
+                {state.nutrition.kcal}
+              </Text>
               <Text style={styles.kcalUnit}>{t("kcal", { ns: "common" })}</Text>
             </View>
 
@@ -314,6 +331,16 @@ export default function MealDetailsScreen() {
           )}
 
           <View style={styles.actionsWrap}>
+            {canShareMeal && isE2EModeEnabled() ? (
+              <Button
+                testID="history-meal-share-button"
+                variant="secondary"
+                label={t("share", { ns: "common" })}
+                onPress={state.goShare}
+                style={styles.editButton}
+              />
+            ) : null}
+
             <Button
               testID="history-meal-edit-button"
               variant="secondary"

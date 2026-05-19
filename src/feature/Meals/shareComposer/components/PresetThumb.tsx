@@ -30,6 +30,7 @@ export default function PresetThumb({
 
   return (
     <Pressable
+      testID={`share-preset-${presetId}`}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={presetAccessibilityLabel(presetId)}

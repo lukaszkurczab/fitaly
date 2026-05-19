@@ -65,6 +65,10 @@ jest.mock("@/services/e2e/fixtures", () => ({
     barcode: params.barcode,
     billing: params.billing,
     chat: params.chat,
+    shareExport: params.shareExport,
+    notificationPermission: params.notificationPermission,
+    reminder: params.reminder,
+    weeklyReport: params.weeklyReport,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
@@ -147,6 +151,10 @@ describe("handleE2EDeepLink", () => {
         barcode: undefined,
         billing: undefined,
         chat: undefined,
+        shareExport: undefined,
+        notificationPermission: undefined,
+        reminder: undefined,
+        weeklyReport: undefined,
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([
@@ -163,5 +171,18 @@ describe("handleE2EDeepLink", () => {
 
     expect(handled).toBe(false);
     expect(mockMarkE2ESeedReady).not.toHaveBeenCalled();
+  });
+
+  it("toggles connectivity without clearing local state or signing out", async () => {
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/connectivity?offline=1",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockSetE2EForcedOffline).toHaveBeenCalledWith(true);
+    expect(mockAsyncStorageClear).not.toHaveBeenCalled();
+    expect(mockResetOfflineStorage).not.toHaveBeenCalled();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockMarkE2EResetReady).toHaveBeenCalledWith("offline");
   });
 });

@@ -20,6 +20,9 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: chat-input
 - inputText: Plan a balanced dinner for today
+- hideKeyboard
+- assertVisible:
+    id: chat-send-button
 - tapOn:
     id: chat-send-button
 - assertVisible:

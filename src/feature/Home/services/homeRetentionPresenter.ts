@@ -84,6 +84,15 @@ function isReadyWeeklyReport(weekly: WeeklyInput): boolean {
   );
 }
 
+function isUnavailableWeeklyReport(weekly: WeeklyInput): boolean {
+  return (
+    weekly.hasAccess &&
+    !weekly.loading &&
+    weekly.report.status === "not_available" &&
+    weekly.status !== "premium_required"
+  );
+}
+
 function resolveCoachCtaTarget(insight: CoachInsight): CoachCtaTarget {
   if (insight.actionType === "log_next_meal") return "MealAddMethod";
   if (insight.actionType === "open_chat") return "Chat";
@@ -144,7 +153,10 @@ export function buildHomeRetentionSurface(params: {
     return { type: "none", reason: "weekly_loading" };
   }
 
-  if (isReadyWeeklyReport(params.weekly)) {
+  if (
+    isReadyWeeklyReport(params.weekly) ||
+    isUnavailableWeeklyReport(params.weekly)
+  ) {
     return { type: "weekly_report" };
   }
 

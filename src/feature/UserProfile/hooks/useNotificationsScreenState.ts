@@ -7,9 +7,13 @@ import { ensureAndroidChannel } from "@/services/notifications/localScheduler";
 import { markNotificationPermissionRequested } from "@/services/notifications/notificationDiagnostics";
 import { cancelSystemNotifications } from "@/services/notifications/system";
 import { cancelAllReminderScheduling } from "@/services/reminders/reminderScheduling";
+import { resolveE2ENotificationPermission } from "@/services/e2e/fixtures";
 
 function isNotificationPermissionGranted(
-  permission: Notifications.NotificationPermissionsStatus,
+  permission: Notifications.NotificationPermissionsStatus | {
+    granted?: boolean;
+    status?: string;
+  },
 ): boolean {
   const maybeGranted = permission as { granted?: boolean; status?: string };
   return maybeGranted.granted === true || maybeGranted.status === "granted";
@@ -45,7 +49,9 @@ export function useNotificationsScreenState(uid: string | null) {
 
   const refreshPermissionStatus = useCallback(async (): Promise<boolean> => {
     try {
-      const perm = await Notifications.getPermissionsAsync();
+      const perm =
+        resolveE2ENotificationPermission() ??
+        (await Notifications.getPermissionsAsync());
       const isGranted = isNotificationPermissionGranted(perm);
       setSystemAllowed(isGranted);
       if (isGranted && Platform.OS === "android") {
@@ -144,7 +150,9 @@ export function useNotificationsScreenState(uid: string | null) {
   const requestSystemPermission = useCallback(async (): Promise<boolean> => {
     await markNotificationPermissionRequested();
     try {
-      const res = await Notifications.requestPermissionsAsync();
+      const res =
+        resolveE2ENotificationPermission() ??
+        (await Notifications.requestPermissionsAsync());
       const granted = isNotificationPermissionGranted(res);
       setSystemAllowed(granted);
       if (granted && Platform.OS === "android") {

@@ -1,3 +1,5 @@
+import { isE2EModeEnabled } from "@/services/e2e/config";
+
 const ON = typeof __DEV__ !== "undefined" && __DEV__;
 
 export type DebugLogger = {
@@ -16,7 +18,13 @@ export function debugScope(scope: string): DebugLogger {
       if (ON) console.log(p, ...args);
     },
     warn: (...args: unknown[]) => console.warn(p, ...args),
-    error: (...args: unknown[]) => console.error(p, ...args),
+    error: (...args: unknown[]) => {
+      if (isE2EModeEnabled()) {
+        console.log(p, ...args);
+        return;
+      }
+      console.error(p, ...args);
+    },
     time: (label: string) => {
       if (ON) console.time(`${p} ${label}`);
     },

@@ -5,6 +5,13 @@ env:
 ---
 - stopApp
 - openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
 - runFlow:
     when:
       visible: "Nie teraz"
@@ -17,6 +24,12 @@ env:
       - tapOn: "Not Now"
 - assertVisible:
     id: e2e-booted
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
 - openLink: fitaly://e2e/reset?logout=1
 - assertVisible:
     id: e2e-ready-login

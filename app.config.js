@@ -53,6 +53,7 @@ export default {
       googleServicesFile: iosGoogleServicesFile,
       icon: "./assets/appstore.png",
       infoPlist: {
+        EXDevMenuShowFloatingActionButton: false,
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription:
           "Fitaly uses the camera to scan meals and barcodes and to take profile photos.",

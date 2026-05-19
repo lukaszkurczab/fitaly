@@ -11,6 +11,7 @@ const mockGet =
 const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
 const mockWarn = jest.fn<(...args: unknown[]) => void>();
 const mockTrackSmartReminderDecisionFailed = jest.fn<() => Promise<void>>();
+const mockResolveE2EReminderDecision = jest.fn();
 
 function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {
@@ -39,6 +40,13 @@ jest.mock("@/services/core/apiClient", () => ({
 
 jest.mock("@/services/core/runtimeConfig", () => ({
   getRuntimeConfig: () => mockGetRuntimeConfig(),
+}));
+
+jest.mock("@/services/e2e/fixtures", () => ({
+  resolveE2EReminderDecision: (
+    uid: string | null | undefined,
+    dayKey: string,
+  ) => mockResolveE2EReminderDecision(uid, dayKey),
 }));
 
 jest.mock("@/utils/debug", () => ({
@@ -115,6 +123,7 @@ describe("reminderService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockResolveE2EReminderDecision.mockReturnValue(null);
     mockTrackSmartReminderDecisionFailed.mockResolvedValue(undefined);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
   });
@@ -139,6 +148,32 @@ describe("reminderService", () => {
     expect(result.source).toBe("remote");
     expect(result.status).toBe("live_success");
     expect(result.decision?.kind).toBe("log_next_meal");
+  });
+
+  it("returns deterministic E2E reminder decision without backend fetch", async () => {
+    mockResolveE2EReminderDecision.mockReturnValue({
+      decision: createHealthySendPayload(),
+      source: "remote",
+      status: "live_success",
+      enabled: true,
+      error: null,
+    });
+
+    const service = jest.requireActual(
+      "@/services/reminders/reminderService",
+    ) as typeof import("@/services/reminders/reminderService");
+
+    const result = await service.getReminderDecision("user-1", {
+      dayKey: "2026-03-18",
+    });
+
+    expect(mockResolveE2EReminderDecision).toHaveBeenCalledWith(
+      "user-1",
+      "2026-03-18",
+    );
+    expect(result.source).toBe("remote");
+    expect(result.status).toBe("live_success");
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("includes tzOffsetMin in the endpoint URL derived from device timezone", async () => {

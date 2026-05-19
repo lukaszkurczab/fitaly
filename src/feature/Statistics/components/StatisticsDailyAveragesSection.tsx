@@ -48,12 +48,12 @@ export function StatisticsDailyAveragesSection({
   ] as const;
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID="statistics-daily-averages-section">
       <Text style={styles.title}>{t("statistics:dailyAveragesTitle")}</Text>
 
       <View style={styles.grid}>
         {items.map((item) => (
-          <View key={item.key} style={styles.card}>
+          <View key={item.key} testID={`statistics-average-${item.key}`} style={styles.card}>
             <View style={[styles.accentBar, { backgroundColor: item.color }]} />
             <View style={styles.content}>
               <Text style={styles.label}>{item.label}</Text>

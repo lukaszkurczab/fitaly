@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { useTranslation } from "react-i18next";
+import { MealSyncBadge } from "@/components/MealSyncBadge";
 
 type Props = {
   meals: Meal[];
@@ -54,6 +55,13 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
               <Text numberOfLines={2} style={styles.name}>
                 {meal.name || t("meal")}
               </Text>
+              {meal.syncState !== "synced" ? (
+                <MealSyncBadge
+                  syncState={meal.syncState}
+                  lastSyncedAt={meal.lastSyncedAt}
+                  testID={`home-meal-sync-${meal.syncState}-${index}`}
+                />
+              ) : null}
               {subtitle ? (
                 <Text numberOfLines={1} style={styles.subtitle}>
                   {subtitle}

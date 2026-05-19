@@ -80,7 +80,7 @@ export default function DockUtilityRow({
         </Text>
       </Pressable>
       <Pressable
-        testID="share-reset-composition-button"
+        testID="share-reset-button"
         onPress={onResetComposition}
         style={[styles.utilityAction, { borderColor: theme.border }]}
         accessibilityRole="button"

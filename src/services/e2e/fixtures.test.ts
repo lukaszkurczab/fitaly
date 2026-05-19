@@ -7,7 +7,11 @@ import {
   resolveE2EBarcodeLookup,
   resolveE2EBillingPurchaseResult,
   resolveE2EChatRun,
+  resolveE2ENotificationPermission,
+  resolveE2EReminderDecision,
+  resolveE2EShareExport,
   resolveE2ETextMealAnalysis,
+  resolveE2EWeeklyReport,
 } from "@/services/e2e/fixtures";
 
 const mockSetItem = jest.fn<(key: string, value: string) => Promise<void>>();
@@ -68,6 +72,10 @@ describe("E2E fixtures", () => {
         barcode: "known",
         billing: "premium",
         chat: "success",
+        shareExport: "success",
+        notificationPermission: "allowed",
+        reminder: "send",
+        weeklyReport: "available",
       }),
     ).toEqual({
       fixture: "user-with-today-meal",
@@ -76,6 +84,10 @@ describe("E2E fixtures", () => {
       barcode: "known",
       billing: "premium",
       chat: "success",
+      shareExport: "success",
+      notificationPermission: "allowed",
+      reminder: "send",
+      weeklyReport: "available",
     });
 
     expect(
@@ -86,6 +98,10 @@ describe("E2E fixtures", () => {
         barcode: "bad",
         billing: "bad",
         chat: "bad",
+        shareExport: "bad",
+        notificationPermission: "bad",
+        reminder: "bad",
+        weeklyReport: "bad",
       }),
     ).toEqual({});
   });
@@ -103,6 +119,7 @@ describe("E2E fixtures", () => {
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
     expect(getE2EAccessState("user-1")).toBeNull();
     expect(resolveE2EBarcodeLookup()).toBeNull();
+    expect(resolveE2ENotificationPermission()).toBeNull();
   });
 
   it("seeds a logged meal through the canonical save transaction", async () => {
@@ -175,6 +192,10 @@ describe("E2E fixtures", () => {
         barcode: "known",
         billing: "premium",
         chat: "success",
+        shareExport: "success",
+        notificationPermission: "allowed",
+        reminder: "send",
+        weeklyReport: "available",
       },
     });
 
@@ -184,6 +205,10 @@ describe("E2E fixtures", () => {
       "barcode-known",
       "billing-premium",
       "chat-success",
+      "shareExport-success",
+      "notificationPermission-allowed",
+      "reminder-send",
+      "weeklyReport-available",
     ]);
 
     const access = getE2EAccessState("user-1");
@@ -205,6 +230,25 @@ describe("E2E fixtures", () => {
       reply:
         "E2E chat response: keep hydration consistent and plan the next meal.",
     });
+    expect(resolveE2ENotificationPermission()).toEqual(
+      expect.objectContaining({ granted: true, status: "granted" }),
+    );
+    expect(resolveE2EShareExport("gallery")).toEqual({
+      status: "success",
+      assetUri: "file:///tmp/fitaly-e2e-share-gallery.png",
+    });
+    expect(resolveE2EReminderDecision("user-1", "2026-05-19")).toEqual(
+      expect.objectContaining({
+        status: "live_success",
+        decision: expect.objectContaining({ decision: "send" }),
+      }),
+    );
+    expect(resolveE2EWeeklyReport("user-1", "2026-05-18")).toEqual(
+      expect.objectContaining({
+        status: "live_success",
+        report: expect.objectContaining({ status: "ready" }),
+      }),
+    );
   });
 
   it("returns deterministic chat failure without a backend call", async () => {
