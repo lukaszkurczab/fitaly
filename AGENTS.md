@@ -70,12 +70,17 @@ If MCP tools are unavailable or time out: **stop and report**; do not proceed wi
 - Implement **PR1 only** (smallest correct change). Do not start PR2 unless the user says **"continue"**.
 - Keep diffs small and behavior unchanged unless explicitly requested.
 
-### Quality Gate (must pass)
+### Quality Gate
 
-Always run and report results:
+Choose validation by risk:
 
-- `npm run lint`
-- `npm run typecheck`
+- Tier 0 — documentation/copy-only: no runtime tests required unless copy affects legal, billing, or health-sensitive flows. Run `npm run lint` / `npm run typecheck` only if source files changed.
+- Tier 1 — simple UI/layout polish: run `npm run typecheck` and `npm run lint`; do not run Maestro by default. Include manual visual check instructions.
+- Tier 2 — component logic or shared component changes: run `npm run typecheck`, `npm run lint`, and relevant unit/component tests if present. Run targeted Maestro only if the component affects a critical flow.
+- Tier 3 — critical flow changes: run targeted Maestro plus lint/typecheck and relevant tests. Critical flows include auth/session routing, onboarding completion, add meal save, local-first sync, premium/restore, reminders, account deletion, and navigation.
+- Tier 4 — release gate/full app review: run smoke or full relevant Maestro suites before release candidates, larger merges, full visual/product review, or explicit user request.
+
+For small visual/layout/copy tasks, Codex must not run E2E unless the prompt explicitly asks for it or the code change affects navigation, state, or business logic. If Codex decides to run E2E anyway, explain why before running it. Prefer targeted Maestro package scripts over full suites. Any `e2e-full` wrapper or equivalent full-suite run is for full visual/product review, not every patch.
 
 If a gate fails: fix and re-run (max 3 attempts). If still failing: stop and report the top blockers with file/line and a minimal next step.
 
@@ -115,13 +120,13 @@ If a gate fails: fix and re-run (max 3 attempts). If still failing: stop and rep
 ## Verification Before Done
 
 - Never claim “done” without verification.
-- Always run: `npm run lint` and `npm run typecheck` (or `pnpm/yarn` equivalent in this repo).
+- Use the Quality Gate tiers above instead of reflexively running expensive checks.
 - Run tests proportionally:
   - For isolated changes, run only targeted tests for touched files/features (e.g., `npm run test -- src/hooks/__tests__/useMeals.test.ts`).
   - When running only part of the test suite with coverage enabled, scope coverage to touched source files using `--collectCoverageFrom` (e.g., `npm run test -- src/hooks/__tests__/useMeals.test.ts --collectCoverageFrom=src/hooks/useMeals.ts`).
   - Run full test suite for cross-feature changes, refactors, release prep, or when unsure about blast radius.
 - If tests exist for the touched area: run them; otherwise provide a short manual verification checklist.
-- For UI flows: list the exact screens/steps verified (iOS + Android if relevant).
+- For UI flows: list the exact screens/steps verified manually or via targeted Maestro (iOS + Android if relevant).
 
 ## Bug-Fix Protocol
 

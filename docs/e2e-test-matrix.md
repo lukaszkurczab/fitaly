@@ -10,10 +10,20 @@ This document is the canonical map for Fitaly Maestro coverage. The suite names 
 | `release-gate` | Stable release candidate gate for account access, onboarding, meal save propagation, payments, offline/sync, reports, notifications, share, and destructive guards. | `npm run e2e:release-gate` | CI self-hosted and local | Used by release branches and `.github/workflows/release-candidate.yml`. |
 | `nightly-regression` | Wider deterministic regression for failure states, account cleanup, report content, share errors, billing states, and offline conflict/failure surfaces. | `npm run e2e:nightly-regression` | CI self-hosted scheduled/manual and local | Runs on schedule in `.github/workflows/e2e-regression.yml`. |
 | `platform-layout` | Small-screen, keyboard, sheet, modal, and permission-safe layout checks. | `npm run e2e:platform-layout` | Manual CI dispatch on self-hosted runner and local | Use targeted simulator/device profiles through `E2E_UDID` or platform selection. |
+| `full-review` | Curated representative app review across auth, account, meal entry, Home, History, chat, billing, notifications, reports, share, and selected layout surfaces. | `npm run e2e:full-review` | Local/manual CI dispatch | Starts Expo/Metro once and intentionally avoids smoke/release/nightly/platform duplicates. |
+| `all` | Exhaustive suite run for maximum Maestro coverage. | `npm run e2e:all` | Local/manual CI dispatch | Slow and duplicative by design; not intended for routine visual/product review. |
 
 ## Runner Contract
 
-`scripts/run-e2e-local.sh` starts Expo with `E2E=true`, verifies the smoke API health endpoint unless `E2E_SKIP_API_HEALTH=1`, substitutes `${E2E_*}` placeholders in copied Maestro flows, and writes JUnit results to `E2E_RESULTS_PATH`.
+`scripts/run-e2e-local.sh` starts Expo with `E2E=true`, verifies the smoke API health endpoint unless `E2E_SKIP_API_HEALTH=1`, substitutes `${E2E_*}` placeholders in copied Maestro flows, and writes JUnit results to `E2E_RESULTS_PATH`. It accepts one or more Maestro flow paths; multi-path runs execute sequentially under one Expo/Metro lifecycle. Single-path runs preserve the exact `E2E_RESULTS_PATH`; multi-path runs write per-flow JUnit files under `E2E_RESULTS_DIR` or the default directory derived from `E2E_RESULTS_PATH` without the `.xml` suffix. When the runner starts Expo itself, it records the Expo/Metro PID and cleans up that owned process tree on success, failure, `Ctrl+C`, and termination. If `E2E_EXPO_URL` is provided, the runner uses that existing server and does not start or stop Expo. Multi-path runs fail fast by default; set `E2E_CONTINUE_ON_FAILURE=1` to run remaining paths and print a final PASS/FAIL summary.
+
+## When To Run Maestro
+
+Maestro is deliberate validation, not the default for every patch. Do not run it for documentation-only changes or simple visual/layout/copy polish unless the prompt explicitly asks for E2E or the change touches navigation, state, or business logic.
+
+Use `smoke` for minimal launch/auth/add-meal/chat/offline confidence. Use `release-gate` for release candidate blocking coverage across stable happy paths and critical guards. Use `nightly-regression` for broader deterministic failure states and less routine regressions. Use `platform-layout` for simulator/device-specific keyboard, sheet, modal, and small-screen checks. Use `full-review` for manual visual/product review when the goal is broad representative app coverage without running overlapping smoke, release, nightly, and platform suites wholesale. Use `all` only when an exhaustive, slow, and duplicative run is explicitly desired.
+
+Use targeted flows for critical path changes: auth/session routing, onboarding completion, add meal save, local-first sync, premium/restore, reminders, account deletion, and navigation. Prefer focused package scripts such as `npm run e2e:smoke:login`, `npm run e2e:release-gate:add-meal:manual`, or `npm run e2e:platform-layout:small-screen-forms` before running a whole suite.
 
 Required or commonly used environment variables:
 
@@ -23,6 +33,11 @@ Required or commonly used environment variables:
 | `E2E_UDID` | Optional simulator/device target. |
 | `E2E_API_BASE_URL` | Backend API used by auth/smoke flows; defaults to the smoke backend URL. |
 | `E2E_SKIP_API_HEALTH` | Set to `1` only when deliberately testing unavailable backend behavior. |
+| `E2E_EXPO_PORT` | Optional fixed Expo port. When unset, the runner skips busy ports starting at `8081`. |
+| `E2E_EXPO_URL` | Optional existing Expo dev-client URL. When set, the runner does not start or stop Expo/Metro. |
+| `E2E_FORCE_KILL_PORT` | Optional escape hatch. Set to `1` only to let cleanup kill any remaining process still listening on the selected Expo port after owned-process cleanup. |
+| `E2E_CONTINUE_ON_FAILURE` | Set to `1` for multi-path runs to continue after a failed flow path and print a final failure summary. Defaults to fail-fast. |
+| `E2E_RESULTS_DIR` | Optional output directory for per-flow JUnit files in multi-path runs. Defaults to `E2E_RESULTS_PATH` with the `.xml` suffix removed. |
 | `E2E_EMAIL`, `E2E_PASSWORD` | Canonical smoke user credentials. |
 | `E2E_ALT_EMAIL`, `E2E_ALT_PASSWORD` | Alternate smoke user credentials for account isolation. |
 | `E2E_DISPOSABLE_EMAIL`, `E2E_DISPOSABLE_USERNAME`, `E2E_DISPOSABLE_PASSWORD` | Disposable registration user; the release-gate registration flow deletes it before finishing. |
@@ -77,6 +92,42 @@ Required or commonly used environment variables:
 | `platform-layout` | Chat long input keyboard | `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml` | Chat composer growth and send action reachability | `credits=ok`, `chat=success` | Manual self-hosted/local |
 | `platform-layout` | Barcode manual sheet | `e2e/maestro/platform-layout/barcode-manual-sheet.yaml` | Manual barcode bottom sheet compression and actions | `barcode=unknown` | Manual self-hosted/local |
 | `platform-layout` | Paywall open layout | `e2e/maestro/platform-layout/paywall-open-layout.yaml` | Paywall modal root and primary/restore actions are visible | `credits=none`, `billing=restoreFailure` | Manual self-hosted/local |
+
+## Full Review Selection
+
+`npm run e2e:full-review` is curated for manual visual/product review, not maximum assertion count. It starts Expo/Metro once through `scripts/run-e2e-local.sh`, runs selected existing flows sequentially, and excludes obvious duplicate journeys and targeted-only failure states.
+
+Included flow paths:
+
+| Flow | Why it is included |
+| --- | --- |
+| `e2e/maestro/smoke/account-launch.yaml` | Broad account/settings/legal/help navigation coverage. |
+| `e2e/maestro/release-gate/auth-register-onboarding.yaml` | Registration, onboarding, session persistence, and disposable cleanup. |
+| `e2e/maestro/release-gate/account-delete-cancel.yaml` | Destructive account deletion guard without deleting the smoke user. |
+| `e2e/maestro/release-gate/home-history-statistics-after-save.yaml` | Canonical manual save propagation through Home, History, and Statistics. |
+| `e2e/maestro/release-gate/add-meal-text-save-propagates.yaml` | Text AI meal entry happy path. |
+| `e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml` | Photo meal entry happy path with E2E-safe fixture. |
+| `e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml` | Barcode meal entry happy path with E2E-safe fixture. |
+| `e2e/maestro/release-gate/add-meal-saved-template.yaml` | Save-to-my-meals and add from saved template. |
+| `e2e/maestro/release-gate/history-edit-delete.yaml` | History details, edit, and delete UX on fixture data. |
+| `e2e/maestro/release-gate/offline-save-sync.yaml` | Offline save, pending state, reconnect, and sync state. |
+| `e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml` | Visible failed/conflict sync states in Home and History. |
+| `e2e/maestro/release-gate/chat-basic-history.yaml` | AI chat baseline and tab-return history. |
+| `e2e/maestro/nightly-regression/chat-no-credits.yaml` | Chat no-credit upgrade surface. |
+| `e2e/maestro/release-gate/premium-paywall-restore.yaml` | Safe premium/paywall/restore success path. |
+| `e2e/maestro/nightly-regression/billing-entitlement-states.yaml` | Free/premium subscription state review. |
+| `e2e/maestro/release-gate/notifications-preferences.yaml` | Notification preference surface. |
+| `e2e/maestro/nightly-regression/reminders-disabled-state.yaml` | Disabled/degraded reminder state. |
+| `e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml` | Weekly report entry and unavailable state requested for review. |
+| `e2e/maestro/release-gate/share-save-and-share.yaml` | Share quick/export success path. |
+| `e2e/maestro/nightly-regression/share-customize-basic.yaml` | Share customization surface. |
+| `e2e/maestro/platform-layout/small-screen-forms.yaml` | Small-screen review/edit form reachability. |
+| `e2e/maestro/platform-layout/text-meal-keyboard.yaml` | Text meal keyboard reachability. |
+| `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml` | Chat composer keyboard reachability. |
+| `e2e/maestro/platform-layout/barcode-manual-sheet.yaml` | Barcode manual bottom sheet layout. |
+| `e2e/maestro/platform-layout/paywall-open-layout.yaml` | Paywall modal layout. |
+
+Intentionally excluded from `full-review`: smoke bootstrap/foundation/add-meal/chat/offline/login flows already duplicated by curated paths; auth login validation, reset password, register conflict, and full disposable account deletion are targeted auth/destructive checks; text AI failure, chat error, restore failure, barcode not found, share export error, share invalid/no-photo, and credits-none text meal are targeted negative states better left in `nightly-regression`; release-gate manual meal propagation and review edit layout are represented by Home/History/Statistics and platform small-screen form flows.
 
 ## Selector Contract
 

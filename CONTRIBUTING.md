@@ -39,6 +39,20 @@ npm run check:launch-readiness:android   # production config gate
 npm run check:launch-readiness:ios
 ```
 
+## Validation policy
+
+Use risk-based validation. Small visual/layout/copy patches do not imply Maestro E2E.
+
+| Tier | Change type | Validation |
+|------|-------------|------------|
+| Tier 0 | Documentation or copy-only | No runtime tests unless copy affects legal, billing, or health-sensitive flows. Run `npm run lint` / `npm run typecheck` only if source files changed. |
+| Tier 1 | Simple UI/layout polish | Run `npm run typecheck` and `npm run lint`; do not run Maestro by default. Include manual visual check instructions. |
+| Tier 2 | Component logic or shared component changes | Run `npm run typecheck`, `npm run lint`, and relevant unit/component tests if present. Use targeted Maestro only if the component affects a critical flow. |
+| Tier 3 | Critical flow changes | Run a targeted Maestro flow, plus lint/typecheck and relevant tests. Critical flows include auth/session routing, onboarding completion, add meal save, local-first sync, premium/restore, reminders, account deletion, and navigation. |
+| Tier 4 | Release gate or full app review | Run smoke or full relevant Maestro suites before release candidates, larger merges, full visual/product review, or explicit request. |
+
+When Maestro is appropriate, prefer focused package scripts such as `npm run e2e:smoke:login`, `npm run e2e:release-gate:add-meal:manual`, or `npm run e2e:platform-layout:small-screen-forms` before running a full suite. Any `e2e-full` wrapper or equivalent full-suite run is for full visual/product review, not every patch.
+
 ## Environment and build profiles
 
 The canonical mapping of EAS build profiles to backend URLs lives in `eas.json`.

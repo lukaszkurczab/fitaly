@@ -224,14 +224,19 @@ Architecture guidelines:
 - Keep import direction: `screens -> feature internals -> global -> SDK`.
 - All UI strings should go through i18next (`src/locales/...`), no hardcoded UI text.
 - Prefer named exports; use default export only where already consistent (e.g. screens).
-- Before finishing changes, always run:
+- Before finishing changes, choose validation by risk. Do not run Maestro by default for small visual/layout/copy work unless the prompt asks for it or the change touches navigation, state, or business logic.
 
-```bash
-npm run lint
-npm run typecheck
-```
+Validation policy:
 
-Testing policy:
+| Tier | Change type | Required validation |
+| --- | --- | --- |
+| Tier 0 | Documentation or copy-only | No runtime tests required. Run `npm run lint` / `npm run typecheck` only if source files changed. If copy affects legal, billing, or health-sensitive flows, move up to the relevant higher tier. |
+| Tier 1 | Simple UI/layout polish | Run `npm run typecheck` and `npm run lint`. Do not run Maestro by default. Include manual visual check steps for the touched screen, viewport/device class, and any obvious interaction states. |
+| Tier 2 | Component logic or shared component changes | Run `npm run typecheck`, `npm run lint`, and relevant unit/component tests if present. Run targeted Maestro only when the component affects a critical flow. |
+| Tier 3 | Critical flow changes | Run `npm run typecheck`, `npm run lint`, relevant tests, and the targeted Maestro flow. Critical flows include auth/session routing, onboarding completion, add meal save, local-first sync, premium/restore, reminders, account deletion, and navigation. |
+| Tier 4 | Release gate or full app review | Run smoke or full relevant Maestro suites before release candidates, larger merges, full visual/product review, or explicit request. |
+
+General test guidance:
 
 - Prefer targeted tests for touched files/features during regular development.
 - When running only part of the Jest suite, scope coverage to the touched source files, for example:
@@ -241,7 +246,7 @@ npm run test:targeted -- --coverage --runTestsByPath src/services/release/checkL
   --collectCoverageFrom=scripts/check-launch-readiness.lib.js
 ```
 
-- Run the full test suite before releases, large refactors, or cross-feature changes.
+- Run the full Jest suite before releases, large refactors, or cross-feature changes.
 
 ## E2E Maestro
 
@@ -259,6 +264,8 @@ npm run e2e:release-gate
 npm run e2e:nightly-regression
 npm run e2e:platform-layout
 ```
+
+Prefer focused Maestro commands such as `npm run e2e:smoke:login`, `npm run e2e:release-gate:add-meal:manual`, or `npm run e2e:platform-layout:small-screen-forms` over a whole suite when validating one flow. Any `e2e-full` wrapper or equivalent full-suite run is reserved for full visual/product review, release gates, larger merges, or explicit request.
 
 See [E2E Maestro Test Matrix](./docs/e2e-test-matrix.md) for fixture/deep link contracts, CI classification, and selector rules.
 
