@@ -80,10 +80,15 @@ export const PaywallModal: React.FC<Props> = ({
 
       <View style={styles.planSelector}>
         <View style={[styles.planCard, styles.planCardSelected]}>
-          <Text style={styles.planLabel}>
-            {t("manageSubscription.plan_monthly", { defaultValue: "monthly" })}
-          </Text>
-          <Text style={styles.planPrice}>{priceText}</Text>
+          <View style={styles.planTextGroup}>
+            <Text style={styles.planLabel}>
+              {t("manageSubscription.plan_monthly", { defaultValue: "monthly" })}
+            </Text>
+            <Text style={styles.planPrice}>{priceText}</Text>
+          </View>
+          <View style={styles.selectedPill}>
+            <AppIcon name="check" size={14} color={theme.primary} />
+          </View>
         </View>
       </View>
 
@@ -95,13 +100,6 @@ export const PaywallModal: React.FC<Props> = ({
           disabled={!!busy}
           testID="paywall-subscribe-button"
         />
-
-        <View style={styles.socialProof}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <AppIcon key={i} name="star" size={14} color={theme.chart.fat} />
-          ))}
-          <Text style={styles.socialProofText}>{t("paywall.social_proof")}</Text>
-        </View>
 
         <TouchableOpacity
           testID="paywall-restore-button"
@@ -172,7 +170,7 @@ export const PaywallModal: React.FC<Props> = ({
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
-    footer: { gap: theme.spacing.sm },
+    footer: { gap: theme.spacing.xs },
     hero: {
       alignItems: "center",
       gap: theme.spacing.xs,
@@ -190,7 +188,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
     },
     restoreButton: {
-      paddingVertical: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
       alignItems: "center",
     },
     linkText: {
@@ -199,75 +197,82 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.bold,
     },
     disclaimer: {
-      color: theme.textSecondary,
+      color: theme.textTertiary,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       textAlign: "center",
+      marginTop: theme.spacing.xs,
     },
     linksRow: {
       flexDirection: "row",
       justifyContent: "center",
       gap: theme.spacing.md,
     },
-    benefits: { gap: theme.spacing.sm },
+    benefits: { gap: theme.spacing.xs },
     benefitsTitle: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyL,
-      fontFamily: theme.typography.fontFamily.bold,
-      marginBottom: theme.spacing.xs,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      marginBottom: theme.spacing.xxs,
+      textTransform: "uppercase",
     },
     benefitRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: theme.spacing.xs,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.sm + theme.spacing.xs,
+      paddingVertical: theme.spacing.xxs,
     },
     benefitText: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyL,
-      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
       flex: 1,
     },
     planSelector: {
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.lg,
       marginBottom: theme.spacing.md,
     },
     planCard: {
-      flex: 1,
       borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: theme.rounded.md,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.sm,
-      backgroundColor: theme.surfaceElevated,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.lg,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.md,
+      backgroundColor: theme.surfaceAlt,
+      flexDirection: "row",
       alignItems: "center",
-      gap: theme.spacing.xs,
+      justifyContent: "space-between",
+      gap: theme.spacing.md,
     },
     planCardSelected: {
       borderColor: theme.primary,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.success.surface,
+    },
+    planTextGroup: {
+      gap: theme.spacing.xxs,
+      flex: 1,
     },
     planLabel: {
-      color: theme.text,
-      fontSize: theme.typography.size.bodyS,
-      fontFamily: theme.typography.fontFamily.bold,
-      textAlign: "center",
+      color: theme.primaryStrong,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      textTransform: "uppercase",
     },
     planPrice: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyL,
-      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
+      fontFamily: theme.typography.fontFamily.bold,
     },
-    socialProof: {
-      flexDirection: "row",
+    selectedPill: {
+      width: theme.spacing.xl,
+      height: theme.spacing.xl,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surface,
       alignItems: "center",
-      gap: 4,
-      marginTop: theme.spacing.sm,
       justifyContent: "center",
-    },
-    socialProofText: {
-      fontSize: theme.typography.size.bodyS,
-      color: theme.textSecondary,
     },
   });

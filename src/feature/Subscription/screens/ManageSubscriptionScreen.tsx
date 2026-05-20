@@ -348,7 +348,9 @@ export default function ManageSubscriptionScreen({
             />
           ) : null}
 
-          {actionFeedback && !confirmationWarningFeedback ? (
+          {actionFeedback &&
+          actionFeedback.tone !== "success" &&
+          !confirmationWarningFeedback ? (
             <InfoBlock
               testID={`manage-subscription-action-feedback-${actionFeedback.tone}`}
               title={actionFeedback.title}
@@ -356,20 +358,12 @@ export default function ManageSubscriptionScreen({
               tone={actionFeedback.tone}
               icon={
                 <AppIcon
-                  name={
-                    actionFeedback.tone === "success"
-                      ? "check"
-                      : actionFeedback.tone === "warning"
-                        ? "info"
-                        : "close"
-                  }
+                  name={actionFeedback.tone === "warning" ? "info" : "close"}
                   size={18}
                   color={
-                    actionFeedback.tone === "success"
-                      ? theme.success.text
-                      : actionFeedback.tone === "warning"
-                        ? theme.warning.text
-                        : theme.error.text
+                    actionFeedback.tone === "warning"
+                      ? theme.warning.text
+                      : theme.error.text
                   }
                 />
               }

@@ -24,6 +24,7 @@ import {
   trackRestoreStarted,
   trackRestoreSucceeded,
 } from "@/services/telemetry/telemetryInstrumentation";
+import { emit } from "@/services/core/events";
 import type { SubscriptionState } from "@/types/subscription";
 import type { PremiumEntitlementFailureReason } from "@/context/PremiumContext";
 
@@ -52,6 +53,8 @@ const PREMIUM_RECOVERY_STATES = new Set<SubscriptionState>([
   "premium_paused",
   "premium_refunded",
 ]);
+
+type ToastEvent = { text: string };
 
 function normalizeSubscriptionState(input: {
   rawState: string;
@@ -252,6 +255,11 @@ export function useManageSubscriptionState(params: {
     [params],
   );
 
+  const showSuccessToast = useCallback((message: string) => {
+    setActionFeedback(null);
+    emit<ToastEvent>("ui:toast", { text: message });
+  }, []);
+
   const requireAuthOrAlert = useCallback(
     (source: Exclude<SubscriptionBusyAction, null>): boolean => {
       if (params.uid) return true;
@@ -289,16 +297,11 @@ export function useManageSubscriptionState(params: {
       const confirmation = await params.confirmPremiumEntitlement();
       if (confirmation.confirmed) {
         void trackEntitlementConfirmed({ source: "manage_subscription" });
-        setActionFeedback({
-          tone: "success",
-          title: params.t("manageSubscription.purchaseSuccessTitle", {
-            defaultValue: "Premium active",
-          }),
-          message: params.t("manageSubscription.purchaseSuccess", {
+        showSuccessToast(
+          params.t("manageSubscription.purchaseSuccess", {
             defaultValue: "Subscription active.",
           }),
-          source: "manage",
-        });
+        );
       } else {
         const reason =
           confirmation.reason
@@ -321,7 +324,7 @@ export function useManageSubscriptionState(params: {
       setBusy(false);
       setBusyAction(null);
     }
-  }, [confirmationFailureMessage, params, requireAuthOrAlert]);
+  }, [confirmationFailureMessage, params, requireAuthOrAlert, showSuccessToast]);
 
   const tryRestore = useCallback(async () => {
     if (!requireAuthOrAlert("restore")) return;
@@ -338,16 +341,11 @@ export function useManageSubscriptionState(params: {
         if (confirmation.confirmed) {
           void trackEntitlementConfirmed({ source: "restore" });
           setPaywallVisible(false);
-          setActionFeedback({
-            tone: "success",
-            title: params.t("manageSubscription.restoreSuccessTitle", {
-              defaultValue: "Premium active",
-            }),
-            message: params.t("manageSubscription.restoreSuccess", {
+          showSuccessToast(
+            params.t("manageSubscription.restoreSuccess", {
               defaultValue: "Purchases restored and premium is active.",
             }),
-            source: "restore",
-          });
+          );
         } else {
           void trackEntitlementConfirmationFailed({
             source: "restore",
@@ -386,6 +384,7 @@ export function useManageSubscriptionState(params: {
     confirmationFailureMessage,
     requireAuthOrAlert,
     setFeedbackForError,
+    showSuccessToast,
   ]);
 
   const trySubscribe = useCallback(async () => {
@@ -403,16 +402,11 @@ export function useManageSubscriptionState(params: {
         if (confirmation.confirmed) {
           void trackEntitlementConfirmed({ source: "purchase" });
           setPaywallVisible(false);
-          setActionFeedback({
-            tone: "success",
-            title: params.t("manageSubscription.purchaseSuccessTitle", {
-              defaultValue: "Premium active",
-            }),
-            message: params.t("manageSubscription.purchaseSuccess", {
+          showSuccessToast(
+            params.t("manageSubscription.purchaseSuccess", {
               defaultValue: "Subscription active.",
             }),
-            source: "purchase",
-          });
+          );
         } else {
           void trackEntitlementConfirmationFailed({
             source: "purchase",
@@ -450,6 +444,7 @@ export function useManageSubscriptionState(params: {
     confirmationFailureMessage,
     requireAuthOrAlert,
     setFeedbackForError,
+    showSuccessToast,
   ]);
 
   const tryOpenRefundPolicy = useCallback(async () => {

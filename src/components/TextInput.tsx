@@ -1,4 +1,10 @@
-import React, { forwardRef, useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   TextInput as RNTextInput,
@@ -85,7 +91,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
       onBlur,
       onFocus,
       multiline = false,
-      numberOfLines = 1,
       style,
       fieldStyle,
       inputStyle,
@@ -137,10 +142,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
     const errorMsg = typeof error === "string" ? error : undefined;
     const isEditable = editable !== undefined ? editable : !disabled;
     const resolvedSpellCheck = spellCheck ?? autoCorrect;
-    const inputMinHeight = multiline
-      ? numberOfLines * theme.typography.lineHeight.bodyM
-      : theme.typography.lineHeight.bodyM;
-    const multilineInputMinHeight = inputMinHeight - theme.spacing.sm * 2;
 
     const borderColor = hasError
       ? theme.input.borderError
@@ -194,7 +195,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             {
               backgroundColor,
               borderColor,
-              minHeight: multiline ? inputMinHeight : 0,
               alignItems: multiline ? "flex-start" : "center",
               justifyContent: multiline ? "flex-start" : "center",
             },
@@ -235,7 +235,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             editable={isEditable}
             onEndEditing={onEndEditing}
             multiline={multiline}
-            numberOfLines={numberOfLines}
             autoCapitalize={autoCapitalize}
             autoComplete={autoComplete}
             textContentType={textContentType}
@@ -248,9 +247,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             style={[
               styles.input,
               {
-                minHeight: multiline
-                  ? multilineInputMinHeight
-                  : undefined,
                 maxHeight: multiline ? inputMaxHeight : undefined,
                 height: multiline ? undefined : "100%",
                 textAlignVertical: multiline ? "top" : "center",

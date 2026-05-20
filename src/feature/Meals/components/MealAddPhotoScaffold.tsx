@@ -9,12 +9,16 @@ type MealAddPhotoScaffoldProps = {
   previewHeight?: number;
   preview: ReactNode;
   previewOverlay?: ReactNode;
+  previewFillsAvailable?: boolean;
   topAction?: ReactNode;
   eyebrow: string;
   title: string;
   description: string;
   accessory?: ReactNode;
   content?: ReactNode;
+  contentFillsAvailable?: boolean;
+  sheetFitContent?: boolean;
+  contentPlacement?: "start" | "end";
   footerNote?: string;
   footerTone?: "default" | "warning";
 };
@@ -37,12 +41,16 @@ export function MealAddPhotoScaffold({
   previewHeight,
   preview,
   previewOverlay,
+  previewFillsAvailable = false,
   topAction,
   eyebrow,
   title,
   description,
   accessory,
   content,
+  contentFillsAvailable = false,
+  sheetFitContent = false,
+  contentPlacement = "end",
   footerNote,
   footerTone = "default",
 }: MealAddPhotoScaffoldProps) {
@@ -59,6 +67,7 @@ export function MealAddPhotoScaffold({
       <View
         style={[
           styles.previewWrap,
+          previewFillsAvailable ? styles.previewWrapFill : null,
           previewHeight ? { height: previewHeight } : null,
         ]}
       >
@@ -67,7 +76,9 @@ export function MealAddPhotoScaffold({
         {topAction}
       </View>
 
-      <View style={styles.sheet}>
+      <View
+        style={[styles.sheet, sheetFitContent ? styles.sheetFitContent : null]}
+      >
         <View style={styles.header}>
           <View style={styles.eyebrowRow}>
             <Text style={styles.eyebrow}>{eyebrow}</Text>
@@ -79,8 +90,22 @@ export function MealAddPhotoScaffold({
         </View>
 
         {content || footerNote ? (
-          <View style={styles.bottomSection}>
-            {content ? <View style={styles.content}>{content}</View> : null}
+          <View
+            style={[
+              styles.bottomSection,
+              contentPlacement === "start" ? styles.bottomSectionStart : null,
+            ]}
+          >
+            {content ? (
+              <View
+                style={[
+                  styles.content,
+                  contentFillsAvailable ? styles.contentFill : null,
+                ]}
+              >
+                {content}
+              </View>
+            ) : null}
 
             {footerNote ? (
               <Text
@@ -154,6 +179,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       shadowOffset: { width: 0, height: 2 },
       elevation: 3,
     },
+    previewWrapFill: {
+      flex: 1,
+      height: undefined,
+      minHeight: 300,
+    },
     sheet: {
       flex: 1,
       borderRadius: theme.rounded.xxl,
@@ -166,6 +196,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       shadowRadius: 18,
       shadowOffset: { width: 0, height: -4 },
       elevation: 8,
+    },
+    sheetFitContent: {
+      flex: 0,
     },
     header: {
       gap: 0,
@@ -206,8 +239,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "flex-end",
       paddingTop: theme.spacing.xl,
     },
+    bottomSectionStart: {
+      flex: 0,
+      justifyContent: "flex-start",
+      paddingTop: theme.spacing.xl,
+    },
     content: {
       gap: theme.spacing.sm,
+    },
+    contentFill: {
+      flex: 1,
     },
     footerNote: {
       marginTop: theme.spacing.md,

@@ -415,4 +415,34 @@ describe("ManageSubscriptionScreen", () => {
       queryByText("AI Credits unavailable"),
     ).toBeNull();
   });
+
+  it("does not render success action feedback as a duplicate premium status card", () => {
+    mockUsePremiumContext.mockReturnValue({
+      subscription: { state: "premium_active" },
+      refreshPremium: jest.fn(),
+      confirmPremiumEntitlement: jest.fn(),
+    });
+    mockUseManageSubscriptionState.mockReturnValue(
+      makeManageState({
+        state: "premium_active",
+        showStart: false,
+        showManageInStore: true,
+        headerStatus: "Premium",
+        isPremiumComputed: true,
+        actionFeedback: {
+          tone: "success",
+          title: "Premium active",
+          message: "Purchases restored and premium is active.",
+          source: "restore",
+        },
+      }),
+    );
+
+    const { getAllByText, queryByText } = renderWithTheme(
+      <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
+    );
+
+    expect(getAllByText("Premium active")).toHaveLength(1);
+    expect(queryByText("Purchases restored and premium is active.")).toBeNull();
+  });
 });

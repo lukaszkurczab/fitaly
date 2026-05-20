@@ -5,6 +5,7 @@ import { useManageSubscriptionState } from "@/feature/Subscription/hooks/useMana
 const mockStartOrRenewSubscription =
   jest.fn<(uid?: string | null) => Promise<unknown>>();
 const mockRestorePurchases = jest.fn<(uid?: string | null) => Promise<unknown>>();
+const mockEmit = jest.fn();
 
 jest.mock("@/services/billing/purchase", () => ({
   openManageSubscriptions: jest.fn(async () => true),
@@ -16,6 +17,10 @@ jest.mock("@/services/billing/purchase", () => ({
 jest.mock("@/services/billing/revenuecat", () => ({
   hasRevenueCatApiKey: () => true,
   isBillingDisabled: () => false,
+}));
+
+jest.mock("@/services/core/events", () => ({
+  emit: (...args: unknown[]) => mockEmit(...args),
 }));
 
 jest.mock("@/utils/legalUrls", () => ({
@@ -109,14 +114,34 @@ describe("useManageSubscriptionState", () => {
       await result.current.trySubscribe();
     });
 
-    expect(result.current.actionFeedback).toMatchObject({
-      tone: "success",
-      title: "Premium active",
-      source: "purchase",
+    expect(result.current.actionFeedback).toBeNull();
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      text: "Subscription active.",
     });
     expect(mockTrack).toHaveBeenCalledWith(
       "entitlement_confirmed",
       { source: "purchase" },
+    );
+  });
+
+  it("shows restore success as toast instead of persistent action feedback", async () => {
+    const confirmPremiumEntitlement = jest.fn(async () => ({ confirmed: true }));
+    const { result } = renderHook(() =>
+      useManageSubscriptionState(makeParams({ confirmPremiumEntitlement })),
+    );
+
+    await act(async () => {
+      await result.current.tryRestore();
+    });
+
+    expect(mockRestorePurchases).toHaveBeenCalledWith("user-1");
+    expect(result.current.actionFeedback).toBeNull();
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      text: "Purchases restored and premium is active.",
+    });
+    expect(mockTrack).toHaveBeenCalledWith(
+      "restore_succeeded",
+      { confirmed: true },
     );
   });
 

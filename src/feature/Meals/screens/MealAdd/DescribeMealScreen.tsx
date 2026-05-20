@@ -22,8 +22,7 @@ import { useTheme } from "@/theme/useTheme";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 
-const TEXT_PREVIEW_HEIGHT = 441;
-const E2E_TEXT_PREVIEW_HEIGHT = 300;
+const DESCRIPTION_LINES = 8;
 const E2E_DESCRIPTION_LINES = 3;
 
 export default function DescribeMealScreen({
@@ -103,13 +102,6 @@ export default function DescribeMealScreen({
   }, [creditsBalance, remainingCreditsAfterAnalyze, t, textMealCost]);
 
   const ctaHelperText = useMemo(() => {
-    if (analysisState === "missing_description") {
-      return t("text_ai_cta_missing_description", {
-        ns: "meals",
-        defaultValue: "Add a meal description to prepare a summary.",
-      });
-    }
-
     if (analysisState === "credits_unverified") {
       return t("text_ai_credits_unverified", {
         ns: "meals",
@@ -120,8 +112,7 @@ export default function DescribeMealScreen({
     if (analysisState === "insufficient_credits") {
       return t("text_ai_insufficient_credits_hard_stop", {
         ns: "meals",
-        defaultValue:
-          "You do not have enough AI Credits to prepare a summary.",
+        defaultValue: "You do not have enough AI Credits to prepare a summary.",
       });
     }
 
@@ -131,9 +122,9 @@ export default function DescribeMealScreen({
   const creditsNoteWarning =
     analysisState === "insufficient_credits" ||
     (creditsBalance !== null &&
-    (creditsBalance < textMealCost ||
-      (remainingCreditsAfterAnalyze !== null &&
-        remainingCreditsAfterAnalyze <= 2)));
+      (creditsBalance < textMealCost ||
+        (remainingCreditsAfterAnalyze !== null &&
+          remainingCreditsAfterAnalyze <= 2)));
   const showUpgradeLink = analysisState === "insufficient_credits";
   const canStepBack = flow.canGoBack();
   const hasUnsavedChanges =
@@ -166,7 +157,12 @@ export default function DescribeMealScreen({
 
   return (
     <>
-      <Layout showNavigation={false} disableScroll style={styles.layout}>
+      <Layout
+        showNavigation={false}
+        disableScroll
+        style={styles.layout}
+        keyboardAvoiding={false}
+      >
         <Pressable
           style={styles.fill}
           onPress={Keyboard.dismiss}
@@ -175,9 +171,6 @@ export default function DescribeMealScreen({
         >
           <MealAddPhotoScaffold
             topInset={previewTopInset}
-            previewHeight={
-              isE2E ? E2E_TEXT_PREVIEW_HEIGHT : TEXT_PREVIEW_HEIGHT
-            }
             preview={
               <View style={styles.preview}>
                 <TextInput
@@ -207,19 +200,25 @@ export default function DescribeMealScreen({
                     },
                   )}
                   multiline
-                  numberOfLines={isE2E ? E2E_DESCRIPTION_LINES : 10}
+                  numberOfLines={
+                    isE2E ? E2E_DESCRIPTION_LINES : DESCRIPTION_LINES
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   spellCheck={false}
                   maxLength={300}
+                  style={!isE2E ? styles.previewDescriptionField : undefined}
+                  fieldStyle={
+                    !isE2E ? styles.previewDescriptionInputShell : undefined
+                  }
+                  inputStyle={
+                    !isE2E ? styles.previewDescriptionInput : undefined
+                  }
+                  scrollEnabled
                 />
-                {isE2E ? (
-                  <View style={styles.e2eAnalyzeButtonWrap}>
-                    {renderAnalyzeButton()}
-                  </View>
-                ) : null}
               </View>
             }
+            previewFillsAvailable
             topAction={
               <ScreenCornerNavButton
                 icon={canStepBack ? "back" : "close"}
@@ -248,7 +247,6 @@ export default function DescribeMealScreen({
                     message={descriptionError ?? submitError ?? ""}
                   />
                 ) : null}
-                {isE2E ? null : renderAnalyzeButton()}
                 {ctaHelperText ? (
                   <View
                     accessible
@@ -265,6 +263,7 @@ export default function DescribeMealScreen({
                     </Text>
                   </View>
                 ) : null}
+                {renderAnalyzeButton()}
                 {showUpgradeLink ? (
                   <MealAddTextLink
                     testID="add-meal-text-upgrade-button"
@@ -286,6 +285,8 @@ export default function DescribeMealScreen({
                 />
               </>
             }
+            sheetFitContent
+            contentPlacement="start"
           />
         </Pressable>
 
@@ -350,26 +351,25 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     preview: {
       flex: 1,
       backgroundColor: theme.backgroundSecondary,
-      paddingHorizontal: 24,
-      paddingTop: 24,
-      paddingBottom: 24,
+      paddingHorizontal: theme.spacing.xl,
+      paddingRight: theme.spacing.xl + 12,
+      paddingTop: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl,
       gap: theme.spacing.md,
     },
-    previewNameField: {
-      marginBottom: 24,
-    },
     previewDescriptionField: {
+      flex: 1,
+    },
+    previewDescriptionInputShell: {
+      flex: 1,
+      flexShrink: 1,
+    },
+    previewDescriptionInput: {
       flex: 1,
     },
     primaryButton: {
       minHeight: 48,
       borderRadius: theme.rounded.sm,
-    },
-    e2eAnalyzeButtonWrap: {
-      position: "absolute",
-      left: 24,
-      right: 24,
-      bottom: 12,
     },
     inlineNote: {
       color: theme.textTertiary,
