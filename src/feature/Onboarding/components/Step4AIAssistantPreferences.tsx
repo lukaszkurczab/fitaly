@@ -90,7 +90,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scroll: {
-      flex: 1,
+      flexGrow: 0,
+      flexShrink: 1,
     },
     scrollContent: {
       paddingBottom: theme.spacing.md,
