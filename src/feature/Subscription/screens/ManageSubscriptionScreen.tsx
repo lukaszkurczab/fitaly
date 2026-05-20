@@ -233,6 +233,8 @@ export default function ManageSubscriptionScreen({
     confirmationWarningFeedback?.message ?? summaryBody;
   const displayedSummaryTone =
     confirmationWarningFeedback?.tone ?? getSummaryTone(state);
+  const shouldShowSummaryBlock =
+    state !== "free_active" && state !== "free_expired";
 
   if (!subscription) {
     if (!isOnline) {
@@ -298,14 +300,15 @@ export default function ManageSubscriptionScreen({
         }}
       >
         <View style={styles.content}>
-          <InfoBlock
-            title={displayedSummaryTitle}
-            body={displayedSummaryBody}
-            tone={displayedSummaryTone}
-            icon={
-              <AppIcon
-                name={isPremiumComputed ? "star" : "info"}
-                size={18}
+          {shouldShowSummaryBlock ? (
+            <InfoBlock
+              title={displayedSummaryTitle}
+              body={displayedSummaryBody}
+              tone={displayedSummaryTone}
+              icon={
+                <AppIcon
+                  name={isPremiumComputed ? "star" : "info"}
+                  size={18}
                   color={
                     state === "premium_active"
                     || state === "premium_trial"
@@ -321,7 +324,8 @@ export default function ManageSubscriptionScreen({
                   }
                 />
               }
-          />
+            />
+          ) : null}
 
           {!isOnline ? (
             <InfoBlock

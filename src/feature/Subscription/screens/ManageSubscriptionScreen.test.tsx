@@ -346,7 +346,7 @@ describe("ManageSubscriptionScreen", () => {
       }),
     );
 
-    const { getByText } = renderWithTheme(
+    const { getByText, queryByText } = renderWithTheme(
       <ManageSubscriptionScreen navigation={navigation as never} />,
     );
 
@@ -356,12 +356,13 @@ describe("ManageSubscriptionScreen", () => {
         "Review your current membership, AI Credits tier, and subscription actions.",
       ),
     ).toBeTruthy();
-    expect(getByText("Free plan")).toBeTruthy();
+    expect(queryByText("Free plan")).toBeNull();
     expect(getByText("Current membership")).toBeTruthy();
     expect(getByText("AI Credits")).toBeTruthy();
     expect(getByText("Premium benefits")).toBeTruthy();
     expect(getByText("Subscription actions")).toBeTruthy();
     expect(getByText("Inactive")).toBeTruthy();
+    expect(getByText("profile:manageSubscription.startSubscription")).toBeTruthy();
     expect(getByText("76")).toBeTruthy();
     expect(getByText("800")).toBeTruthy();
     expect(getByText("14.05.2026, 12:00")).toBeTruthy();
@@ -414,6 +415,25 @@ describe("ManageSubscriptionScreen", () => {
     expect(
       queryByText("AI Credits unavailable"),
     ).toBeNull();
+  });
+
+  it("keeps billing unavailable state content for free users without the free-plan summary", () => {
+    mockUseManageSubscriptionState.mockReturnValue(
+      makeManageState({
+        billingAvailability: "disabled",
+      }),
+    );
+
+    const { getByText, queryByText } = renderWithTheme(
+      <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
+    );
+
+    expect(queryByText("Free plan")).toBeNull();
+    expect(getByText("Billing unavailable")).toBeTruthy();
+    expect(getByText("Billing is unavailable on this device.")).toBeTruthy();
+    expect(getByText("profile:manageSubscription.startSubscription")).toBeTruthy();
+    expect(getByText("Current membership")).toBeTruthy();
+    expect(getByText("AI Credits")).toBeTruthy();
   });
 
   it("does not render success action feedback as a duplicate premium status card", () => {
