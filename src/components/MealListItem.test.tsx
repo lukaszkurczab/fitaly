@@ -137,8 +137,8 @@ describe("MealListItem", () => {
     expect(getByText("home:meal")).toBeTruthy();
   });
 
-  it("renders sync status badge for failed meals", () => {
-    const { getByText } = renderWithTheme(
+  it("renders sync status indicator for failed meals", () => {
+    const { getByLabelText, getByTestId } = renderWithTheme(
       <MealListItem
         meal={buildMeal({ syncState: "failed", photoUrl: null })}
         onPress={() => undefined}
@@ -148,7 +148,37 @@ describe("MealListItem", () => {
       />,
     );
 
-    expect(getByText("history.syncFailed")).toBeTruthy();
+    expect(getByLabelText("history.syncFailed")).toBeTruthy();
+    expect(getByTestId("meal-list-sync-failed")).toBeTruthy();
+  });
+
+  it("renders sync status indicator for pending meals", () => {
+    const { getByLabelText, getByTestId } = renderWithTheme(
+      <MealListItem
+        meal={buildMeal({ syncState: "pending", photoUrl: null })}
+        onPress={() => undefined}
+        onDelete={() => undefined}
+        onEdit={() => undefined}
+        onDuplicate={() => undefined}
+      />,
+    );
+
+    expect(getByLabelText("history.syncPending")).toBeTruthy();
+    expect(getByTestId("meal-list-sync-pending")).toBeTruthy();
+  });
+
+  it("does not render a persistent sync indicator for synced meals", () => {
+    const { queryByTestId } = renderWithTheme(
+      <MealListItem
+        meal={buildMeal({ syncState: "synced", photoUrl: null })}
+        onPress={() => undefined}
+        onDelete={() => undefined}
+        onEdit={() => undefined}
+        onDuplicate={() => undefined}
+      />,
+    );
+
+    expect(queryByTestId("meal-list-sync-synced")).toBeNull();
   });
 
   it("triggers selection callback when checkbox is pressed", () => {

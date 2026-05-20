@@ -11,7 +11,7 @@ import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackTitleHeader, Button, Layout, Modal } from "@/components";
-import { MealSyncBadge } from "@/components/MealSyncBadge";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { FallbackImage } from "../components/FallbackImage";
 import AppIcon from "@/components/AppIcon";
 import { useMealDetailsScreenState } from "@/feature/History/hooks/useMealDetailsScreenState";
@@ -209,11 +209,10 @@ export default function MealDetailsScreen() {
             <Text testID="history-meal-details-title" style={styles.heroTitle}>
               {state.draft.name || mealTypeLabel}
             </Text>
-            <Text style={styles.heroMeta}>{mealMeta}</Text>
-            <View style={styles.syncBadgeWrap}>
-              <MealSyncBadge
+            <View style={styles.heroMetaRow}>
+              <Text style={styles.heroMeta}>{mealMeta}</Text>
+              <SyncStatusIndicator
                 syncState={state.draft.syncState}
-                lastSyncedAt={state.draft.lastSyncedAt}
                 testID={`history-meal-details-sync-${state.draft.syncState}`}
               />
             </View>
@@ -480,6 +479,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
+      flexShrink: 1,
     },
     sectionCard: {
       borderRadius: theme.rounded.xl,
@@ -488,9 +488,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.borderSoft,
       padding: theme.spacing.sm,
     },
-    syncBadgeWrap: {
-      marginTop: -theme.spacing.xs,
-      alignItems: "flex-start",
+    heroMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
     },
     nutritionCard: {
       borderRadius: theme.rounded.xl,

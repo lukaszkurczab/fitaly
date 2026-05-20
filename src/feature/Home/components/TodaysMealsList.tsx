@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { useTranslation } from "react-i18next";
-import { MealSyncBadge } from "@/components/MealSyncBadge";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 type Props = {
   meals: Meal[];
@@ -52,16 +52,15 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
             ]}
           >
             <View style={styles.info}>
-              <Text numberOfLines={2} style={styles.name}>
-                {meal.name || t("meal")}
-              </Text>
-              {meal.syncState !== "synced" ? (
-                <MealSyncBadge
+              <View style={styles.titleRow}>
+                <Text numberOfLines={2} style={styles.name}>
+                  {meal.name || t("meal")}
+                </Text>
+                <SyncStatusIndicator
                   syncState={meal.syncState}
-                  lastSyncedAt={meal.lastSyncedAt}
                   testID={`home-meal-sync-${meal.syncState}-${index}`}
                 />
-              ) : null}
+              </View>
               {subtitle ? (
                 <Text numberOfLines={1} style={styles.subtitle}>
                   {subtitle}
@@ -104,11 +103,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: 3,
       paddingRight: theme.spacing.xs,
     },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
     name: {
       color: theme.text,
       fontSize: theme.typography.size.bodyM,
       lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.medium,
+      flexShrink: 1,
     },
     subtitle: {
       color: theme.textTertiary,

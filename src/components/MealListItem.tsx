@@ -17,7 +17,7 @@ import * as FileSystem from "@/services/core/fileSystem";
 import { useTranslation } from "react-i18next";
 import AppIcon from "@/components/AppIcon";
 import { ensureLocalMealPhoto } from "@/services/meals/mealService.images";
-import { MealSyncBadge } from "@/components/MealSyncBadge";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 type Props = {
   meal: Meal;
@@ -263,9 +263,9 @@ const MealListItemBase: React.FC<Props> = ({
               </Text>
 
               <View style={styles.metaWrap}>
-                <MealSyncBadge
+                <SyncStatusIndicator
                   syncState={meal.syncState}
-                  lastSyncedAt={meal.lastSyncedAt}
+                  testID={`meal-list-sync-${meal.syncState}`}
                 />
                 <Text numberOfLines={1} style={styles.kcalText}>
                   {nutrition.kcal} {t("kcal")}
@@ -388,8 +388,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.sm,
     },
     metaWrap: {
-      alignItems: "flex-end",
+      flexDirection: "row",
+      alignItems: "center",
       gap: theme.spacing.xs,
+      flexShrink: 0,
     },
     chipsRow: {
       flexDirection: "row",

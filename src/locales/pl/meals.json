@@ -199,10 +199,9 @@
   "history": {
     "loadError": "Nie udało się wczytać historii.",
     "syncError": "Synchronizacja nie powiodła się. Spróbuj ponownie.",
-    "syncSynced": "Zsynchronizowano",
-    "syncSyncedAt": "Zsynchronizowano {{time}}",
     "syncPending": "Czeka na synchronizację",
     "syncFailed": "Synchronizacja nieudana",
+    "syncConflict": "Konflikt synchronizacji",
     "deadLetterTitle": "{{count}} zmian posiłków wymaga ponowienia.",
     "deadLetterSubtitle": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}.",
     "deadLetterSubtitleWithLast": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}. Ostatnia nieudana operacja: {{operation}}.",

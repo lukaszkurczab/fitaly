@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
-import { MealSyncBadge } from "@/components/MealSyncBadge";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { Layout, SearchBox } from "@/components";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
@@ -94,14 +94,15 @@ const HistoryMealRowComponent = ({
       ]}
     >
       <View style={styles.mealInfo}>
-        <Text numberOfLines={1} style={styles.mealName}>
-          {meal.name || fallbackMealName}
-        </Text>
-        <MealSyncBadge
-          syncState={meal.syncState}
-          lastSyncedAt={meal.lastSyncedAt}
-          testID={`history-meal-sync-${meal.syncState}-${index}`}
-        />
+        <View style={styles.mealTitleRow}>
+          <Text numberOfLines={1} style={styles.mealName}>
+            {meal.name || fallbackMealName}
+          </Text>
+          <SyncStatusIndicator
+            syncState={meal.syncState}
+            testID={`history-meal-sync-${meal.syncState}-${index}`}
+          />
+        </View>
         <Text numberOfLines={1} style={styles.mealMeta}>
           {meta}
         </Text>
@@ -545,11 +546,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       gap: theme.spacing.xxs,
     },
+    mealTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
     mealName: {
       color: theme.text,
       fontSize: theme.typography.size.bodyL,
       lineHeight: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.medium,
+      flexShrink: 1,
     },
     mealMeta: {
       color: theme.textSecondary,

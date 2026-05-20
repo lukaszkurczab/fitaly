@@ -192,10 +192,9 @@
   "history": {
     "loadError": "Could not load history.",
     "syncError": "Synchronization failed. Please try again.",
-    "syncSynced": "Synced",
-    "syncSyncedAt": "Synced {{time}}",
     "syncPending": "Pending",
     "syncFailed": "Failed",
+    "syncConflict": "Sync conflict",
     "deadLetterTitle": "{{count}} meal changes need retry.",
     "deadLetterSubtitle": "Retry sends them back to sync. Pending meal changes: {{pending}}.",
     "deadLetterSubtitleWithLast": "Retry sends them back to sync. Pending meal changes: {{pending}}. Last failed: {{operation}}.",
