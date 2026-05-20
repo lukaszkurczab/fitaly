@@ -1,7 +1,14 @@
 import { useMemo, type ReactNode } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { Layout } from "@/components";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useTheme } from "@/theme/useTheme";
 
 type AuthScreenLayoutProps = {
@@ -12,6 +19,9 @@ type AuthScreenLayoutProps = {
   banner?: ReactNode;
   bottomAction?: ReactNode;
   footer?: ReactNode;
+  compactOnKeyboardVisible?: boolean;
+  formStyle?: StyleProp<ViewStyle>;
+  compactFormStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
 };
 
@@ -23,10 +33,18 @@ export function AuthScreenLayout({
   banner,
   bottomAction,
   footer,
+  compactOnKeyboardVisible = false,
+  formStyle,
+  compactFormStyle,
   children,
 }: AuthScreenLayoutProps) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const keyboardInset = useKeyboardInset({ enabled: compactOnKeyboardVisible });
+  const isKeyboardCompact = compactOnKeyboardVisible && keyboardInset > 0;
+  const styles = useMemo(
+    () => makeStyles(theme, isKeyboardCompact),
+    [isKeyboardCompact, theme],
+  );
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
@@ -38,7 +56,9 @@ export function AuthScreenLayout({
         >
           <View style={styles.content}>
             <View style={styles.hero}>
-              <Text style={styles.wordmark}>{brand}</Text>
+              {isKeyboardCompact ? null : (
+                <Text style={styles.wordmark}>{brand}</Text>
+              )}
 
               <View style={styles.headingGroup}>
                 <Text style={styles.title} accessibilityRole="header">
@@ -52,7 +72,15 @@ export function AuthScreenLayout({
 
             {banner ? <View style={styles.banner}>{banner}</View> : null}
 
-            <View style={styles.form}>{children}</View>
+            <View
+              style={[
+                styles.form,
+                formStyle,
+                isKeyboardCompact ? compactFormStyle : null,
+              ]}
+            >
+              {children}
+            </View>
           </View>
 
           {bottomAction || footer ? (
@@ -67,7 +95,10 @@ export function AuthScreenLayout({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
+const makeStyles = (
+  theme: ReturnType<typeof useTheme>,
+  isKeyboardCompact: boolean,
+) =>
   StyleSheet.create({
     layout: {
       paddingLeft: theme.spacing.screenPaddingWide,
@@ -83,14 +114,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       flexGrow: 1,
-      justifyContent: "space-between",
+      justifyContent: isKeyboardCompact ? "flex-start" : "space-between",
     },
     content: {
-      paddingTop: theme.spacing.xl,
+      paddingTop: isKeyboardCompact ? theme.spacing.sm : theme.spacing.xl,
     },
     hero: {
       alignItems: "center",
-      paddingBottom: theme.spacing.sectionGap,
+      paddingBottom: isKeyboardCompact
+        ? theme.spacing.sm
+        : theme.spacing.sectionGap,
     },
     wordmark: {
       color: theme.primary,
@@ -100,7 +133,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
     },
     headingGroup: {
-      marginTop: theme.spacing.xs,
+      marginTop: isKeyboardCompact ? 0 : theme.spacing.xs,
       width: "100%",
       alignItems: "center",
     },
@@ -119,14 +152,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
     },
     banner: {
-      marginBottom: theme.spacing.lg,
+      marginBottom: isKeyboardCompact ? theme.spacing.sm : theme.spacing.lg,
     },
     form: {
       width: "100%",
       flexGrow: 1,
     },
     bottomBlock: {
-      paddingTop: theme.spacing.sectionGapLarge,
+      paddingTop: isKeyboardCompact
+        ? theme.spacing.md
+        : theme.spacing.sectionGapLarge,
       paddingBottom: theme.spacing.sm,
     },
     footer: {

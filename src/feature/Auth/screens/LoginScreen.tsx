@@ -110,6 +110,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       testID="login-screen"
       brand={t("common:app_title")}
       title={t("welcome_back")}
+      compactOnKeyboardVisible
+      formStyle={styles.authFormSpacing}
+      compactFormStyle={styles.authFormSpacingCompact}
       banner={
         displayCriticalError ? (
           <ErrorBox
@@ -206,9 +209,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
+    authFormSpacing: {
+      paddingTop: theme.spacing.xxxl,
+    },
+    authFormSpacingCompact: {
+      paddingTop: theme.spacing.sm,
+    },
     formBlock: {
       width: "100%",
-      paddingTop: theme.spacing.xxxl,
     },
     emailField: {
       marginBottom: theme.spacing.lg,

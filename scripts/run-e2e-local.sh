@@ -94,7 +94,7 @@ echo "[e2e] Waiting for Metro to be ready..."
 READY=0
 for _ in $(seq 1 90); do
   STATUS="$(curl -fsS --max-time 2 "http://localhost:${EXPO_PORT}/status" 2>/dev/null || true)"
-  if printf "%s" "${STATUS}" | rg -q "packager-status:running"; then
+  if printf "%s" "${STATUS}" | grep -q "packager-status:running"; then
     READY=1
     break
   fi
