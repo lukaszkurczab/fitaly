@@ -3,9 +3,11 @@ import {
   BackHandler,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import {
   CameraView,
@@ -53,6 +55,7 @@ export default function BarcodeScanScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { t: tMeals } = useTranslation("meals");
   const { t: tCommon } = useTranslation("common");
   const keyboardInset = useKeyboardInset();
@@ -90,6 +93,13 @@ export default function BarcodeScanScreen({
       ),
     [insets.top, theme.spacing.xs, theme.spacing.xxl],
   );
+  const manualSheetMaxHeight = useMemo(() => {
+    const defaultMaxHeight = windowHeight * 0.76;
+    const availableHeight =
+      windowHeight - insets.top - theme.spacing.md - keyboardInset;
+
+    return Math.max(0, Math.min(defaultMaxHeight, availableHeight));
+  }, [insets.top, keyboardInset, theme.spacing.md, windowHeight]);
 
   useEffect(() => {
     setDetectedCode(params.showManualEntry ? null : (params.code ?? null));
@@ -339,7 +349,12 @@ export default function BarcodeScanScreen({
   }
 
   return (
-    <Layout showNavigation={false} disableScroll style={styles.layout}>
+    <Layout
+      showNavigation={false}
+      disableScroll
+      style={styles.layout}
+      keyboardAvoiding={false}
+    >
       <View style={styles.fill} testID="barcode-scan-screen">
         <MealAddPhotoScaffold
           topInset={previewTopInset}
@@ -448,65 +463,72 @@ export default function BarcodeScanScreen({
                 {
                   marginBottom: keyboardInset,
                   paddingBottom: theme.spacing.xl + insets.bottom,
+                  maxHeight: manualSheetMaxHeight,
                 },
               ]}
             >
-              <View style={styles.sheetHandle} />
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.manualSheetContent}
+              >
+                <View style={styles.sheetHandle} />
 
-              <Text style={styles.manualTitle}>
-                {tMeals("barcode_scan_sheet_title", {
-                  defaultValue: "Enter code",
-                })}
-              </Text>
-              <Text style={styles.manualSubtitle}>
-                {tMeals("barcode_scan_sheet_subtitle", {
-                  defaultValue:
-                    "Type the numbers under the bars if scanning is difficult.",
-                })}
-              </Text>
+                <Text style={styles.manualTitle}>
+                  {tMeals("barcode_scan_sheet_title", {
+                    defaultValue: "Enter code",
+                  })}
+                </Text>
+                <Text style={styles.manualSubtitle}>
+                  {tMeals("barcode_scan_sheet_subtitle", {
+                    defaultValue:
+                      "Type the numbers under the bars if scanning is difficult.",
+                  })}
+                </Text>
 
-              <TextInput
-                testID="barcode-manual-input"
-                value={manualCode}
-                onChangeText={(value) => {
-                  setManualCode(value);
-                  if (manualError) setManualError(undefined);
-                  if (lookupError) setLookupError(undefined);
-                }}
-                keyboardType="number-pad"
-                placeholder={tMeals("barcode_scan_sheet_placeholder", {
-                  defaultValue: "Enter numbers only",
-                })}
-                helperText={tMeals("barcode_scan_sheet_helper", {
-                  defaultValue: "Numeric input only. Usually 8 to 13 digits.",
-                })}
-                error={manualError}
-              />
-              {lookupError ? (
-                <View testID="barcode-manual-error">
-                  <ErrorBox message={lookupError} />
+                <TextInput
+                  testID="barcode-manual-input"
+                  value={manualCode}
+                  onChangeText={(value) => {
+                    setManualCode(value);
+                    if (manualError) setManualError(undefined);
+                    if (lookupError) setLookupError(undefined);
+                  }}
+                  keyboardType="number-pad"
+                  placeholder={tMeals("barcode_scan_sheet_placeholder", {
+                    defaultValue: "Enter numbers only",
+                  })}
+                  helperText={tMeals("barcode_scan_sheet_helper", {
+                    defaultValue: "Numeric input only. Usually 8 to 13 digits.",
+                  })}
+                  error={manualError}
+                />
+                {lookupError ? (
+                  <View testID="barcode-manual-error">
+                    <ErrorBox message={lookupError} />
+                  </View>
+                ) : null}
+
+                <View style={styles.manualActions}>
+                  <Button
+                    testID="barcode-manual-submit-button"
+                    label={tMeals("barcode_scan_search_cta", {
+                      defaultValue: "Search product",
+                    })}
+                    onPress={handleSubmitManualCode}
+                    loading={lookupLoading}
+                  />
+                  <Button
+                    testID="barcode-manual-cancel-button"
+                    label={tMeals("barcode_scan_back_to_scan", {
+                      defaultValue: "Back to scan",
+                    })}
+                    onPress={dismissManualEntry}
+                    variant="secondary"
+                    disabled={lookupLoading}
+                  />
                 </View>
-              ) : null}
-
-              <View style={styles.manualActions}>
-                <Button
-                  testID="barcode-manual-submit-button"
-                  label={tMeals("barcode_scan_search_cta", {
-                    defaultValue: "Search product",
-                  })}
-                  onPress={handleSubmitManualCode}
-                  loading={lookupLoading}
-                />
-                <Button
-                  testID="barcode-manual-cancel-button"
-                  label={tMeals("barcode_scan_back_to_scan", {
-                    defaultValue: "Back to scan",
-                  })}
-                  onPress={dismissManualEntry}
-                  variant="secondary"
-                  disabled={lookupLoading}
-                />
-              </View>
+              </ScrollView>
             </View>
           </View>
         ) : null}
@@ -574,13 +596,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderTopRightRadius: theme.rounded.xxl,
       paddingHorizontal: theme.spacing.xl,
       paddingTop: theme.spacing.md,
-      gap: theme.spacing.md,
       backgroundColor: theme.surface,
       shadowColor: "#000000",
       shadowOpacity: 0.12,
       shadowRadius: 18,
       shadowOffset: { width: 0, height: -4 },
       elevation: 8,
+    },
+    manualSheetContent: {
+      gap: theme.spacing.md,
     },
     sheetHandle: {
       width: 44,

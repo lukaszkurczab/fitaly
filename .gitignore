@@ -63,6 +63,8 @@ coverage/
 .cache/
 *.tmp
 *.temp
+e2e/artifacts/
+.maestro/screenshots/
 
 # local IDE files
 .idea/

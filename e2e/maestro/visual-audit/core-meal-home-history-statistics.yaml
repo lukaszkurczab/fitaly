@@ -1,0 +1,79 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- takeScreenshot: home-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- assertVisible:
+    id: meal-add-option-manual
+- takeScreenshot: add-meal-options
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Visual Audit Bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce.
+- assertVisible:
+    id: add-meal-text-description-input
+- takeScreenshot: add-meal-text-keyboard
+- hideKeyboard
+- tapOn:
+    id: add-meal-text-screen
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- takeScreenshot: review-meal
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- takeScreenshot: home-after-save
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: history-after-save
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- takeScreenshot: statistics-overview

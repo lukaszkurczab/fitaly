@@ -1,0 +1,55 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-unknown
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- tapOn:
+    id: barcode-open-manual-button
+- assertVisible:
+    id: barcode-manual-sheet
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 5900000000000
+- assertVisible:
+    id: barcode-manual-submit-button
+- takeScreenshot: barcode-manual-sheet
+
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Small Screen Visual Audit Meal Name With Many Words
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: small-screen-form-layout

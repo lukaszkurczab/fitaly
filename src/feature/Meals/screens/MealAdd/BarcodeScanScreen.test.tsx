@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StyleSheet } from "react-native";
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import BarcodeScanScreen from "@/feature/Meals/screens/MealAdd/BarcodeScanScreen";
@@ -36,9 +37,15 @@ const mockSetMeal = jest.fn();
 const mockSaveDraft = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockSetLastScreen = jest.fn<(uid: string, screen: string) => Promise<void>>();
 const mockRequestPermission = jest.fn();
+const mockLayoutProps = jest.fn();
+let mockKeyboardInset = 0;
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 4, right: 0, bottom: 0, left: 0 }),
+}));
+
+jest.mock("@/hooks/useKeyboardInset", () => ({
+  useKeyboardInset: () => mockKeyboardInset,
 }));
 
 jest.mock("expo-camera", () => ({
@@ -108,8 +115,10 @@ jest.mock("@/components", () => {
 
   return {
     __esModule: true,
-    Layout: ({ children }: { children?: ReactNode }) =>
-      createElement(View, null, children),
+    Layout: (props: { children?: ReactNode; keyboardAvoiding?: boolean }) => {
+      mockLayoutProps(props);
+      return createElement(View, null, props.children);
+    },
     ScreenCornerNavButton: ({ onPress }: { onPress: () => void }) =>
       createElement(
         Pressable,
@@ -172,6 +181,7 @@ const buildProps = (
 describe("BarcodeScanScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockKeyboardInset = 0;
     mockSaveDraft.mockResolvedValue(undefined);
     mockSetLastScreen.mockResolvedValue(undefined);
   });
@@ -237,6 +247,23 @@ describe("BarcodeScanScreen", () => {
     await waitFor(() => {
       expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
     });
+  });
+
+  it("lets the manual sheet own keyboard avoidance while staying height-capped", () => {
+    mockKeyboardInset = 280;
+    const props = buildProps({ showManualEntry: true });
+
+    const { getByTestId } = renderWithTheme(<BarcodeScanScreen {...props} />);
+
+    const sheetStyle = StyleSheet.flatten(
+      getByTestId("barcode-manual-sheet").props.style,
+    );
+    expect(mockLayoutProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ keyboardAvoiding: false }),
+    );
+    expect(sheetStyle.marginBottom).toBe(280);
+    expect(sheetStyle.maxHeight).toEqual(expect.any(Number));
+    expect(sheetStyle.maxHeight).toBeGreaterThan(0);
   });
 
   it("keeps unmatched scanned codes in the scanner lookup state", async () => {

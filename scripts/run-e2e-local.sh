@@ -22,6 +22,9 @@ EXPO_PORT="${E2E_EXPO_PORT:-8081}"
 EXPO_HOST="${E2E_EXPO_HOST:-lan}"
 RESULTS_PATH="${E2E_RESULTS_PATH:-/tmp/maestro-${PLATFORM}-results.xml}"
 RESULTS_DIR="${E2E_RESULTS_DIR:-}"
+TEST_OUTPUT_DIR="${E2E_TEST_OUTPUT_DIR:-}"
+DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
+TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
 API_BASE_URL="${E2E_API_BASE_URL:-${EXPO_PUBLIC_API_BASE_URL:-https://fitaly-backend-smoke.up.railway.app}}"
 EXPO_URL="${E2E_EXPO_URL:-}"
@@ -317,6 +320,14 @@ else
 fi
 
 echo "[e2e] Runtime: platform=${PLATFORM} host=${EXPO_HOST} api=${API_BASE_URL} expo=${EXPO_URL} results=${RESULTS_PATH}"
+if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
+  mkdir -p "${TEST_OUTPUT_DIR}"
+  echo "[e2e] Maestro test output: ${TEST_OUTPUT_DIR}"
+fi
+if [[ -n "${DEBUG_OUTPUT_DIR}" ]]; then
+  mkdir -p "${DEBUG_OUTPUT_DIR}"
+  echo "[e2e] Maestro debug output: ${DEBUG_OUTPUT_DIR}"
+fi
 if [[ "${#FLOW_PATHS[@]}" -gt 1 || -n "${RESULTS_DIR}" ]]; then
   echo "[e2e] Suite flow count: ${#FLOW_PATHS[@]}"
 fi
@@ -389,6 +400,15 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
 
   FLOW_RESULTS_PATH="$(result_path_for_flow "${FLOW_PATH}")"
   MAESTRO_CMD=(maestro test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${FLOW_RESULTS_PATH}")
+  if [[ -n "${TEST_SUITE_NAME}" ]]; then
+    MAESTRO_CMD+=(--test-suite-name "${TEST_SUITE_NAME}")
+  fi
+  if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
+    MAESTRO_CMD+=(--test-output-dir "${TEST_OUTPUT_DIR}")
+  fi
+  if [[ -n "${DEBUG_OUTPUT_DIR}" ]]; then
+    MAESTRO_CMD+=(--debug-output "${DEBUG_OUTPUT_DIR}/$(sanitize_result_name "${FLOW_PATH}")")
+  fi
   if [[ -n "${UDID}" ]]; then
     MAESTRO_CMD+=(--udid "${UDID}")
   fi

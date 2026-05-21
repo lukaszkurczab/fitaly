@@ -1,0 +1,91 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-chat-success
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-screen
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
+- takeScreenshot: chat-empty
+- tapOn:
+    id: chat-input
+- inputText: Plan a balanced dinner for today
+- tapOn:
+    id: chat-send-button
+- assertVisible:
+    id: chat-message-user
+- extendedWaitUntil:
+    visible:
+      id: chat-message-ai
+    timeout: 15000
+- takeScreenshot: chat-basic
+
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Premium visual bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-upgrade-button
+    direction: DOWN
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal
+- takeScreenshot: premium-paywall
+
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=disabled"
+- assertVisible:
+    id: e2e-ready-reminder-disabled
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- takeScreenshot: notifications-preferences
