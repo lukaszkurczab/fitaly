@@ -1,5 +1,5 @@
-import { useMemo, type ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import type { PressableProps } from "react-native";
 import { TextButton } from "@/components";
 import { useTheme } from "@/theme/useTheme";
@@ -34,6 +34,7 @@ type MealAddTextLinkProps = Pick<
 
 type MealAddStatusBannerProps = {
   label: string;
+  loading?: boolean;
 };
 
 export function MealAddPhotoScaffold({
@@ -144,13 +145,72 @@ export function MealAddTextLink({
   );
 }
 
-export function MealAddStatusBanner({ label }: MealAddStatusBannerProps) {
+export function MealAddStatusBanner({
+  label,
+  loading = false,
+}: MealAddStatusBannerProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStatusStyles(theme), [theme]);
+  const dotProgress = useRef(
+    Array.from({ length: 3 }, () => new Animated.Value(0)),
+  ).current;
+
+  useEffect(() => {
+    if (!loading) {
+      dotProgress.forEach((value) => value.setValue(0));
+      return;
+    }
+
+    const animations = dotProgress.map((value) =>
+      Animated.sequence([
+        Animated.timing(value, {
+          toValue: 1,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(value, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    const loop = Animated.loop(Animated.stagger(130, animations));
+    loop.start();
+
+    return () => loop.stop();
+  }, [dotProgress, loading]);
 
   return (
     <View style={styles.banner}>
-      <View style={styles.dot} />
+      {loading ? (
+        <View style={styles.loadingDots} accessibilityElementsHidden>
+          {dotProgress.map((value, index) => (
+            <Animated.View
+              key={`status-dot-${index}`}
+              style={[
+                styles.loadingDot,
+                {
+                  opacity: value.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.42, 1],
+                  }),
+                  transform: [
+                    {
+                      translateY: value.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -3],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.dot} />
+      )}
       <Text style={styles.label}>{label}</Text>
     </View>
   );
@@ -279,6 +339,20 @@ const makeStatusStyles = (theme: ReturnType<typeof useTheme>) =>
       width: 8,
       height: 8,
       borderRadius: 4,
+      backgroundColor: theme.primary,
+    },
+    loadingDots: {
+      width: 30,
+      height: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+    },
+    loadingDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
       backgroundColor: theme.primary,
     },
     label: {

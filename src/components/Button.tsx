@@ -41,6 +41,12 @@ export const Button: React.FC<ButtonProps> = ({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const tokens = theme.button[variant];
   const isDisabled = disabled || loading;
+  const resolveTextColor = (pressed: boolean) =>
+    isDisabled
+      ? tokens.disabledText
+      : pressed
+        ? tokens.pressedText
+        : tokens.text;
   const content = children ?? label;
   const isTextContent =
     typeof content === "string" || typeof content === "number";
@@ -74,24 +80,23 @@ export const Button: React.FC<ButtonProps> = ({
       ]}
       {...rest}
     >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={isDisabled ? tokens.disabledText : tokens.text}
-        />
-      ) : !isTextContent ? (
-        <View style={styles.customContent}>{content}</View>
-      ) : (
-        <Text
-          style={[
-            styles.label,
-            { color: isDisabled ? tokens.disabledText : tokens.text },
-            textStyle,
-          ]}
-        >
-          {content}
-        </Text>
-      )}
+      {({ pressed }) =>
+        loading ? (
+          <ActivityIndicator size="small" color={resolveTextColor(false)} />
+        ) : !isTextContent ? (
+          <View style={styles.customContent}>{content}</View>
+        ) : (
+          <Text
+            style={[
+              styles.label,
+              { color: resolveTextColor(pressed) },
+              textStyle,
+            ]}
+          >
+            {content}
+          </Text>
+        )
+      }
     </Pressable>
   );
 };

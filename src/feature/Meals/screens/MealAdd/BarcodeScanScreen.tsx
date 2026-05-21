@@ -43,7 +43,7 @@ import { buildBarcodeDraft } from "@/feature/Meals/utils/buildBarcodeDraft";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 
-const BARCODE_PREVIEW_HEIGHT = 280;
+const BARCODE_PREVIEW_HEIGHT = 352;
 
 export default function BarcodeScanScreen({
   navigation,
@@ -378,6 +378,8 @@ export default function BarcodeScanScreen({
           })}
           title={title}
           description={description}
+          sheetFitContent={Boolean(detectedCode)}
+          contentPlacement="start"
           content={
             <>
               {!detectedCode ? (

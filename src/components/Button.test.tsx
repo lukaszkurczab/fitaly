@@ -90,8 +90,8 @@ describe("Button", () => {
     }) as Array<unknown>;
     expect(destructiveStyle).toContainEqual(
       expect.objectContaining({
-        backgroundColor: baseColors.error,
-        borderColor: baseColors.error,
+        backgroundColor: baseColors.terracotta700,
+        borderColor: baseColors.terracotta700,
       }),
     );
   });

@@ -580,7 +580,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     emptyWrap: {
       flex: 1,
       justifyContent: "center",
-      paddingTop: theme.spacing.hero,
+      paddingTop: theme.spacing.xl,
+      paddingBottom: theme.spacing.xxl,
     },
     deadLetterBanner: {
       borderRadius: theme.rounded.md,

@@ -10,7 +10,7 @@ This document is the canonical map for Fitaly Maestro coverage. The suite names 
 | `release-gate` | Stable release candidate gate for account access, onboarding, meal save propagation, payments, offline/sync, reports, notifications, share, and destructive guards. | `npm run e2e:release-gate` | CI self-hosted and local | Used by release branches and `.github/workflows/release-candidate.yml`. |
 | `nightly-regression` | Wider deterministic regression for failure states, account cleanup, report content, share errors, billing states, and offline conflict/failure surfaces. | `npm run e2e:nightly-regression` | CI self-hosted scheduled/manual and local | Runs on schedule in `.github/workflows/e2e-regression.yml`. |
 | `platform-layout` | Small-screen, keyboard, sheet, modal, and permission-safe layout checks. | `npm run e2e:platform-layout` | Manual CI dispatch on self-hosted runner and local | Use targeted simulator/device profiles through `E2E_UDID` or platform selection. |
-| `full-review` | Curated representative app review across auth, account, meal entry, Home, History, chat, billing, notifications, reports, share, and selected layout surfaces. | `npm run e2e:full-review` | Local/manual CI dispatch | Starts Expo/Metro once and intentionally avoids smoke/release/nightly/platform duplicates. |
+| `full-review` | Curated representative app review across auth, account, meal entry, Home, History, chat, billing, notifications, reports, share, and selected layout surfaces. | `npm run e2e:full-review` | Local/manual CI dispatch | Starts Expo/Metro once, continues after failed paths, and intentionally avoids smoke/release/nightly/platform duplicates. |
 | `all` | Exhaustive suite run for maximum Maestro coverage. | `npm run e2e:all` | Local/manual CI dispatch | Slow and duplicative by design; not intended for routine visual/product review. |
 
 ## Runner Contract
@@ -95,7 +95,7 @@ Required or commonly used environment variables:
 
 ## Full Review Selection
 
-`npm run e2e:full-review` is curated for manual visual/product review, not maximum assertion count. It starts Expo/Metro once through `scripts/run-e2e-local.sh`, runs selected existing flows sequentially, and excludes obvious duplicate journeys and targeted-only failure states.
+`npm run e2e:full-review` is curated for manual visual/product review, not maximum assertion count. It starts Expo/Metro once through `scripts/run-e2e-local.sh`, runs selected existing flows sequentially with `E2E_CONTINUE_ON_FAILURE=1`, prints the final PASS/FAIL summary, and excludes obvious duplicate journeys and targeted-only failure states.
 
 Included flow paths:
 

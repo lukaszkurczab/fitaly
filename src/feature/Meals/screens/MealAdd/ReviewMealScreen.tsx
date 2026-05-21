@@ -449,7 +449,12 @@ export default function ReviewMealScreen({
               <Text style={styles.kcalValue}>{`${nutrition.kcal} kcal`}</Text>
               <View style={styles.macroStats}>
                 <View style={styles.macroStat}>
-                  <Text style={styles.macroStatLabel}>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    style={styles.macroStatLabel}
+                  >
                     {t("protein", {
                       ns: "meals",
                       defaultValue: "Protein",
@@ -460,7 +465,12 @@ export default function ReviewMealScreen({
                   >{`${nutrition.protein}g`}</Text>
                 </View>
                 <View style={styles.macroStat}>
-                  <Text style={styles.macroStatLabel}>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    style={styles.macroStatLabel}
+                  >
                     {t("carbs", {
                       ns: "meals",
                       defaultValue: "Carbs",
@@ -471,7 +481,12 @@ export default function ReviewMealScreen({
                   >{`${nutrition.carbs}g`}</Text>
                 </View>
                 <View style={styles.macroStat}>
-                  <Text style={styles.macroStatLabel}>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    style={styles.macroStatLabel}
+                  >
                     {t("fat", {
                       ns: "meals",
                       defaultValue: "Fat",
@@ -702,29 +717,38 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       justifyContent: "space-between",
       gap: theme.spacing.sm,
+      overflow: "hidden",
     },
     kcalValue: {
       color: theme.text,
       fontSize: 28,
       lineHeight: 34,
       fontFamily: theme.typography.fontFamily.bold,
+      flexShrink: 1,
+      minWidth: 118,
     },
     macroStats: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 18,
+      justifyContent: "space-between",
+      gap: 6,
     },
     macroStat: {
+      flex: 1,
+      minWidth: 0,
       alignItems: "center",
       gap: 4,
     },
     macroStatLabel: {
       color: theme.primary,
-      fontSize: 10,
+      width: "100%",
+      fontSize: 9,
       lineHeight: 12,
       fontFamily: theme.typography.fontFamily.medium,
-      letterSpacing: 0.3,
+      letterSpacing: 0,
+      textAlign: "center",
     },
     macroStatValue: {
       color: theme.text,

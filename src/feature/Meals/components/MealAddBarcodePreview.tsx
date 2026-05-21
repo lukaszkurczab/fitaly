@@ -101,7 +101,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     badge: {
       position: "absolute",
-      top: 50,
+      top: 44,
       width: 253,
       minHeight: 40,
       borderRadius: 14,
@@ -146,9 +146,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     frame: {
       position: "absolute",
-      top: 102,
-      width: 285,
-      height: 110,
+      top: 122,
+      width: 286,
+      height: 132,
       borderRadius: 22,
       borderWidth: 1.5,
       borderColor: "rgba(165, 185, 157, 0.72)",

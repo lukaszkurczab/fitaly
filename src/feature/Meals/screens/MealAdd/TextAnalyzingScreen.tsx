@@ -27,11 +27,10 @@ import { isOfflineNetState } from "@/services/core/networkState";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
-import { isE2EModeEnabled } from "@/services/e2e/config";
 
 const MAX_RETRIES = 3;
 const TEXT_PREVIEW_HEIGHT = 441;
-const E2E_ANALYZING_MIN_MS = 750;
+const ANALYZING_MIN_VISIBLE_MS = 900;
 
 const nextRetryCount = (current: number) => Math.min(current + 1, MAX_RETRIES);
 
@@ -125,6 +124,7 @@ export default function TextAnalyzingScreen({
     };
 
     const analyze = async () => {
+      const startedAt = Date.now();
       if (!uid) {
         replaceDescribeMeal({
           submitError: t("text_ai_error_auth"),
@@ -211,8 +211,14 @@ export default function TextAnalyzingScreen({
         await saveDraft(uid, nextMeal);
         await setLastScreen(uid, "AddMeal");
 
-        if (isE2EModeEnabled()) {
-          await wait(E2E_ANALYZING_MIN_MS);
+        const elapsedMs = Date.now() - startedAt;
+        const remainingVisibleMs = Math.max(
+          ANALYZING_MIN_VISIBLE_MS - elapsedMs,
+          0,
+        );
+
+        if (remainingVisibleMs > 0) {
+          await wait(remainingVisibleMs);
         }
 
         if (!cancelled) {
@@ -324,7 +330,7 @@ export default function TextAnalyzingScreen({
           }
           content={
             <View testID="add-meal-text-analyzing-state">
-              <MealAddStatusBanner label={t("text_analyzing_status")} />
+              <MealAddStatusBanner label={t("text_analyzing_status")} loading />
             </View>
           }
           footerNote={t("text_analyzing_footer")}
