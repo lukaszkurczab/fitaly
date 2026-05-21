@@ -173,6 +173,7 @@ function MealDetailsFormScreenInner({
       <View style={styles.screen} testID="meal-details-form-screen">
         <KeyboardAwareScrollView
           style={styles.scrollArea}
+          extraScrollOffset={theme.spacing.xs}
           contentContainerStyle={[
             styles.scrollContent,
             {

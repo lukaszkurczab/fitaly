@@ -16,6 +16,7 @@ const listeners = new Set<Listener>();
 const DEV_MENU_E2E_PREFERENCES = {
   motionGestureEnabled: false,
   touchGestureEnabled: false,
+  keyCommandsEnabled: false,
   showsAtLaunch: false,
   showFloatingActionButton: false,
 };
@@ -23,6 +24,22 @@ const DEV_MENU_E2E_PREFERENCES = {
 type DevMenuPreferencesModule = {
   setPreferencesAsync?: (settings: typeof DEV_MENU_E2E_PREFERENCES) => Promise<void>;
 };
+
+type ExpoModulesGlobal = typeof globalThis & {
+  expo?: {
+    modules?: Record<string, unknown>;
+  };
+};
+
+function getDevMenuPreferencesModule(): DevMenuPreferencesModule | undefined {
+  const expoModule = (globalThis as ExpoModulesGlobal).expo?.modules
+    ?.DevMenuPreferences as DevMenuPreferencesModule | undefined;
+  if (expoModule?.setPreferencesAsync) {
+    return expoModule;
+  }
+
+  return NativeModules.DevMenuPreferences as DevMenuPreferencesModule | undefined;
+}
 
 function emitStatus(next: E2EStatus): void {
   currentStatus = next;
@@ -58,9 +75,7 @@ export function E2EStatusOverlay() {
 
   useEffect(() => {
     if (!isE2EModeEnabled()) return;
-    const devMenuPreferences = NativeModules.DevMenuPreferences as
-      | DevMenuPreferencesModule
-      | undefined;
+    const devMenuPreferences = getDevMenuPreferencesModule();
     void devMenuPreferences?.setPreferencesAsync?.(DEV_MENU_E2E_PREFERENCES);
   }, []);
 

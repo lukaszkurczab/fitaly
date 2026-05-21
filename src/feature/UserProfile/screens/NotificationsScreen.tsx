@@ -19,6 +19,7 @@ import { useNotificationDiagnosticsState } from "@/feature/UserProfile/hooks/use
 import { useNotificationsScreenState } from "@/feature/UserProfile/hooks/useNotificationsScreenState";
 import { useReminderDecision } from "@/hooks/useReminderDecision";
 import { buildSmartReminderQaRows } from "@/services/reminders/reminderSettings";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 type NotificationsNavigation = StackNavigationProp<
   RootStackParamList,
@@ -47,9 +48,10 @@ export default function NotificationsScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation("notifications");
+  const showDevDiagnostics = __DEV__ && !isE2EModeEnabled();
   const smartReminderDecision = useReminderDecision({
     uid,
-    fetchEnabled: __DEV__,
+    fetchEnabled: showDevDiagnostics,
   });
   const smartReminderQaRows = useMemo(
     () =>
@@ -305,7 +307,7 @@ export default function NotificationsScreen({
             />
           </SettingsSection>
 
-          {__DEV__ ? (
+          {showDevDiagnostics ? (
             <>
               <SettingsSection title="Preference sync">
                 <SettingsRow

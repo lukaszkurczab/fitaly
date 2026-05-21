@@ -91,6 +91,7 @@ export const TextInput = forwardRef<RNTextInput, Props>(
       onBlur,
       onFocus,
       multiline = false,
+      numberOfLines,
       style,
       fieldStyle,
       inputStyle,
@@ -235,6 +236,7 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             editable={isEditable}
             onEndEditing={onEndEditing}
             multiline={multiline}
+            numberOfLines={numberOfLines}
             autoCapitalize={autoCapitalize}
             autoComplete={autoComplete}
             textContentType={textContentType}

@@ -82,6 +82,8 @@ jest.mock("@/components", () => {
     __esModule: true,
     Layout: ({ children }: { children?: ReactNode }) =>
       createElement(View, null, children),
+    KeyboardAwareScrollView: ({ children }: { children?: ReactNode }) =>
+      createElement(View, null, children),
     ScreenCornerNavButton: ({ onPress }: { onPress: () => void }) =>
       createElement(
         Pressable,

@@ -175,7 +175,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing.sm,
+      paddingBottom: theme.spacing.display,
       gap: theme.spacing.md,
     },
   });

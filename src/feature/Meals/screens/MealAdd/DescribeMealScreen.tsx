@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Button,
   ErrorBox,
+  KeyboardAwareScrollView,
   Layout,
   Modal,
   ScreenCornerNavButton,
@@ -116,6 +117,13 @@ export default function DescribeMealScreen({
       });
     }
 
+    if (analysisState === "missing_description") {
+      return t("text_ai_cta_missing_description", {
+        ns: "meals",
+        defaultValue: "Add a meal description to prepare a summary.",
+      });
+    }
+
     return creditsNote;
   }, [analysisState, creditsNote, t]);
 
@@ -161,7 +169,7 @@ export default function DescribeMealScreen({
         showNavigation={false}
         disableScroll
         style={styles.layout}
-        keyboardAvoiding={false}
+        keyboardAvoiding
       >
         <Pressable
           style={styles.fill}
@@ -169,125 +177,132 @@ export default function DescribeMealScreen({
           testID="add-meal-text-screen"
           accessible={false}
         >
-          <MealAddPhotoScaffold
-            topInset={previewTopInset}
-            preview={
-              <View style={styles.preview}>
-                <TextInput
-                  testID="add-meal-text-name-input"
-                  label={t("meal_name", { ns: "meals" })}
-                  value={name}
-                  onChangeText={onNameChange}
-                  placeholder={t("describe_meal_name_placeholder", {
-                    ns: "meals",
-                  })}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  spellCheck={false}
-                  maxLength={80}
-                />
-                <TextInput
-                  testID="add-meal-text-description-input"
-                  label={t("describe_meal_quick_description_label", {
-                    ns: "meals",
-                  })}
-                  value={quickDescription}
-                  onChangeText={onQuickDescriptionChange}
-                  placeholder={t(
-                    "describe_meal_quick_description_placeholder",
-                    {
+          <KeyboardAwareScrollView
+            style={styles.scroller}
+            contentContainerStyle={styles.scrollContent}
+            extraScrollOffset={theme.spacing.xs}
+            showsVerticalScrollIndicator={false}
+          >
+            <MealAddPhotoScaffold
+              topInset={previewTopInset}
+              preview={
+                <View style={styles.preview}>
+                  <TextInput
+                    testID="add-meal-text-name-input"
+                    label={t("meal_name", { ns: "meals" })}
+                    value={name}
+                    onChangeText={onNameChange}
+                    placeholder={t("describe_meal_name_placeholder", {
                       ns: "meals",
-                    },
-                  )}
-                  multiline
-                  numberOfLines={
-                    isE2E ? E2E_DESCRIPTION_LINES : DESCRIPTION_LINES
-                  }
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  spellCheck={false}
-                  maxLength={300}
-                  style={!isE2E ? styles.previewDescriptionField : undefined}
-                  fieldStyle={
-                    !isE2E ? styles.previewDescriptionInputShell : undefined
-                  }
-                  inputStyle={
-                    !isE2E ? styles.previewDescriptionInput : undefined
-                  }
-                  scrollEnabled
-                />
-              </View>
-            }
-            previewFillsAvailable
-            topAction={
-              <ScreenCornerNavButton
-                icon={canStepBack ? "back" : "close"}
-                onPress={guard.requestExit}
-                accessibilityLabel={t(canStepBack ? "back" : "close", {
-                  ns: "common",
-                  defaultValue: canStepBack ? "Back" : "Close",
-                })}
-                containerStyle={styles.screenCornerNavStyle}
-              />
-            }
-            eyebrow={t("describe_meal_sheet_overline", { ns: "meals" })}
-            title={t("describe_meal_sheet_title", { ns: "meals" })}
-            description={t("describe_meal_sheet_subtitle", { ns: "meals" })}
-            accessory={
-              <AiCreditsBadge
-                text={`✦ ${String(t("credits.costSingle", { ns: "chat" }))}`}
-                tone="success"
-              />
-            }
-            content={
-              <>
-                {descriptionError || submitError ? (
-                  <ErrorBox
-                    testID="add-meal-text-error"
-                    message={descriptionError ?? submitError ?? ""}
+                    })}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    maxLength={80}
                   />
-                ) : null}
-                {ctaHelperText ? (
-                  <View
-                    accessible
-                    accessibilityLabel="add-meal-text-credits-explanation"
-                  >
-                    <Text
-                      testID="add-meal-text-credits-explanation"
-                      style={[
-                        styles.inlineNote,
-                        creditsNoteWarning ? styles.inlineNoteWarning : null,
-                      ]}
+                  <TextInput
+                    testID="add-meal-text-description-input"
+                    label={t("describe_meal_quick_description_label", {
+                      ns: "meals",
+                    })}
+                    value={quickDescription}
+                    onChangeText={onQuickDescriptionChange}
+                    placeholder={t(
+                      "describe_meal_quick_description_placeholder",
+                      {
+                        ns: "meals",
+                      },
+                    )}
+                    multiline
+                    numberOfLines={
+                      isE2E ? E2E_DESCRIPTION_LINES : DESCRIPTION_LINES
+                    }
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    maxLength={300}
+                    style={!isE2E ? styles.previewDescriptionField : undefined}
+                    fieldStyle={
+                      !isE2E ? styles.previewDescriptionInputShell : undefined
+                    }
+                    inputStyle={
+                      !isE2E ? styles.previewDescriptionInput : undefined
+                    }
+                    scrollEnabled
+                  />
+                </View>
+              }
+              previewFillsAvailable
+              topAction={
+                <ScreenCornerNavButton
+                  icon={canStepBack ? "back" : "close"}
+                  onPress={guard.requestExit}
+                  accessibilityLabel={t(canStepBack ? "back" : "close", {
+                    ns: "common",
+                    defaultValue: canStepBack ? "Back" : "Close",
+                  })}
+                  containerStyle={styles.screenCornerNavStyle}
+                />
+              }
+              eyebrow={t("describe_meal_sheet_overline", { ns: "meals" })}
+              title={t("describe_meal_sheet_title", { ns: "meals" })}
+              description={t("describe_meal_sheet_subtitle", { ns: "meals" })}
+              accessory={
+                <AiCreditsBadge
+                  text={`✦ ${String(t("credits.costSingle", { ns: "chat" }))}`}
+                  tone="success"
+                />
+              }
+              content={
+                <>
+                  {descriptionError || submitError ? (
+                    <ErrorBox
+                      testID="add-meal-text-error"
+                      message={descriptionError ?? submitError ?? ""}
+                    />
+                  ) : null}
+                  {ctaHelperText ? (
+                    <View
+                      accessible
+                      accessibilityLabel="add-meal-text-credits-explanation"
                     >
-                      {ctaHelperText}
-                    </Text>
-                  </View>
-                ) : null}
-                {renderAnalyzeButton()}
-                {showUpgradeLink ? (
+                      <Text
+                        testID="add-meal-text-credits-explanation"
+                        style={[
+                          styles.inlineNote,
+                          creditsNoteWarning ? styles.inlineNoteWarning : null,
+                        ]}
+                      >
+                        {ctaHelperText}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {renderAnalyzeButton()}
+                  {showUpgradeLink ? (
+                    <MealAddTextLink
+                      testID="add-meal-text-upgrade-button"
+                      label={t("limit.upgradeCta", { ns: "chat" })}
+                      onPress={openPaywall}
+                      disabled={loading}
+                    />
+                  ) : null}
                   <MealAddTextLink
-                    testID="add-meal-text-upgrade-button"
-                    label={t("limit.upgradeCta", { ns: "chat" })}
-                    onPress={openPaywall}
+                    testID="add-meal-text-change-method-button"
+                    label={t("change_method", { ns: "meals" })}
+                    onPress={() =>
+                      navigation.navigate("MealAddMethod", {
+                        selectionMode: "temporary",
+                        origin: "mealAddFlow",
+                      })
+                    }
                     disabled={loading}
                   />
-                ) : null}
-                <MealAddTextLink
-                  testID="add-meal-text-change-method-button"
-                  label={t("change_method", { ns: "meals" })}
-                  onPress={() =>
-                    navigation.navigate("MealAddMethod", {
-                      selectionMode: "temporary",
-                      origin: "mealAddFlow",
-                    })
-                  }
-                  disabled={loading}
-                />
-              </>
-            }
-            sheetFitContent
-            contentPlacement="start"
-          />
+                </>
+              }
+              sheetFitContent
+              contentPlacement="start"
+            />
+          </KeyboardAwareScrollView>
         </Pressable>
 
         <Modal
@@ -347,6 +362,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     fill: {
       flex: 1,
       backgroundColor: theme.surface,
+    },
+    scroller: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: theme.spacing.lg,
     },
     preview: {
       flex: 1,

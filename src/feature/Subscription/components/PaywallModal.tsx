@@ -55,10 +55,10 @@ export const PaywallModal: React.FC<Props> = ({
       onClose={busy ? undefined : onClose}
       closeOnBackdropPress={!busy}
       title={t("paywall.title", { defaultValue: "Premium Monthly" })}
-      contentPaddingBottom={0}
+      contentPaddingBottom={theme.spacing.lg}
     >
       <View style={styles.hero}>
-        <AppIcon name="star" size={48} color={theme.chart.fat} />
+        <AppIcon name="star" size={38} color={theme.chart.fat} />
         <Text style={styles.heroTitle}>{t("paywall.hero_title")}</Text>
         <Text style={styles.heroSubtitle}>{t("paywall.hero_subtitle")}</Text>
       </View>
@@ -170,14 +170,15 @@ export const PaywallModal: React.FC<Props> = ({
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
-    footer: { gap: theme.spacing.xs },
+    footer: { gap: theme.spacing.xxs },
     hero: {
       alignItems: "center",
-      gap: theme.spacing.xs,
-      marginBottom: theme.spacing.lg,
+      gap: theme.spacing.xxs,
+      marginBottom: theme.spacing.md,
     },
     heroTitle: {
-      fontSize: theme.typography.size.h1,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
       fontFamily: theme.typography.fontFamily.bold,
       color: theme.text,
       textAlign: "center",
@@ -188,7 +189,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
     },
     restoreButton: {
-      paddingVertical: theme.spacing.xs,
+      paddingVertical: theme.spacing.xxs,
       alignItems: "center",
     },
     linkText: {
@@ -201,14 +202,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       textAlign: "center",
-      marginTop: theme.spacing.xs,
+      marginTop: theme.spacing.xxs,
     },
     linksRow: {
       flexDirection: "row",
       justifyContent: "center",
       gap: theme.spacing.md,
     },
-    benefits: { gap: theme.spacing.xs },
+    benefits: { gap: theme.spacing.xxs },
     benefitsTitle: {
       color: theme.textSecondary,
       fontSize: theme.typography.size.labelS,
@@ -221,24 +222,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: "row",
       alignItems: "flex-start",
       gap: theme.spacing.xs,
-      paddingVertical: theme.spacing.xxs,
+      paddingVertical: 2,
     },
     benefitText: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
       flex: 1,
     },
     planSelector: {
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
+      marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.sm,
     },
     planCard: {
       borderWidth: 1,
       borderColor: theme.borderSoft,
       borderRadius: theme.rounded.lg,
-      paddingVertical: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
       paddingHorizontal: theme.spacing.md,
       backgroundColor: theme.surfaceAlt,
       flexDirection: "row",

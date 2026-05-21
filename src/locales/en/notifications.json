@@ -1,21 +1,21 @@
 {
   "screen": {
     "title": "Notifications",
-    "intro": "Manage meal reminders, notification access, and the notification preferences available in Fitaly today.",
-    "smartReminderHint": "Smart Reminders can adjust timing to your day, recent logging and quiet hours.",
+    "intro": "Set meal reminders and Fitaly notifications.",
+    "smartReminderHint": "Fitaly can time reminders around your day and quiet hours.",
     "smartReminderDebugTitle": "Smart Reminder QA",
     "smartReminders": "Smart Reminders",
     "preferenceTitle": "Notification preferences",
     "permissionOnTitle": "Notifications are on",
-    "permissionOnBody": "Fitaly can deliver reminders and other notifications on this device.",
+    "permissionOnBody": "You can receive reminders and other notifications on this device.",
     "permissionOffTitle": "Notifications are off",
     "permissionOffBody": "Turn on system notifications to receive meal reminders and other notification types on time.",
     "permissionCheckingTitle": "Checking notification access",
     "permissionCheckingBody": "Fitaly is still checking whether this device can receive notifications.",
     "motivation": "Motivation",
-    "motivationSubtitle": "Encouragement nudges that use your existing notification preference path.",
+    "motivationSubtitle": "Short supportive reminders.",
     "stats": "Stats",
-    "statsSubtitle": "Weekly summary notifications based on the current stored preference."
+    "statsSubtitle": "Weekly progress summaries."
   },
   "type": {
     "meal_reminder": "Meal reminder",
