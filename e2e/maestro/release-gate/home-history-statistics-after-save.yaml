@@ -11,10 +11,6 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: meal-add-option-manual
 - assertVisible:
-    id: review-meal-screen
-- tapOn:
-    id: review-meal-edit-button
-- assertVisible:
     id: meal-details-form-screen
 - tapOn:
     id: meal-name-input

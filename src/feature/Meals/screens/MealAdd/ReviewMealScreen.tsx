@@ -78,6 +78,23 @@ function buildAiReviewFingerprint(meal: Meal): string {
   });
 }
 
+const hasNonEmptyText = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const hasPositiveNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value > 0;
+
+function hasMeaningfulIngredient(ingredient: Meal["ingredients"][number]) {
+  return (
+    hasNonEmptyText(ingredient.name) ||
+    hasPositiveNumber(ingredient.amount) ||
+    hasPositiveNumber(ingredient.kcal) ||
+    hasPositiveNumber(ingredient.protein) ||
+    hasPositiveNumber(ingredient.carbs) ||
+    hasPositiveNumber(ingredient.fat)
+  );
+}
+
 export default function ReviewMealScreen({
   navigation,
   flow,
@@ -216,6 +233,24 @@ export default function ReviewMealScreen({
     () => calculateTotalNutrients(meal ? [meal] : []),
     [meal],
   );
+  const isEmptyReviewMeal = useMemo(() => {
+    if (!meal) return true;
+    const hasIngredients = (meal.ingredients ?? []).some(hasMeaningfulIngredient);
+    const hasNutrition =
+      hasPositiveNumber(nutrition.kcal) ||
+      hasPositiveNumber(nutrition.protein) ||
+      hasPositiveNumber(nutrition.carbs) ||
+      hasPositiveNumber(nutrition.fat);
+
+    return (
+      !hasNonEmptyText(meal.name) &&
+      !hasIngredients &&
+      !hasNutrition &&
+      !hasNonEmptyText(meal.photoUrl) &&
+      !hasNonEmptyText(meal.localPhotoUrl) &&
+      !hasNonEmptyText(meal.photoLocalPath)
+    );
+  }, [meal, nutrition]);
 
   const ingredientPreview = useMemo(() => {
     const items = meal?.ingredients ?? [];
@@ -240,7 +275,7 @@ export default function ReviewMealScreen({
 
   const handleSave = useCallback(
     async (openShareComposer: boolean) => {
-      if (!meal || !userData?.uid || saving || !uid) return;
+      if (!meal || !userData?.uid || saving || !uid || isEmptyReviewMeal) return;
 
       setSaving(true);
       const finalTimestamp = mealTime.toISOString();
@@ -308,6 +343,7 @@ export default function ReviewMealScreen({
       saving,
       uid,
       userData?.uid,
+      isEmptyReviewMeal,
     ],
   );
 
@@ -446,51 +482,87 @@ export default function ReviewMealScreen({
             </View>
 
             <View style={styles.nutritionCard}>
-              <Text style={styles.kcalValue}>{`${nutrition.kcal} kcal`}</Text>
+              <View
+                style={styles.kcalHero}
+                accessible
+                accessibilityLabel={`${t("calories", {
+                  ns: "meals",
+                  defaultValue: "Calories",
+                })}: ${nutrition.kcal} kcal`}
+              >
+                <View style={styles.kcalAccent} />
+                <View style={styles.kcalCopy}>
+                  <Text style={styles.kcalLabel}>
+                    {t("calories", {
+                      ns: "meals",
+                      defaultValue: "Calories",
+                    })}
+                  </Text>
+                  <Text style={styles.kcalValue}>{`${nutrition.kcal} kcal`}</Text>
+                </View>
+              </View>
               <View style={styles.macroStats}>
-                <View style={styles.macroStat}>
+                <View
+                  style={[styles.macroStat, styles.proteinStat]}
+                  accessible
+                  accessibilityLabel={`${t("protein", {
+                    ns: "meals",
+                    defaultValue: "Protein",
+                  })}: ${nutrition.protein}g`}
+                >
+                  <View style={[styles.macroAccent, styles.proteinAccent]} />
                   <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.72}
+                    numberOfLines={2}
                     style={styles.macroStatLabel}
                   >
-                    {t("protein", {
+                    {t("protein_compact", {
                       ns: "meals",
                       defaultValue: "Protein",
-                    }).toUpperCase()}
+                    })}
                   </Text>
                   <Text
                     style={styles.macroStatValue}
                   >{`${nutrition.protein}g`}</Text>
                 </View>
-                <View style={styles.macroStat}>
+                <View
+                  style={[styles.macroStat, styles.carbsStat]}
+                  accessible
+                  accessibilityLabel={`${t("carbs", {
+                    ns: "meals",
+                    defaultValue: "Carbs",
+                  })}: ${nutrition.carbs}g`}
+                >
+                  <View style={[styles.macroAccent, styles.carbsAccent]} />
                   <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.72}
+                    numberOfLines={2}
                     style={styles.macroStatLabel}
                   >
-                    {t("carbs", {
+                    {t("carbs_compact", {
                       ns: "meals",
                       defaultValue: "Carbs",
-                    }).toUpperCase()}
+                    })}
                   </Text>
                   <Text
                     style={styles.macroStatValue}
                   >{`${nutrition.carbs}g`}</Text>
                 </View>
-                <View style={styles.macroStat}>
+                <View
+                  style={[styles.macroStat, styles.fatStat]}
+                  accessible
+                  accessibilityLabel={`${t("fat", {
+                    ns: "meals",
+                    defaultValue: "Fat",
+                  })}: ${nutrition.fat}g`}
+                >
+                  <View style={[styles.macroAccent, styles.fatAccent]} />
                   <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.72}
+                    numberOfLines={2}
                     style={styles.macroStatLabel}
                   >
-                    {t("fat", {
+                    {t("fat_compact", {
                       ns: "meals",
                       defaultValue: "Fat",
-                    }).toUpperCase()}
+                    })}
                   </Text>
                   <Text
                     style={styles.macroStatValue}
@@ -562,6 +634,38 @@ export default function ReviewMealScreen({
                 : t("add_to_my_meals", { ns: "meals" })}
             </Text>
           </View>
+
+          {isEmptyReviewMeal ? (
+            <View
+              style={styles.reviewEmptyCard}
+              testID="review-meal-empty-draft-state"
+            >
+              <Text style={styles.reviewEmptyTitle}>
+                {t("review_meal_empty_draft_title", {
+                  ns: "meals",
+                  defaultValue: "Add meal details first",
+                })}
+              </Text>
+              <Text style={styles.reviewEmptyDescription}>
+                {t("review_meal_empty_draft_description", {
+                  ns: "meals",
+                  defaultValue:
+                    "This draft has no name, ingredients, or nutrition yet.",
+                })}
+              </Text>
+              <Button
+                testID="review-meal-empty-edit-button"
+                variant="secondary"
+                label={t("review_meal_edit_cta", {
+                  ns: "meals",
+                  defaultValue: "Edit details",
+                })}
+                onPress={handleOpenEdit}
+                disabled={saving}
+                style={styles.emptyDraftAction}
+              />
+            </View>
+          ) : null}
         </KeyboardAwareScrollView>
 
         <View style={[styles.footer, { paddingBottom: footerBottomInset }]}>
@@ -586,7 +690,7 @@ export default function ReviewMealScreen({
               void handleSave(false);
             }}
             loading={saving}
-            disabled={saving}
+            disabled={saving || isEmptyReviewMeal}
             style={styles.saveButton}
             testID="review-meal-save-button"
           />
@@ -601,7 +705,7 @@ export default function ReviewMealScreen({
               onPress={() => {
                 void handleSave(true);
               }}
-              disabled={saving}
+              disabled={saving || isEmptyReviewMeal}
               style={styles.shareAfterSaveButton}
               accessibilityLabel={t("review_meal_save_share_cta", {
                 ns: "meals",
@@ -706,55 +810,106 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.bold,
     },
     nutritionCard: {
-      minHeight: 104,
+      minHeight: 144,
       borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.primary + "3d",
       backgroundColor: theme.surface,
       paddingHorizontal: 18,
-      paddingVertical: 22,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
+      paddingVertical: 18,
       gap: theme.spacing.sm,
       overflow: "hidden",
+    },
+    kcalHero: {
+      minHeight: 62,
+      borderRadius: theme.rounded.lg,
+      borderWidth: 1,
+      borderColor: theme.macro.calories,
+      backgroundColor: theme.macro.caloriesSoft,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+    kcalAccent: {
+      width: 4,
+      alignSelf: "stretch",
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.macro.calories,
+    },
+    kcalCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    kcalLabel: {
+      color: theme.primaryStrong,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.medium,
     },
     kcalValue: {
       color: theme.text,
       fontSize: 28,
       lineHeight: 34,
       fontFamily: theme.typography.fontFamily.bold,
-      flexShrink: 1,
-      minWidth: 118,
     },
     macroStats: {
-      flex: 1,
-      minWidth: 0,
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "stretch",
       justifyContent: "space-between",
-      gap: 6,
+      gap: theme.spacing.xs,
     },
     macroStat: {
       flex: 1,
       minWidth: 0,
-      alignItems: "center",
-      gap: 4,
+      minHeight: 64,
+      borderRadius: theme.rounded.md,
+      borderWidth: 1,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: theme.spacing.sm,
+      gap: 3,
+      justifyContent: "center",
+      alignItems: "flex-start",
+    },
+    proteinStat: {
+      borderColor: theme.macro.protein,
+      backgroundColor: theme.macro.proteinSoft,
+    },
+    carbsStat: {
+      borderColor: theme.macro.carbs,
+      backgroundColor: theme.macro.carbsSoft,
+    },
+    fatStat: {
+      borderColor: theme.macro.fat,
+      backgroundColor: theme.macro.fatSoft,
+    },
+    macroAccent: {
+      width: 18,
+      height: 3,
+      borderRadius: theme.rounded.full,
+      marginBottom: 2,
+    },
+    proteinAccent: {
+      backgroundColor: theme.macro.protein,
+    },
+    carbsAccent: {
+      backgroundColor: theme.macro.carbs,
+    },
+    fatAccent: {
+      backgroundColor: theme.macro.fat,
     },
     macroStatLabel: {
-      color: theme.primary,
+      color: theme.textSecondary,
       width: "100%",
-      fontSize: 9,
-      lineHeight: 12,
+      fontSize: 12,
+      lineHeight: 15,
       fontFamily: theme.typography.fontFamily.medium,
-      letterSpacing: 0,
-      textAlign: "center",
     },
     macroStatValue: {
       color: theme.text,
       fontSize: 16,
       lineHeight: 22,
-      fontFamily: theme.typography.fontFamily.medium,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
     itemsCard: {
       borderRadius: 18,
@@ -813,6 +968,28 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    reviewEmptyCard: {
+      borderRadius: theme.rounded.lg,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surface,
+      padding: theme.spacing.md,
+      gap: theme.spacing.xs,
+    },
+    reviewEmptyTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    reviewEmptyDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    emptyDraftAction: {
+      marginTop: theme.spacing.xs,
     },
     footer: {
       position: "absolute",

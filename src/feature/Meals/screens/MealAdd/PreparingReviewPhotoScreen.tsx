@@ -286,7 +286,7 @@ export default function PreparingReviewPhotoScreen({
 
   const handleManualEntry = useCallback(() => {
     ignoreResultRef.current = true;
-    flow.replace("ReviewMeal", {});
+    flow.replace("EditMealDetails", {});
   }, [flow]);
 
   const handleKeepWaiting = useCallback(() => {

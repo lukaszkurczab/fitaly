@@ -82,7 +82,7 @@ export const mealAddMethodOptions: readonly MethodOption[] = [
     descKey: "manualDesc",
     screen: "AddMeal",
     params: {
-      start: "ReviewMeal",
+      start: "EditMealDetails",
     },
   },
   {

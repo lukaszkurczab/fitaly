@@ -199,7 +199,7 @@ describe("useMealAddMethodState", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("starts manual meals at ReviewMeal with a manual draft", async () => {
+  it("starts manual meals at the details editor with a manual draft", async () => {
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
 
     const navigation = {
@@ -226,7 +226,7 @@ describe("useMealAddMethodState", () => {
     });
 
     expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
-      start: "ReviewMeal",
+      start: "EditMealDetails",
     });
     expect(mockSaveDraft).toHaveBeenCalledWith(
       "user-1",

@@ -17,6 +17,7 @@ type ButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  testID?: string;
 };
 
 type CheckboxProps = {
@@ -82,13 +83,20 @@ jest.mock("react-i18next", () => ({
     t: (
       key: string,
       options?: { ns?: string; defaultValue?: string; count?: number },
-    ) =>
-      options?.defaultValue ??
-      (options?.count !== undefined
-        ? `${options.ns}:${key}:${options.count}`
-        : options?.ns
-          ? `${options.ns}:${key}`
-          : key),
+    ) => {
+      const labels: Record<string, string> = {
+        carbs_compact: "Węgle",
+      };
+      return (
+        labels[key] ??
+        options?.defaultValue ??
+        (options?.count !== undefined
+          ? `${options.ns}:${key}:${options.count}`
+          : options?.ns
+            ? `${options.ns}:${key}`
+            : key)
+      );
+    },
   }),
 }));
 
@@ -113,16 +121,28 @@ jest.mock("@/components", () => {
       onPress
         ? createElement(Pressable, { onPress }, children as never)
         : createElement(View, null, children as never),
-    Button: ({ label, onPress, disabled }: ButtonProps) =>
+    Button: ({ label, onPress, disabled, testID }: ButtonProps) =>
       createElement(
         Pressable,
-        { onPress, disabled, accessibilityRole: "button" },
+        {
+          onPress,
+          disabled,
+          testID,
+          accessibilityRole: "button",
+          accessibilityState: { disabled: !!disabled },
+        },
         createElement(Text, null, label),
       ),
-    TextButton: ({ label, onPress, disabled }: ButtonProps) =>
+    TextButton: ({ label, onPress, disabled, testID }: ButtonProps) =>
       createElement(
         Pressable,
-        { onPress, disabled, accessibilityRole: "button" },
+        {
+          onPress,
+          disabled,
+          testID,
+          accessibilityRole: "button",
+          accessibilityState: { disabled: !!disabled },
+        },
         createElement(Text, null, label),
       ),
     ScreenCornerNavButton: ({ onPress }: { onPress: () => void }) =>
@@ -322,6 +342,72 @@ describe("ReviewMealScreen", () => {
     expect(queryByText("Add meal photo")).toBeNull();
     expect(queryByTestId("review-meal-add-photo")).toBeNull();
     expect(testProps.flowGoTo).not.toHaveBeenCalled();
+  });
+
+  it("renders calories as the hero summary and macros as compact chips", () => {
+    const ctx = buildDraftContext({
+      photoUrl: null,
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Chicken",
+          amount: 180,
+          kcal: 250,
+          protein: 35,
+          carbs: 12,
+          fat: 8,
+        },
+      ],
+    });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+
+    const { getByLabelText, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByLabelText("Calories: 250 kcal")).toBeTruthy();
+    expect(getByText("250 kcal")).toBeTruthy();
+    expect(getByText("Protein")).toBeTruthy();
+    expect(getByText("Węgle")).toBeTruthy();
+    expect(getByText("Fat")).toBeTruthy();
+    expect(getByLabelText("Carbs: 12g")).toBeTruthy();
+  });
+
+  it("keeps empty review drafts from saving and routes the empty-state CTA to editing", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext({
+      name: null,
+      ingredients: [],
+      photoUrl: null,
+      localPhotoUrl: null,
+      photoLocalPath: null,
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByTestId("review-meal-empty-draft-state")).toBeTruthy();
+    expect(getByTestId("review-meal-save-button").props.accessibilityState).toEqual({
+      disabled: true,
+    });
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).not.toHaveBeenCalled();
+    });
+
+    fireEvent.press(getByTestId("review-meal-empty-edit-button"));
+    expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {});
   });
 
   it("saves the reviewed meal and navigates home", async () => {

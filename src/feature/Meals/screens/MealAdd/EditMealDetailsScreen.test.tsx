@@ -202,6 +202,35 @@ describe("EditMealDetailsScreen", () => {
     });
   });
 
+  it("replaces the editor with review when manual entry starts on the editor", async () => {
+    const saveDraft = jest.fn(async (_uid: string, _draft?: Meal | null) => undefined);
+    const setMeal = jest.fn();
+    const props = buildProps();
+    props.flow.canGoBack = jest.fn(() => false);
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: buildMeal(),
+      loadDraft: jest.fn(async () => undefined),
+      saveDraft,
+      setMeal,
+      setLastScreen: jest.fn(async () => undefined),
+      clearMeal: jest.fn(),
+    });
+
+    const { getByText, getByTestId } = renderWithTheme(
+      <EditMealDetailsScreen {...props} />,
+    );
+
+    fireEvent.changeText(getByTestId("meal-name-input"), "Manual meal");
+    fireEvent.press(getByText("Back to review"));
+
+    await waitFor(() => {
+      expect(saveDraft).toHaveBeenCalled();
+      expect(props.flow.goBack).not.toHaveBeenCalled();
+      expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    });
+  });
+
   it("shows the photo action and opens camera default in skip-detection mode", () => {
     const props = buildProps();
 

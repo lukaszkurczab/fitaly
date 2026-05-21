@@ -21,10 +21,8 @@ import {
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { useTheme } from "@/theme/useTheme";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
-import { isE2EModeEnabled } from "@/services/e2e/config";
 
 const DESCRIPTION_LINES = 8;
-const E2E_DESCRIPTION_LINES = 3;
 
 export default function DescribeMealScreen({
   navigation,
@@ -137,7 +135,6 @@ export default function DescribeMealScreen({
   const canStepBack = flow.canGoBack();
   const hasUnsavedChanges =
     name.trim().length > 0 || quickDescription.trim().length > 0;
-  const isE2E = isE2EModeEnabled();
 
   const guard = useUnsavedChangesGuard({
     navigation,
@@ -214,20 +211,14 @@ export default function DescribeMealScreen({
                       },
                     )}
                     multiline
-                    numberOfLines={
-                      isE2E ? E2E_DESCRIPTION_LINES : DESCRIPTION_LINES
-                    }
+                    numberOfLines={DESCRIPTION_LINES}
                     autoCapitalize="none"
                     autoCorrect={false}
                     spellCheck={false}
                     maxLength={300}
-                    style={!isE2E ? styles.previewDescriptionField : undefined}
-                    fieldStyle={
-                      !isE2E ? styles.previewDescriptionInputShell : undefined
-                    }
-                    inputStyle={
-                      !isE2E ? styles.previewDescriptionInput : undefined
-                    }
+                    style={styles.previewDescriptionField}
+                    fieldStyle={styles.previewDescriptionInputShell}
+                    inputStyle={styles.previewDescriptionInput}
                     scrollEnabled
                   />
                 </View>

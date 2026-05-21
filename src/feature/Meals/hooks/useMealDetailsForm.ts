@@ -226,8 +226,10 @@ export function useMealDetailsForm({
     await persistMeal(nextMeal);
     if (onReviewSubmit) {
       await onReviewSubmit(nextMeal);
-    } else {
+    } else if (flow.canGoBack()) {
       flow.goBack();
+    } else {
+      flow.replace("ReviewMeal", {});
     }
     setHasPendingChanges(false);
   }, [

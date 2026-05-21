@@ -15,6 +15,12 @@ type ButtonProps = {
 type TextInputProps = {
   label?: string;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  testID?: string;
+  multiline?: boolean;
+  numberOfLines?: number;
+  style?: object;
+  fieldStyle?: unknown;
+  inputStyle?: unknown;
 };
 
 const mockUseMealTextAiState = jest.fn();
@@ -100,11 +106,48 @@ jest.mock("@/components", () => {
       createElement(Text, null, message),
     Modal: () => null,
     UnsavedChangesModal: () => null,
-    TextInput: ({ label, autoCapitalize }: TextInputProps) =>
+    TextInput: ({
+      label,
+      autoCapitalize,
+      testID,
+      multiline,
+      numberOfLines,
+      style,
+      fieldStyle,
+      inputStyle,
+    }: TextInputProps) =>
       createElement(
         View,
-        null,
+        { testID, style },
         createElement(Text, null, label ?? ""),
+        testID
+          ? createElement(
+              Text,
+              { testID: `${testID}-multiline` },
+              String(multiline === true),
+            )
+          : null,
+        testID
+          ? createElement(
+              Text,
+              { testID: `${testID}-number-of-lines` },
+              String(numberOfLines ?? ""),
+            )
+          : null,
+        testID
+          ? createElement(
+              Text,
+              { testID: `${testID}-field-style` },
+              String(fieldStyle !== undefined),
+            )
+          : null,
+        testID
+          ? createElement(
+              Text,
+              { testID: `${testID}-input-style` },
+              String(inputStyle !== undefined),
+            )
+          : null,
         createElement(
           Text,
           {
@@ -180,6 +223,34 @@ describe("DescribeMealScreen", () => {
 
     expect(getByTestId("describe-meal-name-autocap").props.children).toBe("none");
     expect(getByTestId("describe-meal-description-autocap").props.children).toBe("none");
+  });
+
+  it("keeps the quick description input expanded in the preview", () => {
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
+    const descriptionInput = getByTestId("add-meal-text-description-input");
+
+    expect(getByTestId("add-meal-text-description-input-multiline").props.children).toBe("true");
+    expect(getByTestId("add-meal-text-description-input-number-of-lines").props.children).toBe("8");
+    expect(descriptionInput.props.style).toBeTruthy();
+    expect(getByTestId("add-meal-text-description-input-field-style").props.children).toBe("true");
+    expect(getByTestId("add-meal-text-description-input-input-style").props.children).toBe("true");
   });
 
   it("opens the temporary method chooser", () => {

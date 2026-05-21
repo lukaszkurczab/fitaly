@@ -7,6 +7,17 @@ appId: com.lkurczab.fitaly
     id: meal-add-option-manual
 - tapOn:
     id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Smoke Manual Meal
+- hideKeyboard
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
 - tapOn:
     id: review-meal-save-button
 - assertVisible:

@@ -32,8 +32,6 @@ appId: com.lkurczab.fitaly
     id: add-meal-text-analyze-button
 - tapOn:
     id: add-meal-text-analyze-button
-- assertVisible:
-    id: add-meal-text-analyzing-screen
 - extendedWaitUntil:
     visible:
       id: review-meal-screen

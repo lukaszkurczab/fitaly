@@ -246,7 +246,7 @@ describe("PreparingReviewPhotoScreen", () => {
     });
 
     fireEvent.press(getByText("Use manual entry"));
-    expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {});
   });
 
   it("shows the offline recovery state and lets the user save the draft", async () => {

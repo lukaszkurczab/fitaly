@@ -115,7 +115,7 @@ describe("IngredientsNotRecognizedScreen", () => {
     fireEvent.press(getByText("Use product database"));
     fireEvent.press(getByText("Cancel"));
 
-    expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {});
     expect(props.navigation.replace).toHaveBeenCalledWith("SavedMeals");
     expect(props.flow.goBack).toHaveBeenCalledTimes(1);
   });
