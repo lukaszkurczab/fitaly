@@ -63,6 +63,8 @@ function writeManifest(runDir, manifest) {
 
 const runId = process.env.E2E_VISUAL_AUDIT_RUN_ID || timestamp();
 const runDir = path.join(rootDir, "e2e", "artifacts", suiteName, runId);
+const latestDir = path.join(rootDir, "e2e", "artifacts", suiteName, "latest");
+const maestroTestOutputDir = runDir;
 const screenshotsDir = path.join(runDir, "screenshots");
 const reportsDir = path.join(runDir, "reports");
 const logsDir = path.join(runDir, "logs");
@@ -78,6 +80,14 @@ const baseManifest = {
   startedAt,
   platform: process.env.E2E_PLATFORM || "ios",
   flows,
+  output: {
+    runDir: path.relative(rootDir, runDir),
+    latestDir: path.relative(rootDir, latestDir),
+    maestroTestOutputDir: path.relative(rootDir, maestroTestOutputDir),
+    latestScreenshotsDir: path.relative(rootDir, path.join(latestDir, "screenshots")),
+    latestReportsDir: path.relative(rootDir, path.join(latestDir, "reports")),
+    latestManifest: path.relative(rootDir, path.join(latestDir, "manifest.json")),
+  },
   reportsDir: path.relative(rootDir, reportsDir),
   screenshotsDir: path.relative(rootDir, screenshotsDir),
   expectedScreenshots: expectedScreenshots(),
@@ -93,7 +103,7 @@ const env = {
   E2E_RESULTS_DIR: reportsDir,
   E2E_RESULTS_PATH: path.join(reportsDir, "results.xml"),
   E2E_DEBUG_OUTPUT_DIR: logsDir,
-  E2E_TEST_OUTPUT_DIR: screenshotsDir,
+  E2E_TEST_OUTPUT_DIR: maestroTestOutputDir,
   E2E_SUITE_NAME: suiteName,
   E2E_CONTINUE_ON_FAILURE: "1",
 };
@@ -132,12 +142,11 @@ child.on("exit", (code, signal) => {
     signal,
   });
 
-  const latestPath = path.join(rootDir, "e2e", "artifacts", suiteName, "latest");
-  rmSync(latestPath, { recursive: true, force: true });
+  rmSync(latestDir, { recursive: true, force: true });
   try {
-    symlinkSync(runId, latestPath, "dir");
+    symlinkSync(runId, latestDir, "dir");
   } catch {
-    cpSync(runDir, latestPath, { recursive: true });
+    cpSync(runDir, latestDir, { recursive: true });
   }
 
   process.exit(code ?? 1);

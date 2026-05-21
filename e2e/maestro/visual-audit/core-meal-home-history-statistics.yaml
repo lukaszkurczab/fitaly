@@ -18,6 +18,7 @@ appId: com.lkurczab.fitaly
     id: meal-add-option-text
 - assertVisible:
     id: add-meal-text-screen
+- takeScreenshot: add-meal-text-empty
 - tapOn:
     id: add-meal-text-name-input
 - eraseText
@@ -33,6 +34,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-screen
 - waitForAnimationToEnd
+- takeScreenshot: add-meal-text-filled
 - assertVisible:
     id: add-meal-text-analyze-button
 - tapOn:

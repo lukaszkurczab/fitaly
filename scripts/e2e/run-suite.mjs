@@ -69,11 +69,12 @@ const artifactDir = path.resolve(
 const reportsDir = path.join(artifactDir, "reports");
 const logsDir = path.join(artifactDir, "logs");
 const screenshotsDir = path.join(artifactDir, "screenshots");
+const defaultTestOutputDir = suiteName === "visual-audit" ? artifactDir : screenshotsDir;
 
 mkdirSync(reportsDir, { recursive: true });
 mkdirSync(logsDir, { recursive: true });
 if (suiteName === "visual-audit" || process.env.E2E_TEST_OUTPUT_DIR) {
-  mkdirSync(process.env.E2E_TEST_OUTPUT_DIR || screenshotsDir, { recursive: true });
+  mkdirSync(process.env.E2E_TEST_OUTPUT_DIR || defaultTestOutputDir, { recursive: true });
 }
 
 const env = {
@@ -85,7 +86,7 @@ const env = {
 };
 
 if (suiteName === "visual-audit" || process.env.E2E_TEST_OUTPUT_DIR) {
-  env.E2E_TEST_OUTPUT_DIR = process.env.E2E_TEST_OUTPUT_DIR || screenshotsDir;
+  env.E2E_TEST_OUTPUT_DIR = process.env.E2E_TEST_OUTPUT_DIR || defaultTestOutputDir;
 }
 
 if (flags.has("--continue-on-failure")) {

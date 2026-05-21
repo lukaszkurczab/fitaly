@@ -52,4 +52,4 @@ appId: com.lkurczab.fitaly
 - inputText: Small Screen Visual Audit Meal Name With Many Words
 - assertVisible:
     id: meal-name-input
-- takeScreenshot: small-screen-form-layout
+- takeScreenshot: small-screen-form

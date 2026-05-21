@@ -20,7 +20,12 @@ appId: com.lkurczab.fitaly
 - takeScreenshot: chat-empty
 - tapOn:
     id: chat-input
-- inputText: Plan a balanced dinner for today
+- inputText: This is a deliberately long visual audit chat prompt that keeps the keyboard open while the composer grows enough to verify reachability.
+- assertVisible:
+    id: chat-input
+- assertVisible:
+    id: chat-send-button
+- takeScreenshot: chat-long-input-keyboard
 - tapOn:
     id: chat-send-button
 - assertVisible:

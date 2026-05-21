@@ -56,6 +56,7 @@ appId: com.lkurczab.fitaly
     timeout: 30000
 - assertVisible:
     id: onboarding-step-1
+- takeScreenshot: onboarding-start
 - scrollUntilVisible:
     element:
       id: onboarding-weight-input
@@ -76,7 +77,6 @@ appId: com.lkurczab.fitaly
     id: onboarding-step-1-next-button
 - assertVisible:
     id: onboarding-step-2
-- takeScreenshot: onboarding-goal
 - tapOn:
     id: onboarding-step-2-next-button
 - assertVisible:
