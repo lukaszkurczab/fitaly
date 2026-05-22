@@ -78,6 +78,8 @@ export default function BarcodeScanScreen({
   const [lookupError, setLookupError] = useState<string | undefined>();
   const e2eBarcodeFixture = getE2EFixtureState()?.barcode;
   const e2eBarcodeSimulation = Boolean(e2eBarcodeFixture);
+  const compactManualSheet =
+    keyboardInset > 0 && Boolean(manualError || lookupError);
 
   const canStepBack = flow.canGoBack();
   const barcodeTypes = useMemo<BarcodeType[]>(
@@ -231,7 +233,7 @@ export default function BarcodeScanScreen({
           setLookupError(
             tMeals("barcode_scan_not_found_error", {
               defaultValue:
-                "We couldn't find a product for this barcode. Edit the code or try another method.",
+                "We couldn't find a product. Edit the code or choose another method.",
             }),
           );
           return;
@@ -402,6 +404,7 @@ export default function BarcodeScanScreen({
                   label={tMeals("barcode_scan_status", {
                     defaultValue: "Scanning for a code",
                   })}
+                  loading
                 />
               ) : null}
 
@@ -470,7 +473,10 @@ export default function BarcodeScanScreen({
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.manualSheetContent}
+                contentContainerStyle={[
+                  styles.manualSheetContent,
+                  compactManualSheet ? styles.manualSheetContentCompact : null,
+                ]}
               >
                 <View style={styles.sheetHandle} />
 
@@ -479,12 +485,14 @@ export default function BarcodeScanScreen({
                     defaultValue: "Enter code",
                   })}
                 </Text>
-                <Text style={styles.manualSubtitle}>
-                  {tMeals("barcode_scan_sheet_subtitle", {
-                    defaultValue:
-                      "Type the numbers under the bars if scanning is difficult.",
-                  })}
-                </Text>
+                {!compactManualSheet ? (
+                  <Text style={styles.manualSubtitle}>
+                    {tMeals("barcode_scan_sheet_subtitle", {
+                      defaultValue:
+                        "Type the numbers under the bars if scanning is difficult.",
+                    })}
+                  </Text>
+                ) : null}
 
                 <TextInput
                   testID="barcode-manual-input"
@@ -605,6 +613,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     manualSheetContent: {
       gap: theme.spacing.md,
+    },
+    manualSheetContentCompact: {
+      gap: theme.spacing.sm,
     },
     sheetHandle: {
       width: 44,

@@ -8,39 +8,36 @@ appId: com.lkurczab.fitaly
     id: e2e-ready-credits-ok
 - assertVisible:
     id: e2e-ready-ai-photoSlow
+- assertVisible:
+    id: home-screen
 - tapOn:
     id: tab-add-meal
 - assertVisible:
     id: meal-add-option-photo
+- takeScreenshot: add-meal-photo-options
 - tapOn:
     id: meal-add-option-photo
 - assertVisible:
     id: add-meal-photo-screen
 - assertVisible:
     id: add-meal-photo-e2e-preview
+- takeScreenshot: add-meal-photo-entry
 - tapOn:
     id: add-meal-photo-capture-button
 - assertVisible:
     id: add-meal-photo-preparing-screen
+- takeScreenshot: add-meal-photo-preparing
 - extendedWaitUntil:
     visible:
       id: review-meal-screen
     timeout: 15000
+- takeScreenshot: add-meal-photo-review-meal
 - tapOn:
     id: review-meal-save-button
 - assertVisible:
     id: home-screen
-- assertVisible:
-    id: home-today-meal-row-0
-- scrollUntilVisible:
-    element:
-      id: home-view-history-button
-    direction: DOWN
-- tapOn:
-    id: home-view-history-button
 - extendedWaitUntil:
     visible:
-      id: history-list-screen
+      id: home-today-meal-row-0
     timeout: 10000
-- assertVisible:
-    id: history-meal-row-0
+- takeScreenshot: add-meal-photo-home-after-save

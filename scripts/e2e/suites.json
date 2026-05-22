@@ -90,7 +90,12 @@
   ],
   "visual-audit": [
     "e2e/maestro/visual-audit/auth-entry.yaml",
+    "e2e/maestro/visual-audit/add-meal-barcode.yaml",
+    "e2e/maestro/visual-audit/add-meal-photo.yaml",
+    "e2e/maestro/visual-audit/add-meal-saved-template.yaml",
     "e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml",
+    "e2e/maestro/visual-audit/history-details-edit-delete.yaml",
+    "e2e/maestro/visual-audit/review-edit-save.yaml",
     "e2e/maestro/visual-audit/chat-premium-notifications.yaml",
     "e2e/maestro/visual-audit/platform-layout.yaml"
   ],

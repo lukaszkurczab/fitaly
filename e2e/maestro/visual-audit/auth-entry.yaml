@@ -77,18 +77,22 @@ appId: com.lkurczab.fitaly
     id: onboarding-step-1-next-button
 - assertVisible:
     id: onboarding-step-2
+- takeScreenshot: onboarding-step-2
 - tapOn:
     id: onboarding-step-2-next-button
 - assertVisible:
     id: onboarding-step-3
+- takeScreenshot: onboarding-step-3
 - tapOn:
     id: onboarding-step-3-next-button
 - assertVisible:
     id: onboarding-confirm-modal
+- takeScreenshot: onboarding-skip-confirm
 - tapOn:
     id: onboarding-confirm-primary-button
 - assertVisible:
     id: onboarding-step-4
+- takeScreenshot: onboarding-step-4
 - tapOn:
     id: onboarding-step-4-submit-button
 - extendedWaitUntil:

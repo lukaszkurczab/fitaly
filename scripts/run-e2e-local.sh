@@ -363,7 +363,7 @@ if [[ "${PLATFORM}" == "ios" ]]; then
   xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
 
-  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX.yaml")"
+  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
   cat >"${DEV_MENU_DISMISS_FLOW}" <<'YAML'
 appId: com.lkurczab.fitaly
 ---

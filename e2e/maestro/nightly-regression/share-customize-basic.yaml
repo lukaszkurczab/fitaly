@@ -40,6 +40,7 @@ appId: com.lkurczab.fitaly
     id: share-add-card-button
 - assertVisible:
     id: share-reset-button
+- takeScreenshot: share-customize-ready
 - tapOn:
     id: share-add-text-button
 - assertVisible:
@@ -56,12 +57,14 @@ appId: com.lkurczab.fitaly
     id: share-add-card-button
 - assertVisible:
     id: share-canvas
+- takeScreenshot: share-customize-elements-added
 - assertVisible:
     id: share-reset-button
 - tapOn:
     id: share-reset-button
 - assertVisible:
     id: share-canvas
+- takeScreenshot: share-customize-reset
 - assertVisible:
     id: share-save-gallery-button
 - assertVisible:

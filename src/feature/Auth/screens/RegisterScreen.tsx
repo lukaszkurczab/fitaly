@@ -252,6 +252,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
         <TextInput
           testID="register-confirm-password-input"
+          label={t("confirm_password")}
           value={confirmPassword}
           autoComplete="new-password"
           textContentType="newPassword"
@@ -288,7 +289,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               disabled={loading}
               error={Boolean(errors.terms)}
               accessibilityLabel={
-                errors.terms ? t(errors.terms) : t("accept_terms")
+                errors.terms ? t(errors.terms) : t("accept_terms_full")
               }
               style={styles.termsCheckbox}
             />
@@ -316,7 +317,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                     errors.terms ? styles.termsTextError : null,
                   ]}
                 >
-                  {" & "}
+                  {` ${t("terms_conjunction")} `}
                 </Text>
                 <LinkText
                   text={t("privacy_policy")}
@@ -354,11 +355,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     termsRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       width: "100%",
     },
     termsCheckbox: {
       marginRight: theme.spacing.sm,
+      marginTop: theme.spacing.xxs,
     },
     termsCopy: {
       flex: 1,

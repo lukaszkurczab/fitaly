@@ -1,0 +1,86 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- takeScreenshot: review-edit-save-review
+- tapOn:
+    id: review-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: review-edit-save-edit-basics
+- scrollUntilVisible:
+    element:
+      id: ingredient-list-section
+    direction: DOWN
+- assertVisible:
+    id: ingredient-row-0
+- assertVisible:
+    id: ingredient-add-button
+- takeScreenshot: review-edit-save-edit-ingredients
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- takeScreenshot: review-edit-save-ingredient-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Visual edit ingredient
+- assertVisible:
+    id: ingredient-editor-submit-button
+- takeScreenshot: review-edit-save-ingredient-keyboard
+- hideKeyboard
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-1
+- takeScreenshot: review-edit-save-edit-after-ingredient
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- takeScreenshot: review-edit-save-review-after-edit
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- takeScreenshot: review-edit-save-home-after-save
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: review-edit-save-history-after-save

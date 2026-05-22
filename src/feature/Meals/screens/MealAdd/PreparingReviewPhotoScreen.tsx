@@ -426,6 +426,7 @@ export default function PreparingReviewPhotoScreen({
                   ns: "meals",
                   defaultValue: "Photo analysis started",
                 })}
+                loading
               />
             </View>
           ) : (

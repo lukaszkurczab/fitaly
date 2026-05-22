@@ -44,6 +44,10 @@ export function useMealCameraState({
   const simulatorReviewState = params?.simulatorReviewState ?? "success";
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
+  const shouldForwardSimulatorState =
+    isSimulatorPreview &&
+    (params?.simulatorCreditsState !== undefined ||
+      params?.simulatorReviewState !== undefined);
 
   const fallbackMealIdRef = useRef<string>(uuidv4());
   const mealId = meal?.mealId || routeId || fallbackMealIdRef.current;
@@ -161,7 +165,7 @@ export function useMealCameraState({
         image: finalUri,
         id: mealId,
         attempt,
-        ...(isSimulatorPreview
+        ...(shouldForwardSimulatorState
           ? {
               simulatorCreditsState,
               simulatorReviewState,
@@ -172,12 +176,12 @@ export function useMealCameraState({
     [
       attempt,
       flow,
-      isSimulatorPreview,
       meal,
       mealId,
       photoUri,
       saveDraft,
       setMeal,
+      shouldForwardSimulatorState,
       skipDetection,
       simulatorCreditsState,
       simulatorReviewState,

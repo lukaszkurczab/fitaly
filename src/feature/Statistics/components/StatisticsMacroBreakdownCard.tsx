@@ -42,7 +42,7 @@ export function StatisticsMacroBreakdownCard({ protein, carbs, fat }: Props) {
   ] as const;
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID="statistics-macro-breakdown-card">
       <Text style={styles.title}>{t("statistics:macroBreakdownTitle")}</Text>
 
       <View style={styles.content}>
@@ -73,7 +73,7 @@ export function StatisticsMacroBreakdownCard({ protein, carbs, fat }: Props) {
                   {item.label}
                 </Text>
                 <Text style={styles.legendMeta} numberOfLines={1}>
-                  {` - ${item.percent}% - ${item.grams}${t("common:gram")}`}
+                  {`${item.percent}% - ${item.grams}${t("common:gram")}`}
                 </Text>
               </View>
             </View>
@@ -127,20 +127,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     legendTextRow: {
       flex: 1,
       minWidth: 0,
-      flexDirection: "row",
-      alignItems: "center",
+      gap: 2,
     },
     legendLabel: {
-      flex: 1,
-      flexShrink: 1,
-      minWidth: 0,
       color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
     },
     legendMeta: {
-      flexShrink: 0,
       color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.size.bodyS,

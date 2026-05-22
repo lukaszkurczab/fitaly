@@ -2,7 +2,10 @@
   "screen": {
     "title": "Powiadomienia",
     "intro": "Ustaw przypomnienia o posiłkach i powiadomienia z Fitaly.",
-    "smartReminderHint": "Fitaly może dopasować porę przypomnienia do Twojego dnia i godzin ciszy.",
+    "smartReminderHint": "Dopasowuje porę przypomnienia do Twojego dnia i godzin ciszy.",
+    "smartReminderUnavailableTitle": "Inteligentne przypomnienia są niedostępne",
+    "smartReminderUnavailableBody": "Ta funkcja jest teraz wstrzymana. Pozostałe powiadomienia możesz nadal kontrolować poniżej.",
+    "smartReminderUnavailableHint": "Tymczasowo wstrzymane.",
     "smartReminderDebugTitle": "Diagnostyka inteligentnych przypomnień",
     "smartReminders": "Inteligentne przypomnienia",
     "preferenceTitle": "Preferencje powiadomień",

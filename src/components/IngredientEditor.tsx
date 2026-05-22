@@ -13,6 +13,7 @@ import { NumberInput } from "./NumberInput";
 import { TextInput } from "./TextInput";
 import { Button } from "./Button";
 import { Modal as AppModal } from "./Modal";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 type Props = {
   initial: Ingredient;
@@ -51,8 +52,10 @@ export const IngredientEditor: React.FC<Props> = ({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["meals", "common"]);
+  const keyboardInset = useKeyboardInset();
   const unitLabel = initial?.unit === "ml" ? "ml" : "g";
   const isSheetVariant = variant === "sheet";
+  const showKeyboardActions = isSheetVariant && keyboardInset > 0;
 
   const [name, setName] = useState(initial.name ?? "");
   const [amount, setAmount] = useState(String(initial.amount ?? 0));
@@ -273,6 +276,33 @@ export const IngredientEditor: React.FC<Props> = ({
     onChangePartial?.({ name: next });
   };
 
+  const renderSheetActions = () => (
+    <View
+      style={[
+        styles.sheetActions,
+        showKeyboardActions ? styles.sheetActionsKeyboard : null,
+      ]}
+    >
+      <Button
+        testID={`${testIDPrefix}-cancel-button`}
+        variant="secondary"
+        style={styles.sheetActionButton}
+        fullWidth={false}
+        onPress={onCancel}
+        label={t("cancel", { ns: "common" })}
+      />
+
+      <Button
+        testID={`${testIDPrefix}-submit-button`}
+        style={styles.sheetActionButton}
+        fullWidth={false}
+        onPress={commit}
+        disabled={hasBlockingErrors}
+        label={resolvedSubmitLabel}
+      />
+    </View>
+  );
+
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       "barcode.scanned.ingredient",
@@ -402,6 +432,8 @@ export const IngredientEditor: React.FC<Props> = ({
           </>
         )}
       </View>
+
+      {showKeyboardActions ? renderSheetActions() : null}
 
       {isSheetVariant ? (
         <>
@@ -576,25 +608,7 @@ export const IngredientEditor: React.FC<Props> = ({
       )}
 
       {isSheetVariant ? (
-        <View style={styles.sheetActions}>
-          <Button
-            testID={`${testIDPrefix}-cancel-button`}
-            variant="secondary"
-            style={styles.sheetActionButton}
-            fullWidth={false}
-            onPress={onCancel}
-            label={t("cancel", { ns: "common" })}
-          />
-
-          <Button
-            testID={`${testIDPrefix}-submit-button`}
-            style={styles.sheetActionButton}
-            fullWidth={false}
-            onPress={commit}
-            disabled={hasBlockingErrors}
-            label={resolvedSubmitLabel}
-          />
-        </View>
+        showKeyboardActions ? null : renderSheetActions()
       ) : (
         <>
           <Button
@@ -787,6 +801,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: "row",
       gap: theme.spacing.sm,
       marginTop: theme.spacing.xs,
+    },
+    sheetActionsKeyboard: {
+      marginTop: 0,
+      marginBottom: theme.spacing.xxs,
     },
     sheetActionButton: {
       flex: 1,

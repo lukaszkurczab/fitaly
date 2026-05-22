@@ -1,0 +1,81 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=known"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-known
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-e2e-preview
+- assertVisible:
+    id: barcode-lookup-button
+- takeScreenshot: add-meal-barcode-detected
+- tapOn:
+    id: barcode-lookup-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- takeScreenshot: add-meal-barcode-review-meal
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- takeScreenshot: add-meal-barcode-home-after-save
+
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-unknown
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-e2e-preview
+- takeScreenshot: add-meal-barcode-scanning
+- tapOn:
+    id: barcode-open-manual-button
+- assertVisible:
+    id: barcode-manual-sheet
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 5900000000000
+- assertVisible:
+    id: barcode-manual-submit-button
+- takeScreenshot: add-meal-barcode-manual-keyboard
+- tapOn:
+    id: barcode-manual-submit-button
+- extendedWaitUntil:
+    visible:
+      id: barcode-manual-error
+    timeout: 15000
+- takeScreenshot: add-meal-barcode-manual-not-found
+- tapOn:
+    id: barcode-manual-cancel-button
+- assertVisible:
+    id: barcode-scan-screen

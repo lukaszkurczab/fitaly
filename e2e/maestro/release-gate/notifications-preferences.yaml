@@ -22,6 +22,7 @@ appId: com.lkurczab.fitaly
     id: notifications-permission-allowed-state
 - assertVisible:
     id: notifications-smart-reminders-toggle
+- takeScreenshot: notifications-preferences-initial
 - tapOn:
     id: notifications-smart-reminders-toggle
 - extendedWaitUntil:
@@ -44,6 +45,7 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - assertVisible:
     id: notifications-motivation-state-on
+- takeScreenshot: notifications-preferences-after-toggle
 - assertVisible:
     id: back-title-header-back
 - tapOn:
@@ -66,3 +68,4 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - assertVisible:
     id: notifications-motivation-state-on
+- takeScreenshot: notifications-preferences-persisted

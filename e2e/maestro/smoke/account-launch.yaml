@@ -5,6 +5,7 @@ appId: com.lkurczab.fitaly
     id: tab-profile
 - assertVisible:
     id: account-profile-details-row
+- takeScreenshot: account-overview
 
 - tapOn:
     id: account-profile-details-row
@@ -52,10 +53,12 @@ appId: com.lkurczab.fitaly
     id: account-legal-privacy-row
 - assertVisible:
     id: legal-privacy-screen
+- takeScreenshot: legal-privacy-hub
 - tapOn:
     id: legal-data-ai-row
 - assertVisible:
     id: data-ai-clarity-screen
+- takeScreenshot: data-ai-clarity
 - tapOn:
     id: back-title-header-back
 - tapOn:
@@ -95,6 +98,7 @@ appId: com.lkurczab.fitaly
     id: account-app-settings-row
 - assertVisible:
     id: app-settings-screen
+- takeScreenshot: app-settings
 - tapOn:
     id: app-settings-notifications-row
 - assertVisible:
@@ -108,7 +112,9 @@ appId: com.lkurczab.fitaly
     element:
       id: account-delete-account-row
     direction: DOWN
+- takeScreenshot: account-actions
 - tapOn:
     id: account-delete-account-row
 - assertVisible:
     id: delete-account-screen
+- takeScreenshot: delete-account-entry

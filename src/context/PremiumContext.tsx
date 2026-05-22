@@ -39,6 +39,8 @@ import {
   resolveSubscriptionFromRevenueCat,
 } from "@/services/billing/subscriptionStateMachine";
 import { logWarning } from "@/services/core/errorLogger";
+import { on } from "@/services/core/events";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 
 export type PremiumEntitlementFailureReason =
   | "rc_not_configured"
@@ -501,6 +503,16 @@ export const PremiumProvider = ({
     checkPremiumStatus,
     runAccessRefresh,
   ]);
+
+  useEffect(() => {
+    if (!isE2EModeEnabled()) return undefined;
+    const unsubscribe = on("e2e:seeded", () => {
+      void runAccessRefresh({ syncTier: "force" });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [runAccessRefresh]);
 
   useEffect(() => {
     if (!uid || !productReadyUid || !email) return;

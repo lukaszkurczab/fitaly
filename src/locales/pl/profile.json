@@ -18,6 +18,7 @@
   "logOutConfirmAction": "Wyloguj się",
   "deleteAccount": "Usuń konto",
   "deleteAccountWarning": "Ta operacja trwale usunie Twoje konto i wszystkie dane. Wprowadź hasło, aby potwierdzić.",
+  "deleteAccountPasswordHelper": "Po potwierdzeniu konto i zapisane dane zostaną trwale usunięte.",
   "deleteAccountError": "Nie udało się usunąć konta",
   "wrongPasswordOrUnknownError": "Błędne hasło lub nieznany błąd.",
   "confirm": "Potwierdź",

@@ -423,4 +423,47 @@ describe("useMealCameraState", () => {
       simulatorReviewState: "failed",
     });
   });
+
+  it("keeps default simulator photo flow on the E2E analysis path", async () => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = true;
+    mockDevice.isDevice = false;
+    mockedGetSampleMealUri.mockResolvedValue("file:///sample-meal.jpg");
+
+    const flow = {
+      goTo: jest.fn(),
+      replace: jest.fn(),
+      goBack: jest.fn(),
+      canGoBack: jest.fn(() => false),
+    };
+    const navigation = {
+      addListener: jest.fn(() => () => undefined),
+      navigate: jest.fn(),
+    };
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: baseMeal(),
+      setMeal: jest.fn(),
+      updateMeal: jest.fn(),
+      setLastScreen: jest.fn(async () => undefined),
+      saveDraft: jest.fn(async () => undefined),
+    });
+
+    const { result } = renderHook(() =>
+      useMealCameraState({
+        navigation: navigation as never,
+        flow: flow as never,
+        params: {},
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleTakePicture();
+    });
+
+    expect(flow.goTo).toHaveBeenCalledWith("PreparingReviewPhoto", {
+      image: "file:///sample-meal.jpg",
+      id: "meal-1",
+      attempt: 1,
+    });
+  });
 });

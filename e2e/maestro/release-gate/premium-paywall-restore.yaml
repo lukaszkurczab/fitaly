@@ -42,6 +42,7 @@ appId: com.lkurczab.fitaly
     id: manage-subscription-primary-button
 - assertVisible:
     id: paywall-modal
+- takeScreenshot: premium-paywall-restore-modal
 - openLink: "fitaly://e2e/seed?credits=ok&billing=restoreSuccess"
 - assertVisible:
     id: paywall-modal
@@ -55,8 +56,10 @@ appId: com.lkurczab.fitaly
     id: paywall-restore-button
 - extendedWaitUntil:
     visible:
-      id: manage-subscription-action-feedback-success
+      id: manage-subscription-status-value-premium_active
     timeout: 15000
+- assertNotVisible:
+    id: paywall-modal
 - assertVisible:
     id: manage-subscription-screen
 - assertVisible:
@@ -67,3 +70,12 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - assertVisible:
     id: manage-subscription-tier-row
+- assertVisible:
+    id: manage-subscription-tier-value-premium
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-credits-allocation-row
+    direction: DOWN
+- assertVisible:
+    id: manage-subscription-credits-allocation-value-800
+- takeScreenshot: premium-restore-success

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
 
@@ -39,9 +39,6 @@ export default function DockUtilityRow({
         accessibilityLabel={textLabel}
       >
         <AppIcon name="text" size={16} color={theme.textSecondary} />
-        <Text style={[styles.utilityActionLabel, { fontFamily: theme.typography.fontFamily.medium }]}>
-          {textLabel}
-        </Text>
       </Pressable>
       <Pressable
         testID="share-add-chart-button"
@@ -51,9 +48,6 @@ export default function DockUtilityRow({
         accessibilityLabel={chartLabel}
       >
         <AppIcon name="stats" size={16} color={theme.textSecondary} />
-        <Text style={[styles.utilityActionLabel, { fontFamily: theme.typography.fontFamily.medium }]}>
-          {chartLabel}
-        </Text>
       </Pressable>
       <Pressable
         testID="share-add-card-button"
@@ -63,9 +57,6 @@ export default function DockUtilityRow({
         accessibilityLabel={cardLabel}
       >
         <AppIcon name="card" size={16} color={theme.textSecondary} />
-        <Text style={[styles.utilityActionLabel, { fontFamily: theme.typography.fontFamily.medium }]}>
-          {cardLabel}
-        </Text>
       </Pressable>
       <Pressable
         testID="share-add-photo-button"
@@ -75,9 +66,6 @@ export default function DockUtilityRow({
         accessibilityLabel={photoLabel}
       >
         <AppIcon name="add-photo" size={16} color={theme.textSecondary} />
-        <Text style={[styles.utilityActionLabel, { fontFamily: theme.typography.fontFamily.medium }]}>
-          {photoLabel}
-        </Text>
       </Pressable>
       <Pressable
         testID="share-reset-button"
@@ -87,9 +75,6 @@ export default function DockUtilityRow({
         accessibilityLabel={resetLabel}
       >
         <AppIcon name="refresh" size={16} color={theme.textSecondary} />
-        <Text style={[styles.utilityActionLabel, { fontFamily: theme.typography.fontFamily.medium }]}>
-          {resetLabel}
-        </Text>
       </Pressable>
     </View>
   );
@@ -99,25 +84,17 @@ const styles = StyleSheet.create({
   utilityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 6,
+    justifyContent: "center",
+    gap: 8,
     paddingHorizontal: 4,
   },
   utilityAction: {
-    minHeight: 30,
-    minWidth: 58,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     backgroundColor: "#F7F2EA",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    flexDirection: "row",
-    gap: 4,
-  },
-  utilityActionLabel: {
-    color: "#393128",
-    fontSize: 10,
-    lineHeight: 12,
   },
 });

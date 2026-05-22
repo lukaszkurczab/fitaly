@@ -71,6 +71,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityCollectedAccountTitle", {
               defaultValue: "Account and profile details",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityCollectedAccountBody", {
               defaultValue:
                 "Your email address and profile details such as weight, height, age, gender, and nutrition goal.",
@@ -80,6 +81,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityCollectedMealsTitle", {
               defaultValue: "Meals and meal photos",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityCollectedMealsBody", {
               defaultValue:
                 "Your meal history and any meal photos you upload for tracking or analysis.",
@@ -96,6 +98,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityAiPhotoTitle", {
               defaultValue: "Meal photo analysis",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityAiPhotoBody", {
               defaultValue:
                 "Meal photos are sent through Fitaly’s backend AI flow to estimate nutritional information.",
@@ -105,6 +108,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityAiSuggestionTitle", {
               defaultValue: "Suggestions and text features",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityAiSuggestionBody", {
               defaultValue:
                 "When you use diet-related AI features, only the needed context is sent through Fitaly’s backend to generate responses.",
@@ -114,6 +118,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityAiTrainingTitle", {
               defaultValue: "Model training",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityAiTrainingBody", {
               defaultValue:
                 "Fitaly does not use this data to train its own models. Data sent to providers is used to deliver the features you request.",
@@ -130,6 +135,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityProcessorsFirebaseTitle", {
               defaultValue: "Firebase",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityProcessorsFirebaseBody", {
               defaultValue:
                 "Used for authentication, database storage, and app analytics.",
@@ -139,6 +145,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityProcessorsOpenAiTitle", {
               defaultValue: "OpenAI via Fitaly backend",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityProcessorsOpenAiBody", {
               defaultValue:
                 "Used as a model provider for meal-photo analysis and diet-related AI features when you request them.",
@@ -159,6 +166,7 @@ export default function DataAiClarityScreen({
             title={t("dataAiClarityControlsExportTitle", {
               defaultValue: "Download or delete your data",
             })}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityControlsExportBody", {
               defaultValue:
                 "You can export your account data and use the delete-account flow directly from your account area.",
@@ -166,6 +174,7 @@ export default function DataAiClarityScreen({
           />
           <SettingsRow
             title={t("privacyPolicy")}
+            subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityControlsPrivacyBody", {
               defaultValue:
                 "Open the full Privacy Policy for the complete legal document.",

@@ -13,8 +13,6 @@ type Props = {
   days: WeekDayItem[];
   selectedDate: Date;
   onSelect: (d: Date) => void;
-  onOpenHistory?: () => void;
-  streak?: number;
 };
 
 export default function WeekStrip({ days, selectedDate, onSelect }: Props) {
@@ -137,19 +135,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     dayNumberToday: {
       fontFamily: theme.typography.fontFamily.semiBold,
-    },
-    historyButton: {
-      width: 44,
-      height: 44,
-      marginLeft: theme.spacing.sm,
-      borderRadius: theme.rounded.md,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-    },
-    historyButtonPressed: {
-      backgroundColor: theme.surface,
     },
   });

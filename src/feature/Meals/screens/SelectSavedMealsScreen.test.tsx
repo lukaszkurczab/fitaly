@@ -228,11 +228,11 @@ describe("SelectSavedMealScreen", () => {
 
     fireEvent.press(getByText("change-search"));
     fireEvent.press(getByText("Choose another method"));
-    fireEvent.press(getByText("Change add method"));
 
+    expect(getByText("Saved meals")).toBeTruthy();
     expect(getByText("No saved meals yet")).toBeTruthy();
     expect(setQueryText).toHaveBeenCalledWith("pasta");
-    expect(handleStartOver).toHaveBeenCalledTimes(2);
+    expect(handleStartOver).toHaveBeenCalledTimes(1);
   });
 
   it("shows close button on empty state and uses back navigation when available", () => {

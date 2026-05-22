@@ -170,4 +170,25 @@ describe("useHistoryListState dead-letter meal sync", () => {
       expect(result.current.deadLetterBanner).toBeNull();
     });
   });
+
+  it("uses the history namespace empty-state copy without nested key leakage", () => {
+    mockUseHistorySectionsData.mockReturnValue({
+      loading: false,
+      loadingMore: false,
+      errorKind: null,
+      sections: [],
+      dataState: "empty",
+      onEndReached: jest.fn(),
+      refresh: jest.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useHistoryListState({ navigation: { navigate: jest.fn() } as never }),
+    );
+
+    expect(result.current.emptyState).toEqual({
+      title: "emptyTitle",
+      description: "emptyDescription",
+    });
+  });
 });

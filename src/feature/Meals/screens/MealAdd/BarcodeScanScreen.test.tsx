@@ -279,7 +279,7 @@ describe("BarcodeScanScreen", () => {
 
     expect(
       await screen.findAllByText(
-        "We couldn't find a product for this barcode. Edit the code or try another method.",
+        "We couldn't find a product. Edit the code or choose another method.",
       ),
     ).not.toHaveLength(0);
     expect(props.flow.replace).not.toHaveBeenCalled();
@@ -313,7 +313,7 @@ describe("BarcodeScanScreen", () => {
 
     expect(
       await screen.findAllByText(
-        "We couldn't find a product for this barcode. Edit the code or try another method.",
+        "We couldn't find a product. Edit the code or choose another method.",
       ),
     ).not.toHaveLength(0);
     expect(props.flow.replace).not.toHaveBeenCalled();

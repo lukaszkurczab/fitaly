@@ -140,11 +140,11 @@ export function createDefaultAdditionalPhotoLayer(uri: string) {
 
 let textLayerCounter = 0;
 
-export function createAdditionalTextLayer(): ShareTextLayerState {
+export function createAdditionalTextLayer(text = "Add note"): ShareTextLayerState {
   textLayerCounter += 1;
   return {
     id: `text:${Date.now()}:${textLayerCounter}`,
-    text: "Add note",
+    text,
     color: "#FFFDF8",
     bold: true,
     italic: false,

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, StyleSheet, Pressable, Text, Linking } from "react-native";
+import { Image, View, StyleSheet, Pressable, Text, Linking } from "react-native";
 import { CameraView } from "expo-camera";
 import * as Device from "expo-device";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,9 @@ import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
+
 export default function MealCameraScreen({
   navigation,
   flow,
@@ -39,7 +42,9 @@ export default function MealCameraScreen({
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
   const simulatorCreditsState = params.simulatorCreditsState ?? "ok";
-  const e2ePhotoSimulation = getE2EFixtureState()?.ai === "photoSuccess";
+  const e2eAiSeed = getE2EFixtureState()?.ai;
+  const e2ePhotoSimulation =
+    e2eAiSeed === "photoSuccess" || e2eAiSeed === "photoSlow";
 
   const previewTopInset = useMemo(
     () =>
@@ -209,7 +214,12 @@ export default function MealCameraScreen({
           topInset={previewTopInset}
           preview={
             e2ePhotoSimulation ? (
-              <View testID="add-meal-photo-e2e-preview" style={styles.camera} />
+              <Image
+                testID="add-meal-photo-e2e-preview"
+                source={SAMPLE_MEAL_PREVIEW}
+                style={styles.camera}
+                resizeMode="cover"
+              />
             ) : (
               <CameraView
                 testID="add-meal-photo-camera-preview"

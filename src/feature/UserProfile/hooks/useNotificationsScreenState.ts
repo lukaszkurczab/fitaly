@@ -187,6 +187,8 @@ export function useNotificationsScreenState(uid: string | null) {
 
       const previous = smartRemindersEnabled;
       setSmartRemindersEnabled(enabled);
+      setLastSyncError(null);
+      setLastPrefsSyncStatus("idle");
 
       try {
         await setSmartRemindersPrefs(uid, enabled);
@@ -226,6 +228,8 @@ export function useNotificationsScreenState(uid: string | null) {
 
       const previous = motivationEnabled;
       setMotivationEnabled(enabled);
+      setLastSyncError(null);
+      setLastPrefsSyncStatus("idle");
 
       try {
         await setMotivationPrefs(uid, enabled);
@@ -265,6 +269,8 @@ export function useNotificationsScreenState(uid: string | null) {
 
       const previous = statsEnabled;
       setStatsEnabled(enabled);
+      setLastSyncError(null);
+      setLastPrefsSyncStatus("idle");
 
       try {
         await setStatsPrefs(uid, enabled);

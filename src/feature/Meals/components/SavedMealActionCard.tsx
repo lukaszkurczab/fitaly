@@ -31,8 +31,8 @@ export function SavedMealActionCard({
     <View style={styles.card}>
       <MealThumbnail
         meal={meal}
-        size={52}
-        borderRadius={15}
+        size={56}
+        borderRadius={14}
         placeholderLabel={t("saved_list_no_photo", "No\nphoto")}
       />
 
@@ -57,6 +57,7 @@ export function SavedMealActionCard({
         accessibilityRole="button"
         accessibilityLabel={`${t("saved_list_add", "Add")} ${meal.name || t("meal", { ns: "home", defaultValue: "Meal" })}`}
         onPress={() => onAdd(meal)}
+        hitSlop={6}
         style={({ pressed }) => [
           styles.addButton,
           pressed ? styles.addButtonPressed : null,
@@ -77,11 +78,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      minHeight: 104,
+      minHeight: 100,
       padding: 12,
       borderRadius: 18,
       borderWidth: 1,
-      borderColor: "rgba(79, 104, 75, 0.24)",
+      borderColor: theme.borderSoft,
       backgroundColor: theme.surface,
     },
     copyWrap: {
@@ -108,9 +109,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: 18,
     },
     addButton: {
-      width: 62,
-      height: 30,
-      borderRadius: 10,
+      minWidth: 76,
+      minHeight: 44,
+      paddingHorizontal: 16,
+      borderRadius: 12,
       backgroundColor: theme.primary,
       alignItems: "center",
       justifyContent: "center",

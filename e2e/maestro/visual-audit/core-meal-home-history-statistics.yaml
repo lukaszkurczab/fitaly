@@ -1,12 +1,25 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSlow"
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
 - assertVisible:
     id: home-screen
 - takeScreenshot: home-empty
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- takeScreenshot: statistics-empty
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
 - tapOn:
     id: tab-add-meal
 - assertVisible:
@@ -39,6 +52,7 @@ appId: com.lkurczab.fitaly
     id: add-meal-text-analyze-button
 - tapOn:
     id: add-meal-text-analyze-button
+- takeScreenshot: add-meal-text-analyzing
 - extendedWaitUntil:
     visible:
       id: review-meal-screen
@@ -52,6 +66,7 @@ appId: com.lkurczab.fitaly
     visible:
       id: home-today-meal-row-0
     timeout: 10000
+- waitForAnimationToEnd
 - takeScreenshot: home-after-save
 - scrollUntilVisible:
     element:
@@ -79,3 +94,8 @@ appId: com.lkurczab.fitaly
       id: statistics-trend-card
     timeout: 10000
 - takeScreenshot: statistics-overview
+- scrollUntilVisible:
+    element:
+      id: statistics-macro-breakdown-card
+    direction: DOWN
+- takeScreenshot: statistics-lower-sections

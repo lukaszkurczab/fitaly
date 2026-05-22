@@ -210,7 +210,7 @@ export function useHistoryListState(params: {
           ? t("history.offlineEmpty", { ns: "meals" })
           : query
             ? t("meals:tryDifferentSearch")
-            : t("history.emptyDescription", {
+            : t("emptyDescription", {
                 ns: "history",
               });
 
@@ -219,7 +219,7 @@ export function useHistoryListState(params: {
         ? t("history.errorTitle", { ns: "meals" })
         : query
           ? t("meals:noMealsFound")
-          : t("history.emptyTitle", {
+          : t("emptyTitle", {
               ns: "history",
             });
 

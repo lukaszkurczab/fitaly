@@ -26,6 +26,7 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: chat-credits-banner-action-button
+- takeScreenshot: chat-no-credits
 - tapOn:
     id: chat-credits-banner-action-button
 - assertVisible:

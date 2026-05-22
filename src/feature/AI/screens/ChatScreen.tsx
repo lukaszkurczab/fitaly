@@ -11,6 +11,7 @@ import { useAuthContext } from "@/context/AuthContext";
 import { useUserProfileContext } from "@/context/UserProfileContext";
 import { useAccessContext } from "@/context/AccessContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import type { RootStackParamList } from "@/navigation/navigate";
@@ -36,6 +37,7 @@ export default function ChatScreen() {
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const net = useNetInfo();
+  const keyboardInset = useKeyboardInset();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t, i18n } = useTranslation("chat");
@@ -71,6 +73,7 @@ export default function ChatScreen() {
 
   const isOffline = net.isConnected === false;
   const hasMessages = messages.length > 0;
+  const isKeyboardVisible = keyboardInset > 0;
   const aiChatFeature = accessState?.features.aiChat ?? null;
   const limitReached =
     aiChatFeature?.reason === "insufficient_credits" ||
@@ -248,18 +251,25 @@ export default function ChatScreen() {
   }, [navigation]);
 
   const emptyState = (
-    <View style={styles.emptyStateWrap}>
-      <ChatIntroCard
-        title={isOffline ? t("offline.title") : t("empty.title")}
-        subtitle={isOffline ? t("offline.subtitle") : t("empty.subtitle")}
-        creditsText={
-          isOffline
-            ? undefined
-            : t("empty.creditsLeft", {
-                count: credits?.balance ?? 0,
-              })
-        }
-      />
+    <View
+      style={[
+        styles.emptyStateWrap,
+        isKeyboardVisible ? styles.emptyStateWrapCompact : null,
+      ]}
+    >
+      {!isKeyboardVisible ? (
+        <ChatIntroCard
+          title={isOffline ? t("offline.title") : t("empty.title")}
+          subtitle={isOffline ? t("offline.subtitle") : t("empty.subtitle")}
+          creditsText={
+            isOffline
+              ? undefined
+              : t("empty.creditsLeft", {
+                  count: credits?.balance ?? 0,
+                })
+          }
+        />
+      ) : null}
 
       {!isOffline ? (
         <SuggestedStarterGrid
@@ -451,8 +461,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     screenMarker: {},
     emptyStateWrap: {
       flex: 1,
-      paddingTop: theme.spacing.xxl,
+      paddingTop: theme.spacing.xl,
       gap: theme.spacing.xl,
+    },
+    emptyStateWrapCompact: {
+      paddingTop: theme.spacing.md,
+      gap: theme.spacing.md,
+      justifyContent: "flex-end",
     },
     legalButton: {
       alignSelf: "flex-start",
