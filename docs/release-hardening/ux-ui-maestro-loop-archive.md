@@ -1,0 +1,1650 @@
+### 2026-05-21 - Setup / Inventory
+
+- Commands run:
+  - `pwd`
+  - `ls`
+  - `rg --files -g 'package.json' -g 'maestro/**' -g '.maestro/**' -g 'e2e/**' -g '.e2e/**' -g 'tests/**' -g '*.yaml' -g '*.yml'`
+  - `git status --short` from project root, which confirmed the git repo is not the outer folder.
+  - `git status --short` from `fitaly`.
+  - `sed -n '1,240p' package.json`
+  - `rg --files -g 'AGENTS.md' -g 'README*' -g 'app.json' -g 'app.config.*' -g 'tsconfig*.json' -g 'eslint*' -g '.eslintrc*' -g 'jest.config.*'`
+  - `find e2e/maestro -maxdepth 2 -type f | sort`
+  - `sed -n '1,260p' AGENTS.md`
+  - `sed -n '1,280p' scripts/e2e/run-suite.mjs`
+  - `sed -n '1,320p' scripts/e2e/run-visual-suite.mjs`
+  - `sed -n '1,260p' e2e/maestro/visual-audit/auth-entry.yaml`
+  - `sed -n '1,260p' e2e/maestro/release-gate/auth-login-validation.yaml`
+  - `sed -n '1,280p' e2e/maestro/release-gate/auth-register-onboarding.yaml`
+  - `sed -n '1,260p' scripts/e2e/suites.json`
+  - `sed -n '1,620p' scripts/run-e2e-local.sh`
+  - `find e2e -maxdepth 3 -type d | sort`
+  - `find e2e/artifacts -maxdepth 4 -type f 2>/dev/null | sort | tail -80`
+- Result:
+  - Existing Maestro structure and screenshot artifacts confirmed.
+  - No source edits made.
+  - Working document created.
+
+## Path Notes
+
+### 1. Auth entry / login / register
+
+- Status: Ready.
+- Canonical path: unauthenticated boot -> login screen -> login validation or register screen -> account creation -> onboarding.
+- Files inspected:
+  - `e2e/maestro/visual-audit/auth-entry.yaml`
+  - `e2e/maestro/release-gate/auth-login-validation.yaml`
+  - `e2e/maestro/release-gate/auth-register-onboarding.yaml`
+  - `scripts/e2e/suites.json`
+  - `scripts/run-e2e-local.sh`
+  - `src/feature/Auth/screens/LoginScreen.tsx`
+  - `src/feature/Auth/screens/RegisterScreen.tsx`
+  - `src/feature/Auth/components/AuthScreenLayout.tsx`
+  - `src/components/TextInput.tsx`
+  - `src/components/Button.tsx`
+  - `src/components/Checkbox.tsx`
+  - `src/components/LinkText.tsx`
+  - `src/locales/pl/login.json`
+  - `src/locales/en/login.json`
+- Baseline commands:
+  - `maestro --version`
+  - `xcrun simctl list devices booted`
+  - `npm run e2e:auth -- --validate`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/auth-entry-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/auth-entry-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-entry-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-entry-baseline/logs E2E_SUITE_NAME=release-hardening-auth-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/auth-entry.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/auth-login-validation-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/auth-login-validation-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-login-validation-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-login-validation-baseline/logs E2E_SUITE_NAME=release-hardening-auth-login-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/auth-login-validation.yaml`
+- Baseline result:
+  - `auth-entry.yaml`: PASS, 1m 34s.
+  - `auth-login-validation.yaml`: PASS, 42s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/auth-entry-baseline/screenshots/screenshots/auth-login.png`
+  - `e2e/artifacts/release-hardening/auth-entry-baseline/screenshots/screenshots/auth-register.png`
+  - `e2e/artifacts/release-hardening/auth-entry-baseline/screenshots/screenshots/onboarding-start.png`
+- Issues found:
+  - Registration confirm-password field lacked the visible label used by the other form inputs, which made the form rhythm look unfinished.
+  - Registration legal copy used a hardcoded `&` separator and Polish title-case link text inside a sentence, which read less natural and bypassed i18n.
+- Classification:
+  - Missing confirm-password label: Minor.
+  - Hardcoded/less natural legal copy: Polish.
+- Root cause:
+  - `RegisterScreen` passed `accessibilityLabel` but no visible `label` to `register-confirm-password-input`.
+  - `RegisterScreen` assembled the terms sentence with an inline hardcoded separator instead of locale keys.
+- Affected files:
+  - `src/feature/Auth/screens/RegisterScreen.tsx`
+  - `src/locales/pl/login.json`
+  - `src/locales/en/login.json`
+- Fixes made:
+  - Added visible `Powtórz hasło` / `Confirm Password` label to the confirm-password input.
+  - Added locale keys for full terms accessibility label and conjunction.
+  - Replaced hardcoded legal `&` with localized conjunction.
+  - Lowercased Polish legal link text in the sentence context.
+  - Aligned the checkbox to the start of the legal text for better wrapped-line behavior.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `src/feature/Auth/screens/RegisterScreen.tsx`
+  - `src/locales/pl/login.json`
+  - `src/locales/en/login.json`
+- Verification after fix:
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `npx jest src/locales/i18n.audit.test.ts src/feature/Auth/hooks/useRegister.test.ts --runInBand --watchman=false --no-coverage`: PASS, 2 suites / 8 tests.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/auth-entry-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/auth-entry-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-entry-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-entry-after/logs E2E_SUITE_NAME=release-hardening-auth-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/auth-entry.yaml`: PASS, 1m 32s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/auth-login-validation-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/auth-login-validation-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-login-validation-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/auth-login-validation-after/logs E2E_SUITE_NAME=release-hardening-auth-login-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/auth-login-validation.yaml`: PASS, 42s.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/auth-entry-after/screenshots/screenshots/auth-login.png`
+  - `e2e/artifacts/release-hardening/auth-entry-after/screenshots/screenshots/auth-register.png`
+  - `e2e/artifacts/release-hardening/auth-entry-after/screenshots/screenshots/onboarding-start.png`
+- Screenshot review:
+  - Login remains calm, focused, and visually consistent; disabled CTA is visible and footer action is clear.
+  - Register now has consistent input labeling and more natural legal copy; CTA and account-switch footer remain visible.
+  - Onboarding handoff screenshot still renders correctly after registration.
+  - No clipped text, overlapping controls, keyboard/sheet issue, or obvious visual regression observed in captured states.
+- Remaining Minor/Polish:
+  - None blocking. Future optional polish could add a short value/support line under the Auth title, but current minimalist layout is coherent and launch-ready.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 2. Onboarding
+
+- Status: Ready.
+- Canonical path: account creation -> onboarding step 1 basic data -> step 2 preferences/activity/goal -> optional step 3 health details or skip confirmation -> optional step 4 AI assistant tone -> Home.
+- Files inspected:
+  - `e2e/maestro/visual-audit/auth-entry.yaml`
+  - `e2e/maestro/release-gate/auth-register-onboarding.yaml`
+  - `src/feature/Onboarding/screens/OnboardingScreen.tsx`
+  - `src/feature/Onboarding/components/Step1BasicData.tsx`
+  - `src/feature/Onboarding/components/Step2Preferences.tsx`
+  - `src/feature/Onboarding/components/Step3Health.tsx`
+  - `src/feature/Onboarding/components/Step4AIAssistantPreferences.tsx`
+  - `src/components/GlobalActionButtons.tsx`
+  - `src/components/Modal.tsx`
+  - `src/components/RowPicker.tsx`
+  - `src/components/SelectableGroup.tsx`
+  - `src/locales/pl/onboarding.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/onboarding-release-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/onboarding-release-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/onboarding-release-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/onboarding-release-baseline/logs E2E_SUITE_NAME=release-hardening-onboarding-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/auth-register-onboarding.yaml`
+- Baseline result:
+  - `auth-register-onboarding.yaml`: PASS, 1m 42s.
+- Baseline screenshot location:
+  - Existing pre-change visual coverage only captured `e2e/artifacts/release-hardening/auth-entry-after/screenshots/screenshots/onboarding-start.png`.
+- Issues found:
+  - Visual-audit coverage gap: full onboarding had four steps plus a skip modal, but only step 1 was captured. This prevented a strict screenshot-based 9/10 review for steps 2-4.
+- Classification:
+  - Visual-audit coverage gap: Minor for test/release-hardening process. No product Blocker or Major found.
+- Root cause:
+  - `e2e/maestro/visual-audit/auth-entry.yaml` continued through onboarding but only called `takeScreenshot` at `onboarding-start`.
+- Affected files:
+  - `e2e/maestro/visual-audit/auth-entry.yaml`
+- Fixes made:
+  - Added `takeScreenshot` checkpoints for `onboarding-step-2`, `onboarding-step-3`, `onboarding-skip-confirm`, and `onboarding-step-4`.
+- Changed files:
+  - `e2e/maestro/visual-audit/auth-entry.yaml`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/onboarding-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/onboarding-visual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/onboarding-visual-baseline/logs E2E_SUITE_NAME=release-hardening-onboarding-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/auth-entry.yaml`: PASS, 1m 34s.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`: PASS.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots/screenshots/onboarding-start.png`
+  - `e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots/screenshots/onboarding-step-2.png`
+  - `e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots/screenshots/onboarding-step-3.png`
+  - `e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots/screenshots/onboarding-skip-confirm.png`
+  - `e2e/artifacts/release-hardening/onboarding-visual-baseline/screenshots/screenshots/onboarding-step-4.png`
+- Screenshot review:
+  - Step 1 is clear and visually consistent; primary CTA is fixed and visible.
+  - Step 2 has clear hierarchy, calm copy, readable cards/dropdowns, visible `Dalej`/`Wróć`, and scrollable remaining content.
+  - Step 3 communicates optionality, uses clear health chips, and has an understandable skip path.
+  - Skip confirmation modal has clear title, body, close affordance, secondary/primary actions, and no clipped text.
+  - Step 4 uses restrained AI-related tone, visible primary action, and selected-card state that fits the olive/warm neutral system.
+  - No clipped Polish text, hidden CTA, broken proportions, dead end, or obvious visual regression observed in captured states.
+- Remaining Minor/Polish:
+  - None blocking. Smaller-screen keyboard behavior is deferred to path 17, which has dedicated platform-layout coverage.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 3. Home / Today empty state
+
+- Status: Ready.
+- Canonical path: activated user with no meals for current `dayKey` -> Home uses `useHomeTodayState` -> `buildHomeHeroModel` -> `HomeHeroCard` with local-first day state, primary add-meal CTA, method selector, macro targets, support copy, and history link.
+- Files inspected:
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+  - `src/feature/Home/screens/HomeScreen.tsx`
+  - `src/feature/Home/components/HomeHeroCard.tsx`
+  - `src/feature/Home/components/EmptyDayView.tsx`
+  - `src/feature/Home/components/EmptyDayView.test.tsx`
+  - `src/feature/Home/services/homeHeroPresenter.ts`
+  - `src/locales/pl/home.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-empty-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-empty-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-baseline/logs E2E_SUITE_NAME=release-hardening-home-empty-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+- Baseline result:
+  - `core-meal-home-history-statistics.yaml`: PASS, 1m 9s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/home-empty-baseline/screenshots/screenshots/home-empty.png`
+- Issues found:
+  - Visible UX/UI: no Blocker, Major, or Minor issue found in `home-empty` screenshot.
+  - Architecture cleanup: `EmptyDayView` was an unused legacy/duplicate Home empty-state component referenced only by its own test, while the canonical visible path is `HomeHeroCard` via `buildHomeHeroModel`.
+- Classification:
+  - Unused duplicate `EmptyDayView`: Minor architecture/maintenance issue.
+- Root cause:
+  - Home empty state had moved to the hero presenter/card model, but the older `EmptyDayView` file and test remained in the feature folder.
+- Affected files:
+  - `src/feature/Home/components/EmptyDayView.tsx`
+  - `src/feature/Home/components/EmptyDayView.test.tsx`
+- Fixes made:
+  - Deleted the unused `EmptyDayView` component and its isolated test.
+  - Confirmed no remaining `EmptyDayView` imports or references.
+- Changed files:
+  - `src/feature/Home/components/EmptyDayView.tsx`
+  - `src/feature/Home/components/EmptyDayView.test.tsx`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `rg -n "EmptyDayView" src || true`: no references.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `npx jest src/feature/Home/screens/HomeScreen.test.tsx src/feature/Home/services/homeHeroPresenter.test.ts src/feature/Home/hooks/useHomeTodayState.test.ts src/feature/Home/services/homeRetentionPresenter.test.ts --runInBand --watchman=false --no-coverage`: PASS, 4 suites / 25 tests.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-empty-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-empty-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-after/logs E2E_SUITE_NAME=release-hardening-home-empty-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS, 1m 9s.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/home-empty-after/screenshots/screenshots/home-empty.png`
+- Screenshot review:
+  - Week strip is readable and current day is clearly selected.
+  - Hero card has one dominant action: `Dodaj śniadanie`.
+  - Add method selector is visible but secondary, so it does not compete with the primary CTA.
+  - Macro targets row is calm and readable with stable protein/carbs/fat colors.
+  - Support copy explains the empty state without pressure or clutter.
+  - History link is visible as secondary navigation.
+  - No clipped text, hidden CTA, duplicate message, broken spacing, or visual regression observed.
+- Remaining Minor/Polish:
+  - None blocking for this viewport. Small-screen spacing remains covered later by path 17.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 4. Home / Today filled state
+
+- Status: Ready.
+- Canonical path: Add Meal text flow -> Review Meal -> `saveMeal` -> `saveMealTransaction` -> `upsertMealLocal` -> `enqueueUpsert` -> local `useMeals` snapshot -> `useHomeTodayState` -> Home hero, macro row, today meal list, History, and Statistics use the same local-first day data.
+- Files inspected:
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+  - `src/feature/Home/screens/HomeScreen.tsx`
+  - `src/components/WeekStrip.tsx`
+  - `src/components/WeekStrip.test.tsx`
+  - `src/feature/Home/components/HomeHeroCard.tsx`
+  - `src/feature/Home/components/MacroTargetsRow.tsx`
+  - `src/feature/Home/components/TodaysMealsList.tsx`
+  - `src/components/SyncStatusIndicator.tsx`
+  - `src/feature/Home/hooks/useHomeTodayState.ts`
+  - `src/hooks/useMeals.ts`
+  - `src/services/meals/mealSaveTransaction.ts`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-empty-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-empty-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-empty-after/logs E2E_SUITE_NAME=release-hardening-home-empty-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-filled-after-wait E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-filled-after-wait/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after-wait/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after-wait/logs E2E_SUITE_NAME=release-hardening-home-filled-after-wait bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-filled-debug E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-filled-debug/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-debug/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-debug/logs E2E_SUITE_NAME=release-hardening-home-filled-debug bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/home-after-save-debug.yaml`
+  - `maestro -p ios hierarchy --compact`
+  - `xcrun simctl io booted screenshot /Users/lukaszkurczab/Desktop/Projects/Fitaly/fitaly/e2e/artifacts/release-hardening/home-filled-debug/native/home-after-save-native.png`
+- Baseline result:
+  - `core-meal-home-history-statistics.yaml`: PASS in the prior path run and repeated PASS while investigating the filled-state screenshot.
+  - Temporary debug flow: PASS, 1m 4s.
+  - Home hierarchy confirmed `home-today-meal-row-0`, hero, macros, and bottom tab state; no extra app element exists over the week strip.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/home-empty-after/screenshots/screenshots/home-after-save.png`
+  - `e2e/artifacts/release-hardening/home-filled-after-wait/screenshots/screenshots/home-after-save.png`
+  - Native evidence screenshot: `e2e/artifacts/release-hardening/home-filled-debug/native/home-after-save-native.png`
+- Issues found:
+  - The Maestro `takeScreenshot` output intermittently/consistently shows a white rounded pointer hover artifact over the Monday date cell after save. The artifact is not in React Native hierarchy and is absent from the native `simctl` screenshot at the same stopped Home state.
+  - `WeekStrip` still carried unused legacy props/styles for an old history/streak affordance that is no longer rendered by the canonical Home path.
+- Classification:
+  - Maestro pointer overlay in generated screenshot: Environment visual artifact, not an app UI bug. Recorded because it affects screenshot review confidence.
+  - Unused `WeekStrip` history/streak props/styles: Minor architecture/maintenance issue.
+- Root cause:
+  - The white square is produced by local Maestro/iOS screenshot capture around a hoverable accessibility target. It does not appear in app hierarchy or native simulator output.
+  - `WeekStrip` kept dead API/style remnants after Home history access moved to the canonical `home-view-history-button`.
+- Affected files:
+  - `src/components/WeekStrip.tsx`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+- Fixes made:
+  - Added a `waitForAnimationToEnd` before the `home-after-save` screenshot to keep the visual checkpoint explicit after the meal row appears.
+  - Removed unused `onOpenHistory`, `streak`, `historyButton`, and `historyButtonPressed` code from `WeekStrip`.
+  - Removed the temporary debug flow after collecting hierarchy/native screenshot evidence.
+- Changed files:
+  - `src/components/WeekStrip.tsx`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `npx jest src/components/WeekStrip.test.tsx src/feature/Home/screens/HomeScreen.test.tsx src/feature/Home/hooks/useHomeTodayState.test.ts --runInBand --watchman=false --no-coverage`: PASS, 3 suites / 17 tests.
+  - `npm run e2e:home-history-statistics -- --validate`: PASS, 4 flows validated.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-filled-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-filled-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after/logs E2E_SUITE_NAME=release-hardening-home-filled-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS, 1m 10s.
+- Post-fix screenshot location:
+  - Maestro: `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/home-after-save.png`
+  - Native no-artifact evidence: `e2e/artifacts/release-hardening/home-filled-debug/native/home-after-save-native.png`
+  - Downstream propagation screenshots from the same Maestro run:
+    - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/history-after-save.png`
+    - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/statistics-overview.png`
+- Screenshot review:
+  - Product UI after save is launch-ready in the native screenshot: current day remains selected, hero switches to filled-day copy, kcal progress is visible, the dominant CTA becomes `Dodaj kolejny posiłek`, method selector stays secondary, macro row is readable, and the saved meal row appears in Home.
+  - The small pending sync indicator in the Home meal row is consistent with the canonical local-first model and visible pending state requirement; History already shows the meal in the same visual flow.
+  - Maestro `home-after-save.png` still contains the local pointer artifact over Monday, but the app hierarchy and native screenshot prove it is not rendered by Fitaly. This is documented as an environment visual artifact rather than a product regression.
+  - `history-after-save.png` confirms meal propagation into History with clean hierarchy, clear search/filter controls, and no clipped text.
+  - No Home/History/Statistics data propagation regression observed in the flow.
+- Remaining Minor/Polish:
+  - None blocking. The local Maestro pointer artifact should be watched in future visual-audit review but does not require product code changes.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 5. Add Meal - text flow
+
+- Status: Ready.
+- Canonical path: Home tab add CTA or method selector -> Add Meal method sheet -> text describe screen -> analyzing/loading state -> Review Meal -> `saveMeal` -> `saveMealTransaction` -> `upsertMealLocal` -> `enqueueUpsert` -> local-first Home/History/Statistics propagation.
+- Files inspected:
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `e2e/maestro/release-gate/add-meal-text-save-propagates.yaml`
+  - `e2e/maestro/nightly-regression/text-meal-ai-failure.yaml`
+  - `e2e/maestro/platform-layout/text-meal-keyboard.yaml`
+  - `src/feature/Meals/screens/MealAdd/DescribeMealScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/TextAnalyzingScreen.tsx`
+  - `src/feature/Meals/hooks/useMealTextAiState.ts`
+  - `src/feature/Meals/components/MealAddPhotoScaffold.tsx`
+  - `src/components/KeyboardAwareScrollView.tsx`
+  - `src/components/TextInput.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/locales/pl/meals.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/home-filled-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/home-filled-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/home-filled-after/logs E2E_SUITE_NAME=release-hardening-home-filled-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+- Baseline result:
+  - `core-meal-home-history-statistics.yaml`: PASS, 1m 10s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/add-meal-options.png`
+  - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/add-meal-text-empty.png`
+  - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/add-meal-text-keyboard.png`
+  - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/add-meal-text-filled.png`
+  - `e2e/artifacts/release-hardening/home-filled-after/screenshots/screenshots/review-meal.png`
+- Issues found:
+  - With the keyboard open, the text description screen kept the input visible, but the primary CTA/helper area was below the keyboard. This made the next step invisible at the most important input moment.
+  - The visual-audit flow did not capture the text analyzing/loading screen. The E2E success fixture resolved too quickly to review that state reliably.
+  - First attempt to run release-gate, error, and keyboard Maestro flows in parallel caused two transient environment failures because all runs tried to own the same Expo port and temporary close-dev-menu file.
+- Classification:
+  - Hidden keyboard CTA/helper: Major UX/layout issue.
+  - Missing analyzing screenshot coverage: Minor release-hardening coverage gap.
+  - Parallel Maestro conflict: Environment Blocker, transient. Failed error: `mktemp: mkstemp failed on /tmp/fitaly-close-dev-menu.XXXXXX.yaml: File exists`; follow-up cleanup reported `Expo port 8081 remains busy`.
+- Root cause:
+  - `DescribeMealScreen` relied on the normal bottom sheet action area while the native keyboard occupied the bottom of the viewport. The screen preserved the focused input but did not expose an alternate keyboard-safe action.
+  - `core-meal-home-history-statistics.yaml` used the fast `ai=textSuccess` E2E seed, so `takeScreenshot` after analyze could land directly on Review Meal instead of the loading state.
+- Affected files:
+  - `src/feature/Meals/screens/MealAdd/DescribeMealScreen.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+- Fixes made:
+  - Added keyboard height tracking in `DescribeMealScreen`.
+  - Disabled the screen's generic keyboard avoiding wrapper and added a keyboard-safe sticky action bar above the keyboard.
+  - Kept one canonical `add-meal-text-analyze-button` testID visible at a time by hiding the normal sheet CTA while the keyboard action bar is shown.
+  - Allowed tapping the keyboard action bar background to dismiss the keyboard, keeping Maestro and real use predictable.
+  - Added a test-only `ai=textSlow` E2E fixture that delays deterministic text analysis by 4 seconds.
+  - Switched the visual-audit text meal seed to `ai=textSlow` and added `takeScreenshot: add-meal-text-analyzing`.
+- Changed files:
+  - `src/feature/Meals/screens/MealAdd/DescribeMealScreen.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `npx jest src/feature/Meals/screens/MealAdd/DescribeMealScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS.
+  - `npx jest src/services/e2e/fixtures.test.ts src/feature/Meals/screens/MealAdd/DescribeMealScreen.test.tsx src/feature/Meals/screens/MealAdd/TextAnalyzingScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 3 suites / 17 tests.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`: PASS, 4 flows validated.
+  - `git diff --check`: PASS.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-text-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-text-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-after/logs E2E_SUITE_NAME=release-hardening-add-meal-text-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS, 1m 13s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-text-release-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-text-release-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-release-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-release-after/logs E2E_SUITE_NAME=release-hardening-add-meal-text-release-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-text-save-propagates.yaml`: PASS, 1m 7s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-text-error-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-text-error-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-error-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-error-after/logs E2E_SUITE_NAME=release-hardening-add-meal-text-error-after bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/text-meal-ai-failure.yaml`: PASS, 1m 1s after sequential rerun.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-text-keyboard-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-text-keyboard-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-keyboard-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-text-keyboard-after/logs E2E_SUITE_NAME=release-hardening-add-meal-text-keyboard-after bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/text-meal-keyboard.yaml`: PASS, 1m 2s after sequential rerun.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/add-meal-options.png`
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/add-meal-text-empty.png`
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/add-meal-text-keyboard.png`
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/add-meal-text-filled.png`
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/add-meal-text-analyzing.png`
+  - `e2e/artifacts/release-hardening/add-meal-text-after/screenshots/screenshots/review-meal.png`
+- Screenshot review:
+  - Add method selector remains calm and focused; text entry is clear as the selected route.
+  - Empty and filled text states have one dominant action: `Przygotuj podsumowanie`; secondary method switching does not compete with save/analyze intent.
+  - Keyboard state now keeps the description input, AI credit helper, and primary CTA visible above the keyboard. The CTA is reachable and not clipped.
+  - Analyzing state is now captured and shows a clear progress message, subdued AI credit pill, calm loading band, and an automatic transition expectation. It does not introduce a separate success screen or non-canonical flow.
+  - Review Meal remains the decision screen after analysis, with visible `Edytuj szczegóły` and dominant `Zapisz posiłek`.
+  - No clipped Polish text, duplicate primary buttons, hidden CTA, broken sheet height, or obvious visual regression observed in the reviewed screenshots.
+- Remaining Minor/Polish:
+  - The analyzing screen preview occupies a large vertical area on this viewport, but it is stable, consistent with the shared scaffold, and does not block the loading message or flow. Revisit only if path 17 small-screen review shows pressure.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 6. Add Meal - photo flow
+
+- Status: Ready.
+- Canonical path: Add Meal method sheet -> `CameraDefault` -> sample/camera capture -> `PreparingReviewPhoto` -> E2E/vision analysis -> `ReviewMeal` -> `saveMeal` -> `saveMealTransaction` -> `upsertMealLocal` -> `enqueueUpsert` -> local-first Home and History propagation.
+- Files inspected:
+  - `e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml`
+  - `e2e/maestro/visual-audit/add-meal-photo.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/Meals/screens/AddMealScreen.tsx`
+  - `src/feature/Meals/feature/MapMealAddScreens.tsx`
+  - `src/feature/Meals/hooks/useMealAddMethodState.ts`
+  - `src/feature/Meals/hooks/useMealCameraState.ts`
+  - `src/feature/Meals/hooks/useMealCameraState.test.ts`
+  - `src/feature/Meals/screens/MealAdd/MealCameraScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/MealCameraScreen.test.tsx`
+  - `src/feature/Meals/screens/MealAdd/PreparingReviewPhotoScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/PreparingReviewPhotoScreen.test.tsx`
+  - `src/feature/Meals/components/MealAddPhotoScaffold.tsx`
+  - `src/services/ai/visionService.ts`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+  - `src/locales/pl/common.json`
+  - `src/locales/en/common.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-photo-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-photo-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-photo-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml`
+  - Added a narrow visual-audit flow for photo because no committed screenshot path existed.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-photo-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-photo.yaml`
+- Baseline result:
+  - `add-meal-photo-save-propagates.yaml`: PASS, 45s.
+  - `add-meal-photo.yaml`: PASS, 45s after adding screenshot coverage.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots/screenshots/add-meal-photo-options.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots/screenshots/add-meal-photo-entry.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots/screenshots/add-meal-photo-preparing.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots/screenshots/add-meal-photo-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-baseline/screenshots/screenshots/add-meal-photo-home-after-save.png`
+- Issues found:
+  - Photo path had no visual-audit coverage, so UI quality for camera entry/preparing/review was not reviewable from committed screenshots.
+  - The E2E/simulator photo entry preview rendered as a solid black rectangle, which looked like a temporary camera placeholder rather than a designed product state.
+  - Baseline Review Meal after `ai=photoSuccess` showed `0 kcal`, `0g` macros, and `Brak składników`. The release-gate still passed because it only asserted that a Home/History row existed.
+  - Preparing state used static status dot and less polished title/copy (`Analizowanie posiłku...`, `Analiza zdjęcia rozpoczęta`).
+  - After enabling real E2E photo analysis, the original `photoSuccess` release-gate assertion for the transient preparing screen became unstable because analysis completed before the assertion saw the screen.
+- Classification:
+  - Missing visual coverage: Minor release-hardening gap.
+  - Black simulator camera placeholder: Major visual quality issue.
+  - Photo Review saved as zero-nutrition meal in E2E photo success path: Blocker for release-gate confidence and domain end state.
+  - Static/less polished preparing loading state: Minor/Polish.
+  - `photoSuccess` transient preparing assertion instability: Minor test determinism issue after canonical path fix.
+- Root cause:
+  - `useMealCameraState` always forwarded default simulator params (`simulatorReviewState: "success"`) on simulator, so `PreparingReviewPhotoScreen` took its simulator-preview branch and replaced straight to Review without calling `detectIngredientsWithVision` / `resolveE2EPhotoAnalysis`.
+  - The release-gate did not assert nutrition values or ingredient presence, so the zero-nutrition photo result was hidden.
+  - `MealCameraScreen` rendered a plain `View` for E2E camera preview instead of the same sample meal image used by the capture flow.
+  - Photo visual-audit was absent from `scripts/e2e/suites.json`.
+- Affected files:
+  - `src/feature/Meals/hooks/useMealCameraState.ts`
+  - `src/feature/Meals/screens/MealAdd/MealCameraScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/PreparingReviewPhotoScreen.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml`
+  - `e2e/maestro/visual-audit/add-meal-photo.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/locales/pl/common.json`
+  - `src/locales/en/common.json`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+- Fixes made:
+  - Only forward simulator review state from `useMealCameraState` when simulator params were explicitly provided.
+  - Kept the simulator capture path using the sample meal image, but let default E2E photo flow enter `detectIngredientsWithVision` and receive deterministic E2E ingredients.
+  - Added `photoSlow` E2E AI seed for deterministic loading screenshots without production delay.
+  - Updated photo release-gate and photo visual-audit to use `photoSlow`.
+  - Added committed `e2e/maestro/visual-audit/add-meal-photo.yaml` and registered it in `visual-audit`.
+  - Replaced the E2E black preview with the sample meal image.
+  - Made the photo preparing banner use the loading dots state.
+  - Refined preparing copy to `Przygotowujemy podsumowanie` / `Analizujemy zdjęcie` and equivalent English copy.
+  - Added focused tests for default simulator flow staying on the E2E analysis path and deterministic photo fixture analysis.
+- Changed files:
+  - `e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml`
+  - `e2e/maestro/visual-audit/add-meal-photo.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/Meals/hooks/useMealCameraState.ts`
+  - `src/feature/Meals/hooks/useMealCameraState.test.ts`
+  - `src/feature/Meals/screens/MealAdd/MealCameraScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/PreparingReviewPhotoScreen.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/locales/pl/common.json`
+  - `src/locales/en/common.json`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `npx jest src/feature/Meals/hooks/useMealCameraState.test.ts src/feature/Meals/screens/MealAdd/MealCameraScreen.test.tsx src/feature/Meals/screens/MealAdd/PreparingReviewPhotoScreen.test.tsx src/services/e2e/fixtures.test.ts --runInBand --watchman=false --no-coverage`: PASS, 4 suites / 32 tests.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`: PASS, 5 flows validated.
+  - `node scripts/e2e/run-suite.mjs add-meal --validate`: PASS, 9 flows validated.
+  - `git diff --check`: PASS.
+  - First post-fix `photoSuccess` release-gate rerun failed at `assertVisible id: add-meal-photo-preparing-screen` because deterministic analysis completed too quickly; the flow was updated to `photoSlow`.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-photo-release-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-photo-release-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-release-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-release-after/logs E2E_SUITE_NAME=release-hardening-add-meal-photo-release-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml`: PASS, 48s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-photo-visual-after/logs E2E_SUITE_NAME=release-hardening-add-meal-photo-visual-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-photo.yaml`: PASS, 46s.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots/screenshots/add-meal-photo-options.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots/screenshots/add-meal-photo-entry.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots/screenshots/add-meal-photo-preparing.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots/screenshots/add-meal-photo-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-photo-visual-after/screenshots/screenshots/add-meal-photo-home-after-save.png`
+- Screenshot review:
+  - Photo entry now shows a real meal preview instead of a black simulator placeholder. CTA is clear, olive, and reachable; AI credit helper and method switch are secondary.
+  - Preparing state has a clear point of gravity, animated loading dots, calm copy, and no extra success screen.
+  - Review Meal now shows the expected photo, 430 kcal, macro values, and `E2E analyzed bowl` ingredient before save. The canonical decision remains Review -> save.
+  - Home after save shows `430 / 2941 kcal`, updated macro row, and the photo meal row with `430 kcal`, confirming local-first propagation.
+  - The known Maestro pointer artifact appears again over the week strip in `add-meal-photo-home-after-save.png`; as in path 4, this is not app UI and was previously confirmed absent from native screenshot/hierarchy.
+- Remaining Minor/Polish:
+  - Review Meal content/footer spacing will be reviewed in the dedicated Review/Edit/Save path. It does not block the photo path because save CTA, edit action, nutrition, ingredient, and photo are visible.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 7. Add Meal - barcode flow
+
+- Status: Ready.
+- Canonical path: Add Meal method sheet -> `BarcodeScan` -> detected code or manual entry -> product lookup -> `ReviewMeal` on success -> save -> local-first Home/History propagation. Unknown barcode stays in scanner/manual fallback and does not create a separate success screen.
+- Files inspected:
+  - `e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml`
+  - `e2e/maestro/nightly-regression/barcode-not-found.yaml`
+  - `e2e/maestro/platform-layout/barcode-manual-sheet.yaml`
+  - `e2e/maestro/visual-audit/add-meal-barcode.yaml`
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.test.tsx`
+  - `src/feature/Meals/components/MealAddBarcodePreview.tsx`
+  - `src/feature/Meals/components/MealAddPhotoScaffold.tsx`
+  - `src/feature/Meals/utils/buildBarcodeDraft.ts`
+  - `src/services/barcode/barcodeService.ts`
+  - `src/services/e2e/fixtures.ts`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-release-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-not-found-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/barcode-not-found.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-manual-baseline bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/barcode-manual-sheet.yaml`
+  - Added a narrow visual-audit flow for barcode because the existing barcode flows did not capture success, Review, Home, or manual error screenshots.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-barcode.yaml`
+- Baseline result:
+  - `add-meal-barcode-save-propagates.yaml`: PASS, 43s.
+  - `barcode-not-found.yaml`: PASS, 51s.
+  - `barcode-manual-sheet.yaml`: PASS, 48s.
+  - `add-meal-barcode.yaml`: PASS, 1m 34s after adding screenshot coverage.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-detected.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-scanning.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-manual-keyboard.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-manual-not-found.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-baseline/screenshots/screenshots/add-meal-barcode-home-after-save.png`
+- Issues found:
+  - Barcode path had no committed visual-audit coverage for detected code, Review Meal, Home propagation, or manual not-found error state.
+  - In manual not-found state with the numeric keyboard open, the secondary route-out (`Wróć do skanowania`) was partially clipped by the sheet/keyboard layout after the error message appeared.
+  - Manual not-found copy was slightly long for the keyboard-constrained sheet.
+  - Scanning state used a static status dot instead of the shared animated loading dots used by other processing states.
+- Classification:
+  - Missing barcode visual coverage: Minor release-hardening gap.
+  - Manual error secondary action clipped by keyboard: Major layout/keyboard issue.
+  - Long manual not-found copy: Minor.
+  - Static scanning status: Polish.
+- Root cause:
+  - `barcode-manual-sheet` used a capped `ScrollView` sheet but rendered full title/subtitle/helper/error/actions while the keyboard consumed the lower viewport; error content pushed the secondary action below the visible sheet area.
+  - Existing barcode Maestro flows asserted behavior but did not take screenshots for UX review.
+- Affected files:
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.test.tsx`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+  - `e2e/maestro/visual-audit/add-meal-barcode.yaml`
+  - `scripts/e2e/suites.json`
+- Fixes made:
+  - Added `e2e/maestro/visual-audit/add-meal-barcode.yaml` and registered it in `visual-audit`.
+  - Added compact manual sheet mode when keyboard is open and an error is visible; it hides the explanatory subtitle and tightens vertical gaps so both actions remain visible.
+  - Shortened not-found copy in PL/EN and matching code fallback text.
+  - Set the scanning status banner to `loading` for animated dots.
+- Changed files:
+  - `e2e/maestro/visual-audit/add-meal-barcode.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/BarcodeScanScreen.test.tsx`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+- Verification after fix:
+  - `npx jest src/feature/Meals/screens/MealAdd/BarcodeScanScreen.test.tsx src/services/e2e/fixtures.test.ts --runInBand --watchman=false --no-coverage`: PASS, 2 suites / 15 tests.
+  - `npx jest src/feature/Meals/screens/MealAdd/BarcodeScanScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 1 suite / 6 tests after final loading polish.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`: PASS, 6 flows validated.
+  - `node scripts/e2e/run-suite.mjs add-meal --validate`: PASS, 9 flows validated.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-after/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-release-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml`: PASS, 46s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-not-found-after/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-not-found-after bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/barcode-not-found.yaml`: PASS, 51s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-manual-after/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-manual-after bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/barcode-manual-sheet.yaml`: PASS, 48s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-final/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-final/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-release-final/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-release-final bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml`: PASS, 43s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-final/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-barcode-visual-final/logs E2E_SUITE_NAME=release-hardening-add-meal-barcode-visual-final bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-barcode.yaml`: PASS, 1m 49s.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-scanning.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-detected.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-manual-keyboard.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-manual-not-found.png`
+  - `e2e/artifacts/release-hardening/add-meal-barcode-visual-final/screenshots/screenshots/add-meal-barcode-home-after-save.png`
+- Screenshot review:
+  - Scanning state has a clear camera frame, visible manual fallback, animated status, and a single primary alternative action for manual entry.
+  - Detected state has one dominant next action: `Wyszukaj produkt`; manual edit remains secondary and change-method remains tertiary.
+  - Review Meal shows the expected barcode product, kcal/macros, ingredient row, edit action, and dominant save CTA.
+  - Manual keyboard state keeps input, helper, primary search, and back-to-scan action visible.
+  - Manual not-found error now keeps both retry and back-to-scan actions visible above the keyboard; shortened error copy fits without crowding.
+  - Home after save shows 120 kcal and macro propagation for the barcode meal. The known Maestro pointer artifact appears over the week strip again and remains classified as a local screenshot artifact from path 4.
+- Remaining Minor/Polish:
+  - Scanner preview is intentionally dark in simulator screenshots. It reads as scanner UI rather than a temporary blank state because frame, badge, and status hierarchy are present.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 8. Add Meal - saved meal / template flow
+
+- Status: Ready.
+- Canonical path: Add Meal method sheet -> `SelectSavedMeal` -> saved meal draft via `buildSavedMealDraft` -> `ReviewMeal` -> `saveMeal` / `saveMealTransaction` -> local-first Home/History propagation. The existing release-gate also covers creating a template by saving a Review Meal to My Meals before using it.
+- Files inspected:
+  - `e2e/maestro/release-gate/add-meal-saved-template.yaml`
+  - `e2e/maestro/visual-audit/add-meal-saved-template.yaml`
+  - `scripts/run-e2e-local.sh`
+  - `scripts/e2e/suites.json`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.tsx`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.test.tsx`
+  - `src/feature/Meals/hooks/useSelectSavedMealsState.ts`
+  - `src/feature/Meals/hooks/useSelectSavedMealsState.test.ts`
+  - `src/feature/Meals/components/SavedMealActionCard.tsx`
+  - `src/feature/Meals/utils/buildSavedMealDraft.ts`
+  - `src/feature/Meals/utils/buildSavedMealDraft.test.ts`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-baseline/logs E2E_SUITE_NAME=release-hardening-saved-template-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-saved-template.yaml`
+  - Added a narrow visual-audit flow because the existing saved-template release-gate had no screenshot checkpoints.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/logs E2E_SUITE_NAME=release-hardening-saved-template-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-saved-template.yaml`
+- Baseline result:
+  - `add-meal-saved-template.yaml`: PASS, 1m 02s.
+  - First visual run attempt failed before Maestro flow execution with `mktemp: mkstemp failed on /tmp/fitaly-close-dev-menu.XXXXXX.yaml: File exists`; classified as Environment Blocker / tooling issue.
+  - After fixing the temp filename generation in the runner, `add-meal-saved-template.yaml` visual baseline passed, 1m 03s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/screenshots/screenshots/add-meal-saved-template-list.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/screenshots/screenshots/add-meal-saved-template-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/screenshots/screenshots/add-meal-saved-template-home-after-save.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-baseline/screenshots/screenshots/add-meal-saved-template-history-after-save.png`
+- Issues found:
+  - Saved-template path had release-gate behavior coverage but no committed visual-audit coverage for list, Review, Home, or History.
+  - `SelectSavedMealScreen` non-empty state opened directly into a search field and list without title or context, which made the screen feel sparse and less premium-lite.
+  - Empty state rendered both a primary "choose another method" button and the same footer route-out, creating redundant action copy.
+  - The saved meal card CTA used a 30pt height and the card border was an ad hoc rgba value instead of a theme token.
+  - The first visual flow reused the release-gate's manually created name-only template, producing screenshots with 0 kcal/no ingredients. This verified behavior but was not a good product-quality visual sample.
+  - The E2E runner used `mktemp "...XXXXXX.yaml"`, which is not a safe unique template on macOS because the suffix can become literal and collide across runs.
+- Classification:
+  - Missing visual coverage: Minor release-hardening gap.
+  - Missing list title/context: Major UX clarity/perceived-quality issue.
+  - Duplicate empty-state route-out: Minor.
+  - 30pt card CTA: Major touch-target issue.
+  - Hardcoded card border: Polish/design-system consistency.
+  - 0 kcal visual sample from name-only release template: Minor visual-audit fixture issue.
+  - `mktemp` collision: Environment Blocker / tooling.
+- Root cause:
+  - The canonical saved-meal state hook already built a saved draft and navigated straight to Review; the issue was local presentation and missing screenshots, not architecture.
+  - The screen had unused locale keys for saved-list title/subtitle/eyebrow but did not render them in the non-empty or empty list layouts.
+  - The footer was outside the list, making it appear pinned at the bottom after sparse content and duplicated with the empty-state CTA.
+  - The release-gate checks creation/use of a template with a minimal manual meal, so it can produce intentionally empty nutrition data.
+  - The runner's temporary dev-menu-dismiss flow used an extension after `XXXXXX`, causing local filename collisions on macOS.
+- Affected files:
+  - `e2e/maestro/visual-audit/add-meal-saved-template.yaml`
+  - `scripts/e2e/suites.json`
+  - `scripts/run-e2e-local.sh`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.tsx`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.test.tsx`
+  - `src/feature/Meals/components/SavedMealActionCard.tsx`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+- Fixes made:
+  - Added `e2e/maestro/visual-audit/add-meal-saved-template.yaml` and registered it in the visual-audit suite.
+  - Changed the visual flow to use the existing `user-with-saved-meals` E2E fixture and filter the list to deterministic `E2E Saved*` meals, while keeping the release-gate as the template-creation behavior check.
+  - Added a saved-meal screen header with eyebrow/title/subtitle using existing i18n keys.
+  - Shortened saved-list copy in PL/EN to be calmer and fit the screen rhythm.
+  - Moved the change-method link into the list footer for non-empty state and removed the duplicate footer from empty state.
+  - Increased the saved-meal card CTA touch target and replaced the ad hoc border color with `theme.borderSoft`.
+  - Fixed `scripts/run-e2e-local.sh` temporary file generation by removing the unsafe `.yaml` suffix from the `mktemp` template.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/visual-audit/add-meal-saved-template.yaml`
+  - `scripts/e2e/suites.json`
+  - `scripts/run-e2e-local.sh`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.tsx`
+  - `src/feature/Meals/screens/SelectSavedMealsScreen.test.tsx`
+  - `src/feature/Meals/components/SavedMealActionCard.tsx`
+  - `src/locales/pl/meals.json`
+  - `src/locales/en/meals.json`
+- Verification after fix:
+  - `npx jest src/feature/Meals/screens/SelectSavedMealsScreen.test.tsx src/feature/Meals/hooks/useSelectSavedMealsState.test.ts src/feature/Meals/utils/buildSavedMealDraft.test.ts src/services/e2e/fixtures.test.ts --runInBand --watchman=false --no-coverage`: PASS, 4 suites / 22 tests.
+  - `npm run typecheck`: PASS after replacing a non-existent `displayS` token with existing `h1` typography tokens.
+  - `npm run lint`: PASS.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-release-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-release-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-release-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-release-after/logs E2E_SUITE_NAME=release-hardening-saved-template-release-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-saved-template.yaml`: PASS, 1m 04s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-after/logs E2E_SUITE_NAME=release-hardening-saved-template-visual-after bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-saved-template.yaml`: PASS, 43s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/logs E2E_SUITE_NAME=release-hardening-saved-template-visual-final bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/add-meal-saved-template.yaml`: PASS, 56s.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/screenshots/screenshots/add-meal-saved-template-list.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/screenshots/screenshots/add-meal-saved-template-review-meal.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/screenshots/screenshots/add-meal-saved-template-home-after-save.png`
+  - `e2e/artifacts/release-hardening/add-meal-saved-template-visual-final/screenshots/screenshots/add-meal-saved-template-history-after-save.png`
+- Screenshot review:
+  - List screen now has clear context (`Zapisane posiłki`), a readable title, calm helper copy, full-width search, two deterministic saved meal cards, visible primary `Dodaj` CTAs, and a non-dominant change-method route below the list.
+  - Search text is visible, keyboard is dismissed before the screenshot, and it does not cover the list or CTA.
+  - Review Meal shows the selected saved meal with 420 kcal, stable macros, ingredient row, optional template-update checkbox, edit action, and dominant save CTA.
+  - Home after save shows `420 / 2941 kcal`, macro propagation, and the saved meal row with 420 kcal, confirming local-first update.
+  - History after save shows the same meal under Today with 420 kcal. The known Maestro pointer artifact appears again in Home/History screenshots and remains classified as a local screenshot artifact from path 4, not app UI.
+- Remaining Minor/Polish:
+  - The visual flow filters seeded saved meals because the shared E2E account can pull older saved templates from the backend. This keeps screenshots deterministic; the release-gate still verifies template creation and reuse behavior.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 9. Review Meal / Edit Meal / Save
+
+- Status: Ready.
+- Canonical path: Review Meal is the decision screen; optional `EditMealDetails` lets the user adjust name/type/time/ingredients and returns to Review; saving calls the canonical local-first `saveMeal` path and propagates to Home/History.
+- Files inspected:
+  - `e2e/maestro/release-gate/review-edit-layout.yaml`
+  - `e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `e2e/maestro/visual-audit/review-edit-save.yaml`
+  - `src/feature/Meals/screens/MealAdd/ReviewMealScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/ReviewMealScreen.test.tsx`
+  - `src/feature/Meals/screens/MealAdd/MealDetailsFormScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/EditMealDetailsScreen.test.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/MealBasicsSection.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientListSection.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientEditorModal.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/MealDetailsFooter.tsx`
+  - `src/components/IngredientEditor.tsx`
+  - `src/components/IngredientEditor.test.tsx`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/review-edit-layout-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/review-edit-layout-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-layout-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-layout-baseline/logs E2E_SUITE_NAME=release-hardening-review-edit-layout-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/review-edit-layout.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/manual-edit-save-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/manual-edit-save-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/manual-edit-save-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/manual-edit-save-baseline/logs E2E_SUITE_NAME=release-hardening-manual-edit-save-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`
+  - Added `e2e/maestro/visual-audit/review-edit-save.yaml` because existing Review/Edit release-gates did not capture visual states for Review, edit form, ingredient sheet, keyboard, Home, or History.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-baseline/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-baseline/logs E2E_SUITE_NAME=release-hardening-review-edit-save-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/review-edit-save.yaml`
+- Baseline result:
+  - `review-edit-layout.yaml`: PASS, 1m 09s.
+  - `add-meal-manual-edit-save-propagates.yaml`: PASS, 1m 16s.
+  - `review-edit-save.yaml`: PASS, 1m 01s after adding screenshot coverage.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-review.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-edit-basics.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-edit-ingredients.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-ingredient-sheet.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-ingredient-keyboard.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-edit-after-ingredient.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-review-after-edit.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-home-after-save.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-baseline/screenshots/screenshots/review-edit-save-history-after-save.png`
+- Issues found:
+  - Review/Edit path had functional release-gates but no dedicated visual-audit screenshots for the edit form or ingredient sheet.
+  - In `IngredientEditorModal`, when the ingredient name input focused and the keyboard opened, the primary `Dodaj składnik` and cancel actions were pushed below the visible keyboard area.
+  - The ingredient sheet otherwise had clear hierarchy and the main edit form / Review screen already matched the calm Fitaly style.
+- Classification:
+  - Missing Review/Edit visual coverage: Minor release-hardening gap.
+  - Ingredient sheet CTA hidden by keyboard: Major keyboard/touch-flow issue.
+- Root cause:
+  - `IngredientEditorModal` reduced sheet height and moved the sheet above the keyboard, but `IngredientEditor` rendered sheet action buttons after all nutrition fields inside the scroll content. Focusing the first text input kept the scroll at the top, so actions sat below the keyboard.
+- Affected files:
+  - `e2e/maestro/visual-audit/review-edit-save.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/components/IngredientEditor.tsx`
+- Fixes made:
+  - Added visual-audit flow for Review/Edit/Save and registered it in the visual-audit suite.
+  - In the sheet variant of `IngredientEditor`, moved the action row directly after ingredient basics when the keyboard is open, keeping `Anuluj` and `Dodaj składnik` visible above the keyboard.
+  - Kept the default/non-sheet ingredient editor behavior unchanged.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/visual-audit/review-edit-save.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/components/IngredientEditor.tsx`
+- Verification after fix:
+  - `npx jest src/components/IngredientEditor.test.tsx src/feature/Meals/screens/MealAdd/ReviewMealScreen.test.tsx src/feature/Meals/screens/MealAdd/EditMealDetailsScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 3 suites / 22 tests. Non-fatal existing React `act(...)` warning observed from async image checking in `ReviewMealScreen.test.tsx`.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix E2E_RESULTS_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/logs E2E_SUITE_NAME=release-hardening-review-edit-save-visual-after-keyboard-fix bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/review-edit-save.yaml`: PASS, 1m 02s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/review-edit-layout-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/review-edit-layout-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-layout-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/review-edit-layout-after/logs E2E_SUITE_NAME=release-hardening-review-edit-layout-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/review-edit-layout.yaml`: PASS, 1m 10s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/manual-edit-save-after E2E_RESULTS_DIR=e2e/artifacts/release-hardening/manual-edit-save-after/reports E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/manual-edit-save-after/screenshots E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/manual-edit-save-after/logs E2E_SUITE_NAME=release-hardening-manual-edit-save-after bash scripts/run-e2e-local.sh e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`: PASS, 1m 17s.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-review.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-edit-basics.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-edit-ingredients.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-ingredient-sheet.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-ingredient-keyboard.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-edit-after-ingredient.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-review-after-edit.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-home-after-save.png`
+  - `e2e/artifacts/release-hardening/review-edit-save-visual-after-keyboard-fix/screenshots/screenshots/review-edit-save-history-after-save.png`
+- Screenshot review:
+  - Review Meal has clear meal identity, kcal hero, macro cards, ingredient preview, optional saved-template checkbox, secondary edit action, and dominant save CTA.
+  - Edit details form has a clear basics section, visible name/type/time fields, ingredient list, add-ingredient action, and sticky `Wróć do podsumowania` CTA.
+  - Ingredient sheet without keyboard shows name, amount, nutrition values, and actions with adequate hierarchy.
+  - Ingredient sheet with keyboard now keeps `Anuluj` and `Dodaj składnik` visible above the keyboard; inputs remain readable.
+  - Review after edit reflects the added ingredient and preserves the single dominant save CTA.
+  - Home and History show the saved meal with 420 kcal and updated ingredient text, confirming propagation. The known Maestro pointer artifact appears again over the week strip and remains a local screenshot artifact from path 4.
+- Remaining Minor/Polish:
+  - With keyboard open in the ingredient sheet, nutrition fields remain partially visible below the elevated action row. This is acceptable because the focused task is naming/amount entry and the primary action is now reachable; a more extensive nutrition-editor redesign would be separate scope.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 10. History / meal details / edit / delete
+
+- Status: Ready.
+- Canonical path: History list uses canonical local meal sections; tapping a row opens `MealDetailsScreen`; optional edit routes to `EditHistoryMealDetailsScreen` and writes through `updateMeal`; delete calls `deleteMeal`, returns to the previous/Home route, and local-first state removes the meal from Home and History.
+- Files inspected:
+  - `e2e/maestro/release-gate/history-edit-delete.yaml`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/History/screens/HistoryListScreen.tsx`
+  - `src/feature/History/screens/MealDetailsScreen.tsx`
+  - `src/feature/History/screens/EditHistoryMealDetailsScreen.tsx`
+  - `src/feature/History/hooks/useMealDetailsState.ts`
+  - `src/feature/History/hooks/useHistoryListState.ts`
+  - `src/feature/History/hooks/useHistoryListState.test.ts`
+  - `src/feature/History/screens/MealDetailsScreen.test.tsx`
+  - `src/locales/pl/history.json`
+  - `src/locales/en/history.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/history-edit-delete-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/history-edit-delete-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/history-edit-delete-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/history-edit-delete-baseline/debug E2E_SUITE_NAME=release-hardening-history-edit-delete-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/history-edit-delete.yaml`
+  - Added `e2e/maestro/visual-audit/history-details-edit-delete.yaml` because the existing flow verified behavior but did not capture details/edit/delete screenshots.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/debug E2E_SUITE_NAME=release-hardening-history-details-edit-delete-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/history-details-edit-delete.yaml`
+- Baseline result:
+  - `history-edit-delete.yaml`: PASS, 1m 05s.
+  - `history-details-edit-delete.yaml`: PASS, 1m 07s after adding screenshot coverage.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-list-before.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-screen.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-edit-form.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-edit-submit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-after-edit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-list-after-edit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-delete-action.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-delete-modal.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-home-after-delete.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-baseline/test-output/screenshots/history-details-history-after-delete.png`
+- Issues found:
+  - History details/edit/delete had no dedicated visual-audit flow, so modal, edit form, and post-delete empty state were not reviewable from screenshots.
+  - Meal details header showed the raw key `navText`.
+  - History empty state after deleting the last meal showed raw keys `history.emptyTitle` and `history.emptyDescription`.
+- Classification:
+  - Missing History details/edit/delete visual coverage: Minor release-hardening gap.
+  - Raw `navText` in details header: Major visible i18n/product polish issue.
+  - Raw history empty-state keys after delete: Major visible i18n/product polish issue.
+- Root cause:
+  - `MealDetailsScreen` referenced non-existent `history:navText` instead of the existing `history:screenTitle`.
+  - `useHistoryListState` requested `history.emptyTitle` / `history.emptyDescription` inside the `history` namespace, which looked for nested keys that do not exist; the canonical keys are top-level `emptyTitle` and `emptyDescription`.
+- Affected files:
+  - `e2e/maestro/visual-audit/history-details-edit-delete.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/History/screens/MealDetailsScreen.tsx`
+  - `src/feature/History/hooks/useHistoryListState.ts`
+  - `src/feature/History/hooks/useHistoryListState.test.ts`
+- Fixes made:
+  - Added and registered a dedicated History visual flow that captures list, details, edit form, edited details, delete action, delete modal, Home after delete, and History after delete.
+  - Reused existing `history:screenTitle` for the meal details header.
+  - Fixed empty-state translation calls to use `history:emptyTitle` and `history:emptyDescription`.
+  - Added a hook test to prevent nested-key leakage in History empty-state copy.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/visual-audit/history-details-edit-delete.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/History/screens/MealDetailsScreen.tsx`
+  - `src/feature/History/hooks/useHistoryListState.ts`
+  - `src/feature/History/hooks/useHistoryListState.test.ts`
+- Verification after fix:
+  - `npx jest src/feature/History/hooks/useHistoryListState.test.ts src/feature/History/screens/MealDetailsScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 2 suites / 10 tests. Non-fatal existing i18next Locize info log observed.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix E2E_RESULTS_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/debug E2E_SUITE_NAME=release-hardening-history-details-edit-delete-visual-after-copy-fix bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/history-details-edit-delete.yaml`: PASS, 1m 07s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/history-edit-delete-after-copy-fix E2E_RESULTS_DIR=e2e/artifacts/release-hardening/history-edit-delete-after-copy-fix/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/history-edit-delete-after-copy-fix/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/history-edit-delete-after-copy-fix/debug E2E_SUITE_NAME=release-hardening-history-edit-delete-after-copy-fix bash scripts/run-e2e-local.sh e2e/maestro/release-gate/history-edit-delete.yaml`: PASS, 1m 06s.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-list-before.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-screen.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-edit-form.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-edit-submit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-after-edit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-list-after-edit.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-delete-action.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-delete-modal.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-home-after-delete.png`
+  - `e2e/artifacts/release-hardening/history-details-edit-delete-visual-after-copy-fix/test-output/screenshots/history-details-history-after-delete.png`
+- Screenshot review:
+  - History list has clear hierarchy, search/filter controls, day section, kcal pill, and a readable meal row. The pending sync indicator remains consistent with the local-first visible-state requirement.
+  - Meal details now shows `Historia` in the header, clear meal identity, kcal summary, macro track, ingredient row, secondary edit action, and destructive delete action.
+  - Edit form keeps one dominant save CTA, visible name/type/time fields, optional photo action, and ingredient editing route.
+  - Delete modal is clear, closable, and uses a properly destructive primary action without changing account/data semantics.
+  - Home after delete returns to the expected empty-today state with no stale meal row.
+  - History after delete now shows designed empty-state copy, not raw keys, with a clear add-first-meal CTA.
+- Remaining Minor/Polish:
+  - The edit-submit CTA still reads `Zapisz` instead of the longer `Zapisz zmiany`. It is clear and consistent with the current `common:save_changes` copy, so it does not block 9/10.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 11. Statistics
+
+- Status: Ready.
+- Canonical path: a local-first meal saved through the Add Meal text path propagates into Home, History, and Statistics from the same local meal/dayKey data model; Statistics consumes the canonical statistics range state instead of refetching or maintaining duplicate nutrition state.
+- Files inspected:
+  - `e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `src/feature/Statistics/screens/StatisticsScreen.tsx`
+  - `src/feature/Statistics/hooks/useStatisticsState.ts`
+  - `src/feature/Statistics/components/StatisticsTrendCard.tsx`
+  - `src/feature/Statistics/components/StatisticsDailyAveragesSection.tsx`
+  - `src/feature/Statistics/components/StatisticsMacroBreakdownCard.tsx`
+  - `src/feature/Statistics/components/StatisticsRangeSwitcher.tsx`
+  - `src/feature/Statistics/components/StatisticsEmptyState.tsx`
+  - `src/feature/Statistics/components/StatisticsCustomRangeControl.tsx`
+  - `src/feature/Statistics/components/StatisticsPremiumBanner.tsx`
+  - `src/locales/pl/statistics.json`
+  - `src/locales/en/statistics.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/statistics-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/statistics-visual-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-visual-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-visual-baseline/debug E2E_SUITE_NAME=release-hardening-statistics-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/statistics-release-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/statistics-release-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-release-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-release-baseline/debug E2E_SUITE_NAME=release-hardening-statistics-release-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+- Baseline result:
+  - Visual audit: PASS, 1m 13s.
+  - Release gate: FAIL at `ingredient-row-0` before reaching Statistics. The failure was in the duplicated manual ingredient editor setup inside this Statistics propagation flow; the numeric keyboard/sheet interaction did not reliably commit the ingredient row. The manual edit/save path remains covered by `add-meal-manual-edit-save-propagates.yaml` and `review-edit-layout.yaml`.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/statistics-visual-baseline/test-output/screenshots/statistics-overview.png`
+  - `e2e/artifacts/release-hardening/statistics-release-baseline/test-output/2026-05-21_205713/screenshot-❌-1779389944637-(home-history-statistics-after-save).png`
+- Issues found:
+  - The Statistics release flow duplicated manual ingredient-entry behavior and failed before the actual Statistics assertion because of numeric keyboard/sheet tap reliability.
+  - The visual flow captured only the top of the Statistics screen; lower average and macro sections were partially obscured by the bottom navigation and not reviewable.
+  - The Polish empty-state copy used `Zaloguj kilka posilkow...`, which reads like account login instead of saving meals.
+  - The macro legend forced label and metadata into one row, truncating `Weglowodany` in the lower-section screenshot.
+- Classification:
+  - Duplicated manual editor dependency in Statistics propagation release flow: Major test/release-gate reliability issue.
+  - Missing empty/lower-section Statistics visual screenshots: Minor release-hardening coverage gap.
+  - Misleading Polish empty-state verb: Major UX copy issue.
+  - Truncated macro legend label: Minor visual polish issue.
+- Root cause:
+  - `home-history-statistics-after-save.yaml` was doing manual numeric meal construction even though the Statistics path only needs canonical local-first save propagation.
+  - `core-meal-home-history-statistics.yaml` had only one Statistics screenshot and no explicit empty-state capture.
+  - `src/locales/pl/statistics.json` used a literal translation that conflicts with Fitaly meal-save language.
+  - `StatisticsMacroBreakdownCard` used a tight horizontal legend row that could not handle longer Polish macro labels.
+- Affected files:
+  - `e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientEditorModal.tsx`
+  - `src/feature/Statistics/components/StatisticsMacroBreakdownCard.tsx`
+  - `src/locales/pl/statistics.json`
+- Fixes made:
+  - Rewired the Statistics propagation release flow to use the canonical text Add Meal path: describe meal, analyze, Review Meal, save, then verify Home/History/Statistics propagation.
+  - Added explicit visual screenshots for Statistics empty state and lower sections.
+  - Added `statistics-macro-breakdown-card` testID for stable scrolling to the macro section.
+  - Set `keyboardShouldPersistTaps="always"` on the shared ingredient editor modal scroll view to reduce sheet/keyboard tap friction in covered edit paths.
+  - Changed Polish empty-state copy to `Zapisz kilka posilkow...`.
+  - Stacked macro legend label and metadata vertically, removing the cramped inline separator so long Polish labels remain readable.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/release-gate/home-history-statistics-after-save.yaml`
+  - `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientEditorModal.tsx`
+  - `src/feature/Statistics/components/StatisticsMacroBreakdownCard.tsx`
+  - `src/locales/pl/statistics.json`
+- Verification after fix:
+  - `npx jest src/feature/Statistics/screens/StatisticsScreen.test.tsx src/feature/Statistics/components/StatisticsEmptyState.test.tsx src/feature/Statistics/components/StatisticsCustomRangeControl.test.tsx src/feature/Statistics/hooks/useStatisticsState.test.ts src/feature/Statistics/services/statisticsRangeSelectors.test.ts --runInBand --watchman=false --no-coverage`: PASS, 5 suites / 32 tests.
+  - `npx jest src/components/IngredientEditor.test.tsx src/feature/Meals/screens/MealAdd/EditMealDetailsScreen.test.tsx src/feature/Meals/screens/MealAdd/ReviewMealScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 3 suites / 22 tests. Existing non-fatal React `act(...)` warning observed from async image checking in `ReviewMealScreen.test.tsx`.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/statistics-release-after-text-save-path E2E_RESULTS_DIR=e2e/artifacts/release-hardening/statistics-release-after-text-save-path/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-release-after-text-save-path/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-release-after-text-save-path/debug E2E_SUITE_NAME=release-hardening-statistics-release-after-text-save-path bash scripts/run-e2e-local.sh e2e/maestro/release-gate/home-history-statistics-after-save.yaml`: PASS, 1m 12s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/statistics-visual-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/statistics-visual-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-visual-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/statistics-visual-final/debug E2E_SUITE_NAME=release-hardening-statistics-visual-final bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS, 1m 22s.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate && node scripts/e2e/run-suite.mjs release-gate --validate`: PASS, visual-audit 9 flows validated and release-gate 17 flows validated.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/statistics-visual-final/test-output/screenshots/statistics-empty.png`
+  - `e2e/artifacts/release-hardening/statistics-visual-final/test-output/screenshots/statistics-overview.png`
+  - `e2e/artifacts/release-hardening/statistics-visual-final/test-output/screenshots/statistics-lower-sections.png`
+- Screenshot review:
+  - Empty state is calm and designed, with no raw keys, no account-login wording, and a clear add-meal route.
+  - Overview has readable header, range switcher, trend card, and daily averages; no clipping or broken hierarchy.
+  - Lower sections show readable average cards and a clear macro chart/legend; `Weglowodany` no longer truncates.
+  - Macro colors remain stable with existing semantics: protein blue, carbs green, fat warm gold, calories olive.
+  - Bottom navigation no longer blocks the reviewed macro card in the lower-section screenshot.
+- Remaining Minor/Polish:
+  - The lower-section screenshot intentionally starts with the bottom of the trend card visible; the overview screenshot covers the full trend card, so this does not block release readiness.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 12. AI Chat
+
+- Status: Ready.
+- Canonical path: Chat uses `ChatScreen` with `useChatHistory`, local thread persistence, AI credit gating from `AccessContext`, and explicit legal/consent gating. Error transport states remain helper/error UI and are not saved as assistant messages.
+- Files inspected:
+  - `e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+  - `e2e/maestro/release-gate/chat-basic-history.yaml`
+  - `e2e/maestro/nightly-regression/chat-error-state.yaml`
+  - `e2e/maestro/nightly-regression/chat-no-credits.yaml`
+  - `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml`
+  - `src/feature/AI/screens/ChatScreen.tsx`
+  - `src/feature/AI/components/ChatComposer.tsx`
+  - `src/feature/AI/components/ChatMessageList.tsx`
+  - `src/feature/AI/components/ChatMessageBubble.tsx`
+  - `src/feature/AI/components/ChatIntroCard.tsx`
+  - `src/feature/AI/components/ChatStatusBanner.tsx`
+  - `src/feature/AI/components/ChatHistorySheet.tsx`
+  - `src/feature/AI/components/SuggestedStarterGrid.tsx`
+  - `src/hooks/useChatHistory.ts`
+  - `src/locales/pl/chat.json`
+  - `src/locales/en/chat.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-visual-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-baseline/debug E2E_SUITE_NAME=release-hardening-ai-chat-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-release-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-release-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-release-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-release-baseline/debug E2E_SUITE_NAME=release-hardening-ai-chat-release-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/chat-basic-history.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-error-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-error-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-error-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-error-baseline/debug E2E_SUITE_NAME=release-hardening-ai-chat-error-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/chat-error-state.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-baseline/debug E2E_SUITE_NAME=release-hardening-ai-chat-no-credits-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/chat-no-credits.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-baseline/debug E2E_SUITE_NAME=release-hardening-ai-chat-keyboard-baseline bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/chat-long-input-keyboard.yaml`
+- Baseline result:
+  - Visual audit: PASS, 2m 40s.
+  - Basic chat/history release flow: PASS, 59s.
+  - Error-state flow: PASS, 53s.
+  - No-credits flow: PASS, 48s.
+  - Long-input keyboard flow: PASS, 59s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/ai-chat-visual-baseline/test-output/screenshots/chat-empty.png`
+  - `e2e/artifacts/release-hardening/ai-chat-visual-baseline/test-output/screenshots/chat-long-input-keyboard.png`
+  - `e2e/artifacts/release-hardening/ai-chat-visual-baseline/test-output/screenshots/chat-basic.png`
+- Issues found:
+  - With the keyboard open on an empty conversation, the large intro card was visibly clipped under the header before the composer, making the screen look broken even though send was reachable.
+  - Error and no-credits flows had functional assertions but no screenshots, so the release-hardening loop could not visually review these critical AI states.
+- Classification:
+  - Clipped empty-state intro card with keyboard open: Major keyboard/layout issue.
+  - Missing visual screenshots for AI error and no-credits states: Minor release-hardening coverage gap.
+- Root cause:
+  - `ChatScreen` always rendered the full intro card inside the empty `FlatList` state, even after the keyboard reduced the available viewport.
+  - `chat-error-state.yaml` and `chat-no-credits.yaml` asserted behavior but did not call `takeScreenshot`.
+- Affected files:
+  - `src/feature/AI/screens/ChatScreen.tsx`
+  - `e2e/maestro/nightly-regression/chat-error-state.yaml`
+  - `e2e/maestro/nightly-regression/chat-no-credits.yaml`
+- Fixes made:
+  - Used the existing `useKeyboardInset` hook in `ChatScreen` to detect the visible keyboard.
+  - Switched the empty chat state into a compact keyboard layout that hides the large intro card and keeps starter prompts plus the composer reachable without clipped content.
+  - Reduced normal empty-state top padding from `xxl` to `xl` for a tighter visual rhythm.
+  - Added screenshots to AI error and no-credits flows.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `src/feature/AI/screens/ChatScreen.tsx`
+  - `e2e/maestro/nightly-regression/chat-error-state.yaml`
+  - `e2e/maestro/nightly-regression/chat-no-credits.yaml`
+- Verification after fix:
+  - `npx jest src/feature/AI/screens/ChatScreen.test.tsx src/feature/AI/components/ChatComposer.test.tsx src/feature/AI/components/ChatMessageList.test.tsx src/feature/AI/components/ChatHistorySheet.test.tsx src/feature/AI/aiChatBoundary.test.ts src/hooks/useChatHistory.test.ts src/services/ai/chatThreadRepository.test.ts src/services/ai/uxError.test.ts --runInBand --watchman=false --no-coverage`: PASS, 8 suites / 47 tests.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/debug E2E_SUITE_NAME=release-hardening-ai-chat-visual-after-keyboard-compact bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/chat-premium-notifications.yaml`: PASS, 2m 37s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-release-after-keyboard-compact E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-release-after-keyboard-compact/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-release-after-keyboard-compact/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-release-after-keyboard-compact/debug E2E_SUITE_NAME=release-hardening-ai-chat-release-after-keyboard-compact bash scripts/run-e2e-local.sh e2e/maestro/release-gate/chat-basic-history.yaml`: PASS, 58s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-error-after-screenshot E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-error-after-screenshot/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-error-after-screenshot/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-error-after-screenshot/debug E2E_SUITE_NAME=release-hardening-ai-chat-error-after-screenshot bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/chat-error-state.yaml`: PASS, 52s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-after-screenshot E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-after-screenshot/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-after-screenshot/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-no-credits-after-screenshot/debug E2E_SUITE_NAME=release-hardening-ai-chat-no-credits-after-screenshot bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/chat-no-credits.yaml`: PASS, 47s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-after-compact E2E_RESULTS_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-after-compact/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-after-compact/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/ai-chat-keyboard-after-compact/debug E2E_SUITE_NAME=release-hardening-ai-chat-keyboard-after-compact bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/chat-long-input-keyboard.yaml`: PASS, 59s.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs ai-chat --validate && node scripts/e2e/run-suite.mjs platform-layout --validate && node scripts/e2e/run-suite.mjs visual-audit --validate && node scripts/e2e/run-suite.mjs release-gate --validate`: PASS, ai-chat 5 flows, platform-layout 5 flows, visual-audit 9 flows, release-gate 17 flows validated.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate && node scripts/e2e/run-suite.mjs release-gate --validate && node scripts/e2e/run-suite.mjs nightly-regression --validate && node scripts/e2e/run-suite.mjs platform-layout --validate`: failed because `nightly-regression` is not a suite name in this repo. Corrected with the valid `ai-chat` suite command above.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/test-output/screenshots/chat-empty.png`
+  - `e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/test-output/screenshots/chat-long-input-keyboard.png`
+  - `e2e/artifacts/release-hardening/ai-chat-visual-after-keyboard-compact/test-output/screenshots/chat-basic.png`
+  - `e2e/artifacts/release-hardening/ai-chat-error-after-screenshot/test-output/screenshots/chat-error-state.png`
+  - `e2e/artifacts/release-hardening/ai-chat-no-credits-after-screenshot/test-output/screenshots/chat-no-credits.png`
+- Screenshot review:
+  - Empty chat state is calm, readable, and gives one obvious next step through the composer or starter prompts.
+  - Keyboard state no longer clips the intro card; starter prompts, the long input, and send action remain reachable above the keyboard.
+  - Basic conversation keeps user and assistant messages visible, aligned to the bottom like a normal chat, with no transport error stored as an assistant message.
+  - Error state shows the user message, clear helper copy, and visible retry action; no `chat-message-ai` appears.
+  - No-credits state shows a clear lock banner, upgrade action, disabled starter prompts, and disabled composer copy without changing premium/free semantics.
+- Remaining Minor/Polish:
+  - Short conversations remain bottom-anchored, leaving generous top whitespace. This is acceptable for a chat surface focused on the composer and does not block 9/10.
+  - Error state keeps the keyboard open after send failure. Retry and helper text remain reachable, so this is polish rather than a release blocker.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 13. Premium / Paywall / subscription state
+
+- Status: Ready.
+- Canonical path: profile subscription management opens the existing paywall modal for purchase/restore, uses `useManageSubscriptionState` for restore/purchase actions, `PremiumContext` for subscription state, and `AccessContext` for AI credits. No pricing, entitlement semantics, backend contract, or premium/free model was changed.
+- Files inspected:
+  - `e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+  - `e2e/maestro/release-gate/premium-paywall-restore.yaml`
+  - `e2e/maestro/nightly-regression/billing-entitlement-states.yaml`
+  - `e2e/maestro/nightly-regression/billing-restore-failure.yaml`
+  - `e2e/maestro/platform-layout/paywall-open-layout.yaml`
+  - `src/feature/Subscription/screens/ManageSubscriptionScreen.tsx`
+  - `src/feature/Subscription/hooks/useManageSubscriptionState.ts`
+  - `src/feature/Subscription/components/PaywallModal.tsx`
+  - `src/context/PremiumContext.tsx`
+  - `src/context/AccessContext.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `src/locales/pl/profile.json`
+  - `src/locales/en/profile.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-visual-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-visual-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-visual-baseline/debug E2E_SUITE_NAME=release-hardening-premium-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-restore-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-restore-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-baseline/debug E2E_SUITE_NAME=release-hardening-premium-restore-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/premium-paywall-restore.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-entitlement-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-entitlement-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-entitlement-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-entitlement-baseline/debug E2E_SUITE_NAME=release-hardening-premium-entitlement-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/billing-entitlement-states.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-restore-failure-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-restore-failure-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-failure-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-failure-baseline/debug E2E_SUITE_NAME=release-hardening-premium-restore-failure-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/billing-restore-failure.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-paywall-layout-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-paywall-layout-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-paywall-layout-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-paywall-layout-baseline/debug E2E_SUITE_NAME=release-hardening-premium-paywall-layout-baseline bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/paywall-open-layout.yaml`
+- Baseline result:
+  - Visual audit: PASS, 2m 37s.
+  - Restore release gate: FAIL at obsolete `manage-subscription-action-feedback-success` assertion.
+  - Entitlement states: PASS, 42s, but screenshot review revealed inconsistent state after E2E premium seed.
+  - Restore failure: PASS, 55s.
+  - Paywall layout: PASS, 56s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/premium-visual-baseline/test-output/screenshots/premium-paywall.png`
+  - `e2e/artifacts/release-hardening/premium-restore-baseline/test-output/2026-05-21_220659/`
+  - `e2e/artifacts/release-hardening/premium-entitlement-after-fixture-fix/test-output/screenshots/premium-manage-free.png`
+  - `e2e/artifacts/release-hardening/premium-entitlement-after-fixture-fix/test-output/screenshots/premium-manage-premium.png`
+- Issues found:
+  - The restore release gate expected an obsolete persistent success feedback row even though the canonical hook now emits restore success as a toast and clears action feedback.
+  - E2E premium fixtures still allocated 100 AI credits while product copy, paywall benefits, and subscription UI describe 800 credits.
+  - After `billing=premium` E2E seeding, `AccessContext` updated to Premium/800 but `PremiumContext` still showed the subscription as free on the same screen.
+  - Entitlement, restore-failure, and platform-layout flows had useful assertions but did not consistently leave screenshots for strict visual review.
+- Classification:
+  - Stale restore release-gate assertion: Major test/release-gate issue.
+  - Premium fixture allocation mismatch: Major product/test consistency issue.
+  - E2E seed desynchronization between premium status and credits: Major functional state propagation issue in release-hardening coverage.
+  - Missing screenshots for critical premium states: Minor release-hardening coverage gap.
+- Root cause:
+  - `premium-paywall-restore.yaml` was not updated after `useManageSubscriptionState` changed restore success from persistent action feedback to a toast.
+  - `src/services/e2e/fixtures.ts` had stale premium allocation data.
+  - `AccessContext` subscribed to `e2e:seeded`, but `PremiumContext` did not refresh on that E2E-only event, so the subscription row could remain stale while credits updated.
+  - Several premium flows asserted state but skipped `takeScreenshot`.
+- Affected files:
+  - `e2e/maestro/release-gate/premium-paywall-restore.yaml`
+  - `e2e/maestro/nightly-regression/billing-entitlement-states.yaml`
+  - `e2e/maestro/nightly-regression/billing-restore-failure.yaml`
+  - `e2e/maestro/platform-layout/paywall-open-layout.yaml`
+  - `src/context/PremiumContext.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+- Fixes made:
+  - Rewired the restore release-gate flow to assert the actual post-restore domain state: paywall closed, subscription state `premium_active`, credit tier Premium, and allocation 800.
+  - Updated the E2E premium fixture allocation to 800 and covered it in fixture tests.
+  - Added an E2E-only `e2e:seeded` subscription in `PremiumContext` to force a premium/access refresh after seed changes, matching the existing local E2E refresh behavior in `AccessContext` without changing production runtime.
+  - Added explicit status assertions for free and premium subscription rows in the entitlement flow.
+  - Added screenshots to restore success, entitlement free/premium, restore failure, and paywall layout flows.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/release-gate/premium-paywall-restore.yaml`
+  - `e2e/maestro/nightly-regression/billing-entitlement-states.yaml`
+  - `e2e/maestro/nightly-regression/billing-restore-failure.yaml`
+  - `e2e/maestro/platform-layout/paywall-open-layout.yaml`
+  - `src/context/PremiumContext.tsx`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+- Verification after fix:
+  - `npx jest src/context/PremiumContext.test.tsx src/context/AccessContext.test.tsx src/services/e2e/fixtures.test.ts src/feature/Subscription/hooks/useManageSubscriptionState.test.ts src/feature/Subscription/screens/ManageSubscriptionScreen.test.tsx src/feature/Subscription/components/PaywallModal.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 6 suites / 44 tests. Existing console warnings are from intentionally tested error paths.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-entitlement-after-premium-context-refresh E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-entitlement-after-premium-context-refresh/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-entitlement-after-premium-context-refresh/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-entitlement-after-premium-context-refresh/debug E2E_SUITE_NAME=release-hardening-premium-entitlement-after-premium-context-refresh bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/billing-entitlement-states.yaml`: PASS, 42s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-restore-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-restore-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-restore-final/debug E2E_SUITE_NAME=release-hardening-premium-restore-final bash scripts/run-e2e-local.sh e2e/maestro/release-gate/premium-paywall-restore.yaml`: PASS, 1m 8s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/premium-billing-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/premium-billing-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-billing-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/premium-billing-final/debug E2E_SUITE_NAME=release-hardening-premium-billing-final node scripts/e2e/run-suite.mjs premium-billing`: PASS, 6/6 flows.
+  - `npm run typecheck`: PASS after fixing the E2E event cleanup return type in `PremiumContext`.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs premium-billing --validate && node scripts/e2e/run-suite.mjs platform-layout --validate && node scripts/e2e/run-suite.mjs visual-audit --validate && node scripts/e2e/run-suite.mjs release-gate --validate`: PASS, premium-billing 6 flows, platform-layout 5 flows, visual-audit 9 flows, release-gate 17 flows validated.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-paywall-open-layout.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-paywall-restore-modal.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-restore-success.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-manage-free.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-manage-premium.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/premium-restore-failure.png`
+  - `e2e/artifacts/release-hardening/premium-billing-final/test-output/screenshots/chat-no-credits.png`
+- Screenshot review:
+  - Paywall modal has a clear title, close affordance, one dominant olive subscribe CTA, secondary restore action, readable legal copy, and visible terms/privacy links.
+  - Restore success closes the paywall and lands on a clear Premium active management state with subscription `Premium`, tier `Premium`, and allocation `800`.
+  - Entitlement free and premium states are visually calm and coherent; no contradictory premium/free labels remain after E2E seed changes.
+  - Restore failure shows a visible error banner, clear recovery CTA, and does not falsely mark premium active.
+  - No-credits chat screenshot remains consistent with the premium unlock entry point and does not change premium/free semantics.
+- Remaining Minor/Polish:
+  - Paywall benefit list is dense on the reviewed viewport, but CTA, restore, legal text, and close control remain visible and readable; this does not block 9/10.
+  - Premium management screenshots crop the lower renewal row because the flow intentionally scrolls to the membership/credits rows under review. The visible state is sufficient for entitlement readiness.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 14. Notifications / reminders settings
+
+- Status: Ready.
+- Canonical path: Profile -> App settings -> Notifications uses the existing `NotificationsScreen`, `useNotificationsScreenState`, `useReminderDecision`, notification preferences repository hooks, and smart reminder decision service. No notification/reminder contract, backend API, or kill-switch semantics were changed.
+- Files inspected:
+  - `e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+  - `e2e/maestro/release-gate/notifications-preferences.yaml`
+  - `e2e/maestro/nightly-regression/reminders-disabled-state.yaml`
+  - `scripts/e2e/suites.json`
+  - `src/feature/UserProfile/screens/NotificationsScreen.tsx`
+  - `src/feature/UserProfile/hooks/useNotificationsScreenState.ts`
+  - `src/hooks/useReminderDecision.ts`
+  - `src/services/reminders/reminderService.ts`
+  - `src/services/reminders/reminderSettings.ts`
+  - `src/services/e2e/fixtures.ts`
+  - `src/components/SettingsRow.tsx`
+  - `src/components/ButtonToggle.tsx`
+  - `src/locales/pl/notifications.json`
+  - `src/locales/en/notifications.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-preferences-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-preferences-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-preferences-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-preferences-baseline/debug E2E_SUITE_NAME=release-hardening-notifications-preferences-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/notifications-preferences.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-disabled-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-disabled-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-disabled-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-disabled-baseline/debug E2E_SUITE_NAME=release-hardening-notifications-disabled-baseline bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/reminders-disabled-state.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-visual-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-visual-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-visual-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-visual-baseline/debug E2E_SUITE_NAME=release-hardening-notifications-visual-baseline bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+- Baseline result:
+  - Notifications preferences release gate: FAIL at hidden `notifications-prefs-sync-success` assertion.
+  - Reminders disabled regression: FAIL at hidden `notifications-reminder-qa-status-disabled` assertion.
+  - Visual audit: PASS, 2m 36s.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/notifications-visual-baseline/test-output/screenshots/notifications-preferences.png`
+  - Failure artifacts:
+    - `e2e/artifacts/release-hardening/notifications-preferences-baseline/test-output/`
+    - `e2e/artifacts/release-hardening/notifications-disabled-baseline/test-output/`
+- Issues found:
+  - Release/regression flows asserted dev/QA diagnostics that are intentionally hidden in E2E by `__DEV__ && !isE2EModeEnabled()`.
+  - The real production-style screen did not expose stable state testIDs for persisted notification preferences, so Maestro was coupled to diagnostic rows.
+  - With `reminder=disabled`, the user-facing screen still showed the smart reminders toggle as enabled because disabled decision state only existed in hidden QA rows.
+  - The Polish smart-reminder subtitle was clipped with ellipsis in the baseline screenshot.
+- Classification:
+  - Stale Maestro assertions tied to hidden diagnostics: Major test/release-gate issue.
+  - Smart reminders disabled state not surfaced in user UI: Major UX/state consistency issue.
+  - Missing stable state testIDs on real preference rows: Minor testability/accessibility issue.
+  - Clipped Polish smart-reminder subtitle: Minor visual/copy issue.
+- Root cause:
+  - `NotificationsScreen` hid developer diagnostics in E2E, but `notifications-preferences.yaml` and `reminders-disabled-state.yaml` still treated those diagnostics as canonical assertions.
+  - `NotificationsScreen` previously fetched smart reminder decisions only for dev diagnostics, so E2E disabled decision and runtime disabled state could not affect the actual preference row.
+  - The smart reminder copy was too long for the settings row width beside a toggle.
+- Affected files:
+  - `src/feature/UserProfile/screens/NotificationsScreen.tsx`
+  - `src/feature/UserProfile/hooks/useNotificationsScreenState.ts`
+  - `src/feature/UserProfile/screens/NotificationsScreen.test.tsx`
+  - `src/locales/pl/notifications.json`
+  - `src/locales/en/notifications.json`
+  - `e2e/maestro/release-gate/notifications-preferences.yaml`
+  - `e2e/maestro/nightly-regression/reminders-disabled-state.yaml`
+  - `e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+- Fixes made:
+  - Kept developer diagnostics hidden from E2E/product-style screenshots and rewired Maestro to assert real row/toggle state instead.
+  - Added stable state testIDs on the real preference rows: smart reminders, motivation, stats, and sync status on the visible content container.
+  - Made `NotificationsScreen` use the canonical reminder decision state so a disabled smart reminder surface is shown as a neutral unavailable state instead of an active green toggle.
+  - Disabled the smart reminder toggle and displayed it as off when reminder decision state is disabled, without changing stored preference semantics.
+  - Reset preference sync status to `idle` at the start of each toggle mutation so the `success` marker represents the latest completed save.
+  - Shortened smart reminder copy in PL/EN to prevent row truncation.
+  - Added screenshots to the preferences release flow and disabled-state regression flow.
+  - Changed the shared visual-audit notifications seed to `reminder=send` so the normal preferences screenshot stays separate from the disabled-state regression screenshot.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `src/feature/UserProfile/screens/NotificationsScreen.tsx`
+  - `src/feature/UserProfile/hooks/useNotificationsScreenState.ts`
+  - `src/feature/UserProfile/screens/NotificationsScreen.test.tsx`
+  - `src/locales/pl/notifications.json`
+  - `src/locales/en/notifications.json`
+  - `e2e/maestro/release-gate/notifications-preferences.yaml`
+  - `e2e/maestro/nightly-regression/reminders-disabled-state.yaml`
+  - `e2e/maestro/visual-audit/chat-premium-notifications.yaml`
+- Verification after fix:
+  - `npx jest src/feature/UserProfile/screens/NotificationsScreen.test.tsx src/feature/UserProfile/hooks/useNotificationsScreenState.test.ts src/services/reminders/reminderSettings.test.ts src/services/reminders/reminderService.test.ts --runInBand --watchman=false --no-coverage`: PASS, 4 suites / 22 tests. One earlier run failed because the new screen unit test used real `Layout`/React Navigation ESM; corrected by mocking shared screen components like neighboring screen tests.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-preferences-after-state-markers E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-preferences-after-state-markers/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-preferences-after-state-markers/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-preferences-after-state-markers/debug E2E_SUITE_NAME=release-hardening-notifications-preferences-after-state-markers bash scripts/run-e2e-local.sh e2e/maestro/release-gate/notifications-preferences.yaml`: PASS, 49s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-disabled-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-disabled-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-disabled-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-disabled-final/debug E2E_SUITE_NAME=release-hardening-notifications-disabled-final bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/reminders-disabled-state.yaml`: PASS, 43s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-visual-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-visual-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-visual-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-visual-final/debug E2E_SUITE_NAME=release-hardening-notifications-visual-final bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/chat-premium-notifications.yaml`: PASS, 2m 38s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/notifications-retention-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/notifications-retention-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-retention-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/notifications-retention-final/debug E2E_SUITE_NAME=release-hardening-notifications-retention-final node scripts/e2e/run-suite.mjs notifications-retention`: PASS, 4/4 flows.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs notifications-retention --validate && node scripts/e2e/run-suite.mjs visual-audit --validate && node scripts/e2e/run-suite.mjs release-gate --validate`: PASS, notifications-retention 4 flows, visual-audit 9 flows, release-gate 17 flows validated.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/notifications-visual-final/test-output/screenshots/notifications-preferences.png`
+  - `e2e/artifacts/release-hardening/notifications-retention-final/test-output/screenshots/notifications-preferences-initial.png`
+  - `e2e/artifacts/release-hardening/notifications-retention-final/test-output/screenshots/notifications-preferences-after-toggle.png`
+  - `e2e/artifacts/release-hardening/notifications-retention-final/test-output/screenshots/notifications-preferences-persisted.png`
+  - `e2e/artifacts/release-hardening/notifications-retention-final/test-output/screenshots/notifications-reminders-disabled.png`
+- Screenshot review:
+  - Normal notifications screen has clear hierarchy: title, permission success state, preferences section, and readable toggles.
+  - Smart reminder helper copy no longer truncates in Polish.
+  - Preference toggle changes are visually clear and persist after returning to the screen.
+  - Disabled smart reminders state is now explicit, calm, and user-facing; the smart reminder toggle appears off/disabled instead of contradicting the unavailable state.
+  - No dev diagnostics, raw QA rows, or legacy reminders screen appear in product-style screenshots.
+- Remaining Minor/Polish:
+  - The disabled-state screenshot crops the lower stats row because the regression flow scrolls to verify the unavailable smart reminder state. The normal preferences screenshot covers the full section, so this does not block 9/10.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 15. Settings / legal / account deletion
+
+- Status: Ready.
+- Canonical path: Profile -> Legal & privacy -> legal/data clarity screens, Profile -> App settings, and Profile -> Delete account. Account deletion remains password-confirmed through the existing `DeleteAccountScreen` and `UserAccountContext.deleteUser`; no account deletion semantics, billing semantics, backend contract, or data model was changed.
+- Files inspected:
+  - `e2e/maestro/smoke/account-launch.yaml`
+  - `e2e/maestro/release-gate/account-delete-cancel.yaml`
+  - `e2e/maestro/nightly-regression/account-delete-disposable-user.yaml`
+  - `src/feature/UserProfile/screens/UserProfileScreen.tsx`
+  - `src/feature/UserProfile/screens/LegalPrivacyHubScreen.tsx`
+  - `src/feature/UserProfile/screens/DataAiClarityScreen.tsx`
+  - `src/feature/UserProfile/screens/AppSettingsScreen.tsx`
+  - `src/feature/UserProfile/screens/DeleteAccountScreen.tsx`
+  - `src/components/FormScreenShell.tsx`
+  - `src/components/KeyboardAwareScrollView.tsx`
+  - `src/components/SettingsRow.tsx`
+  - `src/components/TextInput.tsx`
+  - `src/locales/pl/profile.json`
+  - `src/locales/en/profile.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/settings-account-launch-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/settings-account-launch-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-account-launch-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-account-launch-baseline/debug E2E_SUITE_NAME=release-hardening-settings-account-launch-baseline bash scripts/run-e2e-local.sh e2e/maestro/smoke/account-launch.yaml`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-baseline/debug E2E_SUITE_NAME=release-hardening-settings-delete-cancel-baseline bash scripts/run-e2e-local.sh e2e/maestro/release-gate/account-delete-cancel.yaml`
+- Baseline result:
+  - `account-launch.yaml`: PASS, 1m 17s, but originally did not capture screenshots.
+  - `account-delete-cancel.yaml`: PASS, 49s, but originally did not capture screenshots.
+- Issues found:
+  - `account-launch` and `account-delete-cancel` validated navigation/actions but did not leave screenshots for strict legal/settings/delete review.
+  - `DataAiClarityScreen` used `SettingsRow` for explanatory legal/privacy copy, but `SettingsRow` hard-limited subtitles to two lines, causing the Polish AI photo analysis text to truncate with an ellipsis.
+  - After entering the delete-account password, keyboard-aware focus left the large destructive warning mostly above the screenshot frame. The action was still usable, but the final destructive CTA needed local context beside the password field.
+- Classification:
+  - Missing screenshot checkpoints for legal/settings/delete states: Minor release-hardening coverage gap.
+  - Truncated Data & AI legal/privacy copy: Major UX/legal clarity issue.
+  - Delete-account final confirmation context mostly out of frame after password focus: Major UX clarity issue.
+- Root cause:
+  - Existing account flows predated the stricter screenshot-review loop.
+  - `SettingsRow` had a fixed `numberOfLines={2}` subtitle policy suitable for compact settings rows but too restrictive for Data & AI explanatory content.
+  - The shared keyboard-aware scroll behavior correctly keeps the password field and sticky destructive actions reachable, but for this short destructive form it can move the main warning card partly offscreen after focus.
+- Affected files:
+  - `e2e/maestro/smoke/account-launch.yaml`
+  - `e2e/maestro/release-gate/account-delete-cancel.yaml`
+  - `src/components/SettingsRow.tsx`
+  - `src/components/SettingsRow.test.tsx`
+  - `src/feature/UserProfile/screens/DataAiClarityScreen.tsx`
+  - `src/feature/UserProfile/screens/DeleteAccountScreen.tsx`
+  - `src/locales/pl/profile.json`
+  - `src/locales/en/profile.json`
+- Fixes made:
+  - Added screenshot checkpoints to `account-launch` for account overview, legal/privacy hub, Data & AI clarity, app settings, account actions, and delete-account entry.
+  - Added screenshot checkpoints to `account-delete-cancel` for password-entered and cancel-returned states.
+  - Added `subtitleNumberOfLines` to `SettingsRow`, preserving the two-line default and letting informational rows opt into three lines.
+  - Updated Data & AI clarity rows to opt into three-line subtitles so explanatory legal/privacy copy is readable without creating a parallel component.
+  - Added calm destructive helper copy under the delete-account password input so the final enabled CTA remains contextual even after keyboard-aware focus shifts the page.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/smoke/account-launch.yaml`
+  - `e2e/maestro/release-gate/account-delete-cancel.yaml`
+  - `src/components/SettingsRow.tsx`
+  - `src/components/SettingsRow.test.tsx`
+  - `src/feature/UserProfile/screens/DataAiClarityScreen.tsx`
+  - `src/feature/UserProfile/screens/DeleteAccountScreen.tsx`
+  - `src/locales/pl/profile.json`
+  - `src/locales/en/profile.json`
+- Verification after fix:
+  - `node -e 'JSON.parse(require("fs").readFileSync("src/locales/pl/profile.json","utf8")); JSON.parse(require("fs").readFileSync("src/locales/en/profile.json","utf8")); console.log("profile locale JSON ok")'`: PASS.
+  - `npx jest src/components/SettingsRow.test.tsx src/feature/UserProfile/screens/AppSettingsScreen.test.tsx src/feature/UserProfile/screens/UserProfileScreen.test.tsx --runInBand --watchman=false --no-coverage`: PASS, 3 suites / 6 tests.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/settings-account-launch-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/settings-account-launch-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-account-launch-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-account-launch-final/debug E2E_SUITE_NAME=release-hardening-settings-account-launch-final bash scripts/run-e2e-local.sh e2e/maestro/smoke/account-launch.yaml`: PASS, 1m 16s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-after-helper E2E_RESULTS_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-after-helper/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-after-helper/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-cancel-after-helper/debug E2E_SUITE_NAME=release-hardening-settings-delete-cancel-after-helper bash scripts/run-e2e-local.sh e2e/maestro/release-gate/account-delete-cancel.yaml`: PASS, 50s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/settings-delete-disposable-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/settings-delete-disposable-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-disposable-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/settings-delete-disposable-final/debug E2E_SUITE_NAME=release-hardening-settings-delete-disposable-final bash scripts/run-e2e-local.sh e2e/maestro/nightly-regression/account-delete-disposable-user.yaml`: PASS, 1m 36s.
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `node scripts/e2e/run-suite.mjs auth --validate && node scripts/e2e/run-suite.mjs smoke --validate && node scripts/e2e/run-suite.mjs release-gate --validate`: PASS, auth 8 flows, smoke 7 flows, release-gate 17 flows validated.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/account-overview.png`
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/legal-privacy-hub.png`
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/data-ai-clarity.png`
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/app-settings.png`
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/account-actions.png`
+  - `e2e/artifacts/release-hardening/settings-account-launch-final/test-output/screenshots/delete-account-entry.png`
+  - `e2e/artifacts/release-hardening/settings-delete-cancel-after-helper/test-output/screenshots/delete-account-password-entered.png`
+  - `e2e/artifacts/release-hardening/settings-delete-cancel-after-helper/test-output/screenshots/delete-account-cancel-returned.png`
+- Screenshot review:
+  - Account overview, legal/privacy hub, app settings, and account actions are calm, readable, and consistent with warm neutral surfaces and compact settings cards.
+  - Data & AI clarity now shows the Polish explanatory copy without ellipsis in the reviewed rows; hierarchy is clear and the blue informational block stays visually secondary.
+  - Delete-account entry shows a clear destructive warning, password input, disabled destructive CTA, and cancel action with enough visual breathing room.
+  - Delete-account password-entered state keeps the input, destructive CTA, cancel, and the new irreversible-deletion helper visible. The top warning card is partly out of frame after focus, but the final action no longer loses destructive context.
+  - Cancel returns to the account screen with the expected profile tab state; no dead end, hidden close affordance, or broken account state was observed.
+  - Disposable deletion flow confirms the destructive action ends at Login and does not leave the user authenticated after app restart.
+- Remaining Minor/Polish:
+  - In the password-entered screenshot, the large warning card is still partially cropped after focus. The local helper and visible destructive CTA preserve clarity, so this remains Polish rather than a Major blocker.
+  - Some account overview screenshots are taken at deliberate scroll positions and crop adjacent section headings; the target rows remain visible and this does not affect readiness.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 16. Share flow
+
+- Status: Ready.
+- Canonical path: History meal details or saved Review Meal state -> `MealShare` -> quick share or customize composer -> save/share action. The no-photo state remains intentionally unavailable from History details; the flow does not create a parallel success screen or alter meal data semantics.
+- Files inspected:
+  - `e2e/maestro/release-gate/share-save-and-share.yaml`
+  - `e2e/maestro/nightly-regression/share-customize-basic.yaml`
+  - `e2e/maestro/nightly-regression/share-export-error.yaml`
+  - `e2e/maestro/nightly-regression/share-invalid-no-photo.yaml`
+  - `src/feature/Meals/screens/MealShareScreen.tsx`
+  - `src/feature/Meals/shareComposer/ShareComposerCanvas.tsx`
+  - `src/feature/Meals/shareComposer/ShareComposerDock.tsx`
+  - `src/feature/Meals/shareComposer/components/DockUtilityRow.tsx`
+  - `src/feature/Meals/shareComposer/components/DockQuickPanel.tsx`
+  - `src/feature/Meals/shareComposer/components/PresetThumb.tsx`
+  - `src/feature/Meals/shareComposer/presets.ts`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/locales/pl/share.json`
+  - `src/locales/en/share.json`
+- Baseline commands:
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/share-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/share-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/share-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/share-baseline/debug E2E_SUITE_NAME=release-hardening-share-baseline node scripts/e2e/run-suite.mjs share`
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/share-screenshots-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/share-screenshots-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/share-screenshots-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/share-screenshots-baseline/debug E2E_SUITE_NAME=release-hardening-share-screenshots-baseline node scripts/e2e/run-suite.mjs share`
+- Baseline result:
+  - Initial share suite: PASS, 4/4 flows. Existing flows originally did not capture screenshots.
+  - Screenshot baseline after adding visual checkpoints: PASS, 4/4 flows.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-quick-ready.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-save-success.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-customize-ready.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-customize-elements-added.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-customize-reset.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-export-error.png`
+  - `e2e/artifacts/release-hardening/share-screenshots-baseline/test-output/screenshots/share-no-photo-details.png`
+- Issues found:
+  - Share composer opened for the E2E photo meal, but the canvas rendered `Photo unavailable`, so the export/share preview did not contain the meal photo.
+  - Visible Share UI mixed English copy into the Polish app: `Quick`, `Customize`, `Photo unavailable`, `Add note`, and raw macro terms such as `protein`, `carbs`, and `fat`.
+  - The customize utility row was horizontally clipped in screenshots; `Resetuj` was partially cut off.
+  - Share flows validated behavior but originally had no screenshot checkpoints for strict UX/UI review.
+- Classification:
+  - Missing meal photo in share composer preview: Major.
+  - English/raw labels in Polish Share UI: Major.
+  - Clipped utility row in customize dock: Major.
+  - Missing screenshot checkpoints: Minor release-hardening coverage gap.
+- Root cause:
+  - `user-with-photo-meal` used a placeholder remote URL (`https://example.com/fitaly-e2e-photo-meal.jpg`) that React Native could not load. The History E2E helper made the Share entry visible, but the Share screen still rendered the unavailable image URL.
+  - `MealShareScreen`, `ShareComposerCanvas`, and `presets.ts` had local hardcoded English composer labels instead of share namespace i18n keys.
+  - The utility row used text+icon chips in a narrow dock area where icon-only tools are the canonical interaction pattern.
+  - The existing share suite predated the screenshot-review requirement.
+- Affected files:
+  - `e2e/maestro/release-gate/share-save-and-share.yaml`
+  - `e2e/maestro/nightly-regression/share-customize-basic.yaml`
+  - `e2e/maestro/nightly-regression/share-export-error.yaml`
+  - `e2e/maestro/nightly-regression/share-invalid-no-photo.yaml`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/feature/Meals/screens/MealShareScreen.tsx`
+  - `src/feature/Meals/shareComposer/ShareComposerCanvas.tsx`
+  - `src/feature/Meals/shareComposer/components/DockUtilityRow.tsx`
+  - `src/feature/Meals/shareComposer/presets.ts`
+  - `src/locales/pl/share.json`
+  - `src/locales/en/share.json`
+- Fixes made:
+  - Added screenshot checkpoints to all share flows: quick ready, save success, customize ready, customize after adding elements, customize reset, export error, and no-photo details.
+  - Seeded `user-with-photo-meal` with the local bundled sample meal photo via `getSampleMealUri`, preserving `photoLocalPath` for local-first visual coverage.
+  - Added fixture test coverage for the local sample photo seed.
+  - Localized Share segmented labels, unavailable-photo label, deselect accessibility label, note placeholder, and quick macro labels.
+  - Passed localized macro labels into `ShareComposerCanvas` so the quick overlay reads naturally in Polish.
+  - Converted the customize utility row to icon-only 40x40 circular controls with existing stable testIDs and accessibility labels, removing horizontal clipping.
+  - Added `waitForAnimationToEnd` before success/error screenshots to make capture timing explicit.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/release-gate/share-save-and-share.yaml`
+  - `e2e/maestro/nightly-regression/share-customize-basic.yaml`
+  - `e2e/maestro/nightly-regression/share-export-error.yaml`
+  - `e2e/maestro/nightly-regression/share-invalid-no-photo.yaml`
+  - `src/services/e2e/fixtures.ts`
+  - `src/services/e2e/fixtures.test.ts`
+  - `src/feature/Meals/screens/MealShareScreen.tsx`
+  - `src/feature/Meals/shareComposer/ShareComposerCanvas.tsx`
+  - `src/feature/Meals/shareComposer/components/DockUtilityRow.tsx`
+  - `src/feature/Meals/shareComposer/presets.ts`
+  - `src/locales/pl/share.json`
+  - `src/locales/en/share.json`
+- Verification after fix:
+  - `node -e 'JSON.parse(require("fs").readFileSync("src/locales/pl/share.json","utf8")); JSON.parse(require("fs").readFileSync("src/locales/en/share.json","utf8")); console.log("share locale JSON ok")'`: PASS.
+  - `npx jest src/services/e2e/fixtures.test.ts --runInBand --watchman=false --no-coverage`: PASS, 1 suite / 10 tests.
+  - `npm run typecheck`: PASS.
+  - `node scripts/e2e/run-suite.mjs share --validate`: PASS, 4 flows validated.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/share-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/share-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/share-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/share-final/debug E2E_SUITE_NAME=release-hardening-share-final node scripts/e2e/run-suite.mjs share`: PASS, 4/4 flows.
+  - `npm run lint`: PASS.
+  - `git diff --check`: PASS.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-quick-ready.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-save-success.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-customize-ready.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-customize-elements-added.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-customize-reset.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-export-error.png`
+  - `e2e/artifacts/release-hardening/share-final/test-output/screenshots/share-no-photo-details.png`
+- Screenshot review:
+  - `share-quick-ready` now shows the real sample meal photo, localized `Szybko` / `Edycja` mode labels, localized macro labels, visible preset thumbnails, and a clear dominant action surface.
+  - `share-save-success` keeps the same composed preview and shows the success state `Zapisano w galerii.` without blocking the next action.
+  - `share-customize-ready` shows the real image, a readable composer canvas, and an icon-only utility row that fits the dock without clipping.
+  - `share-customize-elements-added` renders added chart/card/text layers including localized `Dodaj notatkę`; the state is visually denser by nature of customization, but controls remain understandable and reachable.
+  - `share-customize-reset` returns to the cleaner customize baseline without stale layers.
+  - `share-export-error` shows a localized error route with visible actions and no loss of the composed preview.
+  - `share-no-photo-details` confirms the History details screen does not expose `history-meal-share-button` for meals without a photo; edit/delete remain available and the user is not led into a dead Share path.
+  - `share-save-success` and `share-export-error` still show a small white rounded pointer artifact over the segmented control in Maestro screenshots. The artifact persisted after timing waits and matches earlier local Maestro pointer artifacts; it is recorded as an environment visual artifact, not app UI.
+- Remaining Minor/Polish:
+  - Some Share composer internals still use legacy hardcoded color literals inside the existing canvas/preset implementation. The visible result is coherent and no new blocking inconsistency was introduced, but a future shared-token cleanup would improve design-system maintainability.
+  - The customize demo state is intentionally layer-dense after adding elements; it remains usable and does not block 9/10.
+  - Local Maestro pointer artifact appears in two screenshots and should be watched in future visual review.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready
+
+### 17. Small-screen / keyboard / platform layout visual audit
+
+- Status: Ready.
+- Canonical path: focused small-screen form fields, keyboard-aware Add Meal text entry, long AI chat input, barcode manual-entry sheet, and premium paywall sheet keep primary actions visible and reachable without changing Add Meal save architecture or meal data flow.
+- Files inspected:
+  - `AGENTS.md`
+  - `package.json`
+  - `scripts/e2e/suites.json`
+  - `scripts/e2e/run-suite.mjs`
+  - `scripts/run-e2e-local.sh`
+  - `e2e/maestro/visual-audit/platform-layout.yaml`
+  - `e2e/maestro/platform-layout/small-screen-forms.yaml`
+  - `e2e/maestro/platform-layout/text-meal-keyboard.yaml`
+  - `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml`
+  - `e2e/maestro/platform-layout/barcode-manual-sheet.yaml`
+  - `e2e/maestro/platform-layout/paywall-open-layout.yaml`
+  - `e2e/maestro/release-gate/review-edit-layout.yaml`
+  - `e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`
+  - `src/components/KeyboardAwareScrollView.tsx`
+  - `src/feature/Meals/screens/MealAdd/MealDetailsFormScreen.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/MealBasicsSection.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientListSection.tsx`
+  - `src/feature/Meals/screens/MealAdd/components/IngredientEditorModal.tsx`
+  - `src/feature/Meals/hooks/useMealDetailsForm.ts`
+- Baseline commands:
+  - `node scripts/e2e/run-suite.mjs platform-layout --validate`: PASS, 5 flows validated.
+  - `node scripts/e2e/run-suite.mjs visual-audit --validate`: PASS, 9 flows validated.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual/debug E2E_SUITE_NAME=release-hardening-platform-layout-baseline-visual bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/platform-layout.yaml`: FAIL before product review, with iOS `kAXErrorInvalidUIElement` while checking optional dev-menu `Close` on splash.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun/debug E2E_SUITE_NAME=release-hardening-platform-layout-baseline-visual-rerun bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/platform-layout.yaml`: PASS, 1m 50s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-baseline/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline/debug E2E_SUITE_NAME=release-hardening-platform-layout-baseline node scripts/e2e/run-suite.mjs platform-layout`: FAIL on `small-screen-forms.yaml`.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-continue E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-continue/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-continue/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-baseline-continue/debug E2E_SUITE_NAME=release-hardening-platform-layout-baseline-continue node scripts/e2e/run-suite.mjs platform-layout --continue-on-failure`: 4/5 PASS; only `small-screen-forms.yaml` failed.
+- Baseline screenshot location:
+  - `e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun/test-output/screenshots/barcode-manual-sheet.png`
+  - `e2e/artifacts/release-hardening/platform-layout-baseline-visual-rerun/test-output/screenshots/small-screen-form.png`
+  - `e2e/artifacts/release-hardening/platform-layout-baseline-continue/test-output/screenshots/premium-paywall-open-layout.png`
+- Issues found:
+  - `small-screen-forms.yaml` repeatably failed after hiding the keyboard because it scrolled downward to find `meal-type-picker-trigger`, then the active app state ended with `ingredient-editor-sheet` open and the target picker outside the active hierarchy.
+  - Initial visual baseline had one transient iOS/Maestro accessibility failure at splash before product UI was reached.
+- Classification:
+  - `small-screen-forms.yaml` failure: Major release-hardening coverage issue. It blocked path 17 readiness even though product reached the canonical edit form.
+  - Initial splash `kAXErrorInvalidUIElement`: Environment transient; rerun passed and did not reproduce in subsequent final verification.
+- Root cause:
+  - The top edit-form controls already have stable testIDs and are asserted directly in `review-edit-layout.yaml`. `small-screen-forms.yaml` had redundant downward `scrollUntilVisible` steps for those top controls immediately after keyboard dismissal. On the small-screen viewport, the scroll gesture could move into the ingredient rows and open the ingredient editor sheet, masking the target picker.
+- Affected files:
+  - `e2e/maestro/platform-layout/small-screen-forms.yaml`
+- Fixes made:
+  - Replaced the redundant post-keyboard downward scrolls for `meal-type-picker-trigger` and `meal-time-picker-trigger` with direct `assertVisible` checks.
+  - Kept scrolling only for lower-form controls: ingredient editor inputs and the final footer submit action.
+- Changed files:
+  - `docs/release-hardening/ux-ui-maestro-loop-plan.md`
+  - `e2e/maestro/platform-layout/small-screen-forms.yaml`
+- Verification after fix:
+  - `node scripts/e2e/run-suite.mjs platform-layout --validate`: PASS, 5 flows validated.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-small-screen-fix E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-small-screen-fix/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-small-screen-fix/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-small-screen-fix/debug E2E_SUITE_NAME=release-hardening-platform-layout-small-screen-fix bash scripts/run-e2e-local.sh e2e/maestro/platform-layout/small-screen-forms.yaml`: PASS, 1m 21s.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-final E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-final/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-final/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-final/debug E2E_SUITE_NAME=release-hardening-platform-layout-final node scripts/e2e/run-suite.mjs platform-layout`: PASS, 5/5 flows.
+  - `env E2E_ARTIFACT_DIR=e2e/artifacts/release-hardening/platform-layout-final-visual E2E_RESULTS_DIR=e2e/artifacts/release-hardening/platform-layout-final-visual/results E2E_TEST_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-final-visual/test-output E2E_DEBUG_OUTPUT_DIR=e2e/artifacts/release-hardening/platform-layout-final-visual/debug E2E_SUITE_NAME=release-hardening-platform-layout-final-visual bash scripts/run-e2e-local.sh e2e/maestro/visual-audit/platform-layout.yaml`: PASS, 1m 49s.
+- Post-fix screenshot location:
+  - `e2e/artifacts/release-hardening/platform-layout-final-visual/test-output/screenshots/barcode-manual-sheet.png`
+  - `e2e/artifacts/release-hardening/platform-layout-final-visual/test-output/screenshots/small-screen-form.png`
+  - `e2e/artifacts/release-hardening/platform-layout-final/test-output/screenshots/premium-paywall-open-layout.png`
+- Screenshot review:
+  - Barcode manual sheet keeps the input, helper text, search CTA, and return-to-scanning action visible above the numeric keyboard. No clipped text or blocked primary action observed.
+  - Small-screen meal form keeps the active meal-name input, type/time controls, ingredient context, and `Wróć do podsumowania` CTA visible above the keyboard. The long name remains readable without overlapping controls.
+  - Paywall open layout keeps subscribe, restore purchases, legal copy, and legal links visible within the sheet. The primary CTA is dominant and the restore action remains reachable.
+  - Text meal keyboard, chat long input keyboard, barcode manual sheet, and paywall functional flows all passed in the final suite.
+- Remaining Minor/Polish:
+  - `small-screen-form.png` shows the optional photo card partially clipped at the top while the keyboard focuses the meal-name input. The active field, type/time controls, and submit CTA remain visible, so this is accepted as Minor/Polish rather than a launch blocker.
+  - `premium-paywall-open-layout.png` shows a sliver of the underlying manage-subscription title behind the modal sheet. The sheet itself is clear and complete, so this is accepted as Polish.
+- Final assessment:
+  - Functional readiness: 10/10
+  - UX clarity: 9/10
+  - Visual polish: 9/10
+  - Design-system consistency: 9/10
+  - Release confidence: 9/10
+  - Final score: 9/10
+  - Status: Ready

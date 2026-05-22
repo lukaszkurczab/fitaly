@@ -22,8 +22,10 @@ appId: com.lkurczab.fitaly
 - takeScreenshot: auth-login
 - tapOn:
     id: login-register-link
-- assertVisible:
-    id: register-username-input
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
 - takeScreenshot: auth-register
 - tapOn:
     id: register-username-input

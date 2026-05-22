@@ -26,8 +26,10 @@ env:
 - tapOn:
     id: login-register-link
 
-- assertVisible:
-    id: register-username-input
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
 - tapOn:
     id: register-username-input
 - eraseText

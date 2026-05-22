@@ -45,7 +45,6 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: ingredient-editor-submit-button
 - takeScreenshot: review-edit-save-ingredient-keyboard
-- hideKeyboard
 - tapOn:
     id: ingredient-editor-submit-button
 - assertVisible:
