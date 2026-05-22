@@ -27,16 +27,8 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: meal-name-input
 - hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: meal-type-picker-trigger
-    direction: DOWN
 - assertVisible:
     id: meal-type-picker-trigger
-- scrollUntilVisible:
-    element:
-      id: meal-time-picker-trigger
-    direction: DOWN
 - assertVisible:
     id: meal-time-picker-trigger
 - scrollUntilVisible:

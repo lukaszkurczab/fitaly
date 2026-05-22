@@ -19,6 +19,7 @@ env:
     id: delete-account-password-input
 - eraseText
 - inputText: ${E2E_PASSWORD}
+- takeScreenshot: delete-account-password-entered
 - assertVisible:
     id: delete-account-cancel-button
 - tapOn:
@@ -27,3 +28,4 @@ env:
     id: account-screen
 - assertVisible:
     id: tab-profile
+- takeScreenshot: delete-account-cancel-returned

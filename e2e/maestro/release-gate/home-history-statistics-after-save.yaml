@@ -1,84 +1,41 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-ai-textSuccess
 - tapOn:
     id: tab-add-meal
 - assertVisible:
-    id: meal-add-option-manual
+    id: meal-add-option-text
 - tapOn:
-    id: meal-add-option-manual
+    id: meal-add-option-text
 - assertVisible:
-    id: meal-details-form-screen
+    id: add-meal-text-screen
 - tapOn:
-    id: meal-name-input
+    id: add-meal-text-name-input
 - eraseText
 - inputText: E2E Stats Bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce.
 - hideKeyboard
+- tapOn:
+    id: add-meal-text-screen
+- waitForAnimationToEnd
 - assertVisible:
-    id: meal-details-form-submit-button
-- scrollUntilVisible:
-    element:
-      id: ingredient-add-button
-    direction: DOWN
+    id: add-meal-text-analyze-button
 - tapOn:
-    id: ingredient-add-button
-- assertVisible:
-    id: ingredient-editor-sheet
-- tapOn:
-    id: ingredient-editor-name-input
-- eraseText
-- inputText: E2E deterministic chicken
-- tapOn:
-    id: ingredient-editor-kcal-input
-- eraseText
-- inputText: "512"
-- scrollUntilVisible:
-    element:
-      id: ingredient-editor-protein-input
-    direction: DOWN
-- tapOn:
-    id: ingredient-editor-protein-input
-- eraseText
-- inputText: "42"
-- scrollUntilVisible:
-    element:
-      id: ingredient-editor-carbs-input
-    direction: DOWN
-- tapOn:
-    id: ingredient-editor-carbs-input
-- eraseText
-- inputText: "48"
-- scrollUntilVisible:
-    element:
-      id: ingredient-editor-fat-input
-    direction: DOWN
-- tapOn:
-    id: ingredient-editor-fat-input
-- eraseText
-- inputText: "16"
-- scrollUntilVisible:
-    element:
-      id: ingredient-editor-submit-button
-    direction: DOWN
-- assertVisible:
-    id: ingredient-editor-submit-button
-- tapOn:
-    id: ingredient-editor-submit-button
-- assertVisible:
-    id: ingredient-row-0
-- scrollUntilVisible:
-    element:
-      id: meal-details-form-submit-button
-    direction: DOWN
-- assertVisible:
-    id: meal-details-form-submit-button
-- tapOn:
-    id: meal-details-form-submit-button
-- assertVisible:
-    id: review-meal-screen
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
 - assertVisible:
     id: review-meal-save-button
 - tapOn:

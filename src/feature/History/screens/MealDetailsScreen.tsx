@@ -115,7 +115,7 @@ export default function MealDetailsScreen() {
     return (
       <Layout showNavigation={false} style={styles.layout}>
         <BackTitleHeader
-          title={t("navText", { ns: "history" })}
+          title={t("screenTitle", { ns: "history" })}
           onBack={state.handleBack}
           titleSize="h2"
         />
@@ -160,7 +160,7 @@ export default function MealDetailsScreen() {
           testID="history-meal-details-screen"
         >
           <BackTitleHeader
-            title={t("navText", { ns: "history" })}
+            title={t("screenTitle", { ns: "history" })}
             onBack={state.handleBack}
             titleSize="h2"
             style={{ marginBottom: 0 }}

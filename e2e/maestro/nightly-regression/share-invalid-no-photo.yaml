@@ -24,3 +24,4 @@ appId: com.lkurczab.fitaly
     id: history-meal-edit-button
 - assertVisible:
     id: history-meal-delete-button
+- takeScreenshot: share-no-photo-details

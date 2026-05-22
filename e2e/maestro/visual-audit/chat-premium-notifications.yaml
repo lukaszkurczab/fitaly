@@ -74,9 +74,9 @@ appId: com.lkurczab.fitaly
 - takeScreenshot: premium-paywall
 
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=disabled"
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
 - assertVisible:
-    id: e2e-ready-reminder-disabled
+    id: e2e-ready-reminder-send
 - tapOn:
     id: tab-profile
 - scrollUntilVisible:

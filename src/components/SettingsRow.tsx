@@ -15,6 +15,7 @@ import { useTheme } from "@/theme/useTheme";
 export type SettingsRowProps = {
   title: string;
   subtitle?: string;
+  subtitleNumberOfLines?: number;
   value?: string;
   leading?: ReactNode;
   trailing?: ReactNode;
@@ -32,6 +33,7 @@ export type SettingsRowProps = {
 export function SettingsRow({
   title,
   subtitle,
+  subtitleNumberOfLines = 2,
   value,
   leading,
   trailing,
@@ -96,7 +98,7 @@ export function SettingsRow({
         {subtitle ? (
           <Text
             style={[styles.subtitle, isInactive ? styles.copyDisabled : null]}
-            numberOfLines={2}
+            numberOfLines={subtitleNumberOfLines}
           >
             {subtitle}
           </Text>

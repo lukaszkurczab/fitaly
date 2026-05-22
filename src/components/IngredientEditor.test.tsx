@@ -1,4 +1,4 @@
-import { TextInput as RNTextInput } from "react-native";
+import { Keyboard, TextInput as RNTextInput } from "react-native";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import { IngredientEditor } from "@/components/IngredientEditor";
@@ -81,6 +81,35 @@ describe("IngredientEditor", () => {
 
     fireEvent.press(getByText("common:save_changes"));
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("dismisses the keyboard from the name field submit action", () => {
+    const dismissSpy = jest.spyOn(Keyboard, "dismiss").mockImplementation(jest.fn());
+    const { UNSAFE_getAllByType } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-2",
+          name: "Apple",
+          amount: 100,
+          unit: "g",
+          protein: 1,
+          carbs: 10,
+          fat: 2,
+          kcal: 50,
+        }}
+        onCommit={() => undefined}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    const [nameInput] = UNSAFE_getAllByType(RNTextInput);
+
+    expect(nameInput.props.returnKeyType).toBe("done");
+
+    fireEvent(nameInput, "submitEditing");
+
+    expect(dismissSpy).toHaveBeenCalledTimes(1);
   });
 
   it("supports the sheet variant actions for adding a new ingredient", () => {

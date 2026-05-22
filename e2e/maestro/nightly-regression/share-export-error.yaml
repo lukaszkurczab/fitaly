@@ -40,3 +40,5 @@ appId: com.lkurczab.fitaly
     id: share-system-share-button
 - assertVisible:
     id: share-canvas
+- waitForAnimationToEnd
+- takeScreenshot: share-export-error

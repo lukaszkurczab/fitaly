@@ -32,3 +32,4 @@ appId: com.lkurczab.fitaly
     id: chat-retry-button
 - assertNotVisible:
     id: chat-message-ai
+- takeScreenshot: chat-error-state

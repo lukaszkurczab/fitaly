@@ -125,6 +125,23 @@ export default function SelectSavedMealScreen({
     [handleStartOver, styles, t],
   );
 
+  const header = (
+    <View style={styles.header} testID="select-saved-meal-header">
+      <Text style={styles.eyebrow}>
+        {t("saved_list_eyebrow", "Saved meals")}
+      </Text>
+      <Text style={styles.title}>
+        {t("saved_list_title", "Reuse a saved meal")}
+      </Text>
+      <Text style={styles.subtitle}>
+        {t(
+          "saved_list_subtitle",
+          "Pick a saved meal, review it, and log it when you're ready.",
+        )}
+      </Text>
+    </View>
+  );
+
   const handleExit = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -159,6 +176,8 @@ export default function SelectSavedMealScreen({
         {closeButton}
 
         <View style={styles.screen} testID="select-saved-meal-screen">
+          {header}
+
           <View style={styles.searchWrap}>
             <TextInput
               testID="select-saved-meal-search-input"
@@ -216,8 +235,6 @@ export default function SelectSavedMealScreen({
               />
             )}
           </View>
-
-          {renderFooter()}
         </View>
       </Layout>
     );
@@ -228,6 +245,8 @@ export default function SelectSavedMealScreen({
       {closeButton}
 
       <View style={styles.screen} testID="select-saved-meal-screen">
+        {header}
+
         <View style={styles.searchWrap}>
           <TextInput
             testID="select-saved-meal-search-input"
@@ -261,8 +280,8 @@ export default function SelectSavedMealScreen({
           initialNumToRender={step}
           windowSize={7}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={renderFooter}
         />
-        {renderFooter()}
       </View>
     </Layout>
   );
@@ -278,13 +297,36 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       minHeight: 0,
     },
+    header: {
+      paddingTop: theme.spacing.xs,
+      paddingRight: theme.spacing.display,
+      paddingBottom: theme.spacing.lg,
+    },
+    eyebrow: {
+      color: theme.primary,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      marginBottom: theme.spacing.xs,
+    },
+    title: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
+      marginBottom: theme.spacing.xs,
+    },
+    subtitle: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+    },
     listItemWrap: {
       marginBottom: 12,
     },
     searchWrap: {
-      paddingTop: theme.spacing.xs,
-      paddingBottom: 18,
-      paddingRight: theme.spacing.display,
+      paddingBottom: theme.spacing.md,
     },
     searchInput: {
       width: "100%",
@@ -307,7 +349,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       minHeight: 0,
     },
     listContent: {
-      paddingBottom: 12,
+      paddingBottom: theme.spacing.lg,
     },
     emptyContent: {
       flex: 1,
@@ -355,8 +397,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     footerLink: {
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 32,
-      marginTop: 2,
+      minHeight: 44,
+      marginTop: theme.spacing.xs,
     },
     footerLinkLabel: {
       color: theme.primary,

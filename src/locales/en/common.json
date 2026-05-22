@@ -50,7 +50,7 @@
   "draft_inactivity_message": "Your draft will be removed due to inactivity. Do you want to continue editing or quit?",
   "continue": "Continue",
   "retry": "Retry",
-  "camera_loader_title": "Analyzing your meal...",
+  "camera_loader_title": "Preparing your review",
   "camera_loader_subtext": "This may take a few seconds.",
   "unknownError": "Something went wrong.",
   "kcal": "kcal",

@@ -28,7 +28,7 @@ describe("SettingsRow", () => {
     );
 
     expect(getByText("Change email")).toBeTruthy();
-    expect(getByText("Current email address")).toBeTruthy();
+    expect(getByText("Current email address").props.numberOfLines).toBe(2);
     expect(getByText("name@example.com")).toBeTruthy();
     expect(getByTestId("leading")).toBeTruthy();
     expect(getByText("chevron")).toBeTruthy();
@@ -43,5 +43,21 @@ describe("SettingsRow", () => {
     );
 
     expect(queryByText("chevron")).toBeNull();
+  });
+
+  it("allows informational rows to opt into a taller subtitle", () => {
+    const { getByText } = renderWithTheme(
+      <SettingsRow
+        title="Data clarity"
+        subtitle="Full legal and privacy helper copy should stay readable when the screen needs it."
+        subtitleNumberOfLines={3}
+      />,
+    );
+
+    expect(
+      getByText(
+        "Full legal and privacy helper copy should stay readable when the screen needs it.",
+      ).props.numberOfLines,
+    ).toBe(3);
   });
 });

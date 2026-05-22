@@ -19,11 +19,14 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: manage-subscription-status-row
 - assertVisible:
+    id: manage-subscription-status-value-free_active
+- assertVisible:
     id: manage-subscription-tier-row
 - assertVisible:
     id: manage-subscription-tier-value-free
 - assertVisible:
     id: manage-subscription-credits-balance-row
+- takeScreenshot: premium-manage-free
 - openLink: "fitaly://e2e/seed?credits=ok&billing=premium"
 - assertVisible:
     id: e2e-ready-billing-premium
@@ -31,6 +34,10 @@ appId: com.lkurczab.fitaly
     id: manage-subscription-screen
 - assertVisible:
     id: manage-subscription-status-row
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-status-value-premium_active
+    timeout: 15000
 - scrollUntilVisible:
     element:
       id: manage-subscription-tier-row
@@ -41,3 +48,6 @@ appId: com.lkurczab.fitaly
     timeout: 15000
 - assertVisible:
     id: manage-subscription-credits-allocation-row
+- assertVisible:
+    id: manage-subscription-credits-allocation-value-800
+- takeScreenshot: premium-manage-premium

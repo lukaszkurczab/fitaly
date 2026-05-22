@@ -18,6 +18,7 @@
   "logOutConfirmAction": "Log out",
   "deleteAccount": "Delete account",
   "deleteAccountWarning": "This action will permanently delete your account and all your data. Please enter your password to confirm.",
+  "deleteAccountPasswordHelper": "After confirmation, your account and saved data will be permanently deleted.",
   "deleteAccountError": "Account deletion failed",
   "wrongPasswordOrUnknownError": "Wrong password or unknown error.",
   "confirm": "Confirm",

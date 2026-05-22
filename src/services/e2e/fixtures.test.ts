@@ -8,6 +8,7 @@ import {
   resolveE2EBillingPurchaseResult,
   resolveE2EChatRun,
   resolveE2ENotificationPermission,
+  resolveE2EPhotoAnalysis,
   resolveE2EReminderDecision,
   resolveE2EShareExport,
   resolveE2ETextMealAnalysis,
@@ -22,6 +23,7 @@ const mockSaveMealTransaction = jest.fn<(input: unknown) => Promise<unknown>>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
+const mockGetSampleMealUri = jest.fn<() => Promise<string>>();
 
 let mockE2EEnabled = true;
 
@@ -56,6 +58,10 @@ jest.mock("@/services/core/events", () => ({
   emit: (event: string, payload?: unknown) => mockEmit(event, payload),
 }));
 
+jest.mock("@/utils/devSamples", () => ({
+  getSampleMealUri: () => mockGetSampleMealUri(),
+}));
+
 describe("E2E fixtures", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -66,6 +72,7 @@ describe("E2E fixtures", () => {
     mockSaveMealTransaction.mockResolvedValue({});
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
+    mockGetSampleMealUri.mockResolvedValue("file:///sampleMeal-local.jpg");
     __resetE2EFixturesForTests();
   });
 
@@ -74,7 +81,7 @@ describe("E2E fixtures", () => {
       parseE2ESeedCommand({
         fixture: "user-with-failed-meal",
         credits: "none",
-        ai: "textSuccess",
+        ai: "photoSlow",
         barcode: "known",
         billing: "premium",
         chat: "success",
@@ -86,7 +93,7 @@ describe("E2E fixtures", () => {
     ).toEqual({
       fixture: "user-with-failed-meal",
       credits: "none",
-      ai: "textSuccess",
+      ai: "photoSlow",
       barcode: "known",
       billing: "premium",
       chat: "success",
@@ -150,6 +157,26 @@ describe("E2E fixtures", () => {
           userUid: "user-1",
           name: "E2E Today Meal",
           inputMethod: "manual",
+        }),
+      }),
+    );
+  });
+
+  it("seeds the photo meal with a local sample photo for share visual coverage", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-photo-meal" },
+    });
+
+    expect(markers).toEqual(["fixture-user-with-photo-meal"]);
+    expect(mockGetSampleMealUri).toHaveBeenCalledTimes(1);
+    expect(mockSaveMealTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meal: expect.objectContaining({
+          name: "E2E Photo Meal",
+          inputMethod: "photo",
+          photoUrl: "file:///sampleMeal-local.jpg",
+          photoLocalPath: "file:///sampleMeal-local.jpg",
         }),
       }),
     );
@@ -252,6 +279,7 @@ describe("E2E fixtures", () => {
     const access = getE2EAccessState("user-1");
     expect(access?.tier).toBe("premium");
     expect(access?.credits?.balance).toBe(0);
+    expect(access?.credits?.allocation).toBe(800);
     expect(access?.features.aiChat.enabled).toBe(false);
     expect(resolveE2EBarcodeLookup()).toEqual(
       expect.objectContaining({ kind: "found", name: "E2E Barcode Yogurt" }),
@@ -297,5 +325,18 @@ describe("E2E fixtures", () => {
 
     const result = resolveE2EChatRun();
     expect(result).toEqual({ error: expect.any(Error) });
+  });
+
+  it("returns deterministic photo analysis for photo E2E flows", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { ai: "photoSuccess" },
+    });
+
+    await expect(resolveE2EPhotoAnalysis("user-1")).resolves.toEqual(
+      expect.objectContaining({
+        ingredients: [expect.objectContaining({ name: "E2E analyzed bowl" })],
+      }),
+    );
   });
 });

@@ -1,0 +1,121 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-today-meal
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: history-details-list-before
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-edit-button
+- takeScreenshot: history-details-screen
+- tapOn:
+    id: history-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: history-details-edit-form
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: E2E Edited Meal
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+- assertVisible:
+    id: meal-details-form-submit-button
+- takeScreenshot: history-details-edit-submit
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-details-title
+- takeScreenshot: history-details-after-edit
+- tapOn:
+    id: back-title-header-back
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0
+- takeScreenshot: history-details-list-after-edit
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-delete-button
+- scrollUntilVisible:
+    element:
+      id: history-meal-delete-button
+    direction: DOWN
+- takeScreenshot: history-details-delete-action
+- tapOn:
+    id: history-meal-delete-button
+- assertVisible:
+    id: history-meal-delete-modal
+- assertVisible:
+    id: history-meal-delete-cancel-button
+- assertVisible:
+    id: history-meal-delete-confirm-button
+- takeScreenshot: history-details-delete-modal
+- tapOn:
+    id: history-meal-delete-confirm-button
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-hero-card
+- assertNotVisible:
+    id: home-today-meal-row-0
+- takeScreenshot: history-details-home-after-delete
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertNotVisible:
+    id: history-meal-row-0
+- takeScreenshot: history-details-history-after-delete

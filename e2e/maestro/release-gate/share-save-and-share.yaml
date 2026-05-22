@@ -36,6 +36,7 @@ appId: com.lkurczab.fitaly
     id: share-save-gallery-button
 - assertVisible:
     id: share-system-share-button
+- takeScreenshot: share-quick-ready
 - tapOn:
     id: share-save-gallery-button
 - extendedWaitUntil:
@@ -46,3 +47,5 @@ appId: com.lkurczab.fitaly
     id: share-canvas
 - assertVisible:
     id: share-system-share-button
+- waitForAnimationToEnd
+- takeScreenshot: share-save-success

@@ -1,0 +1,59 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-saved-meals
+- assertVisible:
+    id: e2e-ready-fixture-user-with-saved-meals
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-saved
+- tapOn:
+    id: meal-add-option-saved
+- assertVisible:
+    id: select-saved-meal-screen
+- tapOn:
+    id: select-saved-meal-search-input
+- eraseText
+- inputText: E2E Saved
+- hideKeyboard
+- assertVisible:
+    id: saved-meal-add-e2e-saved-meal-1
+- takeScreenshot: add-meal-saved-template-list
+- tapOn:
+    id: saved-meal-add-e2e-saved-meal-1
+- assertVisible:
+    id: review-meal-screen
+- takeScreenshot: add-meal-saved-template-review-meal
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible:
+      id: review-meal-screen
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible:
+      id: review-meal-close
+    timeout: 10000
+- takeScreenshot: add-meal-saved-template-home-after-save
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0
+- takeScreenshot: add-meal-saved-template-history-after-save

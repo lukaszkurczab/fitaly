@@ -7,6 +7,7 @@ import { resetOfflineStorage } from "@/services/offline/db";
 import { upsertMealLocal } from "@/services/offline/meals.repo";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
+import { getSampleMealUri } from "@/utils/devSamples";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
 import type {
   AiCreditsStatus,
@@ -35,7 +36,9 @@ export type E2EFixtureName =
 export type E2ECreditsSeed = "ok" | "low" | "none";
 export type E2EAiSeed =
   | "textSuccess"
+  | "textSlow"
   | "photoSuccess"
+  | "photoSlow"
   | "failure"
   | "timeout"
   | "insufficientCredits";
@@ -86,7 +89,9 @@ const VALID_FIXTURES = new Set<E2EFixtureName>([
 const VALID_CREDITS = new Set<E2ECreditsSeed>(["ok", "low", "none"]);
 const VALID_AI = new Set<E2EAiSeed>([
   "textSuccess",
+  "textSlow",
   "photoSuccess",
+  "photoSlow",
   "failure",
   "timeout",
   "insufficientCredits",
@@ -381,6 +386,7 @@ async function applyNamedFixture(
   }
 
   if (fixture === "user-with-photo-meal") {
+    const sampleMealUri = await getSampleMealUri();
     await seedLoggedMeal(
       uid,
       meal({
@@ -389,7 +395,7 @@ async function applyNamedFixture(
         name: "E2E Photo Meal",
         source: "ai",
         inputMethod: "photo",
-        photoUrl: "https://example.com/fitaly-e2e-photo-meal.jpg",
+        photoUrl: sampleMealUri,
       }),
     );
     return;
@@ -486,7 +492,7 @@ function creditsStatus(uid: string, credits: E2ECreditsSeed): AiCreditsStatus {
     userId: uid,
     tier: premium ? "premium" : "free",
     balance,
-    allocation: premium ? 100 : 20,
+    allocation: premium ? 800 : 20,
     periodStartAt: "2026-05-01T00:00:00.000Z",
     periodEndAt: "2026-06-01T00:00:00.000Z",
     costs: { chat: 1, textMeal: 1, photo: 1 },
@@ -807,6 +813,11 @@ export function resolveE2EShareExport(
   return { status: "error", code: "failure" };
 }
 
+const E2E_TEXT_SLOW_ANALYSIS_DELAY_MS = 4000;
+const E2E_PHOTO_SLOW_ANALYSIS_DELAY_MS = 4000;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function insufficientCreditsError(source: string): Error {
   const error = createServiceError({
     code: "ai/insufficient-credits",
@@ -832,7 +843,10 @@ export async function resolveE2ETextMealAnalysis(
 ): Promise<{ ingredients: Ingredient[]; credits: AiTextMealAnalyzeResponse } | null> {
   if (!isE2EModeEnabled()) return null;
   const ai = fixtureState.ai;
-  if (!ai || ai === "photoSuccess") return null;
+  if (!ai || ai === "photoSuccess" || ai === "photoSlow") return null;
+  if (ai === "textSlow") {
+    await wait(E2E_TEXT_SLOW_ANALYSIS_DELAY_MS);
+  }
   if (ai === "failure") return { ingredients: [], credits: aiCreditsResponse(uid) };
   if (ai === "timeout") throw timeoutError("E2ETextMealService");
   if (ai === "insufficientCredits") throw insufficientCreditsError("E2ETextMealService");
@@ -844,7 +858,10 @@ export async function resolveE2EPhotoAnalysis(
 ): Promise<{ ingredients: Ingredient[] | null; credits: AiPhotoAnalyzeResponse } | null> {
   if (!isE2EModeEnabled()) return null;
   const ai = fixtureState.ai;
-  if (!ai || ai === "textSuccess") return null;
+  if (!ai || ai === "textSuccess" || ai === "textSlow") return null;
+  if (ai === "photoSlow") {
+    await wait(E2E_PHOTO_SLOW_ANALYSIS_DELAY_MS);
+  }
   if (ai === "failure") return { ingredients: null, credits: aiCreditsResponse(uid) };
   if (ai === "timeout") throw timeoutError("E2EVisionService");
   if (ai === "insufficientCredits") throw insufficientCreditsError("E2EVisionService");

@@ -41,3 +41,4 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - assertVisible:
     id: paywall-restore-button
+- takeScreenshot: premium-paywall-open-layout

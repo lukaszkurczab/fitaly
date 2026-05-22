@@ -27,8 +27,10 @@
   "email_in_use": "Ten adres e-mail jest już używany.",
   "must_accept_terms": "Musisz zaakceptować regulamin i politykę prywatności.",
   "accept_terms": "Akceptuję",
-  "terms": "Regulamin",
-  "privacy_policy": "Politykę prywatności",
+  "accept_terms_full": "Akceptuję regulamin i politykę prywatności",
+  "terms": "regulamin",
+  "terms_conjunction": "i",
+  "privacy_policy": "politykę prywatności",
   "toggle_password_visibility": "Pokaż/ukryj hasło",
   "register_failed": "Nie udało się utworzyć konta. Spróbuj ponownie.",
   "already_have_account": "Masz już konto?"

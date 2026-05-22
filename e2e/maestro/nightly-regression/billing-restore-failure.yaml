@@ -32,3 +32,4 @@ appId: com.lkurczab.fitaly
     timeout: 15000
 - assertVisible:
     id: manage-subscription-screen
+- takeScreenshot: premium-restore-failure

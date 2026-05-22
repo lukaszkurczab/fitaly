@@ -24,7 +24,14 @@ type ShareComposerCanvasProps = {
   width: number;
   height: number;
   mealPhotoUri: string;
+  photoUnavailableLabel: string;
+  deselectLayerLabel: string;
   nutrition: ShareNutrition;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
   composition: ShareCompositionState;
   mode: "quick" | "customize";
   selectedLayerId: ShareLayerId | null;
@@ -81,6 +88,7 @@ function QuickPresetOverlay({
   presetId,
   titleText,
   nutrition,
+  macroLabels,
   theme,
   stylesWithTheme,
 }: {
@@ -89,6 +97,11 @@ function QuickPresetOverlay({
   presetId: ShareCompositionState["presetId"];
   titleText: string;
   nutrition: ShareNutrition;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
   theme: ReturnType<typeof useTheme>;
   stylesWithTheme: ReturnType<typeof makeStyles>;
 }) {
@@ -100,9 +113,9 @@ function QuickPresetOverlay({
   const carbs = normalizeMetric(nutrition.carbs);
   const fat = normalizeMetric(nutrition.fat);
 
-  const proteinLabel = `${protein}g protein`;
-  const carbsLabel = `${carbs}g carbs`;
-  const fatLabel = `${fat}g fat`;
+  const proteinLabel = `${protein}g ${macroLabels.protein}`;
+  const carbsLabel = `${carbs}g ${macroLabels.carbs}`;
+  const fatLabel = `${fat}g ${macroLabels.fat}`;
 
   if (presetId === "quickSidebar") {
     return (
@@ -438,7 +451,10 @@ export default function ShareComposerCanvas({
   width,
   height,
   mealPhotoUri,
+  photoUnavailableLabel,
+  deselectLayerLabel,
   nutrition,
+  macroLabels,
   composition,
   mode,
   selectedLayerId,
@@ -491,7 +507,7 @@ export default function ShareComposerCanvas({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Deselect layer"
+        accessibilityLabel={deselectLayerLabel}
         onPress={onBackgroundPress}
         style={StyleSheet.absoluteFill}
       />
@@ -548,7 +564,9 @@ export default function ShareComposerCanvas({
         </DraggableItem>
       ) : (
         <View style={[stylesWithTheme.photoFallback, { width, height }]}>
-          <Text style={stylesWithTheme.photoFallbackText}>Photo unavailable</Text>
+          <Text style={stylesWithTheme.photoFallbackText}>
+            {photoUnavailableLabel}
+          </Text>
         </View>
       )}
 
@@ -559,6 +577,7 @@ export default function ShareComposerCanvas({
           presetId={composition.presetId}
           titleText={quickTitle}
           nutrition={nutrition}
+          macroLabels={macroLabels}
           theme={theme}
           stylesWithTheme={stylesWithTheme}
         />

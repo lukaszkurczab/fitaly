@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 
@@ -13,8 +13,6 @@ type Props = {
   days: WeekDayItem[];
   selectedDate: Date;
   onSelect: (d: Date) => void;
-  onOpenHistory?: () => void;
-  streak?: number;
 };
 
 export default function WeekStrip({ days, selectedDate, onSelect }: Props) {
@@ -44,15 +42,16 @@ export default function WeekStrip({ days, selectedDate, onSelect }: Props) {
           const dayNumber = String(d.date.getDate()).padStart(2, "0");
 
           return (
-            <Pressable
+            <TouchableOpacity
               key={d.date.toISOString()}
               onPress={() => onSelect(d.date)}
+              activeOpacity={0.92}
               accessibilityRole="button"
               accessibilityLabel={`${weekdayLabel} ${dayNumber}`}
-              style={({ pressed }) => [
+              focusable={false}
+              style={[
                 styles.dayItem,
                 selected && styles.dayItemSelected,
-                pressed ? styles.dayItemPressed : null,
               ]}
             >
               <Text
@@ -76,7 +75,7 @@ export default function WeekStrip({ days, selectedDate, onSelect }: Props) {
               >
                 {dayNumber}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -109,9 +108,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.primary,
       borderColor: theme.primary,
     },
-    dayItemPressed: {
-      opacity: 0.92,
-    },
     weekdayText: {
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.labelS,
@@ -137,19 +133,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     dayNumberToday: {
       fontFamily: theme.typography.fontFamily.semiBold,
-    },
-    historyButton: {
-      width: 44,
-      height: 44,
-      marginLeft: theme.spacing.sm,
-      borderRadius: theme.rounded.md,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-    },
-    historyButtonPressed: {
-      backgroundColor: theme.surface,
     },
   });

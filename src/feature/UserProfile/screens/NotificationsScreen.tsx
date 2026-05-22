@@ -51,8 +51,9 @@ export default function NotificationsScreen({
   const showDevDiagnostics = __DEV__ && !isE2EModeEnabled();
   const smartReminderDecision = useReminderDecision({
     uid,
-    fetchEnabled: showDevDiagnostics,
+    fetchEnabled: true,
   });
+  const smartRemindersAvailable = smartReminderDecision.enabled !== false;
   const smartReminderQaRows = useMemo(
     () =>
       buildSmartReminderQaRows({
@@ -87,6 +88,8 @@ export default function NotificationsScreen({
     onToggleMotivation,
     onToggleStats,
   } = useNotificationsScreenState(uid);
+  const effectiveSmartRemindersEnabled =
+    smartRemindersAvailable && smartRemindersEnabled;
   const diagnosticsRefreshKey = [
     uid ?? "no_user",
     String(systemAllowed),
@@ -250,7 +253,10 @@ export default function NotificationsScreen({
         intro={t("screen.intro")}
         onBack={handleBack}
       >
-        <View style={styles.content}>
+        <View
+          style={styles.content}
+          testID={`notifications-prefs-sync-${lastPrefsSyncStatus}`}
+        >
           {permissionBlock}
 
           {systemAllowed === false ? (
@@ -265,14 +271,34 @@ export default function NotificationsScreen({
             />
           ) : null}
 
+          {!smartRemindersAvailable ? (
+            <InfoBlock
+              testID="notifications-smart-reminders-unavailable"
+              title={t("screen.smartReminderUnavailableTitle")}
+              body={t("screen.smartReminderUnavailableBody")}
+              tone="neutral"
+              icon={<AppIcon name="info" size={18} color={theme.textSecondary} />}
+            />
+          ) : null}
+
           <SettingsSection title={t("screen.preferenceTitle")}>
             <SettingsRow
+              testID={`notifications-smart-reminders-state-${
+                effectiveSmartRemindersEnabled ? "on" : "off"
+              }`}
               title={t("screen.smartReminders")}
-              subtitle={t("screen.smartReminderHint")}
+              subtitle={t(
+                smartRemindersAvailable
+                  ? "screen.smartReminderHint"
+                  : "screen.smartReminderUnavailableHint",
+              )}
+              disabled={!smartRemindersAvailable}
               trailing={
                 <ButtonToggle
                   testID="notifications-smart-reminders-toggle"
-                  value={smartRemindersEnabled}
+                  accessibilityLabel={t("screen.smartReminders")}
+                  value={effectiveSmartRemindersEnabled}
+                  disabled={!smartRemindersAvailable}
                   onToggle={(enabled) => {
                     void onToggleSmartReminders(enabled);
                   }}
@@ -280,11 +306,15 @@ export default function NotificationsScreen({
               }
             />
             <SettingsRow
+              testID={`notifications-motivation-state-${
+                motivationEnabled ? "on" : "off"
+              }`}
               title={t("screen.motivation")}
               subtitle={t("screen.motivationSubtitle")}
               trailing={
                 <ButtonToggle
                   testID="notifications-motivation-toggle"
+                  accessibilityLabel={t("screen.motivation")}
                   value={motivationEnabled}
                   onToggle={(enabled) => {
                     void onToggleMotivation(enabled);
@@ -293,11 +323,13 @@ export default function NotificationsScreen({
               }
             />
             <SettingsRow
+              testID={`notifications-stats-state-${statsEnabled ? "on" : "off"}`}
               title={t("screen.stats")}
               subtitle={t("screen.statsSubtitle")}
               trailing={
                 <ButtonToggle
                   testID="notifications-stats-toggle"
+                  accessibilityLabel={t("screen.stats")}
                   value={statsEnabled}
                   onToggle={(enabled) => {
                     void onToggleStats(enabled);

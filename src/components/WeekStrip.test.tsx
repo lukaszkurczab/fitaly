@@ -1,4 +1,5 @@
 import { fireEvent } from "@testing-library/react-native";
+import { TouchableOpacity } from "react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import WeekStrip from "@/components/WeekStrip";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -67,25 +68,29 @@ describe("WeekStrip", () => {
     mockLanguage = "en-US";
   });
 
-  it("applies pressed styles for day cells", () => {
+  it("uses a calm touch opacity for day cells", () => {
     const days = [{ date: new Date(2026, 0, 1), label: "M", isToday: false }];
-    const { UNSAFE_root } = renderWithTheme(
+    const { UNSAFE_getByType } = renderWithTheme(
       <WeekStrip
         days={days}
         selectedDate={days[0].date}
         onSelect={() => undefined}
       />,
     );
-    const dayPressable = UNSAFE_root.find(
-      (node) =>
-        node.props.accessibilityRole === "button" &&
-        node.props.accessibilityLabel === "M 01" &&
-        typeof node.props.style === "function",
+
+    expect(UNSAFE_getByType(TouchableOpacity).props.activeOpacity).toBe(0.92);
+  });
+
+  it("does not request native non-touch focus for day cells", () => {
+    const days = [{ date: new Date(2026, 0, 1), label: "M", isToday: false }];
+    const { getByLabelText } = renderWithTheme(
+      <WeekStrip
+        days={days}
+        selectedDate={days[0].date}
+        onSelect={() => undefined}
+      />,
     );
 
-    const dayStyles = dayPressable.props.style({ pressed: true });
-
-    expect(dayStyles).toHaveLength(3);
-    expect(dayStyles[2]).toBeTruthy();
+    expect(getByLabelText("M 01").props.focusable).toBe(false);
   });
 });

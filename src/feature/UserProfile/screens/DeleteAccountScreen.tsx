@@ -87,6 +87,7 @@ export default function DeleteAccountScreen({
             testID="delete-account-password-input"
             label={t("password")}
             placeholder={t("enterPassword")}
+            helperText={t("deleteAccountPasswordHelper")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry

@@ -1,5 +1,12 @@
-import { useMemo } from "react";
-import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Keyboard,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -33,6 +40,8 @@ export default function DescribeMealScreen({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation(["meals", "chat", "common"]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const isKeyboardVisible = keyboardHeight > 0;
   const previewTopInset = useMemo(
     () =>
       Math.max(
@@ -149,16 +158,53 @@ export default function DescribeMealScreen({
     },
   });
 
-  const renderAnalyzeButton = () => (
+  useEffect(() => {
+    const showEventName =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEventName =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEventName, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEventName, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const renderAnalyzeButton = (style = styles.primaryButton) => (
     <Button
       testID="add-meal-text-analyze-button"
       label={t("describe_meal_primary_cta", { ns: "meals" })}
       onPress={onAnalyze}
       disabled={analyzeDisabled}
       loading={loading}
-      style={styles.primaryButton}
+      style={style}
     />
   );
+
+  const renderCtaHelperText = () =>
+    ctaHelperText ? (
+      <View
+        accessible
+        accessibilityLabel="add-meal-text-credits-explanation"
+      >
+        <Text
+          testID="add-meal-text-credits-explanation"
+          style={[
+            styles.inlineNote,
+            creditsNoteWarning ? styles.inlineNoteWarning : null,
+          ]}
+        >
+          {ctaHelperText}
+        </Text>
+      </View>
+    ) : null;
 
   return (
     <>
@@ -166,7 +212,7 @@ export default function DescribeMealScreen({
         showNavigation={false}
         disableScroll
         style={styles.layout}
-        keyboardAvoiding
+        keyboardAvoiding={false}
       >
         <Pressable
           style={styles.fill}
@@ -180,121 +226,131 @@ export default function DescribeMealScreen({
             extraScrollOffset={theme.spacing.xs}
             showsVerticalScrollIndicator={false}
           >
-            <MealAddPhotoScaffold
-              topInset={previewTopInset}
-              preview={
-                <View style={styles.preview}>
-                  <TextInput
-                    testID="add-meal-text-name-input"
-                    label={t("meal_name", { ns: "meals" })}
-                    value={name}
-                    onChangeText={onNameChange}
-                    placeholder={t("describe_meal_name_placeholder", {
-                      ns: "meals",
-                    })}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    spellCheck={false}
-                    maxLength={80}
-                  />
-                  <TextInput
-                    testID="add-meal-text-description-input"
-                    label={t("describe_meal_quick_description_label", {
-                      ns: "meals",
-                    })}
-                    value={quickDescription}
-                    onChangeText={onQuickDescriptionChange}
-                    placeholder={t(
-                      "describe_meal_quick_description_placeholder",
-                      {
+              <MealAddPhotoScaffold
+                topInset={previewTopInset}
+                preview={
+                  <View style={styles.preview}>
+                    <TextInput
+                      testID="add-meal-text-name-input"
+                      label={t("meal_name", { ns: "meals" })}
+                      value={name}
+                      onChangeText={onNameChange}
+                      placeholder={t("describe_meal_name_placeholder", {
                         ns: "meals",
-                      },
-                    )}
-                    multiline
-                    numberOfLines={DESCRIPTION_LINES}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    spellCheck={false}
-                    maxLength={300}
-                    style={styles.previewDescriptionField}
-                    fieldStyle={styles.previewDescriptionInputShell}
-                    inputStyle={styles.previewDescriptionInput}
-                    scrollEnabled
-                  />
-                </View>
-              }
-              previewFillsAvailable
-              topAction={
-                <ScreenCornerNavButton
-                  icon={canStepBack ? "back" : "close"}
-                  onPress={guard.requestExit}
-                  accessibilityLabel={t(canStepBack ? "back" : "close", {
-                    ns: "common",
-                    defaultValue: canStepBack ? "Back" : "Close",
-                  })}
-                  containerStyle={styles.screenCornerNavStyle}
-                />
-              }
-              eyebrow={t("describe_meal_sheet_overline", { ns: "meals" })}
-              title={t("describe_meal_sheet_title", { ns: "meals" })}
-              description={t("describe_meal_sheet_subtitle", { ns: "meals" })}
-              accessory={
-                <AiCreditsBadge
-                  text={`✦ ${String(t("credits.costSingle", { ns: "chat" }))}`}
-                  tone="success"
-                />
-              }
-              content={
-                <>
-                  {descriptionError || submitError ? (
-                    <ErrorBox
-                      testID="add-meal-text-error"
-                      message={descriptionError ?? submitError ?? ""}
+                      })}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      maxLength={80}
                     />
-                  ) : null}
-                  {ctaHelperText ? (
-                    <View
-                      accessible
-                      accessibilityLabel="add-meal-text-credits-explanation"
-                    >
-                      <Text
-                        testID="add-meal-text-credits-explanation"
-                        style={[
-                          styles.inlineNote,
-                          creditsNoteWarning ? styles.inlineNoteWarning : null,
-                        ]}
-                      >
-                        {ctaHelperText}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {renderAnalyzeButton()}
-                  {showUpgradeLink ? (
+                    <TextInput
+                      testID="add-meal-text-description-input"
+                      label={t("describe_meal_quick_description_label", {
+                        ns: "meals",
+                      })}
+                      value={quickDescription}
+                      onChangeText={onQuickDescriptionChange}
+                      placeholder={t(
+                        "describe_meal_quick_description_placeholder",
+                        {
+                          ns: "meals",
+                        },
+                      )}
+                      multiline
+                      numberOfLines={DESCRIPTION_LINES}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      maxLength={300}
+                      style={styles.previewDescriptionField}
+                      fieldStyle={styles.previewDescriptionInputShell}
+                      inputStyle={styles.previewDescriptionInput}
+                      scrollEnabled
+                    />
+                  </View>
+                }
+                previewFillsAvailable
+                topAction={
+                  <ScreenCornerNavButton
+                    icon={canStepBack ? "back" : "close"}
+                    onPress={guard.requestExit}
+                    accessibilityLabel={t(canStepBack ? "back" : "close", {
+                      ns: "common",
+                      defaultValue: canStepBack ? "Back" : "Close",
+                    })}
+                    containerStyle={styles.screenCornerNavStyle}
+                  />
+                }
+                eyebrow={t("describe_meal_sheet_overline", { ns: "meals" })}
+                title={t("describe_meal_sheet_title", { ns: "meals" })}
+                description={t("describe_meal_sheet_subtitle", { ns: "meals" })}
+                accessory={
+                  <AiCreditsBadge
+                    text={`✦ ${String(t("credits.costSingle", { ns: "chat" }))}`}
+                    tone="success"
+                  />
+                }
+                content={
+                  <>
+                    {descriptionError || submitError ? (
+                      <ErrorBox
+                        testID="add-meal-text-error"
+                        message={descriptionError ?? submitError ?? ""}
+                      />
+                    ) : null}
+                    {!isKeyboardVisible ? (
+                      <>
+                        {renderCtaHelperText()}
+                        {renderAnalyzeButton()}
+                      </>
+                    ) : null}
+                    {showUpgradeLink && !isKeyboardVisible ? (
+                      <MealAddTextLink
+                        testID="add-meal-text-upgrade-button"
+                        label={t("limit.upgradeCta", { ns: "chat" })}
+                        onPress={openPaywall}
+                        disabled={loading}
+                      />
+                    ) : null}
                     <MealAddTextLink
-                      testID="add-meal-text-upgrade-button"
-                      label={t("limit.upgradeCta", { ns: "chat" })}
-                      onPress={openPaywall}
+                      testID="add-meal-text-change-method-button"
+                      label={t("change_method", { ns: "meals" })}
+                      onPress={() =>
+                        navigation.navigate("MealAddMethod", {
+                          selectionMode: "temporary",
+                          origin: "mealAddFlow",
+                        })
+                      }
                       disabled={loading}
                     />
-                  ) : null}
-                  <MealAddTextLink
-                    testID="add-meal-text-change-method-button"
-                    label={t("change_method", { ns: "meals" })}
-                    onPress={() =>
-                      navigation.navigate("MealAddMethod", {
-                        selectionMode: "temporary",
-                        origin: "mealAddFlow",
-                      })
-                    }
-                    disabled={loading}
-                  />
-                </>
-              }
-              sheetFitContent
-              contentPlacement="start"
-            />
+                  </>
+                }
+                sheetFitContent
+                contentPlacement="start"
+              />
           </KeyboardAwareScrollView>
         </Pressable>
+
+        {isKeyboardVisible ? (
+          <Pressable
+            onPress={Keyboard.dismiss}
+            style={[
+              styles.keyboardActionBar,
+              { bottom: keyboardHeight + theme.spacing.sm },
+            ]}
+          >
+            {renderCtaHelperText()}
+            {renderAnalyzeButton(styles.keyboardPrimaryButton)}
+            {showUpgradeLink ? (
+              <MealAddTextLink
+                testID="add-meal-text-upgrade-button"
+                label={t("limit.upgradeCta", { ns: "chat" })}
+                onPress={openPaywall}
+                disabled={loading}
+              />
+            ) : null}
+          </Pressable>
+        ) : null}
 
         <Modal
           testID="add-meal-text-limit-modal"
@@ -383,6 +439,27 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     primaryButton: {
       minHeight: 48,
       borderRadius: theme.rounded.sm,
+    },
+    keyboardPrimaryButton: {
+      minHeight: 46,
+      borderRadius: theme.rounded.sm,
+    },
+    keyboardActionBar: {
+      position: "absolute",
+      left: theme.spacing.lg,
+      right: theme.spacing.lg,
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.22 : 0.1,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
     },
     inlineNote: {
       color: theme.textTertiary,

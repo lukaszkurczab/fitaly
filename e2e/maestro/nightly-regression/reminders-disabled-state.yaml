@@ -22,13 +22,14 @@ appId: com.lkurczab.fitaly
     id: notifications-permission-allowed-state
 - scrollUntilVisible:
     element:
-      id: notifications-reminder-qa-status-disabled
+      id: notifications-smart-reminders-unavailable
     direction: DOWN
 - assertVisible:
-    id: notifications-reminder-qa-status-disabled
+    id: notifications-smart-reminders-unavailable
 - assertVisible:
-    id: notifications-reminder-qa-source-disabled
+    id: notifications-smart-reminders-state-off
 - assertVisible:
-    id: notifications-reminder-qa-enabled-false
+    id: notifications-smart-reminders-toggle
+- takeScreenshot: notifications-reminders-disabled
 - assertNotVisible:
     id: legacy-reminders-screen

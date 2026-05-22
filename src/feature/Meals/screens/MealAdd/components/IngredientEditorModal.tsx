@@ -92,6 +92,7 @@ export default function IngredientEditorModal({
           {ingredientDraft ? (
             <KeyboardAwareScrollView
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="always"
               contentContainerStyle={styles.ingredientEditorContent}
             >
               <IngredientEditor

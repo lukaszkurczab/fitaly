@@ -79,6 +79,33 @@ export default function MealShareScreen() {
     [meal, t],
   );
 
+  const quickModeLabel = t("share_mode_quick_label", {
+    ns: "share",
+    defaultValue: "Quick",
+  });
+  const customizeModeLabel = t("share_mode_customize_label", {
+    ns: "share",
+    defaultValue: "Customize",
+  });
+
+  const shareMacroLabels = useMemo(
+    () => ({
+      protein: t("share_macro_protein", {
+        ns: "share",
+        defaultValue: "protein",
+      }),
+      carbs: t("share_macro_carbs", {
+        ns: "share",
+        defaultValue: "carbs",
+      }),
+      fat: t("share_macro_fat", {
+        ns: "share",
+        defaultValue: "fat",
+      }),
+    }),
+    [t],
+  );
+
   const nutrition: ShareNutrition = useMemo(
     () => resolveShareNutrition(meal),
     [meal],
@@ -331,14 +358,19 @@ export default function MealShareScreen() {
   );
 
   const handleAddTextLayer = useCallback(() => {
-    const next = createAdditionalTextLayer();
+    const next = createAdditionalTextLayer(
+      t("share_note_placeholder", {
+        ns: "share",
+        defaultValue: "Add note",
+      }),
+    );
     setComposition((prev) => ({
       ...prev,
       textLayers: [...prev.textLayers, next],
     }));
     setSelectedLayerId(null);
     void trackShareEvent("interaction.share.text_added");
-  }, [trackShareEvent]);
+  }, [t, trackShareEvent]);
 
   const handleEnsureChartLayer = useCallback(() => {
     setComposition((prev) => {
@@ -836,7 +868,7 @@ export default function MealShareScreen() {
                 },
               ]}
             >
-              Quick
+              {quickModeLabel}
             </Text>
           </Pressable>
           <Pressable
@@ -862,7 +894,7 @@ export default function MealShareScreen() {
                 },
               ]}
             >
-              Customize
+              {customizeModeLabel}
             </Text>
           </Pressable>
         </View>
@@ -883,7 +915,16 @@ export default function MealShareScreen() {
               width={canvasWidth}
               height={canvasHeight}
               mealPhotoUri={mealPhotoUri}
+              photoUnavailableLabel={t("share_photo_unavailable", {
+                ns: "share",
+                defaultValue: "Photo unavailable",
+              })}
+              deselectLayerLabel={t("share_deselect_layer", {
+                ns: "share",
+                defaultValue: "Deselect layer",
+              })}
               nutrition={nutrition}
+              macroLabels={shareMacroLabels}
               composition={composition}
               mode={mode}
               selectedLayerId={selectedLayerId}
