@@ -36,6 +36,14 @@ appId: com.lkurczab.fitaly
     visible:
       id: home-today-meal-row-0
     timeout: 10000
+- extendedWaitUntil:
+    notVisible:
+      id: review-meal-screen
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible:
+      id: review-meal-close
+    timeout: 10000
 - takeScreenshot: add-meal-barcode-home-after-save
 
 - runFlow: ../smoke/login.yaml

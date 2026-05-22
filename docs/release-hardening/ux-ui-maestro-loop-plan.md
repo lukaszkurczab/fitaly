@@ -124,47 +124,25 @@ If the fresh final evidence contradicts previous path notes, trust the fresh evi
 
 ## Accepted Visible Polish
 
-This section must remain empty until Path 18 has completed fresh final screenshot review.
-
-Do not pre-fill this section from historical path notes.
-
-A visible polish issue may be accepted only if it is genuinely negligible and does not weaken trust, readability, hierarchy, perceived premium quality, or launch presentation.
-
-For each accepted item, document:
-
-- screen/path,
-- screenshot path,
-- issue,
-- classification,
-- why it is accepted,
-- whether it affects App Store / launch screenshots,
-- whether it should be fixed before public launch or can wait.
-
-Do not mark the final UX/UI release gate as Go if any accepted visible polish weakens perceived premium quality.
+- None. Fresh Path 18 screenshot review did not accept any product-visible polish that weakens trust, readability, hierarchy, launch presentation, or premium-lite quality.
+- Non-product environment note: Maestro/iOS simulator screenshots after Review Meal save still show a faint top-center touch visualization in Home-after-save screenshots after the app-level WeekStrip hover/focus issue was removed. This is classified as simulator capture noise, not product UI: it is absent from seeded Home and post-delete Home states, moves independently of app layout, and no app component owns that top-center surface. It does not affect App Store/runtime UI, but launch marketing screenshots should be taken from a clean simulator capture session.
 
 ## Shared Component Regression Map
 
-Before final Go/No-Go, list every shared component changed during the loop and all paths that may be affected.
-
-Examples:
-
-- Button / TextInput / SettingsRow
-- Modal / bottom sheet
-- IngredientEditor / IngredientEditorModal
-- WeekStrip
-- Statistics cards
-- Share composer canvas/dock
-- Chat keyboard layout
-- E2E fixtures
-- run-e2e-local.sh
-- visual-audit suite map
-
-For each changed shared component:
-
-- affected paths,
-- targeted verification command,
-- screenshot evidence,
-- final status.
+| Shared component / surface | Changed in Path 18 | Affected paths | Verification command(s) | Screenshot evidence | Final status |
+| --- | --- | --- | --- | --- | --- |
+| TextInput usage in meal basics and IngredientEditor name fields | Yes: added `returnKeyType="done"` and `Keyboard.dismiss` submit behavior on meal name and ingredient name inputs. Shared `TextInput` component itself was not changed. | 5, 9, 17 | `npx jest src/components/IngredientEditor.test.tsx --runInBand --watchman=false --no-coverage`; `npm run typecheck`; `npm run lint`; `npm run e2e:release-gate` | `e2e/artifacts/visual-audit/latest/screenshots/review-edit-save-ingredient-keyboard.png`, `e2e/artifacts/visual-audit/latest/screenshots/small-screen-form.png` | Ready |
+| Button | No component change. Button loading/CTA behavior was regression-checked through save, paywall, share, and form flows. | 5, 6, 7, 8, 9, 13, 16, 17 | `npm run e2e:release-gate`; `npm run e2e:visual-audit` | `review-meal.png`, `premium-paywall.png`, `small-screen-form.png`, `chat-long-input-keyboard.png` | Ready |
+| SettingsRow / settings-like rows | No component change. Settings rows and notification toggles were regression-checked. | 14, 15 | `npm run e2e:release-gate`; `npm run e2e:visual-audit` | `notifications-preferences.png` | Ready |
+| Modal / bottom sheet surfaces | No shared Modal change. IngredientEditor bottom sheet behavior changed through its input action; Review Meal transition screenshots now wait for Review surfaces to clear before capture. | 9, 13, 14, 17 | `npx jest src/components/IngredientEditor.test.tsx --runInBand --watchman=false --no-coverage`; `npm run e2e:visual-audit`; `npm run e2e:release-gate` | `review-edit-save-ingredient-sheet.png`, `review-edit-save-ingredient-keyboard.png`, `premium-paywall.png` | Ready |
+| IngredientEditor / IngredientEditorModal | Yes: ingredient name input now exposes a done submit action that dismisses the keyboard. | 9, 17 | `npx jest src/components/IngredientEditor.test.tsx --runInBand --watchman=false --no-coverage`; targeted `e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`; `npm run e2e:release-gate` | `review-edit-save-ingredient-keyboard.png`, `review-edit-save-edit-after-ingredient.png` | Ready |
+| WeekStrip | Yes: day cells now use calm `TouchableOpacity`, keep `focusable={false}`, and avoid the app-level native focus/hover highlight that covered a weekday in Home-after-save screenshots. | 3, 4, 6, 7, 8, 9, 10, 17 | `npx jest src/components/WeekStrip.test.tsx --runInBand --watchman=false --no-coverage`; targeted `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`; `npm run e2e:visual-audit`; `npm run e2e:release-gate` | `home-empty.png`, `home-after-save.png`, `history-details-home-after-delete.png` | Ready |
+| Statistics cards / macro breakdown | No component change. Verified propagation and color semantics after fresh save. | 4, 11 | `npm run e2e:release-gate`; `npm run e2e:visual-audit` | `statistics-overview.png`, `statistics-lower-sections.png` | Ready |
+| Share composer canvas/dock | No component change. Verified localized share flow and composer states. | 16 | `npm run e2e:release-gate`; `npm run e2e:visual-audit` | Release-gate `share-save-and-share` pass; share screenshots from release-gate root were generated and removed from repo root after cleanup. | Ready |
+| Chat keyboard layout | No component change. Verified long input remains keyboard-safe with visible send action. | 12, 17 | `npm run e2e:release-gate`; `npm run e2e:visual-audit` | `chat-long-input-keyboard.png`, `chat-basic.png` | Ready |
+| E2E release-gate flows | Yes: removed stale manual-edit `hideKeyboard` before tapping visible ingredient CTA; updated offline sync assertion to wait for pending indicator to disappear instead of requiring a hidden synced indicator that product intentionally does not render. | 9, 10, 17 | Targeted manual-edit and offline-save-sync reruns; `npm run e2e:release-gate` | Release-gate reports in `e2e/artifacts/release-gate/reports` | Ready |
+| `run-e2e-local.sh` | No change. Verified through targeted and full final suite executions. | All Maestro-covered paths | Targeted Maestro reruns; `npm run e2e:release-gate`; `npm run e2e:visual-audit` | Logs under `e2e/artifacts/release-gate/logs` and `e2e/artifacts/visual-audit/latest/logs` | Ready |
+| Visual-audit suite map / Maestro flows | Yes: Home-after-save visual captures now wait for Review Meal screen and close button to leave before screenshotting Home. | 4, 6, 7, 8, 9, 11 | Targeted `core-meal-home-history-statistics`; `npm run e2e:visual-audit` | `home-after-save.png`, `add-meal-photo-home-after-save.png`, `add-meal-barcode-home-after-save.png`, `add-meal-saved-template-home-after-save.png`, `review-edit-save-home-after-save.png` | Ready |
 
 ## Active Task For Codex
 
@@ -199,7 +177,7 @@ All statuses and scores for paths 1–17 are provisional. They are historical re
 | 15  | Settings / legal / account deletion                    | `e2e/maestro/smoke/account-launch.yaml`, `e2e/maestro/release-gate/account-delete-cancel.yaml`, `e2e/maestro/nightly-regression/account-delete-disposable-user.yaml`                                                                                                                                                                        | Provisionally Ready | Provisionally 9/10 |
 | 16  | Share flow                                             | `e2e/maestro/release-gate/share-save-and-share.yaml`, `e2e/maestro/nightly-regression/share-customize-basic.yaml`, `e2e/maestro/nightly-regression/share-export-error.yaml`, `e2e/maestro/nightly-regression/share-invalid-no-photo.yaml`                                                                                                   | Provisionally Ready | Provisionally 9/10 |
 | 17  | Small-screen / keyboard / platform layout visual audit | `e2e/maestro/visual-audit/platform-layout.yaml`, `e2e/maestro/platform-layout/small-screen-forms.yaml`, `e2e/maestro/platform-layout/text-meal-keyboard.yaml`, `e2e/maestro/platform-layout/chat-long-input-keyboard.yaml`, `e2e/maestro/platform-layout/barcode-manual-sheet.yaml`, `e2e/maestro/platform-layout/paywall-open-layout.yaml` | Provisionally Ready | Provisionally 9/10 |
-| 18  | Final cross-path review / UX release gate              | `npm run typecheck`, `npm run lint`, `npm run e2e:visual-audit`, `npm run e2e:release-gate`, targeted reruns for any changed shared component                                                                                                                                                                                               | Not started         | TBD                |
+| 18  | Final cross-path review / UX release gate              | `npm run typecheck`, `npm run lint`, `npm run e2e:visual-audit`, `npm run e2e:release-gate`, targeted reruns for changed shared components and stale E2E assertions                                                                                                                                                                           | Ready               | 9/10               |
 
 ## Final Cross-Path Review / UX Release Gate
 
@@ -482,6 +460,72 @@ For detailed historical notes, see `./ux-ui-maestro-loop-archive.md`.
 Path 18 must verify all of this again using fresh final runs.
 
 ## Running Log
+
+- 2026-05-22 Path 18 fresh repo inspection:
+  - Confirmed app root: `/Users/lukaszkurczab/Desktop/Projects/Fitaly/fitaly`.
+  - Inspected control document, `package.json`, `scripts/e2e/suites.json`, `scripts/e2e/run-suite.mjs`, `scripts/e2e/run-visual-suite.mjs`, `scripts/run-e2e-local.sh`, and `AGENTS.md`.
+  - Initial repo checks: `git status --short`, `git diff --stat`, and `git diff --check` were clean before edits.
+  - Confirmed required package scripts: `typecheck`, `lint`, `e2e:visual-audit`, `e2e:release-gate`, `e2e:full-review`.
+- Static gates:
+  - `npm run typecheck`: PASS before fixes and PASS after final fixes.
+  - `npm run lint`: PASS before fixes and PASS after final fixes.
+  - `git diff --check`: PASS after final fixes.
+- Visual audit:
+  - First `npm run e2e:visual-audit`: failed only on `platform-layout.yaml` with a transient Maestro/bootstrap error inside shared login/dev-client setup. Targeted rerun of `e2e/maestro/visual-audit/platform-layout.yaml` passed.
+  - Later `npm run e2e:visual-audit`: PASS all 9 visual flows, 60 screenshots, run `20260522T120403Z`.
+  - Final `npm run e2e:visual-audit`: PASS all 9 visual flows, 60 screenshots, run `20260522T125716Z`; latest pointer: `e2e/artifacts/visual-audit/latest`.
+- Release gate:
+  - First `npm run e2e:release-gate`: failed on stale keyboard handling in `add-meal-manual-edit-save-propagates.yaml`. Root cause: product inputs lacked a reliable done-submit keyboard dismissal path and the test forced a brittle second `hideKeyboard` despite the CTA being visible above the keyboard.
+  - Fix: added done-submit keyboard dismissal to `MealBasicsSection` meal name input and `IngredientEditor` ingredient name input; added IngredientEditor unit coverage; removed stale second `hideKeyboard` from the release-gate flow.
+  - Targeted manual edit rerun: PASS.
+  - Next release-gate run failed on `offline-save-sync.yaml` expecting `history-meal-sync-synced-0`. Root cause: stale test assertion; product intentionally renders no persistent synced indicator, confirmed by `SyncStatusIndicator` and `MealListItem` tests.
+  - Fix: updated offline flow to wait for `history-meal-sync-pending-0` to disappear and keep the row visible.
+  - Targeted offline sync rerun: PASS.
+  - Final `npm run e2e:release-gate`: PASS all 17 release-gate flows.
+- Shared visual fix:
+  - Fresh screenshots showed a white WeekStrip hover/focus highlight over Tuesday in Home-after-save captures. Root cause traced to native Pressable hover/focus treatment on WeekStrip day cells during simulator-driven save returns.
+  - Fix: converted WeekStrip day cells to calm `TouchableOpacity`, kept accessible labels/roles, set `focusable={false}`, and added unit coverage.
+  - Targeted `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS after fix.
+  - Final screenshots no longer show app-level WeekStrip label obstruction. A faint top-center iOS/Maestro touch visualization remains in some Home-after-save captures and is classified as non-product simulator capture noise.
+- Screenshot review:
+  - Reviewed all 60 final visual-audit screenshots under `e2e/artifacts/visual-audit/latest/screenshots`.
+  - Confirmed no raw i18n keys, no clipped Polish labels that block comprehension, no hidden primary CTAs, no keyboard-blocked submit actions, no duplicate production actions, no dead-end screens, no developer/debug UI from app code, coherent warm neutral/olive direction, and macro color consistency.
+  - Confirmed Home/History/Statistics propagation from fresh release-gate results and screenshots: saved meals appear, edited meals propagate, deleted meals disappear, and offline pending state clears without stale rows.
+  - Confirmed photo, text, barcode, and saved-template add paths route through Review Meal before save.
+- `npm run e2e:full-review`: not run. Reason: Path 18 already completed the required final commands, multiple targeted reruns, full visual-audit, and full release-gate after fixes. `full-review` is substantially broader and time-expensive; it would duplicate much of the now-green required release-gate/visual-audit coverage. This is documented as unrun, not as passed.
+
+## Final Output
+
+- Overall UX/UI release readiness: Go.
+- Final score: 9/10.
+- Paths confirmed Ready: 1-18, based on fresh Path 18 release-gate, visual-audit, static gates, targeted reruns, and screenshot review. Historical path scores were not used as final evidence.
+- Paths reopened during Path 18 and closed after fixes:
+  - Path 4 / 6 / 7 / 8 / 9 Home-after-save visual captures: app-level WeekStrip hover/focus artifact removed; final visual-audit passed.
+  - Path 9 Review Meal / Edit Meal / Save: keyboard-submit behavior fixed and manual edit release-gate flow updated; final release-gate passed.
+  - Path 10 offline sync assertion: stale E2E expectation fixed; final release-gate passed.
+  - Path 17 keyboard/platform layout: IngredientEditor and meal basics keyboard behavior verified; final visual-audit and release-gate passed.
+- Screens reopened for visual polish: Home-after-save WeekStrip area. Fixed at app level; remaining top-center simulator touch ghost is non-product environment capture noise.
+- Remaining accepted Minor/Polish: None for product UI.
+- Remaining Environment Blockers: None blocking release readiness. Non-blocking note: iOS/Maestro screenshots can show a faint touch visualization after save; use a clean simulator capture session for marketing screenshots.
+- Needs Owner Decision: None.
+- Test commands run:
+  - `npm run typecheck`: PASS.
+  - `npm run lint`: PASS.
+  - `git diff --check`: PASS.
+  - `npx jest src/components/IngredientEditor.test.tsx --runInBand --watchman=false --no-coverage`: PASS.
+  - `npx jest src/components/WeekStrip.test.tsx --runInBand --watchman=false --no-coverage`: PASS.
+  - Targeted `e2e/maestro/visual-audit/platform-layout.yaml`: PASS after transient initial visual-audit failure.
+  - Targeted `e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml`: PASS after keyboard/test fix.
+  - Targeted `e2e/maestro/release-gate/offline-save-sync.yaml`: PASS after stale assertion fix.
+  - Targeted `e2e/maestro/visual-audit/core-meal-home-history-statistics.yaml`: PASS after WeekStrip fix.
+  - `npm run e2e:release-gate`: PASS all 17 flows.
+  - `npm run e2e:visual-audit`: PASS all 9 flows, 60 screenshots, final run `20260522T125716Z`.
+- Screenshot artifact locations:
+  - Latest screenshots: `e2e/artifacts/visual-audit/latest/screenshots`.
+  - Final visual run: `e2e/artifacts/visual-audit/20260522T125716Z/screenshots`.
+  - Release-gate reports: `e2e/artifacts/release-gate/reports`.
+  - Release-gate logs: `e2e/artifacts/release-gate/logs`.
+- Final visual-quality verdict: Launch-ready premium-lite quality. The app UI has clear hierarchy, visible CTAs, coherent warm neutral/olive styling, consistent macro colors, designed empty/loading/error/success states, and verified local-first meal propagation. Not scored 10/10 because final public marketing screenshots should still be captured in a clean simulator session and the product is premium-lite rather than exceptional store-hero quality.
 
 ## Needs Owner Decision
 

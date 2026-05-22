@@ -5,6 +5,7 @@ import {
   StyleSheet,
   DeviceEventEmitter,
   Pressable,
+  Keyboard,
 } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
@@ -372,6 +373,8 @@ export const IngredientEditor: React.FC<Props> = ({
             setNameTouched(true);
             normalizeOnBlurName(name);
           }}
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
         />
 
         {errors.name && nameTouched ? (

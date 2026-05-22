@@ -56,8 +56,8 @@ appId: com.lkurczab.fitaly
 - assertNotVisible:
     id: offline-banner
 - extendedWaitUntil:
-    visible:
-      id: history-meal-sync-synced-0
+    notVisible:
+      id: history-meal-sync-pending-0
     timeout: 30000
 - assertVisible:
     id: history-meal-row-0

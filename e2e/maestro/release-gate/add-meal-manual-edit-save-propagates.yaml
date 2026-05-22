@@ -41,7 +41,6 @@ appId: com.lkurczab.fitaly
 - inputText: Chicken
 - assertVisible:
     id: ingredient-editor-submit-button
-- hideKeyboard
 - tapOn:
     id: ingredient-editor-submit-button
 - assertVisible:

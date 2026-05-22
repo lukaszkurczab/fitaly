@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@/components";
 import AppIcon from "@/components/AppIcon";
@@ -56,6 +56,8 @@ export default function MealBasicsSection({
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
           maxLength={80}
         />
 
