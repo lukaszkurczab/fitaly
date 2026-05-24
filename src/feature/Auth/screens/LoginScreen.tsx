@@ -157,6 +157,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           editable={!loading}
           placeholder={t("enter_email")}
           accessibilityLabel={t("email")}
+          icon={<AppIcon name="email" />}
+          iconPosition="right"
           style={styles.emailField}
         />
 
@@ -176,7 +178,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             placeholder={t("enter_password")}
             accessibilityLabel={t("password")}
             style={styles.passwordField}
-            icon={
+            left={
+              <AppIcon name="lock" size={20} color={theme.textSecondary} />
+            }
+            right={
               <Pressable
                 testID="login-password-visibility-toggle"
                 onPress={() => setShowPassword((v) => !v)}
@@ -190,7 +195,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 />
               </Pressable>
             }
-            iconPosition="right"
           />
 
           <LinkText
@@ -210,7 +214,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     authFormSpacing: {
-      paddingTop: theme.spacing.xxxl,
+      paddingTop: theme.spacing.sectionGap,
     },
     authFormSpacingCompact: {
       paddingTop: theme.spacing.sm,

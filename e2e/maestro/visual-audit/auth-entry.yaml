@@ -47,7 +47,8 @@ appId: com.lkurczab.fitaly
     id: register-confirm-password-input
 - eraseText
 - inputText: ${E2E_DISPOSABLE_PASSWORD}
-- hideKeyboard
+- tapOn:
+    point: "87%,89%"
 - tapOn:
     id: register-terms-checkbox
 - tapOn:

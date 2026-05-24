@@ -50,7 +50,8 @@ env:
     id: register-confirm-password-input
 - eraseText
 - inputText: ${E2E_REGISTER_PASSWORD}
-- hideKeyboard
+- tapOn:
+    point: "87%,89%"
 - tapOn: "Utwórz konto"
 - tapOn:
     id: register-terms-checkbox

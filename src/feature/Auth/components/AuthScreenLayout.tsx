@@ -79,14 +79,23 @@ export function AuthScreenLayout({
                 isKeyboardCompact ? compactFormStyle : null,
               ]}
             >
-              {children}
+              <View
+                style={[
+                  styles.formSurface,
+                  isKeyboardCompact ? styles.formSurfaceCompact : null,
+                ]}
+              >
+                {children}
+                {bottomAction ? (
+                  <View style={styles.inlineAction}>{bottomAction}</View>
+                ) : null}
+              </View>
             </View>
           </View>
 
-          {bottomAction || footer ? (
+          {footer ? (
             <View style={styles.bottomBlock}>
-              {bottomAction}
-              {footer ? <View style={styles.footer}>{footer}</View> : null}
+              <View style={styles.footer}>{footer}</View>
             </View>
           ) : null}
         </KeyboardAwareScrollView>
@@ -158,13 +167,30 @@ const makeStyles = (
       width: "100%",
       flexGrow: 1,
     },
+    formSurface: {
+      backgroundColor: theme.surfaceElevated,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      paddingHorizontal: theme.spacing.cardPaddingLarge,
+      paddingVertical: theme.spacing.cardPaddingLarge,
+      ...theme.depth.raised,
+    },
+    formSurfaceCompact: {
+      borderRadius: theme.rounded.lg,
+      paddingHorizontal: theme.spacing.cardPadding,
+      paddingVertical: theme.spacing.cardPadding,
+    },
+    inlineAction: {
+      marginTop: theme.spacing.md,
+    },
     bottomBlock: {
       paddingTop: isKeyboardCompact
         ? theme.spacing.md
-        : theme.spacing.sectionGapLarge,
+        : theme.spacing.lg,
       paddingBottom: theme.spacing.sm,
     },
     footer: {
-      marginTop: theme.spacing.md,
+      marginTop: 0,
     },
   });

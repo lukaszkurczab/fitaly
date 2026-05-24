@@ -203,6 +203,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           error={usernameError}
           accessibilityLabel={t("username")}
           editable={!loading}
+          icon={<AppIcon name="person" />}
+          iconPosition="right"
           style={styles.field}
         />
 
@@ -222,6 +224,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           error={emailError}
           accessibilityLabel={t("email", { ns: "login" })}
           editable={!loading}
+          icon={<AppIcon name="email" />}
+          iconPosition="right"
           style={styles.field}
         />
 
@@ -233,6 +237,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           textContentType="newPassword"
           placeholder={t("enter_password", { ns: "login" })}
           secureTextEntry={!showPassword}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
           onChangeText={(val) => {
             setPassword(val);
             clearFieldError("password");
@@ -240,12 +246,12 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
           error={passwordError}
           accessibilityLabel={t("password", { ns: "login" })}
-          icon={renderEyeIcon(
+          left={<AppIcon name="lock" size={20} color={theme.textSecondary} />}
+          right={renderEyeIcon(
             showPassword,
             () => setShowPassword((v) => !v),
             "register-password-visibility-toggle",
           )}
-          iconPosition="right"
           editable={!loading}
           style={styles.field}
         />
@@ -258,6 +264,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           textContentType="newPassword"
           placeholder={t("enter_confirm_password")}
           secureTextEntry={!showConfirm}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
           onChangeText={(val) => {
             setConfirmPassword(val);
             clearFieldError("confirmPassword");
@@ -267,12 +275,12 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           }
           error={confirmPasswordError}
           accessibilityLabel={t("confirm_password")}
-          icon={renderEyeIcon(
+          left={<AppIcon name="lock" size={20} color={theme.textSecondary} />}
+          right={renderEyeIcon(
             showConfirm,
             () => setShowConfirm((v) => !v),
             "register-confirm-password-visibility-toggle",
           )}
-          iconPosition="right"
           editable={!loading}
           style={styles.confirmField}
         />

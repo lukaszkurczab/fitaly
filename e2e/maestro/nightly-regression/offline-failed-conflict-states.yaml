@@ -10,6 +10,7 @@ appId: com.lkurczab.fitaly
     visible:
       id: home-meal-sync-failed-0
     timeout: 10000
+- takeScreenshot: offline-failed-home
 - scrollUntilVisible:
     element:
       id: home-view-history-button
@@ -22,6 +23,7 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: history-meal-sync-failed-0
+- takeScreenshot: offline-failed-history
 - openLink: "fitaly://e2e/seed?fixture=user-with-conflict-meal"
 - assertVisible:
     id: e2e-ready-fixture-user-with-conflict-meal
@@ -33,6 +35,7 @@ appId: com.lkurczab.fitaly
     visible:
       id: home-meal-sync-conflict-0
     timeout: 10000
+- takeScreenshot: offline-conflict-home
 - scrollUntilVisible:
     element:
       id: home-view-history-button
@@ -45,4 +48,4 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: history-meal-sync-conflict-0
-
+- takeScreenshot: offline-conflict-history

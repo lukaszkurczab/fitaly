@@ -1,0 +1,52 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-profile-details-row
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- assertVisible:
+    id: account-app-settings-row
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-logout-row
+    direction: DOWN
+- tapOn:
+    id: account-logout-row
+- assertVisible:
+    id: account-logout-confirm-button
+- tapOn:
+    id: account-logout-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- takeScreenshot: dark-auth-login
+- tapOn:
+    id: login-register-link
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
+- takeScreenshot: dark-auth-register

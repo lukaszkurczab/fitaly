@@ -90,6 +90,7 @@
   ],
   "visual-audit": [
     "e2e/maestro/visual-audit/auth-entry.yaml",
+    "e2e/maestro/visual-audit/auth-dark-entry.yaml",
     "e2e/maestro/visual-audit/add-meal-barcode.yaml",
     "e2e/maestro/visual-audit/add-meal-photo.yaml",
     "e2e/maestro/visual-audit/add-meal-saved-template.yaml",
