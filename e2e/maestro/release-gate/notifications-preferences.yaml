@@ -6,6 +6,14 @@ appId: com.lkurczab.fitaly
     id: e2e-ready-notificationPermission-allowed
 - tapOn:
     id: tab-profile
+- assertVisible:
+    id: account-profile-details-row
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
 - scrollUntilVisible:
     element:
       id: account-app-settings-row

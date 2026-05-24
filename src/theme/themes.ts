@@ -2,6 +2,17 @@ import { baseColors } from "./colors";
 
 export type ThemeMode = "light" | "dark";
 
+export type DepthToken = {
+  shadowColor: string;
+  shadowOpacity: number;
+  shadowRadius: number;
+  shadowOffset: {
+    width: number;
+    height: number;
+  };
+  elevation: number;
+};
+
 export type ThemeDefinition = {
   mode: ThemeMode;
   isDark: boolean;
@@ -32,6 +43,15 @@ export type ThemeDefinition = {
   link: string;
   overlay: string;
   shadow: string;
+
+  depth: {
+    raised: DepthToken;
+    floating: DepthToken;
+    modal: DepthToken;
+    tabBar: DepthToken;
+    cta: DepthToken;
+    inputFocus: DepthToken;
+  };
 
   disabled: {
     background: string;
@@ -200,6 +220,51 @@ const lightTheme: ThemeDefinition = {
   overlay: baseColors.overlayLight,
   shadow: baseColors.shadowLight,
 
+  depth: {
+    raised: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.08,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
+    },
+    floating: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 8,
+    },
+    modal: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.16,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 16 },
+      elevation: 10,
+    },
+    tabBar: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.1,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: -6 },
+      elevation: 12,
+    },
+    cta: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.14,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 6,
+    },
+    inputFocus: {
+      shadowColor: baseColors.ink900,
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+  },
+
   disabled: {
     background: baseColors.sand100,
     text: baseColors.ink500,
@@ -366,6 +431,51 @@ const darkTheme: ThemeDefinition = {
   link: "#9BB896",
   overlay: baseColors.overlayDark,
   shadow: baseColors.shadowDark,
+
+  depth: {
+    raised: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.28,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 3,
+    },
+    floating: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.34,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 14 },
+      elevation: 8,
+    },
+    modal: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.42,
+      shadowRadius: 26,
+      shadowOffset: { width: 0, height: 18 },
+      elevation: 10,
+    },
+    tabBar: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.36,
+      shadowRadius: 22,
+      shadowOffset: { width: 0, height: -8 },
+      elevation: 12,
+    },
+    cta: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.28,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 6,
+    },
+    inputFocus: {
+      shadowColor: baseColors.black,
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+  },
 
   disabled: {
     background: "#222722",

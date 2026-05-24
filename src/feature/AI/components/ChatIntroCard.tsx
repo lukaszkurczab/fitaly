@@ -36,6 +36,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.md,
       gap: theme.spacing.xs,
+      ...theme.depth.raised,
     },
     title: {
       color: theme.text,

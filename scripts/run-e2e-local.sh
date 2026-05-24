@@ -18,6 +18,14 @@ else
   FLOW_PATHS=("e2e/maestro")
 fi
 PLATFORM="${E2E_PLATFORM:-ios}"
+if [[ -n "${E2E_APP_ID:-}" ]]; then
+  APP_ID="${E2E_APP_ID}"
+elif [[ "${PLATFORM}" == "ios" ]]; then
+  # iOS keeps the legacy App Store bundle id; Android uses com.lkurczab.fitaly.
+  APP_ID="com.lkurczab.foodscannerai"
+else
+  APP_ID="com.lkurczab.fitaly"
+fi
 EXPO_PORT="${E2E_EXPO_PORT:-8081}"
 EXPO_HOST="${E2E_EXPO_HOST:-lan}"
 RESULTS_PATH="${E2E_RESULTS_PATH:-/tmp/maestro-${PLATFORM}-results.xml}"
@@ -363,11 +371,38 @@ if [[ "${PLATFORM}" == "ios" ]]; then
   xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
 
-  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
-  cat >"${DEV_MENU_DISMISS_FLOW}" <<'YAML'
-appId: com.lkurczab.fitaly
+  IOS_OPEN_PROMPT_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-ios-open-prompt.XXXXXX")"
+  cat >"${IOS_OPEN_PROMPT_FLOW}" <<'YAML'
+appId: com.apple.springboard
 ---
-- tapOn: "Close"
+- runFlow:
+    when:
+      visible: "Otwórz"
+    commands:
+      - tapOn: "Otwórz"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+YAML
+  maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  rm -f "${IOS_OPEN_PROMPT_FLOW}"
+
+  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
+  cat >"${DEV_MENU_DISMISS_FLOW}" <<YAML
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
 YAML
   maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
   rm -f "${DEV_MENU_DISMISS_FLOW}"
@@ -376,11 +411,15 @@ fi
 FLOW_WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/fitaly-e2e-flows.XXXXXX")"
 cp -R "${ROOT_DIR}/e2e/maestro/." "${FLOW_WORKDIR}/"
 export E2E_EXPO_URL="${EXPO_URL}"
+export E2E_APP_ID="${APP_ID}"
 export E2E_EMAIL E2E_PASSWORD E2E_ALT_EMAIL E2E_ALT_PASSWORD
 export E2E_CONFLICT_USERNAME E2E_REGISTER_EMAIL E2E_REGISTER_PASSWORD
 export E2E_RUN_ID E2E_DISPOSABLE_EMAIL E2E_DISPOSABLE_USERNAME E2E_DISPOSABLE_PASSWORD
 while IFS= read -r -d '' flow_file; do
-  perl -0pi -e 's/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
+  perl -0pi -e 's/^appId:\s*com\.lkurczab\.fitaly\s*$/appId: $ENV{E2E_APP_ID}/mg; s/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
+  if [[ "${PLATFORM}" == "ios" ]]; then
+    perl -0pi -e 's/^(- openLink: [^\n]+\n)/$1- runFlow:\n    when:\n      visible: "Otwórz"\n    commands:\n      - tapOn: "Otwórz"\n- runFlow:\n    when:\n      visible: "Open"\n    commands:\n      - tapOn: "Open"\n/gm' "${flow_file}"
+  fi
 done < <(find "${FLOW_WORKDIR}" -type f -name '*.yaml' -print0)
 
 FLOW_SUMMARY_NAMES=()

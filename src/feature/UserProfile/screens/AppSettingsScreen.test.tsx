@@ -76,7 +76,7 @@ jest.mock("@/components", () => {
         {trailing}
       </Pressable>
     ),
-    ButtonToggle: () => <View />,
+    ButtonToggle: ({ testID }: { testID?: string }) => <View testID={testID} />,
   };
 });
 
@@ -121,5 +121,19 @@ describe("AppSettingsScreen", () => {
     });
 
     expect(navigation.navigate).not.toHaveBeenCalledWith("Language");
+  });
+
+  it("exposes the dark mode toggle for E2E coverage", () => {
+    const navigation = {
+      canGoBack: jest.fn(() => true),
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+    };
+
+    const { getByTestId } = renderWithTheme(
+      <AppSettingsScreen navigation={navigation as never} />,
+    );
+
+    expect(getByTestId("app-settings-dark-mode-toggle")).toBeTruthy();
   });
 });

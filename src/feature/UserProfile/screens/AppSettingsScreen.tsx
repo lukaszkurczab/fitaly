@@ -66,6 +66,7 @@ export default function AppSettingsScreen({
               title={t("toggleDarkMode")}
               trailing={
                 <ButtonToggle
+                  testID="app-settings-dark-mode-toggle"
                   value={theme.mode === "dark"}
                   onToggle={(newValue) => {
                     theme.setMode(newValue ? "dark" : "light");

@@ -118,11 +118,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingTop: theme.spacing.sm,
       paddingHorizontal: theme.spacing.screenPadding,
       gap: theme.spacing.sm,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.4 : 0.18,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: -6 },
-      elevation: 12,
+      ...theme.depth.modal,
     },
     handle: {
       width: 40,
@@ -153,6 +149,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.surfaceAlt,
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
     },
     optionContent: {
       flex: 1,

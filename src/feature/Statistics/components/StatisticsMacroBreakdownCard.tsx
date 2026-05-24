@@ -90,9 +90,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: theme.rounded.lg,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       padding: theme.spacing.md,
       gap: theme.spacing.sm,
+      ...theme.depth.raised,
     },
     title: {
       color: theme.text,

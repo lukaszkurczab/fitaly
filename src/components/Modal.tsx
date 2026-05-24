@@ -244,11 +244,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.xl,
       backgroundColor: theme.surface,
       padding: theme.spacing.xl,
-      elevation: 4,
-      shadowColor: "#000000",
-      shadowOpacity: theme.isDark ? 0.18 : 0.08,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 10 },
+      ...theme.depth.modal,
     },
     modalContainerFullScreen: {
       flex: 1,

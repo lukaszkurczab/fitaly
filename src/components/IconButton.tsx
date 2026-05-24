@@ -78,15 +78,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     button: {
       alignItems: "center",
       justifyContent: "center",
-      overflow: "hidden",
     },
     solidButton: {
       borderWidth: 1,
-      shadowColor: "#000000",
-      shadowOpacity: theme.isDark ? 0.18 : 0.08,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
+      ...theme.depth.raised,
     },
     ghostButton: {
       minWidth: 40,

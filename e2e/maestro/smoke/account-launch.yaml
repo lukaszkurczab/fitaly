@@ -90,6 +90,14 @@ appId: com.lkurczab.fitaly
       - tapOn: "Zamknij"
 - tapOn:
     id: tab-profile
+- assertVisible:
+    id: account-profile-details-row
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
 - scrollUntilVisible:
     element:
       id: account-app-settings-row

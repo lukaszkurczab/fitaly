@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, ViewStyle, StyleProp, Platform } from "react-native";
+import { View, Pressable, ViewStyle, StyleProp } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 
 type CardProps = {
@@ -18,6 +18,7 @@ export const Card: React.FC<CardProps> = ({
   elevation = 2,
 }) => {
   const theme = useTheme();
+  const depthStyle = variant === "outlined" ? null : theme.depth.raised;
 
   const cardStyle: ViewStyle = {
     backgroundColor:
@@ -36,9 +37,8 @@ export const Card: React.FC<CardProps> = ({
           marginBottom: 0,
         }
       : {}),
-    ...(Platform.OS === "android" && variant !== "outlined"
-      ? { elevation }
-      : {}),
+    ...(depthStyle ?? {}),
+    ...(variant !== "outlined" ? { elevation } : {}),
   };
 
   const Content = <View style={[cardStyle, style]}>{children}</View>;
@@ -51,9 +51,6 @@ export const Card: React.FC<CardProps> = ({
           style,
           {
             opacity: pressed ? 0.92 : 1,
-            elevation: 2,
-            shadowOpacity: 0.07,
-            shadowRadius: 12,
           },
         ]}
         onPress={onPress}

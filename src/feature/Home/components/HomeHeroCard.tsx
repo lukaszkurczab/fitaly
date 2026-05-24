@@ -122,9 +122,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     card: {
       borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
       paddingHorizontal: theme.spacing.cardPaddingLarge,
       paddingVertical: theme.spacing.bottomSheetPadding,
       gap: theme.spacing.md,
+      ...theme.depth.raised,
     },
     cardDefault: {
       backgroundColor: theme.surface,

@@ -98,6 +98,7 @@ export function ChatComposer({
           accessibilityLabel={sendLabel}
           style={({ pressed }) => [
             styles.sendButton,
+            canSend ? theme.depth.cta : null,
             !canSend ? styles.sendButtonDisabled : null,
             pressed && canSend ? styles.sendButtonPressed : null,
           ]}

@@ -85,11 +85,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     container: {
       backgroundColor: theme.surfaceElevated,
       borderRadius: theme.rounded.lg,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
       paddingHorizontal: theme.spacing.xs,
       paddingVertical: theme.spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      ...theme.depth.raised,
     },
     item: {
       flex: 1,

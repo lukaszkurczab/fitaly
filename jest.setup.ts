@@ -77,6 +77,18 @@ jest.mock("@/services/core/fileSystem", () => ({
   readAsStringAsync: jest.fn(async () => ""),
 }));
 
+jest.mock("expo-asset", () => ({
+  __esModule: true,
+  Asset: {
+    fromModule: jest.fn((mod: unknown) => ({
+      downloaded: true,
+      downloadAsync: jest.fn(async () => undefined),
+      localUri: "file:///mock-asset.jpg",
+      uri: typeof mod === "string" ? mod : "file:///mock-asset.jpg",
+    })),
+  },
+}));
+
 jest.mock("@react-native-firebase/app", () => ({
   __esModule: true,
   getApp: jest.fn(() => ({ name: "mock-app" })),

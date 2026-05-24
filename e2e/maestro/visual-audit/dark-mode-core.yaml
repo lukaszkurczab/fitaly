@@ -1,0 +1,94 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free&chat=success"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-profile-details-row
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- takeScreenshot: dark-app-settings
+
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- takeScreenshot: dark-home-empty
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- takeScreenshot: dark-statistics-empty
+
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-screen
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
+- takeScreenshot: dark-chat-empty
+
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- takeScreenshot: dark-add-meal-options
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Dark mode bowl
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Rice chicken avocado
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-upgrade-button
+    direction: DOWN
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal
+- takeScreenshot: dark-premium-paywall

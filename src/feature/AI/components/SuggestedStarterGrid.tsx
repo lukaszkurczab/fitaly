@@ -76,6 +76,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.surfaceElevated,
       paddingHorizontal: theme.spacing.md,
       justifyContent: "center",
+      ...theme.depth.raised,
     },
     chipLabel: {
       color: theme.textSecondary,

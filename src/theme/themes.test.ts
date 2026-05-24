@@ -28,4 +28,32 @@ describe("themes", () => {
       }),
     );
   });
+
+  it("defines premium depth tokens for light and dark surfaces", () => {
+    expect(themes.light.depth).toEqual(
+      expect.objectContaining({
+        raised: expect.objectContaining({
+          shadowColor: "#2F312B",
+          elevation: 3,
+        }),
+        modal: expect.objectContaining({
+          shadowRadius: 24,
+          elevation: 10,
+        }),
+      }),
+    );
+
+    expect(themes.dark.depth).toEqual(
+      expect.objectContaining({
+        raised: expect.objectContaining({
+          shadowColor: "#121512",
+          elevation: 3,
+        }),
+        tabBar: expect.objectContaining({
+          shadowRadius: 22,
+          elevation: 12,
+        }),
+      }),
+    );
+  });
 });

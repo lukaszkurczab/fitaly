@@ -89,7 +89,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: theme.rounded.md,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       flexDirection: "row",
       overflow: "hidden",
       paddingVertical: theme.spacing.sm,
