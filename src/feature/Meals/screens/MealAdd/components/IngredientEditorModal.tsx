@@ -37,7 +37,7 @@ export default function IngredientEditorModal({
   const { height: windowHeight } = useWindowDimensions();
   const { t } = useTranslation(["meals", "common"]);
   const styles = createStyles(theme);
-  const sheetDefaultMaxHeight = windowHeight * 0.76;
+  const sheetDefaultMaxHeight = windowHeight * (keyboardInset > 0 ? 0.64 : 0.7);
   const sheetAvailableHeight =
     windowHeight - insets.top - theme.spacing.md - keyboardInset;
   const sheetMaxHeight = Math.max(
@@ -138,20 +138,18 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         : "rgba(47, 49, 43, 0.42)",
     },
     sheet: {
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       borderTopLeftRadius: theme.rounded.xxl,
       borderTopRightRadius: theme.rounded.xxl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
       paddingTop: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.bottomSheetPadding,
+      paddingHorizontal: theme.spacing.lg,
       gap: theme.spacing.sm,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.4 : 0.18,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: -6 },
-      elevation: 12,
+      ...theme.depth.modal,
     },
     ingredientSheet: {
-      maxHeight: "76%",
+      maxHeight: "70%",
     },
     sheetHandle: {
       width: 40,
@@ -163,11 +161,11 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     sheetTitle: {
       color: theme.text,
       fontSize: 20,
-      lineHeight: 26,
+      lineHeight: 25,
       fontFamily: theme.typography.fontFamily.semiBold,
       textAlign: "center",
     },
     ingredientEditorContent: {
-      paddingBottom: theme.spacing.sm,
+      paddingBottom: theme.spacing.xs,
     },
   });

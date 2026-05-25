@@ -3,11 +3,12 @@ import { View, Text, StyleSheet } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
-import { ErrorBox, Layout, ScreenCornerNavButton } from "@/components";
+import { ErrorBox, ScreenCornerNavButton } from "@/components";
 import { GlobalActionButtons } from "@/components/GlobalActionButtons";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AppIcon from "@/components/AppIcon";
+import { AuthScreenLayout } from "@/feature/Auth/components/AuthScreenLayout";
 import { getFirebaseAuth } from "@/FirebaseConfig";
 import { authSendPasswordReset } from "@/feature/Auth/services/authService";
 import { isOfflineNetState } from "@/services/core/networkState";
@@ -35,6 +36,7 @@ export default function CheckMailboxScreen({ navigation }: Props) {
     route?.params?.email && typeof route.params.email === "string"
       ? route.params.email
       : "";
+  const sanitizedEmail = email.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const [sending, setSending] = useState(false);
   const [sendAgainDisabled, setSendAgainDisabled] = useState(true);
@@ -111,128 +113,111 @@ export default function CheckMailboxScreen({ navigation }: Props) {
   };
 
   return (
-    <Layout showNavigation={false}>
-      <ScreenCornerNavButton
-        testID="check-mailbox-close-button"
-        icon="close"
-        onPress={() =>
-          navigation.canGoBack()
-            ? navigation.goBack()
-            : navigation.navigate("Login")
-        }
-        accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-        containerStyle={styles.topLeftAction}
-      />
-
-      <View style={styles.contentCenter} testID="check-mailbox-screen">
-        <View style={styles.contentStack}>
-          <View style={styles.illustrationWrap}>
-            <View style={styles.iconCard}>
-              <AppIcon name="email" size={128} color={theme.primary} />
-            </View>
-          </View>
-
-          <Text style={styles.title} accessibilityRole="header">
-            {t("checkMailboxTitle")}
-          </Text>
-
-          <Text style={styles.subtitle}>
-            {t("checkMailboxDesc", {
-              email: email.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-            })}
-          </Text>
-
-          <Text style={styles.subtitleWide}>{t("successGeneric")}</Text>
-
-          {error ? <ErrorBox message={error} style={styles.errorSpacing} /> : null}
-
-          <GlobalActionButtons
-            primaryTestID="check-mailbox-login-button"
-            label={t("backToLogin")}
-            onPress={() => navigation.navigate("Login")}
-            primaryStyle={styles.primaryAction}
-            secondaryLabel={
-              sendAgainDisabled
-                ? t("sendAgainInfo", { seconds: timer })
-                : t("sendAgain")
-            }
-            secondaryOnPress={handleSendAgain}
-            secondaryTestID="check-mailbox-send-again-button"
-            secondaryDisabled={sending || sendAgainDisabled || noInternet}
-            secondaryLoading={sending}
-            secondaryStyle={styles.secondaryAction}
-            containerStyle={styles.actionSpacing}
+    <AuthScreenLayout
+      testID="check-mailbox-screen"
+      brand={t("common:app_title")}
+      title={t("checkMailboxTitle")}
+      description={t("successGeneric")}
+      topAction={
+        <ScreenCornerNavButton
+          testID="check-mailbox-close-button"
+          icon="close"
+          onPress={() =>
+            navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate("Login")
+          }
+          accessibilityLabel={t("common:close", { defaultValue: "Close" })}
+          containerStyle={styles.topLeftAction}
+        />
+      }
+      banner={
+        error || noInternet ? (
+          <ErrorBox
+            message={error ?? t("errorNoInternet")}
+            style={styles.errorSpacing}
           />
+        ) : null
+      }
+      bottomAction={
+        <GlobalActionButtons
+          primaryTestID="check-mailbox-login-button"
+          label={t("backToLogin")}
+          onPress={() => navigation.navigate("Login")}
+          primaryStyle={styles.primaryAction}
+          secondaryLabel={
+            sendAgainDisabled
+              ? t("sendAgainInfo", { seconds: timer })
+              : t("sendAgain")
+          }
+          secondaryOnPress={handleSendAgain}
+          secondaryTestID="check-mailbox-send-again-button"
+          secondaryDisabled={sending || sendAgainDisabled || noInternet}
+          secondaryLoading={sending}
+          secondaryStyle={styles.secondaryAction}
+          containerStyle={styles.actionSpacing}
+        />
+      }
+    >
+      <View style={styles.mailCard}>
+        <View style={styles.iconBadge}>
+          <AppIcon name="email" size={28} color={theme.primary} />
+        </View>
+        <View style={styles.mailCopy}>
+          <Text style={styles.mailTitle}>
+            {t("checkMailboxDesc", { email: sanitizedEmail })}
+          </Text>
+          <Text style={styles.mailHint}>{t("checkMailboxHint")}</Text>
         </View>
       </View>
-    </Layout>
+    </AuthScreenLayout>
   );
 }
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     topLeftAction: {
-      top: 0,
+      top: theme.spacing.xs,
       left: 0,
+      right: undefined,
     },
-    contentCenter: {
-      flex: 1,
-      justifyContent: "center",
-      paddingHorizontal: theme.spacing.xs,
-      paddingVertical: theme.spacing.xxxl,
-    },
-    contentStack: {
-      width: "100%",
-      maxWidth: 420,
-      alignSelf: "center",
-      alignItems: "stretch",
-    },
-    illustrationWrap: {
-      alignItems: "center",
-      marginBottom: theme.spacing.xl,
-    },
-    iconCard: {
+    mailCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.md,
       backgroundColor: theme.surfaceElevated,
-      width: 128,
-      height: 128,
-      borderRadius: theme.rounded.md,
-      justifyContent: "center",
-      alignItems: "center",
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
-      borderColor: theme.border,
-      shadowColor: "#000000",
-      shadowOpacity: theme.isDark ? 0.18 : 0.08,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
+      borderColor: theme.borderSoft,
+      padding: theme.spacing.cardPaddingLarge,
+      ...theme.depth.raised,
     },
-    title: {
-      fontSize: theme.typography.size.h1,
-      lineHeight: theme.typography.lineHeight.h1,
-      fontFamily: theme.typography.fontFamily.bold,
+    iconBadge: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.rounded.lg,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.primarySoft,
+    },
+    mailCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: theme.spacing.xs,
+    },
+    mailTitle: {
       color: theme.text,
-      textAlign: "center",
-      marginBottom: theme.spacing.md,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
-    subtitle: {
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+    mailHint: {
       color: theme.textSecondary,
-      textAlign: "center",
-      marginBottom: theme.spacing.md,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
-      width: "100%",
-      flexShrink: 1,
-    },
-    subtitleWide: {
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
-      color: theme.textSecondary,
-      textAlign: "center",
-      marginBottom: theme.spacing.lg,
-      fontFamily: theme.typography.fontFamily.regular,
-      width: "100%",
-      flexShrink: 1,
     },
     errorSpacing: {
       marginBottom: theme.spacing.md,

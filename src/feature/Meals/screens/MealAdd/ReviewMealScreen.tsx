@@ -572,6 +572,21 @@ export default function ReviewMealScreen({
             </View>
 
             <View style={styles.itemsCard}>
+              <View style={styles.itemsHeader}>
+                <Text style={styles.itemsTitle}>
+                  {t("review_meal_ingredients_title", {
+                    ns: "meals",
+                    defaultValue: "Ingredients",
+                  })}
+                </Text>
+                <Text style={styles.itemsCount}>
+                  {t("review_meal_ingredients_count", {
+                    ns: "meals",
+                    count: ingredientPreview.totalCount,
+                    defaultValue: "{{count}} ingredients",
+                  })}
+                </Text>
+              </View>
               {ingredientPreview.items.length > 0 ? (
                 <>
                   {ingredientPreview.items.map((ingredient, index) => (
@@ -669,31 +684,38 @@ export default function ReviewMealScreen({
         </KeyboardAwareScrollView>
 
         <View style={[styles.footer, { paddingBottom: footerBottomInset }]}>
-          <Button
-            testID="review-meal-edit-button"
-            variant="secondary"
-            label={t("review_meal_edit_cta", {
-              ns: "meals",
-              defaultValue: "Edit details",
-            })}
-            accessibilityLabel={t("review_meal_edit_cta", { ns: "meals" })}
-            onPress={handleOpenEdit}
-            disabled={saving}
-            style={styles.editButton}
-          />
-          <Button
-            label={t("review_meal_save_cta", {
-              ns: "meals",
-              defaultValue: "Save meal",
-            })}
-            onPress={() => {
-              void handleSave(false);
-            }}
-            loading={saving}
-            disabled={saving || isEmptyReviewMeal}
-            style={styles.saveButton}
-            testID="review-meal-save-button"
-          />
+          <View style={styles.footerActions}>
+            <Button
+              testID="review-meal-edit-button"
+              variant="secondary"
+              label={t("review_meal_edit_cta", {
+                ns: "meals",
+                defaultValue: "Edit details",
+              })}
+              accessibilityLabel={t("review_meal_edit_cta", { ns: "meals" })}
+              onPress={handleOpenEdit}
+              disabled={saving}
+              fullWidth={false}
+              style={styles.editButton}
+            />
+            <Button
+              label={t("review_meal_save_cta", {
+                ns: "meals",
+                defaultValue: "Save meal",
+              })}
+              onPress={() => {
+                void handleSave(false);
+              }}
+              loading={saving}
+              disabled={saving || isEmptyReviewMeal}
+              fullWidth={false}
+              style={[
+                styles.saveButton,
+                theme.isDark ? styles.saveButtonDark : null,
+              ]}
+              testID="review-meal-save-button"
+            />
+          </View>
           {image ? (
             <TextButton
               testID="review-meal-save-share-button"
@@ -743,7 +765,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingTop: theme.spacing.xxxl,
+      paddingTop: theme.spacing.xl,
       gap: theme.spacing.md,
     },
     heroBlock: {
@@ -756,7 +778,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.surfaceAlt,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      ...theme.depth.raised,
     },
     imagePressable: {
       width: "100%",
@@ -805,21 +830,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     title: {
       color: theme.text,
-      fontSize: 26,
-      lineHeight: 32,
+      fontSize: theme.typography.size.displayM,
+      lineHeight: theme.typography.lineHeight.displayM,
       fontFamily: theme.typography.fontFamily.bold,
     },
     nutritionCard: {
-      minHeight: 144,
+      minHeight: 132,
       borderRadius: 20,
-      backgroundColor: theme.surface,
-      paddingHorizontal: 18,
-      paddingVertical: 18,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
       gap: theme.spacing.sm,
       overflow: "hidden",
+      ...theme.depth.raised,
     },
     kcalHero: {
-      minHeight: 62,
+      minHeight: 58,
       borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.macro.calories,
@@ -849,8 +877,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     kcalValue: {
       color: theme.text,
-      fontSize: 28,
-      lineHeight: 34,
+      fontSize: theme.typography.size.numericXL,
+      lineHeight: theme.typography.lineHeight.numericXL,
       fontFamily: theme.typography.fontFamily.bold,
     },
     macroStats: {
@@ -914,10 +942,30 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     itemsCard: {
       borderRadius: 18,
       borderWidth: 1,
-      borderColor: theme.primary + "59",
-      backgroundColor: theme.surface,
-      padding: 18,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.md,
       gap: 9,
+      ...theme.depth.raised,
+    },
+    itemsHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+      paddingBottom: theme.spacing.xs,
+    },
+    itemsTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    itemsCount: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
     },
     itemRow: {
       gap: theme.spacing.xs,
@@ -973,9 +1021,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       padding: theme.spacing.md,
       gap: theme.spacing.xs,
+      ...theme.depth.raised,
     },
     reviewEmptyTitle: {
       color: theme.text,
@@ -996,17 +1045,33 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: theme.background,
+      backgroundColor: theme.surfaceElevated,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.borderSoft,
+      borderTopLeftRadius: theme.rounded.xl,
+      borderTopRightRadius: theme.rounded.xl,
       paddingTop: theme.spacing.sm,
+      gap: theme.spacing.xs,
+      ...theme.depth.tabBar,
+    },
+    footerActions: {
+      flexDirection: "row",
+      alignItems: "stretch",
       gap: theme.spacing.sm,
     },
     editButton: {
-      minHeight: 48,
+      flex: 1,
+      minHeight: 50,
       borderRadius: 14,
     },
     saveButton: {
-      minHeight: 54,
+      flex: 1.15,
+      minHeight: 50,
       borderRadius: 14,
+    },
+    saveButtonDark: {
+      backgroundColor: theme.primaryStrong,
+      borderColor: theme.primaryStrong,
     },
     shareAfterSaveButton: {
       alignSelf: "center",

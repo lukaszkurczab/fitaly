@@ -3,9 +3,11 @@
   "addFirstMeal": "Dodaj swój pierwszy posiłek dzisiaj!",
   "addMeal": "Dodaj posiłek",
   "askAi": "Zapytaj AI o pomoc",
+  "askAssistantAdvice": "Poproś asystenta o poradę",
   "savedMeals": "Zapisane posiłki",
   "todaysMacros": "Dzisiejsze makroskładniki",
   "todaysMeals": "Dzisiejsze posiłki",
+  "details": "Szczegóły",
   "meal": "Posiłek",
   "weeklyProgress": "Postęp tygodniowy",
   "totalToday": "Razem dzisiaj",
@@ -23,7 +25,7 @@
     },
     "todayEmpty": {
       "cta": "Dodaj śniadanie",
-      "supportCopy": "Zacznij od pierwszego posiłku, a resztę dnia łatwiej będzie zaplanować."
+      "supportCopy": "Małe kroki każdego dnia prowadzą do dużych zmian."
     },
     "todayInProgress": {
       "cta": "Dodaj kolejny posiłek"

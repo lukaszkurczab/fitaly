@@ -16,6 +16,9 @@
     "description": "Kilka prostych danych pomoże nam od razu ustawić plan na właściwych parametrach.",
     "unitsLabel": "Jednostki",
     "sexLabel": "Płeć",
+    "agePlaceholder": "Wpisz wiek",
+    "heightPlaceholder": "Wpisz wzrost",
+    "weightPlaceholder": "Wpisz wagę",
     "primaryCta": "Dalej"
   },
   "step2": {

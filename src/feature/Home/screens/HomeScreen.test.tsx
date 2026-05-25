@@ -69,6 +69,7 @@ jest.mock("react-i18next", () => ({
       if (key === "meals:barcodeTitle") return "Barcode";
       if (key === "meals:savedTitle") return "Saved meals";
       if (key === "home:methodSelector") return `Method: ${options?.method}`;
+      if (key === "home:askAssistantAdvice") return "Ask the assistant for advice";
       if (key === "home:mealCount") {
         return options?.count === 1 ? "1 meal" : `${options?.count ?? 0} meals`;
       }
@@ -80,7 +81,7 @@ jest.mock("react-i18next", () => ({
       if (key === "home:hero.greetingGeneric.evening") return "Good evening";
       if (key === "home:hero.todayEmpty.cta") return "Log breakfast";
       if (key === "home:hero.todayEmpty.supportCopy") {
-        return "Start with your first meal and the rest of today will build from there.";
+        return "Small steps each day lead to bigger changes.";
       }
       if (key === "home:hero.todayInProgress.cta") return "Log next meal";
       if (key === "home:hero.pastIncomplete.meta") return "You missed a meal log";
@@ -450,10 +451,8 @@ describe("HomeScreen", () => {
 
     expect(getByText("Good morning, Anna")).toBeTruthy();
     expect(getByText("Log breakfast")).toBeTruthy();
-    expect(getByText("Method: Photo")).toBeTruthy();
-    expect(
-      getByText("Start with your first meal and the rest of today will build from there."),
-    ).toBeTruthy();
+    expect(getByText("Ask the assistant for advice")).toBeTruthy();
+    expect(getByText("Small steps each day lead to bigger changes.")).toBeTruthy();
     expect(queryByText("weekly-report-card:ready")).toBeNull();
     expect(queryByText(/^meals:1:/)).toBeNull();
 
@@ -463,11 +462,9 @@ describe("HomeScreen", () => {
       expect(handleDirectStart).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.press(getByText("Method: Photo"));
+    fireEvent.press(getByText("Ask the assistant for advice"));
 
-    expect(navigation.navigate).toHaveBeenCalledWith("MealAddMethod", {
-      selectionMode: "persistDefault",
-    });
+    expect(navigation.navigate).toHaveBeenCalledWith("Chat");
 
     expect(mockUseWeeklyReport).toHaveBeenCalledWith({
       uid: "user-1",
@@ -811,13 +808,13 @@ describe("HomeScreen", () => {
     });
 
     const navigation = createNavigation();
-    const { getByText, queryByText } = renderWithTheme(
+    const { getByText } = renderWithTheme(
       <HomeScreen navigation={navigation as never} />,
     );
 
     expect(getByText("Goal reached, Anna")).toBeTruthy();
     expect(getByText("Review your day")).toBeTruthy();
-    expect(queryByText("Method: Photo")).toBeNull();
+    expect(getByText("Ask the assistant for advice")).toBeTruthy();
 
     fireEvent.press(getByText("Review your day"));
     expect(navigation.navigate).toHaveBeenCalledWith("HistoryList");

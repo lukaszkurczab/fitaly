@@ -1,5 +1,13 @@
-import { useMemo } from "react";
-import { Image, View, StyleSheet, Pressable, Text, Linking } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  Image,
+  View,
+  StyleSheet,
+  Pressable,
+  Text,
+  Linking,
+  PanResponder,
+} from "react-native";
 import { CameraView } from "expo-camera";
 import * as Device from "expo-device";
 import { useTranslation } from "react-i18next";
@@ -23,6 +31,7 @@ import {
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppIcon from "@/components/AppIcon";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
@@ -38,6 +47,7 @@ export default function MealCameraScreen({
   const { t: tCommon } = useTranslation("common");
   const { t: tMeals } = useTranslation("meals");
   const { t: tChat } = useTranslation("chat");
+  const [isCameraFullscreen, setIsCameraFullscreen] = useState(false);
   const canStepBack = flow.canGoBack();
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
@@ -119,6 +129,23 @@ export default function MealCameraScreen({
     : remainingAfterPhoto;
   const showNoCreditsState = !skipDetection && cameraCreditsState === "none";
   const isLowCredits = !skipDetection && cameraCreditsState === "low";
+  const canUseFullscreenCamera = !showNoCreditsState;
+
+  const sheetPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          canUseFullscreenCamera &&
+          gesture.dy > 10 &&
+          Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
+        onPanResponderRelease: (_event, gesture) => {
+          if (canUseFullscreenCamera && gesture.dy > 44) {
+            setIsCameraFullscreen(true);
+          }
+        },
+      }),
+    [canUseFullscreenCamera],
+  );
 
   const title = showNoCreditsState
     ? tMeals("camera_no_credits_title", {
@@ -212,6 +239,7 @@ export default function MealCameraScreen({
       <View style={styles.fill} testID="add-meal-photo-screen">
         <MealAddPhotoScaffold
           topInset={previewTopInset}
+          previewFillsAvailable={isCameraFullscreen}
           preview={
             e2ePhotoSimulation ? (
               <Image
@@ -228,6 +256,55 @@ export default function MealCameraScreen({
                 onCameraReady={() => setIsCameraReady(true)}
               />
             )
+          }
+          previewOverlay={
+            isCameraFullscreen ? (
+              <View style={styles.fullCameraOverlay} pointerEvents="box-none">
+                <View style={styles.fullCameraControls} pointerEvents="box-none">
+                  <Pressable
+                    testID="add-meal-photo-show-controls-button"
+                    accessibilityRole="button"
+                    accessibilityLabel={tMeals("camera_show_controls", {
+                      defaultValue: "Show photo options",
+                    })}
+                    onPress={() => setIsCameraFullscreen(false)}
+                    style={({ pressed }) => [
+                      styles.showControlsButton,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text style={styles.showControlsLabel}>
+                      {tMeals("camera_show_controls", {
+                        defaultValue: "Show options",
+                      })}
+                    </Text>
+                  </Pressable>
+
+                  {!showNoCreditsState ? (
+                    <Pressable
+                      testID="add-meal-photo-fullscreen-capture-button"
+                      accessibilityRole="button"
+                      accessibilityLabel={tCommon("camera_take_photo", {
+                        defaultValue: "Take photo",
+                      })}
+                      disabled={isTakingPhoto}
+                      onPress={handleTakePicture}
+                      style={({ pressed }) => [
+                        styles.fullCameraCaptureButton,
+                        isTakingPhoto ? styles.fullCameraCaptureButtonDisabled : null,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <AppIcon
+                        name="camera"
+                        size={26}
+                        color={theme.textInverse}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            ) : undefined
           }
           topAction={
             <ScreenCornerNavButton
@@ -248,6 +325,11 @@ export default function MealCameraScreen({
             !skipDetection ? (
               <AiCreditsBadge text={badgeText} tone="success" />
             ) : undefined
+          }
+          sheetVisible={!isCameraFullscreen}
+          showSheetHandle={canUseFullscreenCamera}
+          sheetPanHandlers={
+            canUseFullscreenCamera ? sheetPanResponder.panHandlers : undefined
           }
           content={
             <>
@@ -321,10 +403,61 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     camera: {
       flex: 1,
+    },
+    fullCameraOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: "flex-end",
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
+      backgroundColor: theme.isDark
+        ? "rgba(0, 0, 0, 0.08)"
+        : "rgba(18, 21, 18, 0.04)",
+    },
+    fullCameraControls: {
+      alignItems: "center",
+      gap: theme.spacing.sm,
+    },
+    showControlsButton: {
+      minHeight: 38,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.86)"
+        : "rgba(255, 253, 248, 0.9)",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      ...theme.depth.raised,
+    },
+    showControlsLabel: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    fullCameraCaptureButton: {
+      width: 74,
+      height: 74,
+      borderRadius: 37,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      borderWidth: 4,
+      borderColor: theme.isDark
+        ? "rgba(246, 243, 237, 0.28)"
+        : "rgba(255, 253, 248, 0.92)",
+      ...theme.depth.cta,
+    },
+    fullCameraCaptureButtonDisabled: {
+      opacity: 0.56,
+    },
+    pressed: {
+      opacity: 0.82,
     },
     flexBackground: {
       flex: 1,
@@ -364,7 +497,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     captureButton: {
       minHeight: 48,
-      borderRadius: theme.rounded.sm,
+      borderRadius: theme.rounded.lg,
     },
     inlineNote: {
       color: theme.textTertiary,

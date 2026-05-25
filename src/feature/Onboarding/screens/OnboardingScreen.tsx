@@ -74,60 +74,60 @@ export default function OnboardingScreen({
     <>
       <Layout showNavigation={false} disableScroll style={styles.layout}>
         <View testID="onboarding-screen" style={styles.screenMarker}>
-        <ProgressDots
-          step={state.step}
-          total={state.totalSteps}
-          label={state.progressLabel}
-          style={styles.progress}
-        />
-
-        {state.step === 1 ? (
-          <Step1BasicData
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onSecondaryAction={state.handleStep1SecondaryAction}
-            showSecondaryAction={mode === "refill"}
-            submitting={state.submitting}
+          <ProgressDots
+            step={state.step}
+            total={state.totalSteps}
+            label={state.progressLabel}
+            style={styles.progress}
           />
-        ) : null}
 
-        {state.step === 2 ? (
-          <Step2Preferences
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 1 ? (
+            <Step1BasicData
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onSecondaryAction={state.handleStep1SecondaryAction}
+              showSecondaryAction={mode === "refill"}
+              submitting={state.submitting}
+            />
+          ) : null}
 
-        {state.step === 3 ? (
-          <Step3Health
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            onSkip={state.handleSkipStep}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 2 ? (
+            <Step2Preferences
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              submitting={state.submitting}
+            />
+          ) : null}
 
-        {state.step === 4 ? (
-          <Step4AIAssistantPreferences
-            form={state.form}
-            setForm={state.setForm}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 3 ? (
+            <Step3Health
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              onSkip={state.handleSkipStep}
+              submitting={state.submitting}
+            />
+          ) : null}
+
+          {state.step === 4 ? (
+            <Step4AIAssistantPreferences
+              form={state.form}
+              setForm={state.setForm}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              submitting={state.submitting}
+            />
+          ) : null}
         </View>
       </Layout>
 
@@ -181,7 +181,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     progress: {
-      marginBottom: theme.spacing.xl,
+      marginBottom: theme.spacing.md,
     },
     screenMarker: {
       flex: 1,

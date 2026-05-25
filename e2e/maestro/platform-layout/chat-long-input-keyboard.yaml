@@ -22,7 +22,7 @@ appId: com.lkurczab.fitaly
     id: chat-input
 - assertVisible:
     id: chat-send-button
-- hideKeyboard
+- tapOn:
+    id: chat-keyboard-dismiss-zone
 - assertVisible:
     id: chat-send-button
-

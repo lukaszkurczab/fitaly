@@ -135,8 +135,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           <Text style={styles.footerText}>{t("dont_have_account")} </Text>
           <LinkText
             testID="login-register-link"
-            onPress={() => navigation.navigate("Register")}
+            onPress={() => navigation.replace("Register")}
             disabled={loading}
+            hitSlop={12}
           >
             {t("sign_up")}
           </LinkText>

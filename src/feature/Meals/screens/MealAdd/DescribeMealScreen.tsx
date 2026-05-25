@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Keyboard,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
+  Pressable,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -228,6 +228,7 @@ export default function DescribeMealScreen({
           >
               <MealAddPhotoScaffold
                 topInset={previewTopInset}
+                previewHeight={360}
                 preview={
                   <View style={styles.preview}>
                     <TextInput
@@ -269,7 +270,6 @@ export default function DescribeMealScreen({
                     />
                   </View>
                 }
-                previewFillsAvailable
                 topAction={
                   <ScreenCornerNavButton
                     icon={canStepBack ? "back" : "close"}
@@ -325,6 +325,7 @@ export default function DescribeMealScreen({
                     />
                   </>
                 }
+                sheetVisible={!isKeyboardVisible}
                 sheetFitContent
                 contentPlacement="start"
               />
@@ -332,8 +333,7 @@ export default function DescribeMealScreen({
         </Pressable>
 
         {isKeyboardVisible ? (
-          <Pressable
-            onPress={Keyboard.dismiss}
+          <View
             style={[
               styles.keyboardActionBar,
               { bottom: keyboardHeight + theme.spacing.sm },
@@ -349,7 +349,7 @@ export default function DescribeMealScreen({
                 disabled={loading}
               />
             ) : null}
-          </Pressable>
+          </View>
         ) : null}
 
         <Modal
@@ -408,7 +408,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     scroller: {
       flex: 1,
@@ -419,11 +419,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     preview: {
       flex: 1,
-      backgroundColor: theme.backgroundSecondary,
-      paddingHorizontal: theme.spacing.xl,
-      paddingRight: theme.spacing.xl + 12,
-      paddingTop: theme.spacing.xl,
-      paddingBottom: theme.spacing.xl,
+      backgroundColor: theme.surfaceElevated,
+      paddingHorizontal: theme.spacing.lg,
+      paddingRight: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
       gap: theme.spacing.md,
     },
     previewDescriptionField: {
@@ -438,28 +438,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     primaryButton: {
       minHeight: 48,
-      borderRadius: theme.rounded.sm,
+      borderRadius: theme.rounded.lg,
     },
     keyboardPrimaryButton: {
       minHeight: 46,
-      borderRadius: theme.rounded.sm,
+      borderRadius: theme.rounded.lg,
     },
     keyboardActionBar: {
       position: "absolute",
       left: theme.spacing.lg,
       right: theme.spacing.lg,
       gap: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.rounded.lg,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.22 : 0.1,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 8,
+      ...theme.depth.floating,
     },
     inlineNote: {
       color: theme.textTertiary,
@@ -467,7 +463,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
       textAlign: "center",
-      marginTop: theme.spacing.xs,
     },
     inlineNoteWarning: {
       color: theme.accentWarm,

@@ -334,9 +334,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     searchField: {
       minHeight: 48,
       borderRadius: 12,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       borderColor: theme.borderSoft,
       paddingHorizontal: 16,
+      ...theme.depth.raised,
     },
     searchText: {
       fontFamily: theme.typography.fontFamily.regular,

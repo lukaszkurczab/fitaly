@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -276,6 +276,7 @@ export default function ChatScreen() {
           title={t("empty.suggestedLabel")}
           starters={starters}
           disabled={composerDisabled}
+          compact={isKeyboardVisible}
           onSelect={(value) => {
             void handleSend(value);
           }}
@@ -355,7 +356,12 @@ export default function ChatScreen() {
         />
       ) : null}
 
-      <View style={styles.body}>
+      <Pressable
+        testID="chat-keyboard-dismiss-zone"
+        accessible={false}
+        onPress={Keyboard.dismiss}
+        style={styles.body}
+      >
         <ChatMessageList
           messages={messages}
           typing={typing && !limitReached && !isOffline}
@@ -365,7 +371,7 @@ export default function ChatScreen() {
           dateLabel={t("conversation.todayLabel")}
           typingLabel={t("typingIndicator")}
         />
-      </View>
+      </Pressable>
 
       <ChatComposer
         placeholder={composerPlaceholder}

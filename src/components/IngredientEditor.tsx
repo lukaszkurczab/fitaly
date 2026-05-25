@@ -707,14 +707,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.md,
     },
     fieldGroup: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     row: {
       flexDirection: "row",
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     fieldColumn: {
       flex: 1,
+      minWidth: 0,
       gap: theme.spacing.xxs,
     },
     sectionTitle: {
@@ -727,8 +728,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     sheetField: {
-      minHeight: 54,
-      borderRadius: theme.rounded.sm,
+      minHeight: 48,
+      borderRadius: theme.rounded.md,
       borderColor: theme.input.border,
       backgroundColor: theme.input.background,
     },
@@ -802,8 +803,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     sheetActions: {
       flexDirection: "row",
-      gap: theme.spacing.sm,
-      marginTop: theme.spacing.xs,
+      gap: theme.spacing.xs,
+      marginTop: 0,
     },
     sheetActionsKeyboard: {
       marginTop: 0,
@@ -811,5 +812,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     sheetActionButton: {
       flex: 1,
+      minHeight: 48,
+      borderRadius: 14,
     },
   });

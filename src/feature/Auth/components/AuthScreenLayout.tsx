@@ -10,6 +10,7 @@ import { Layout } from "@/components";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useTheme } from "@/theme/useTheme";
+import FitalyMarkIcon from "@assets/icons/fitaly-mark.svg";
 
 type AuthScreenLayoutProps = {
   brand: string;
@@ -17,6 +18,7 @@ type AuthScreenLayoutProps = {
   description?: string;
   testID?: string;
   banner?: ReactNode;
+  topAction?: ReactNode;
   bottomAction?: ReactNode;
   footer?: ReactNode;
   compactOnKeyboardVisible?: boolean;
@@ -31,6 +33,7 @@ export function AuthScreenLayout({
   description,
   testID,
   banner,
+  topAction,
   bottomAction,
   footer,
   compactOnKeyboardVisible = false,
@@ -41,6 +44,10 @@ export function AuthScreenLayout({
   const theme = useTheme();
   const keyboardInset = useKeyboardInset({ enabled: compactOnKeyboardVisible });
   const isKeyboardCompact = compactOnKeyboardVisible && keyboardInset > 0;
+  const brandSuffix =
+    brand.toLocaleLowerCase().startsWith("f") && brand.length > 1
+      ? brand.slice(1)
+      : brand;
   const styles = useMemo(
     () => makeStyles(theme, isKeyboardCompact),
     [isKeyboardCompact, theme],
@@ -49,6 +56,12 @@ export function AuthScreenLayout({
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View style={styles.container} testID={testID}>
+        {topAction}
+        <View pointerEvents="none" style={styles.backdrop}>
+          <View style={styles.brandWash} />
+          <View style={styles.terracottaThread} />
+        </View>
+
         <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -57,7 +70,14 @@ export function AuthScreenLayout({
           <View style={styles.content}>
             <View style={styles.hero}>
               {isKeyboardCompact ? null : (
-                <Text style={styles.wordmark}>{brand}</Text>
+                <View style={styles.brandGroup}>
+                  <FitalyMarkIcon
+                    width={52}
+                    height={52}
+                    style={styles.brandMark}
+                  />
+                  <Text style={styles.wordmark}>{brandSuffix}</Text>
+                </View>
               )}
 
               <View style={styles.headingGroup}>
@@ -118,28 +138,71 @@ const makeStyles = (
       flex: 1,
       minHeight: 0,
     },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      overflow: "hidden",
+    },
+    brandWash: {
+      position: "absolute",
+      top: isKeyboardCompact ? -120 : 42,
+      left: -70,
+      width: 190,
+      height: 136,
+      borderRadius: theme.rounded.xxl,
+      borderTopRightRadius: 96,
+      borderBottomRightRadius: 96,
+      backgroundColor: theme.isDark
+        ? "rgba(111, 138, 105, 0.08)"
+        : "rgba(111, 138, 105, 0.10)",
+      transform: [{ rotate: "-26deg" }],
+    },
+    terracottaThread: {
+      position: "absolute",
+      right: -56,
+      bottom: 42,
+      width: 180,
+      height: 58,
+      borderRadius: theme.rounded.full,
+      borderWidth: 1,
+      borderColor: theme.isDark
+        ? "rgba(199, 126, 97, 0.16)"
+        : "rgba(199, 126, 97, 0.18)",
+      transform: [{ rotate: "-20deg" }],
+      opacity: isKeyboardCompact ? 0 : 1,
+    },
     scroll: {
       flex: 1,
+      zIndex: 1,
     },
     scrollContent: {
       flexGrow: 1,
       justifyContent: isKeyboardCompact ? "flex-start" : "space-between",
     },
     content: {
-      paddingTop: isKeyboardCompact ? theme.spacing.sm : theme.spacing.xl,
+      paddingTop: isKeyboardCompact ? theme.spacing.sm : theme.spacing.display,
     },
     hero: {
       alignItems: "center",
       paddingBottom: isKeyboardCompact
         ? theme.spacing.sm
-        : theme.spacing.sectionGap,
+        : theme.spacing.xl,
+    },
+    brandGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.xxs,
+    },
+    brandMark: {
+      marginRight: -4,
     },
     wordmark: {
       color: theme.primary,
       fontFamily: theme.typography.fontFamily.semiBold,
-      fontSize: theme.typography.size.displayM,
+      fontSize: theme.typography.size.displayL,
       lineHeight: theme.typography.lineHeight.displayL,
       textAlign: "center",
+      marginTop: 8,
     },
     headingGroup: {
       marginTop: isKeyboardCompact ? 0 : theme.spacing.xs,
@@ -149,7 +212,8 @@ const makeStyles = (
     title: {
       color: theme.text,
       fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.size.h2,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
       textAlign: "center",
     },
     description: {
@@ -165,29 +229,26 @@ const makeStyles = (
     },
     form: {
       width: "100%",
-      flexGrow: 1,
     },
     formSurface: {
-      backgroundColor: theme.surfaceElevated,
-      borderColor: theme.borderSoft,
-      borderRadius: theme.rounded.xl,
-      borderWidth: 1,
-      paddingHorizontal: theme.spacing.cardPaddingLarge,
-      paddingVertical: theme.spacing.cardPaddingLarge,
-      ...theme.depth.raised,
+      backgroundColor: "transparent",
+      borderColor: "transparent",
+      borderRadius: 0,
+      borderWidth: 0,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     },
     formSurfaceCompact: {
-      borderRadius: theme.rounded.lg,
-      paddingHorizontal: theme.spacing.cardPadding,
-      paddingVertical: theme.spacing.cardPadding,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     },
     inlineAction: {
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.lg,
     },
     bottomBlock: {
       paddingTop: isKeyboardCompact
         ? theme.spacing.md
-        : theme.spacing.lg,
+        : theme.spacing.sectionGap,
       paddingBottom: theme.spacing.sm,
     },
     footer: {

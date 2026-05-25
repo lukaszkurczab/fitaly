@@ -120,11 +120,6 @@ export default function HomeScreen({ navigation }: Props) {
     return candidate.split(/\s+/)[0] ?? null;
   }, [userData?.username]);
 
-  const selectedMethodName = t(`meals:${mealAddEntry.preferredOption.titleKey}`);
-  const methodSelectorLabel = t("home:methodSelector", {
-    method: selectedMethodName,
-  });
-
   const heroModel = useMemo(() => {
     return buildHomeHeroModel({
       dayState: homeDay,
@@ -233,18 +228,11 @@ export default function HomeScreen({ navigation }: Props) {
 
             void mealAddEntry.handleDirectStart();
           }}
-          methodLabel={heroModel.showMethodSelector ? methodSelectorLabel : undefined}
+          methodLabel={t("home:askAssistantAdvice")}
           methodIcon={heroModel.showMethodSelector ? mealAddEntry.preferredOption.icon : undefined}
-          onPressMethodSelector={
-            heroModel.showMethodSelector
-              ? () =>
-                  navigation.navigate("MealAddMethod", {
-                    selectionMode: "persistDefault",
-                  })
-              : undefined
-          }
+          onPressMethodSelector={() => navigation.navigate("Chat")}
           progress={heroModel.progress}
-          supportText={heroModel.supportText ?? undefined}
+          supportText={heroModel.supportText ?? heroModel.supportCopy ?? undefined}
           tone={heroModel.tone}
         />
 
@@ -257,10 +245,6 @@ export default function HomeScreen({ navigation }: Props) {
               fat: consumed.fat,
             }}
           />
-        ) : null}
-
-        {heroModel.supportCopy ? (
-          <Text style={styles.supportCopy}>{heroModel.supportCopy}</Text>
         ) : null}
 
         {mealCount > 0 ? (
@@ -330,29 +314,28 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     screenGap: {
-      gap: theme.spacing.sectionGap,
-    },
-    supportCopy: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
-      textAlign: "left",
-      paddingHorizontal: theme.spacing.sm,
+      gap: theme.spacing.md,
     },
     historyLink: {
+      alignSelf: "stretch",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 48,
+      minHeight: 58,
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceAlt,
+      paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.sm,
+      ...theme.depth.raised,
     },
     historyLinkPressed: {
       opacity: 0.6,
     },
     historyLinkText: {
       color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
     },
   });

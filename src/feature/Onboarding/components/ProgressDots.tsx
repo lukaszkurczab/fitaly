@@ -15,10 +15,6 @@ const DOT_SPACING = 8;
 const ProgressDots: React.FC<Props> = ({ step, total, label, style }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const rowStyle = useMemo(
-    () => ({ marginBottom: theme.spacing.lg }),
-    [theme.spacing.lg]
-  );
   const getDotStyle = (index: number) => ({
     backgroundColor:
       index + 1 <= step ? theme.primary : theme.textSecondary,
@@ -26,7 +22,7 @@ const ProgressDots: React.FC<Props> = ({ step, total, label, style }) => {
   });
 
   return (
-    <View style={[styles.wrap, rowStyle, style]}>
+    <View style={[styles.wrap, style]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={styles.row}>
         {Array.from({ length: total }).map((_, i) => (

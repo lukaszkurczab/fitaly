@@ -34,11 +34,11 @@ describe("themes", () => {
       expect.objectContaining({
         raised: expect.objectContaining({
           shadowColor: "#2F312B",
-          elevation: 3,
+          elevation: 4,
         }),
         modal: expect.objectContaining({
-          shadowRadius: 24,
-          elevation: 10,
+          shadowRadius: 28,
+          elevation: 11,
         }),
       }),
     );

@@ -49,6 +49,8 @@ type Props = {
   autoCorrect?: boolean;
   spellCheck?: boolean;
   returnKeyType?: TextInputProps["returnKeyType"];
+  blurOnSubmit?: TextInputProps["blurOnSubmit"];
+  submitBehavior?: TextInputProps["submitBehavior"];
   onSubmitEditing?: TextInputProps["onSubmitEditing"];
   onContentSizeChange?: TextInputProps["onContentSizeChange"];
   scrollEnabled?: boolean;
@@ -106,6 +108,8 @@ export const TextInput = forwardRef<RNTextInput, Props>(
       autoCorrect = false,
       spellCheck,
       returnKeyType,
+      blurOnSubmit,
+      submitBehavior,
       onSubmitEditing,
       onContentSizeChange,
       scrollEnabled,
@@ -242,6 +246,8 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             textContentType={textContentType}
             accessibilityLabel={accessibilityLabel}
             returnKeyType={returnKeyType}
+            blurOnSubmit={blurOnSubmit}
+            submitBehavior={submitBehavior}
             onSubmitEditing={onSubmitEditing}
             onContentSizeChange={onContentSizeChange}
             scrollEnabled={scrollEnabled}

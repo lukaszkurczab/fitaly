@@ -1,6 +1,10 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- assertVisible:
+    id: tab-home
 - openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free"
 - assertVisible:
     id: e2e-ready-credits-ok
@@ -58,7 +62,7 @@ appId: com.lkurczab.fitaly
     id: add-meal-text-description-input
 - eraseText
 - inputText: Rice chicken avocado
-- hideKeyboard
+- tapOn: "KRÓTKI OPIS"
 - scrollUntilVisible:
     element:
       id: add-meal-text-upgrade-button

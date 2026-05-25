@@ -30,6 +30,7 @@ export default function MealDetailsFooter({
           })
         }
         onPress={onSubmit}
+        style={styles.submitButton}
       />
     </View>
   );
@@ -42,8 +43,17 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       left: 0,
       right: 0,
       bottom: 0,
-      paddingTop: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
       gap: theme.spacing.xs,
-      backgroundColor: theme.background,
+      backgroundColor: theme.surfaceElevated,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.borderSoft,
+      borderTopLeftRadius: theme.rounded.xl,
+      borderTopRightRadius: theme.rounded.xl,
+      ...theme.depth.tabBar,
+    },
+    submitButton: {
+      minHeight: 50,
+      borderRadius: 14,
     },
   });

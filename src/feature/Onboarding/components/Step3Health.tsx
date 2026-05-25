@@ -113,6 +113,7 @@ export default function Step3Health({
             }}
             selectionMode="multiple"
             variant="chip"
+            size="compact"
           />
 
           {hasChronicOther ? (
@@ -167,6 +168,7 @@ export default function Step3Health({
             }}
             selectionMode="multiple"
             variant="chip"
+            size="compact"
           />
 
           {hasAllergyOther ? (
@@ -203,6 +205,8 @@ export default function Step3Health({
             }}
             placeholder={t("step3.notesPlaceholder")}
             maxLength={220}
+            numberOfLines={3}
+            inputStyle={styles.notesInput}
           />
         </View>
       </ScrollView>
@@ -216,6 +220,8 @@ export default function Step3Health({
           secondaryLabel={t("common:back")}
           secondaryOnPress={onBack}
           secondaryTestID="onboarding-step-3-back-button"
+          layout="row"
+          rowOrder="secondary-primary"
         />
       </View>
     </View>
@@ -231,11 +237,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing.md,
-      gap: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl,
+      gap: theme.spacing.md,
     },
     header: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     optionalBadge: {
       alignSelf: "flex-start",
@@ -260,24 +266,28 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     subtitle: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
-      padding: theme.spacing.cardPaddingLarge,
-      borderRadius: theme.rounded.xl,
+      padding: theme.spacing.md,
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.borderSoft,
       backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.lg,
+      gap: theme.spacing.sm,
       shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.08,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: theme.isDark ? 0.16 : 0.06,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
       elevation: 3,
     },
     footer: {
-      paddingTop: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
+      backgroundColor: theme.background,
+    },
+    notesInput: {
+      minHeight: 82,
     },
   });

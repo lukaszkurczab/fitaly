@@ -5,12 +5,14 @@ import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { FallbackImage } from "@/feature/History/components/FallbackImage";
 import { ensureLocalMealPhoto } from "@/services/meals/mealService.images";
+import AppIcon from "@/components/AppIcon";
 
 type MealThumbnailProps = {
   meal: Meal;
   size: number;
   borderRadius: number;
   placeholderLabel?: string;
+  showPlaceholderIcon?: boolean;
 };
 
 export function MealThumbnail({
@@ -18,10 +20,12 @@ export function MealThumbnail({
   size,
   borderRadius,
   placeholderLabel,
+  showPlaceholderIcon = false,
 }: MealThumbnailProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [localUri, setLocalUri] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   const mealId = meal.cloudId || meal.mealId || "";
 
@@ -85,13 +89,18 @@ export function MealThumbnail({
     meal.photoUrl ||
     null;
 
-  if (imageUri) {
+  useEffect(() => {
+    setImageError(false);
+  }, [imageUri]);
+
+  if (imageUri && !imageError) {
     return (
       <FallbackImage
         uri={imageUri}
         width={size}
         height={size}
         borderRadius={borderRadius}
+        onError={() => setImageError(true)}
       />
     );
   }
@@ -107,6 +116,14 @@ export function MealThumbnail({
         },
       ]}
     >
+      {showPlaceholderIcon ? (
+        <AppIcon
+          name="image"
+          size={Math.max(16, Math.round(size * 0.28))}
+          color={theme.primary}
+          style={styles.placeholderIcon}
+        />
+      ) : null}
       <Text style={styles.placeholderText}>
         {placeholderLabel ?? "No\nphoto"}
       </Text>
@@ -119,16 +136,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     placeholder: {
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.backgroundSecondary,
       borderWidth: 1,
-      borderColor: "rgba(207, 197, 184, 0.35)",
+      borderColor: theme.borderSoft,
       overflow: "hidden",
+      gap: 3,
+    },
+    placeholderIcon: {
+      opacity: 0.82,
     },
     placeholderText: {
-      color: "rgba(122, 127, 116, 0.78)",
+      color: theme.textTertiary,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 10,
-      lineHeight: 11,
+      fontSize: 9,
+      lineHeight: 10,
       textAlign: "center",
     },
   });

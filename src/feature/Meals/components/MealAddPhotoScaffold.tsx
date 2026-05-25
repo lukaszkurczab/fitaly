@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import type { PressableProps } from "react-native";
+import type { GestureResponderHandlers, PressableProps } from "react-native";
 import { TextButton } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 
@@ -17,8 +17,11 @@ type MealAddPhotoScaffoldProps = {
   accessory?: ReactNode;
   content?: ReactNode;
   contentFillsAvailable?: boolean;
+  sheetVisible?: boolean;
   sheetFitContent?: boolean;
   contentPlacement?: "start" | "end";
+  showSheetHandle?: boolean;
+  sheetPanHandlers?: GestureResponderHandlers;
   footerNote?: string;
   footerTone?: "default" | "warning";
 };
@@ -50,8 +53,11 @@ export function MealAddPhotoScaffold({
   accessory,
   content,
   contentFillsAvailable = false,
+  sheetVisible = true,
   sheetFitContent = false,
   contentPlacement = "end",
+  showSheetHandle = false,
+  sheetPanHandlers,
   footerNote,
   footerTone = "default",
 }: MealAddPhotoScaffoldProps) {
@@ -77,50 +83,55 @@ export function MealAddPhotoScaffold({
         {topAction}
       </View>
 
-      <View
-        style={[styles.sheet, sheetFitContent ? styles.sheetFitContent : null]}
-      >
-        <View style={styles.header}>
-          <View style={styles.eyebrowRow}>
-            <Text style={styles.eyebrow}>{eyebrow}</Text>
-            {accessory}
+      {sheetVisible ? (
+        <View
+          style={[styles.sheet, sheetFitContent ? styles.sheetFitContent : null]}
+          {...sheetPanHandlers}
+        >
+          {showSheetHandle ? <View style={styles.sheetHandle} /> : null}
+
+          <View style={styles.header}>
+            <View style={styles.eyebrowRow}>
+              <Text style={styles.eyebrow}>{eyebrow}</Text>
+              {accessory}
+            </View>
+
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.description}>{description}</Text>
           </View>
 
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
+          {content || footerNote ? (
+            <View
+              style={[
+                styles.bottomSection,
+                contentPlacement === "start" ? styles.bottomSectionStart : null,
+              ]}
+            >
+              {content ? (
+                <View
+                  style={[
+                    styles.content,
+                    contentFillsAvailable ? styles.contentFill : null,
+                  ]}
+                >
+                  {content}
+                </View>
+              ) : null}
+
+              {footerNote ? (
+                <Text
+                  style={[
+                    styles.footerNote,
+                    footerTone === "warning" ? styles.footerNoteWarning : null,
+                  ]}
+                >
+                  {footerNote}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
-
-        {content || footerNote ? (
-          <View
-            style={[
-              styles.bottomSection,
-              contentPlacement === "start" ? styles.bottomSectionStart : null,
-            ]}
-          >
-            {content ? (
-              <View
-                style={[
-                  styles.content,
-                  contentFillsAvailable ? styles.contentFill : null,
-                ]}
-              >
-                {content}
-              </View>
-            ) : null}
-
-            {footerNote ? (
-              <Text
-                style={[
-                  styles.footerNote,
-                  footerTone === "warning" ? styles.footerNoteWarning : null,
-                ]}
-              >
-                {footerNote}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -221,10 +232,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     screen: {
       flex: 1,
       paddingTop: 24,
-      paddingHorizontal: 10,
+      paddingHorizontal: theme.spacing.sm,
       paddingBottom: 0,
-      gap: theme.spacing.sm,
-      backgroundColor: theme.surface,
+      gap: theme.spacing.md,
+      backgroundColor: theme.background,
     },
     previewWrap: {
       height: 428,
@@ -233,11 +244,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: "#121512",
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      shadowColor: "#000000",
-      shadowOpacity: 0.08,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 3,
+      ...theme.depth.raised,
     },
     previewWrapFill: {
       flex: 1,
@@ -248,17 +255,23 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       borderRadius: theme.rounded.xxl,
       paddingHorizontal: theme.spacing.xl,
-      paddingTop: 28,
+      paddingTop: theme.spacing.lg,
       paddingBottom: theme.spacing.xl,
-      backgroundColor: theme.surface,
-      shadowColor: "#000000",
-      shadowOpacity: 0.12,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: -4 },
-      elevation: 8,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      ...theme.depth.floating,
     },
     sheetFitContent: {
       flex: 0,
+    },
+    sheetHandle: {
+      width: 44,
+      height: 5,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.borderSoft,
+      alignSelf: "center",
+      marginBottom: theme.spacing.sm,
     },
     header: {
       gap: 0,
@@ -275,7 +288,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.caption,
       lineHeight: 20,
       fontFamily: theme.typography.fontFamily.semiBold,
-      letterSpacing: 0.8,
+      letterSpacing: 0,
       textTransform: "uppercase",
     },
     title: {
@@ -284,15 +297,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.displayM,
       lineHeight: 32,
       fontFamily: theme.typography.fontFamily.bold,
-      letterSpacing: 0.1,
+      letterSpacing: 0,
     },
     description: {
-      marginTop: 18,
+      marginTop: theme.spacing.sm,
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyL,
       lineHeight: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.regular,
-      letterSpacing: 0.2,
+      letterSpacing: 0,
     },
     bottomSection: {
       flex: 1,
@@ -334,6 +347,9 @@ const makeStatusStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: 10,
       paddingHorizontal: theme.spacing.md,
       backgroundColor: theme.success.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      ...theme.depth.raised,
     },
     dot: {
       width: 8,

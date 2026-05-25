@@ -14,6 +14,7 @@ import { useTheme } from "@/theme/useTheme";
 const MAX_CHARS = 4000;
 const MIN_COMPOSER_LINES = 2;
 const MAX_COMPOSER_LINES = 6;
+const ESTIMATED_CHARS_PER_LINE = 34;
 
 type Props = {
   placeholder: string;
@@ -46,9 +47,15 @@ export function ChatComposer({
   const hasHelperText = Boolean(helperText);
 
   const canSend = !disabled && value.trim().length > 0;
+  const estimatedInputHeight =
+    lineHeight *
+    Math.min(
+      MAX_COMPOSER_LINES,
+      Math.max(MIN_COMPOSER_LINES, Math.ceil(value.length / ESTIMATED_CHARS_PER_LINE)),
+    );
   const resolvedInputHeight = Math.min(
     maxInputHeight,
-    Math.max(minInputHeight, contentHeight),
+    Math.max(minInputHeight, contentHeight, estimatedInputHeight),
   );
   const inputScrollEnabled = contentHeight > maxInputHeight;
 
@@ -83,11 +90,21 @@ export function ChatComposer({
           multiline
           numberOfLines={MIN_COMPOSER_LINES}
           inputMaxHeight={maxInputHeight}
-          inputStyle={{ height: resolvedInputHeight }}
+          style={styles.inputShell}
+          fieldStyle={styles.inputField}
+          inputStyle={[
+            styles.inputText,
+            {
+              height: resolvedInputHeight,
+              minHeight: minInputHeight,
+            },
+          ]}
           onContentSizeChange={handleContentSizeChange}
           scrollEnabled={inputScrollEnabled}
           maxLength={MAX_CHARS}
-          onSubmitEditing={handleSend}
+          returnKeyType="done"
+          blurOnSubmit
+          submitBehavior="blurAndSubmit"
         />
 
         <Pressable
@@ -123,11 +140,17 @@ export function ChatComposer({
         </Text>
       )}
 
-      <View style={styles.helperRow}>
+      <View
+        style={[
+          styles.helperRow,
+          helperActionLabel ? styles.helperRowStacked : null,
+        ]}
+      >
         <Text
           testID={helperText ? "chat-error-state" : undefined}
           style={[
             styles.helperText,
+            helperActionLabel ? styles.helperTextStacked : null,
             !hasHelperText ? styles.helperTextPlaceholder : null,
           ]}
         >
@@ -142,6 +165,7 @@ export function ChatComposer({
             accessibilityRole="button"
             accessibilityLabel={helperActionLabel}
             style={({ pressed }) => [
+              styles.helperAction,
               helperActionDisabled ? styles.helperActionDisabled : null,
               pressed && !helperActionDisabled
                 ? styles.helperActionPressed
@@ -162,7 +186,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: "transparent",
       paddingHorizontal: theme.spacing.md,
       paddingTop: theme.spacing.sm,
-      paddingBottom: 0,
+      paddingBottom: theme.spacing.xs,
       gap: theme.spacing.xs,
     },
     row: {
@@ -170,6 +194,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "flex-end",
       gap: theme.spacing.xs,
       backgroundColor: "transparent",
+    },
+    inputShell: {
+      flex: 1,
+      minWidth: 0,
+    },
+    inputField: {
+      borderRadius: theme.rounded.lg,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+    },
+    inputText: {
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      marginVertical: 0,
     },
     sendButton: {
       width: 44,
@@ -193,12 +231,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       gap: theme.spacing.sm,
     },
+    helperRowStacked: {
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: theme.spacing.xxs,
+    },
     helperText: {
       flex: 1,
       color: theme.textTertiary,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
+    },
+    helperTextStacked: {
+      flex: 0,
+      alignSelf: "stretch",
     },
     helperTextPlaceholder: {
       opacity: 0,
@@ -209,6 +256,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.semiBold,
       textDecorationLine: "underline",
+    },
+    helperAction: {
+      paddingVertical: 2,
     },
     helperActionDisabled: {
       opacity: 0.42,

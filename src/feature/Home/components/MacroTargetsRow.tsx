@@ -20,7 +20,7 @@ type MacroItem = {
 
 export function MacroTargetsRow({ macroTargets, consumed }: Props) {
   const theme = useTheme();
-  const { t } = useTranslation(["common"]);
+  const { t } = useTranslation(["common", "home"]);
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const items = useMemo<MacroItem[]>(
@@ -68,14 +68,55 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
 
   return (
     <View style={styles.container}>
-      {items.map((item) => (
-        <View key={item.key} style={styles.item}>
-          <Text style={[styles.value, { color: item.color }]}>
-            {item.consumed} / {item.target}g
+      <View style={styles.header}>
+        <Text style={styles.title}>{t("home:todaysMacros")}</Text>
+        <View style={styles.detailsPill}>
+          <Text style={styles.detailsText}>
+            {t("home:details", "Details")}
           </Text>
-          <Text style={styles.label}>{item.label}</Text>
         </View>
-      ))}
+      </View>
+
+      <View style={styles.itemsRow}>
+        {items.map((item) => {
+          const progress = item.target > 0 ? item.consumed / item.target : 0;
+          const percent = Math.round(Math.max(0, Math.min(progress, 1)) * 100);
+
+          return (
+            <View key={item.key} style={styles.item}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+                style={[styles.label, { color: item.color }]}
+              >
+                {item.label}
+              </Text>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                style={styles.value}
+              >
+                <Text style={styles.valueStrong}>{item.consumed}</Text>
+                <Text style={styles.valueMuted}> / {item.target}g</Text>
+              </Text>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: item.color,
+                      width: `${percent}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.percent}>{percent}%</Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -84,32 +125,83 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
       backgroundColor: theme.surfaceElevated,
-      borderRadius: theme.rounded.lg,
-      borderWidth: 1,
+      borderRadius: theme.rounded.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      paddingHorizontal: theme.spacing.xs,
-      paddingVertical: theme.spacing.sm,
+      padding: theme.spacing.sm,
+      gap: theme.spacing.sm,
+      ...theme.depth.floating,
+    },
+    header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      ...theme.depth.raised,
+      gap: theme.spacing.md,
+    },
+    title: {
+      color: theme.text,
+      flex: 1,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    detailsPill: {
+      minHeight: 34,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.surfaceAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.sm,
+    },
+    detailsText: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    itemsRow: {
+      flexDirection: "row",
+      gap: theme.spacing.sm,
     },
     item: {
       flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: theme.spacing.xs,
-      gap: 2,
+      minWidth: 0,
+      gap: 3,
     },
     value: {
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    valueStrong: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    valueMuted: {
+      color: theme.textTertiary,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    progressTrack: {
+      height: 5,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceAlt,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      borderRadius: theme.rounded.full,
     },
     label: {
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    percent: {
       color: theme.textTertiary,
-      fontSize: theme.typography.size.overline,
-      lineHeight: theme.typography.lineHeight.overline,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
     },
   });

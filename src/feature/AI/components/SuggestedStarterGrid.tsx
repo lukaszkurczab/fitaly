@@ -11,6 +11,7 @@ type Props = {
   title: string;
   starters: SuggestedStarter[];
   disabled?: boolean;
+  compact?: boolean;
   onSelect: (value: string) => void;
 };
 
@@ -18,6 +19,7 @@ export function SuggestedStarterGrid({
   title,
   starters,
   disabled = false,
+  compact = false,
   onSelect,
 }: Props) {
   const theme = useTheme();
@@ -27,7 +29,7 @@ export function SuggestedStarterGrid({
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>{title}</Text>
 
-      <View style={styles.grid}>
+      <View style={[styles.grid, compact ? styles.gridCompact : null]}>
         {starters.map((starter) => (
           <Pressable
             key={starter.label}
@@ -35,13 +37,22 @@ export function SuggestedStarterGrid({
             onPress={() => onSelect(starter.value)}
             style={({ pressed }) => [
               styles.chip,
+              compact ? styles.chipCompact : null,
               disabled ? styles.chipDisabled : null,
               pressed && !disabled ? styles.chipPressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel={starter.label}
           >
-            <Text style={styles.chipLabel}>{starter.label}</Text>
+            <Text
+              style={[
+                styles.chipLabel,
+                compact ? styles.chipLabelCompact : null,
+                disabled ? styles.chipLabelDisabled : null,
+              ]}
+            >
+              {starter.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -67,6 +78,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "space-between",
       rowGap: theme.spacing.md,
     },
+    gridCompact: {
+      rowGap: theme.spacing.xs,
+    },
     chip: {
       width: "48%",
       minHeight: 66,
@@ -78,14 +92,31 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
       ...theme.depth.raised,
     },
+    chipCompact: {
+      minHeight: 52,
+      borderRadius: theme.rounded.lg,
+      paddingHorizontal: theme.spacing.sm,
+      shadowOpacity: 0.08,
+      elevation: 1,
+    },
     chipLabel: {
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyM,
       lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.medium,
     },
+    chipLabelCompact: {
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
     chipDisabled: {
-      opacity: 0.45,
+      backgroundColor: theme.surfaceAlt,
+      borderColor: theme.borderSoft,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    chipLabelDisabled: {
+      color: theme.textTertiary,
     },
     chipPressed: {
       opacity: 0.82,

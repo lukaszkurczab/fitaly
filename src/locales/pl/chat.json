@@ -37,7 +37,7 @@
   },
   "limit": {
     "title": "Za mało AI Credits",
-    "body": "Masz {{balance}} z {{allocation}} AI Credits. Następne odnowienie: {{renewalDate}}.",
+    "body": "Masz {{balance}} z {{allocation}} kredytów AI. Następne odnowienie: {{renewalDate}}.",
     "button": "Odblokuj 800 AI Credits",
     "reached": "Za mało AI Credits",
     "reachedShort": "Odblokuj wysyłanie",

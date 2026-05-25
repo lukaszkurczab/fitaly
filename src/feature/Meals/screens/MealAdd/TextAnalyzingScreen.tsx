@@ -29,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 
 const MAX_RETRIES = 3;
-const TEXT_PREVIEW_HEIGHT = 441;
+const TEXT_PREVIEW_HEIGHT = 360;
 const ANALYZING_MIN_VISIBLE_MS = 900;
 
 const nextRetryCount = (current: number) => Math.min(current + 1, MAX_RETRIES);
@@ -350,14 +350,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     preview: {
       flex: 1,
-      backgroundColor: theme.backgroundSecondary,
-      paddingHorizontal: 24,
-      paddingTop: 24,
-      paddingBottom: 24,
+      backgroundColor: theme.surfaceElevated,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
     },
     previewNameField: {
       marginBottom: 24,

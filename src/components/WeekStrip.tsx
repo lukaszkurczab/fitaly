@@ -75,6 +75,7 @@ export default function WeekStrip({ days, selectedDate, onSelect }: Props) {
               >
                 {dayNumber}
               </Text>
+              {selected ? <View style={styles.selectedDot} /> : null}
             </TouchableOpacity>
           );
         })}
@@ -99,14 +100,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     dayItem: {
       flex: 1,
       minWidth: 0,
-      minHeight: 68,
+      minHeight: 64,
       borderRadius: theme.rounded.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: "transparent",
       alignItems: "center",
       justifyContent: "center",
+      paddingTop: theme.spacing.xxs,
     },
     dayItemSelected: {
+      minHeight: 78,
       backgroundColor: theme.primary,
       borderColor: theme.primary,
+      borderRadius: theme.rounded.lg,
+      ...theme.depth.floating,
     },
     weekdayText: {
       fontSize: theme.typography.size.overline,
@@ -130,6 +137,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     dayNumberTextSelected: {
       color: theme.textInverse,
+    },
+    selectedDot: {
+      width: 5,
+      height: 5,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.textInverse,
+      marginTop: theme.spacing.xxs,
     },
     dayNumberToday: {
       fontFamily: theme.typography.fontFamily.semiBold,

@@ -109,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
               style={[
                 styles.modalContainer,
                 {
-                  borderColor: theme.border,
+                  borderColor: theme.borderSoft,
                   maxHeight: fullScreen
                     ? WINDOW_HEIGHT * 0.96
                     : WINDOW_HEIGHT * 0.8,
@@ -242,7 +242,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       position: "relative",
       borderWidth: 1,
       borderRadius: theme.rounded.xl,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
       padding: theme.spacing.xl,
       ...theme.depth.modal,
     },

@@ -53,10 +53,10 @@ describe("TodaysMealsList", () => {
     );
 
     expect(screen.getByText("Chicken")).toBeTruthy();
-    expect(screen.getByText("150 kcal")).toBeTruthy();
+    expect(screen.getByText(/150 kcal/)).toBeTruthy();
     expect(screen.getByText("A, B")).toBeTruthy();
     expect(screen.getByText("Omelette")).toBeTruthy();
-    expect(screen.getByText("320 kcal")).toBeTruthy();
+    expect(screen.getByText(/320 kcal/)).toBeTruthy();
 
     fireEvent.press(screen.getByText("Chicken"));
     expect(onOpenMeal).toHaveBeenCalledWith(mealWithIngredients);
@@ -69,6 +69,6 @@ describe("TodaysMealsList", () => {
       />,
     );
 
-    expect(getByText("translated:meal")).toBeTruthy();
+    expect(getByText("translated:home:meal")).toBeTruthy();
   });
 });

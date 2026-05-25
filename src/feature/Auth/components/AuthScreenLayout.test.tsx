@@ -40,7 +40,7 @@ describe("AuthScreenLayout", () => {
       </AuthScreenLayout>,
     );
 
-    expect(getByText("Fitaly")).toBeTruthy();
+    expect(getByText("italy")).toBeTruthy();
     expect(getByText("Witaj ponownie")).toBeTruthy();
 
     const showEventName =
@@ -52,7 +52,7 @@ describe("AuthScreenLayout", () => {
       });
     });
 
-    expect(queryByText("Fitaly")).toBeNull();
+    expect(queryByText("italy")).toBeNull();
     expect(getByText("Witaj ponownie")).toBeTruthy();
     expect(getByText("login-form")).toBeTruthy();
   });
@@ -68,7 +68,7 @@ describe("AuthScreenLayout", () => {
       </AuthScreenLayout>,
     );
 
-    expect(getByText("Fitaly")).toBeTruthy();
+    expect(getByText("italy")).toBeTruthy();
     expect(UNSAFE_getAllByType(View).length).toBeGreaterThan(0);
   });
 });

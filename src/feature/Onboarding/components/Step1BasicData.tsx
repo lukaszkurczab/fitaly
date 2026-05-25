@@ -156,6 +156,7 @@ export default function Step1BasicData({
             keyboardType="number-pad"
             maxDecimals={0}
             allowEmptyOnBlur
+            placeholder={t("step1.agePlaceholder")}
             error={errors.age}
             accessibilityLabel={t("age")}
             returnKeyType="done"
@@ -176,6 +177,7 @@ export default function Step1BasicData({
               keyboardType="number-pad"
               maxDecimals={0}
               allowEmptyOnBlur
+              placeholder={t("step1.heightPlaceholder")}
               rightLabel="cm"
               error={errors.height}
               accessibilityLabel={t("height")}
@@ -190,6 +192,7 @@ export default function Step1BasicData({
                 keyboardType="number-pad"
                 maxDecimals={0}
                 allowEmptyOnBlur
+                placeholder="ft"
                 rightLabel="ft"
                 error={errors.height}
                 accessibilityLabel={t("heightFt")}
@@ -203,6 +206,7 @@ export default function Step1BasicData({
                 keyboardType="number-pad"
                 maxDecimals={0}
                 allowEmptyOnBlur
+                placeholder="in"
                 rightLabel="in"
                 error={errors.heightInch}
                 accessibilityLabel={t("heightIn")}
@@ -235,6 +239,7 @@ export default function Step1BasicData({
             keyboardType="number-pad"
             maxDecimals={0}
             allowEmptyOnBlur
+            placeholder={t("step1.weightPlaceholder")}
             rightLabel={form.unitsSystem === "metric" ? "kg" : "lb"}
             error={errors.weight}
             accessibilityLabel={t("weight")}
@@ -266,11 +271,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing.md,
-      gap: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl,
+      gap: theme.spacing.md,
     },
     header: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     title: {
       color: theme.text,
@@ -280,21 +285,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     subtitle: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
-      padding: theme.spacing.cardPaddingLarge,
-      borderRadius: theme.rounded.xl,
+      padding: theme.spacing.md,
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.borderSoft,
       backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.md,
+      gap: theme.spacing.xs,
       shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.08,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: theme.isDark ? 0.16 : 0.06,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
       elevation: 3,
     },
     row: {
@@ -313,6 +318,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     footer: {
-      paddingTop: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
+      backgroundColor: theme.background,
     },
   });

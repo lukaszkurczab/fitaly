@@ -126,6 +126,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     sectionBlock: {
       gap: theme.spacing.sm,
+      borderRadius: theme.rounded.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.md,
+      ...theme.depth.raised,
     },
     ingredientsHeader: {
       gap: 3,
@@ -149,7 +155,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       minHeight: 42,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: theme.input.border,
+      borderColor: theme.borderSoft,
       backgroundColor: theme.input.background,
       paddingHorizontal: theme.spacing.sm + 2,
       paddingVertical: theme.spacing.sm - 1,

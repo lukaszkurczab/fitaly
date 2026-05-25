@@ -10,7 +10,14 @@ import {
 import { useTranslation } from "react-i18next";
 import NetInfo from "@react-native-community/netinfo";
 import { useTheme } from "@/theme/useTheme";
-import { Button, TextInput, ErrorBox, LinkText, Checkbox } from "@/components";
+import {
+  Button,
+  TextInput,
+  ErrorBox,
+  LinkText,
+  Checkbox,
+  ScreenCornerNavButton,
+} from "@/components";
 import AppIcon from "@/components/AppIcon";
 import { useRegister } from "@/feature/Auth/hooks/useRegister";
 import { getTermsUrl } from "@/utils/legalUrls";
@@ -154,6 +161,18 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     <AuthScreenLayout
       brand={t("common:app_title")}
       title={t("create_account")}
+      compactOnKeyboardVisible
+      formStyle={styles.authFormSpacing}
+      compactFormStyle={styles.authFormSpacingCompact}
+      topAction={
+        <ScreenCornerNavButton
+          icon="back"
+          onPress={() => navigation.replace("Login")}
+          accessibilityLabel={t("common:back", { defaultValue: "Wróć" })}
+          testID="register-back-button"
+          containerStyle={styles.backButton}
+        />
+      }
       banner={
         !isConnected ? (
           <ErrorBox
@@ -343,6 +362,17 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
+    authFormSpacing: {
+      paddingTop: theme.spacing.lg,
+    },
+    authFormSpacingCompact: {
+      paddingTop: theme.spacing.sm,
+    },
+    backButton: {
+      top: theme.spacing.xs,
+      left: 0,
+      right: undefined,
+    },
     formBlock: {
       width: "100%",
     },

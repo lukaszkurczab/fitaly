@@ -16,6 +16,9 @@
     "description": "A few details help us set up your plan with the right targets from the start.",
     "unitsLabel": "Units",
     "sexLabel": "Sex",
+    "agePlaceholder": "Enter age",
+    "heightPlaceholder": "Enter height",
+    "weightPlaceholder": "Enter weight",
     "primaryCta": "Continue"
   },
   "step2": {

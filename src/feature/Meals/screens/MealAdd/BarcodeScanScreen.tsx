@@ -97,11 +97,24 @@ export default function BarcodeScanScreen({
   );
   const manualSheetMaxHeight = useMemo(() => {
     const defaultMaxHeight = windowHeight * 0.76;
+    const compactMaxHeight = windowHeight * 0.5;
     const availableHeight =
       windowHeight - insets.top - theme.spacing.md - keyboardInset;
 
-    return Math.max(0, Math.min(defaultMaxHeight, availableHeight));
-  }, [insets.top, keyboardInset, theme.spacing.md, windowHeight]);
+    return Math.max(
+      0,
+      Math.min(
+        compactManualSheet ? compactMaxHeight : defaultMaxHeight,
+        availableHeight,
+      ),
+    );
+  }, [
+    compactManualSheet,
+    insets.top,
+    keyboardInset,
+    theme.spacing.md,
+    windowHeight,
+  ]);
 
   useEffect(() => {
     setDetectedCode(params.showManualEntry ? null : (params.code ?? null));
@@ -510,10 +523,20 @@ export default function BarcodeScanScreen({
                     defaultValue: "Numeric input only. Usually 8 to 13 digits.",
                   })}
                   error={manualError}
+                  fieldStyle={styles.manualInputField}
+                  inputStyle={styles.manualInputText}
                 />
                 {lookupError ? (
-                  <View testID="barcode-manual-error">
-                    <ErrorBox message={lookupError} />
+                  <View
+                    testID="barcode-manual-error"
+                    style={styles.manualErrorBox}
+                  >
+                    <Text style={styles.manualErrorTitle}>
+                      {tMeals("barcode_scan_not_found_title", {
+                        defaultValue: "Product not found",
+                      })}
+                    </Text>
+                    <Text style={styles.manualErrorText}>{lookupError}</Text>
                   </View>
                 ) : null}
 
@@ -525,6 +548,7 @@ export default function BarcodeScanScreen({
                     })}
                     onPress={handleSubmitManualCode}
                     loading={lookupLoading}
+                    style={styles.manualPrimaryButton}
                   />
                   <Button
                     testID="barcode-manual-cancel-button"
@@ -534,6 +558,7 @@ export default function BarcodeScanScreen({
                     onPress={dismissManualEntry}
                     variant="secondary"
                     disabled={lookupLoading}
+                    style={styles.manualSecondaryButton}
                   />
                 </View>
               </ScrollView>
@@ -555,7 +580,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     flexBackground: {
       flex: 1,
@@ -597,25 +622,25 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     manualBackdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(19, 23, 19, 0.42)",
+      backgroundColor: theme.isDark
+        ? "rgba(0, 0, 0, 0.56)"
+        : "rgba(47, 49, 43, 0.34)",
     },
     manualSheet: {
       borderTopLeftRadius: theme.rounded.xxl,
       borderTopRightRadius: theme.rounded.xxl,
-      paddingHorizontal: theme.spacing.xl,
-      paddingTop: theme.spacing.md,
-      backgroundColor: theme.surface,
-      shadowColor: "#000000",
-      shadowOpacity: 0.12,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: -4 },
-      elevation: 8,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.sm,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      ...theme.depth.modal,
     },
     manualSheetContent: {
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
     },
     manualSheetContentCompact: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     sheetHandle: {
       width: 44,
@@ -626,8 +651,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     manualTitle: {
       color: theme.text,
-      fontSize: theme.typography.size.title,
-      lineHeight: theme.typography.lineHeight.title,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
       fontFamily: theme.typography.fontFamily.bold,
       textAlign: "center",
     },
@@ -639,6 +664,44 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
     },
     manualActions: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
+    },
+    manualInputField: {
+      minHeight: 52,
+      borderRadius: theme.rounded.md,
+    },
+    manualInputText: {
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    manualErrorBox: {
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.error.border,
+      backgroundColor: theme.error.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      gap: 2,
+    },
+    manualErrorTitle: {
+      color: theme.error.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    manualErrorText: {
+      color: theme.error.text,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    manualPrimaryButton: {
+      minHeight: 48,
+      borderRadius: 14,
+    },
+    manualSecondaryButton: {
+      minHeight: 48,
+      borderRadius: 14,
     },
   });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { KeyboardAwareScrollView, Layout } from "@/components";
 import { useTheme } from "@/theme/useTheme";
@@ -183,6 +183,21 @@ function MealDetailsFormScreenInner({
           ]}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.headerBlock}>
+            <Text style={styles.headerEyebrow}>
+              {t("review_meal_edit_eyebrow", {
+                ns: "meals",
+                defaultValue: "Edit details",
+              })}
+            </Text>
+            <Text style={styles.headerTitle}>
+              {t("review_meal_edit_screen_title", {
+                ns: "meals",
+                defaultValue: "Edit meal details",
+              })}
+            </Text>
+          </View>
+
           {onReviewPhotoPress ? (
             <MealPhotoSection
               reviewPhotoUri={reviewPhotoUri}
@@ -260,6 +275,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     layout: {
       paddingLeft: theme.spacing.screenPaddingWide,
       paddingRight: theme.spacing.screenPaddingWide,
+      paddingBottom: 0,
     },
     screen: {
       flex: 1,
@@ -268,7 +284,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      gap: theme.spacing.md,
-      paddingTop: theme.spacing.sm,
+      gap: theme.spacing.sm,
+      paddingTop: theme.spacing.lg,
+    },
+    headerBlock: {
+      gap: theme.spacing.xxs,
+      paddingBottom: theme.spacing.xs,
+    },
+    headerEyebrow: {
+      color: theme.primary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      textTransform: "uppercase",
+    },
+    headerTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
+      fontFamily: theme.typography.fontFamily.bold,
     },
   });

@@ -3,9 +3,11 @@
   "addFirstMeal": "Add your first meal today!",
   "addMeal": "Add meal",
   "askAi": "Ask AI for help",
+  "askAssistantAdvice": "Ask the assistant for advice",
   "savedMeals": "Saved meals",
   "todaysMacros": "Today’s macros",
   "todaysMeals": "Today’s meals",
+  "details": "Details",
   "meal": "Meal",
   "weeklyProgress": "Weekly Progress",
   "totalToday": "Total today",
@@ -23,7 +25,7 @@
     },
     "todayEmpty": {
       "cta": "Log breakfast",
-      "supportCopy": "Start with your first meal and the rest of today will build from there."
+      "supportCopy": "Small steps each day lead to bigger changes."
     },
     "todayInProgress": {
       "cta": "Log next meal"

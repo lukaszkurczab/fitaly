@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, ViewStyle, StyleProp } from "react-native";
+import { View, Pressable, ViewStyle, StyleProp, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 
 type CardProps = {
@@ -24,8 +24,8 @@ export const Card: React.FC<CardProps> = ({
     backgroundColor:
       variant === "outlined" ? theme.background : theme.surfaceElevated,
     borderRadius: variant === "stat" ? theme.rounded.sm : theme.rounded.md,
-    borderWidth: variant === "outlined" ? 1 : 0,
-    borderColor: variant === "outlined" ? theme.border : undefined,
+    borderWidth: variant === "outlined" ? 1 : StyleSheet.hairlineWidth,
+    borderColor: variant === "outlined" ? theme.border : theme.borderSoft,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     ...(variant === "stat"
