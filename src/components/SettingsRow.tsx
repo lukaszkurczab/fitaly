@@ -14,6 +14,7 @@ import { useTheme } from "@/theme/useTheme";
 
 export type SettingsRowProps = {
   title: string;
+  titleNumberOfLines?: number;
   subtitle?: string;
   subtitleNumberOfLines?: number;
   value?: string;
@@ -32,6 +33,7 @@ export type SettingsRowProps = {
 
 export function SettingsRow({
   title,
+  titleNumberOfLines,
   subtitle,
   subtitleNumberOfLines = 2,
   value,
@@ -53,6 +55,8 @@ export function SettingsRow({
   const isPressable = typeof onPress === "function";
   const isInactive = disabled || loading;
   const shouldShowChevron = showChevron ?? isPressable;
+  const resolvedTitleNumberOfLines =
+    titleNumberOfLines ?? (subtitle ? 2 : 1);
 
   const accessory = useMemo(() => {
     if (loading) {
@@ -91,7 +95,7 @@ export function SettingsRow({
       <View style={styles.copy}>
         <Text
           style={[styles.title, isInactive ? styles.copyDisabled : null]}
-          numberOfLines={subtitle ? 2 : 1}
+          numberOfLines={resolvedTitleNumberOfLines}
         >
           {title}
         </Text>

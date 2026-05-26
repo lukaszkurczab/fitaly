@@ -74,6 +74,7 @@ export default function DeleteAccountScreen({
             title={t("deleteAccount")}
             body={t("deleteAccountWarning")}
             tone="error"
+            style={styles.warningBlock}
             icon={
               <AppIcon
                 name="delete"
@@ -118,5 +119,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
       gap: theme.spacing.sectionGap,
+    },
+    warningBlock: {
+      ...theme.depth.raised,
     },
   });

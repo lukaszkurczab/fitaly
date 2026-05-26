@@ -60,4 +60,12 @@ describe("SettingsRow", () => {
       ).props.numberOfLines,
     ).toBe(3);
   });
+
+  it("allows a long title to wrap without requiring a subtitle", () => {
+    const { getByText } = renderWithTheme(
+      <SettingsRow title="Update nutrition survey" titleNumberOfLines={2} />,
+    );
+
+    expect(getByText("Update nutrition survey").props.numberOfLines).toBe(2);
+  });
 });

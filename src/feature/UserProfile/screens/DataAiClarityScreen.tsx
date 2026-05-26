@@ -43,10 +43,6 @@ export default function DataAiClarityScreen({
       title={t("dataAiClarityTitle", {
         defaultValue: "Data & AI clarity",
       })}
-      intro={t("dataAiClarityIntro", {
-        defaultValue:
-          "This screen summarizes how Fitaly uses your data and where AI is involved. It does not replace the full Privacy Policy.",
-      })}
       onBack={handleBack}
     >
       <View style={styles.content}>
@@ -59,6 +55,7 @@ export default function DataAiClarityScreen({
               "Fitaly uses the information you add to provide meal logging, nutrition history, and the AI features you choose to use.",
           })}
           tone="info"
+          style={styles.infoBlock}
           icon={<AppIcon name="assistant" size={18} color={theme.info.text} />}
         />
 
@@ -66,8 +63,14 @@ export default function DataAiClarityScreen({
           title={t("dataAiClarityCollectedTitle", {
             defaultValue: "What data you add",
           })}
+          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="person" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("dataAiClarityCollectedAccountTitle", {
               defaultValue: "Account and profile details",
             })}
@@ -78,6 +81,11 @@ export default function DataAiClarityScreen({
             })}
           />
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="camera" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("dataAiClarityCollectedMealsTitle", {
               defaultValue: "Meals and meal photos",
             })}
@@ -93,8 +101,18 @@ export default function DataAiClarityScreen({
           title={t("dataAiClarityAiTitle", {
             defaultValue: "Where AI is involved",
           })}
+          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon
+                  name="add-photo"
+                  size={20}
+                  color={theme.accentWarmStrong}
+                />
+              </View>
+            }
             title={t("dataAiClarityAiPhotoTitle", {
               defaultValue: "Meal photo analysis",
             })}
@@ -105,6 +123,15 @@ export default function DataAiClarityScreen({
             })}
           />
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon
+                  name="assistant"
+                  size={20}
+                  color={theme.accentWarmStrong}
+                />
+              </View>
+            }
             title={t("dataAiClarityAiSuggestionTitle", {
               defaultValue: "Suggestions and text features",
             })}
@@ -115,6 +142,11 @@ export default function DataAiClarityScreen({
             })}
           />
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="lock" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("dataAiClarityAiTrainingTitle", {
               defaultValue: "Model training",
             })}
@@ -130,8 +162,14 @@ export default function DataAiClarityScreen({
           title={t("dataAiClarityProcessorsTitle", {
             defaultValue: "Other processors and analytics",
           })}
+          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="settings" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("dataAiClarityProcessorsFirebaseTitle", {
               defaultValue: "Firebase",
             })}
@@ -142,6 +180,15 @@ export default function DataAiClarityScreen({
             })}
           />
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon
+                  name="sparkles"
+                  size={20}
+                  color={theme.accentWarmStrong}
+                />
+              </View>
+            }
             title={t("dataAiClarityProcessorsOpenAiTitle", {
               defaultValue: "OpenAI via Fitaly backend",
             })}
@@ -161,8 +208,14 @@ export default function DataAiClarityScreen({
             defaultValue:
               "For the full legal wording and contact details, open the Privacy Policy from Legal & privacy.",
           })}
+          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="share" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("dataAiClarityControlsExportTitle", {
               defaultValue: "Download or delete your data",
             })}
@@ -173,6 +226,11 @@ export default function DataAiClarityScreen({
             })}
           />
           <SettingsRow
+            leading={
+              <View style={styles.rowIcon}>
+                <AppIcon name="lock" size={20} color={theme.primaryStrong} />
+              </View>
+            }
             title={t("privacyPolicy")}
             subtitleNumberOfLines={3}
             subtitle={t("dataAiClarityControlsPrivacyBody", {
@@ -191,5 +249,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
       gap: theme.spacing.sectionGap,
+    },
+    infoBlock: {
+      ...theme.depth.raised,
+    },
+    sectionGroup: {
+      ...theme.depth.raised,
+    },
+    rowIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
   });

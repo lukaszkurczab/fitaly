@@ -6,10 +6,12 @@ import type { RootStackParamList } from "@/navigation/navigate";
 import { useTheme } from "@/theme/useTheme";
 import {
   FormScreenShell,
+  InfoBlock,
   Modal,
   SettingsRow,
   SettingsSection,
 } from "@/components";
+import AppIcon from "@/components/AppIcon";
 import { useUserAccountContext } from "@/context/UserAccountContext";
 import { getTermsUrl } from "@/utils/legalUrls";
 
@@ -84,25 +86,48 @@ export default function LegalPrivacyHubScreen({
         title={t("legalPrivacyHubTitle", {
           defaultValue: "Legal & privacy",
         })}
-        intro={t("legalPrivacyHubIntro", {
-          defaultValue:
-            "Review the documents and plain-language summaries that explain how Fitaly handles your account, data, and AI features.",
-        })}
         onBack={handleBack}
       >
         <View style={styles.content}>
+          <InfoBlock
+            title={t("legalPrivacyHubInfoTitle", {
+              defaultValue: "Trust documents",
+            })}
+            body={t("legalPrivacyHubInfoBody", {
+              defaultValue:
+                "Use these screens for the current legal documents, data-use summary, and account-data export actions.",
+            })}
+            tone="neutral"
+            style={styles.infoBlock}
+            icon={<AppIcon name="lock" size={18} color={theme.textSecondary} />}
+          />
+
           <SettingsSection
             title={t("legalPrivacyDocumentsTitle", {
               defaultValue: "Legal documents",
             })}
+            contentStyle={styles.sectionGroup}
           >
             <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="lock" size={20} color={theme.primaryStrong} />
+                </View>
+              }
               title={t("privacyPolicy")}
+              subtitle={t("privacyPolicySubtitle")}
+              subtitleNumberOfLines={3}
               testID="legal-privacy-policy-row"
               onPress={() => navigation.navigate("Privacy")}
             />
             <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="info" size={20} color={theme.primaryStrong} />
+                </View>
+              }
               title={t("termsOfService")}
+              subtitle={t("termsOfServiceSubtitle")}
               testID="legal-terms-row"
               onPress={() => {
                 void handleOpenTerms();
@@ -114,16 +139,34 @@ export default function LegalPrivacyHubScreen({
             title={t("legalPrivacyDataTitle", {
               defaultValue: "Data transparency",
             })}
+            contentStyle={styles.sectionGroup}
           >
             <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon
+                    name="assistant"
+                    size={20}
+                    color={theme.accentWarmStrong}
+                  />
+                </View>
+              }
               title={t("dataAiClarityTitle", {
                 defaultValue: "Data & AI clarity",
               })}
+              subtitle={t("dataAiClaritySubtitle")}
+              subtitleNumberOfLines={3}
               testID="legal-data-ai-row"
               onPress={() => navigation.navigate("DataAiClarity")}
             />
             <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="share" size={20} color={theme.primaryStrong} />
+                </View>
+              }
               title={t("downloadYourData")}
+              subtitle={t("downloadYourDataSubtitle")}
               onPress={() => {
                 void handleExportData();
               }}
@@ -153,5 +196,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
       gap: theme.spacing.sectionGap,
+    },
+    infoBlock: {
+      ...theme.depth.raised,
+    },
+    sectionGroup: {
+      ...theme.depth.raised,
+    },
+    rowIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
   });

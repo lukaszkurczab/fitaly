@@ -50,6 +50,7 @@ jest.mock("@/components", () => {
       </View>
     ),
     SettingsRow: ({
+      leading,
       title,
       subtitle,
       value,
@@ -57,6 +58,7 @@ jest.mock("@/components", () => {
       testID,
       trailing,
     }: {
+      leading?: ReactNode;
       title: string;
       subtitle?: string;
       value?: string;
@@ -70,11 +72,27 @@ jest.mock("@/components", () => {
         accessibilityRole="button"
         accessibilityLabel={title}
       >
+        {leading}
         <Text>{title}</Text>
         {subtitle ? <Text>{subtitle}</Text> : null}
         {value ? <Text>{value}</Text> : null}
         {trailing}
       </Pressable>
+    ),
+    InfoBlock: ({
+      title,
+      body,
+      icon,
+    }: {
+      title: string;
+      body: string;
+      icon?: ReactNode;
+    }) => (
+      <View>
+        {icon}
+        <Text>{title}</Text>
+        <Text>{body}</Text>
+      </View>
     ),
     ButtonToggle: ({ testID }: { testID?: string }) => <View testID={testID} />,
   };
