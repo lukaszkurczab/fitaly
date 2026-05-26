@@ -101,6 +101,7 @@
     "e2e/maestro/visual-audit/notifications-preferences.yaml",
     "e2e/maestro/visual-audit/platform-layout.yaml",
     "e2e/maestro/visual-audit/dark-mode-core.yaml",
+    "e2e/maestro/visual-audit/offline-banner-dark.yaml",
     "e2e/maestro/visual-audit/share-dark.yaml"
   ],
   "full-review": [

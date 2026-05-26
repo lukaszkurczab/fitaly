@@ -105,7 +105,9 @@ export const Layout = ({
             style={[
               styles.offlineBannerWrap,
               {
-                top: theme.spacing.xxl,
+                bottom: shouldShowTabBar
+                  ? bottomPadding + theme.spacing.sm
+                  : insets.bottom + theme.spacing.md,
                 left: theme.spacing.md,
                 right: theme.spacing.md,
               },
