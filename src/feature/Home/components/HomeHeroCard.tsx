@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { Button } from "@/components/Button";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -38,16 +38,16 @@ export function HomeHeroCard({
       testID="home-hero-card"
       style={[styles.card, isSuccess ? styles.cardSuccess : styles.cardDefault]}
     >
-      {/* TODO(asset): replace this layout-safe placeholder with the generated Home hero food/natural-accent artwork listed in the release-hardening Missing Jobs. */}
       <View
         pointerEvents="none"
         style={styles.assetSlot}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <View style={styles.assetPlate}>
-          <AppIcon name="image" size={34} color={theme.primary} />
-        </View>
+        <Image
+          source={require("../../../../assets/images/image.png")}
+          style={{ height: "100%", width: "100%" }}
+        />
       </View>
 
       <View style={styles.header}>
@@ -61,11 +61,7 @@ export function HomeHeroCard({
           {title}
         </Text>
         <View style={styles.metaBlock}>
-          <Text
-            testID="home-hero-meta"
-            numberOfLines={1}
-            style={styles.meta}
-          >
+          <Text testID="home-hero-meta" numberOfLines={1} style={styles.meta}>
             {meta}
           </Text>
           {typeof progress === "number" ? (
@@ -127,11 +123,7 @@ export function HomeHeroCard({
             testID="home-method-selector"
           >
             <View style={styles.methodIconWrap}>
-              <AppIcon
-                name="assistant"
-                size={22}
-                color={theme.primaryStrong}
-              />
+              <AppIcon name="assistant" size={22} color={theme.primaryStrong} />
             </View>
             <Text
               numberOfLines={1}
@@ -150,7 +142,6 @@ export function HomeHeroCard({
             </View>
           </Pressable>
         ) : null}
-
       </View>
     </View>
   );
@@ -181,26 +172,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       position: "absolute",
       top: theme.spacing.md,
       right: -theme.spacing.xl,
-      width: 142,
-      height: 142,
-      borderRadius: theme.rounded.xxl,
-      backgroundColor: theme.surfaceAlt,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
+      height: 172,
+      width: 172,
       alignItems: "center",
       justifyContent: "center",
-      opacity: theme.isDark ? 0.28 : 0.74,
-      transform: [{ rotate: "-7deg" }],
-    },
-    assetPlate: {
-      width: 90,
-      height: 90,
-      borderRadius: theme.rounded.xxl,
-      backgroundColor: theme.success.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      alignItems: "center",
-      justifyContent: "center",
+      transform: [{ translateY: -8 }, { scaleX: -1 }],
     },
     header: {
       width: "67%",

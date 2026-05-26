@@ -20,7 +20,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-description-input
 - inputText: Rice chicken avocado
-- hideKeyboard
+- tapOn: "KRÓTKI OPIS"
 - scrollUntilVisible:
     element:
       id: add-meal-text-upgrade-button

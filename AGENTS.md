@@ -42,29 +42,6 @@ A task is considered a refactor if it includes any of:
 
 - "refactor", "boundary", "imports", "architecture", "extract", "move file", "decouple"
 
-### Preflight (default)
-
-Before editing code, run:
-
-1. `mcp__ollama_frontend_sidecar__propose_frontend_approaches`
-   - Input: task description + constraints from this file.
-   - Output: 2–3 approaches + recommended approach.
-
-2. `mcp__ollama_frontend_sidecar__frontend_risk_check`
-   - Input: chosen approach + known hotspots.
-   - Output: risks + regression vectors + test checklist + rollback plan.
-
-Skip preflight only if the user explicitly says **"skip preflight"**.
-
-### Hard requirement (tool-before-edit)
-
-For refactors/boundary work: **do not edit any files** until both MCP tools have been called:
-
-- `mcp__ollama_frontend_sidecar__propose_frontend_approaches`
-- `mcp__ollama_frontend_sidecar__frontend_risk_check`
-
-If MCP tools are unavailable or time out: **stop and report**; do not proceed with edits.
-
 ### Execution
 
 - Implement **PR1 only** (smallest correct change). Do not start PR2 unless the user says **"continue"**.
@@ -133,17 +110,6 @@ If a gate fails: fix and re-run (max 3 attempts). If still failing: stop and rep
 - Given a log/error: identify root cause and fix it (no band-aids).
 - If multiple plausible causes: state top 1–2 hypotheses and the quickest confirmation path.
 - Add a regression test when feasible; otherwise document reproducible steps.
-
-## Frontend Review Tools
-
-Use the dedicated frontend MCP tools when relevant:
-
-- For feature privacy / extraction / cross-feature reuse:
-  - `mcp__ollama_frontend_sidecar__feature_boundary_check`
-- For focused UI/manual verification planning:
-  - `mcp__ollama_frontend_sidecar__ui_test_plan`
-
-Use them when the task clearly benefits from a focused frontend review, not only for refactors.
 
 ## Communication (IDE)
 

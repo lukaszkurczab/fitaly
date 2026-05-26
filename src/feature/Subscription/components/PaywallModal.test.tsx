@@ -48,7 +48,7 @@ describe("PaywallModal", () => {
 
     expect(getByText("Premium Monthly")).toBeTruthy();
     expect(getByText("$9.99 / month")).toBeTruthy();
-    expect(getByText("translated:manageSubscription.premiumBenefits")).toBeTruthy();
+    expect(getByText("Included in Premium")).toBeTruthy();
 
     fireEvent.press(getByText("Subscribe"));
     fireEvent.press(getByText("Restore Purchases"));

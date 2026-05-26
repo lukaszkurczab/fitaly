@@ -24,9 +24,7 @@ appId: com.lkurczab.fitaly
     id: add-meal-text-description-input
 - eraseText
 - inputText: Rice chicken avocado and tahini
-- hideKeyboard
-- tapOn:
-    id: add-meal-text-screen
+- tapOn: "KRÓTKI OPIS"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
