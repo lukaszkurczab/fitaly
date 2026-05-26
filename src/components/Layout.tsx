@@ -43,7 +43,7 @@ export const Layout = ({
   const netInfo = useE2ENetInfo();
 
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [offlineBannerHeight, setOfflineBannerHeight] = useState(0);
+  const [offlineDismissed, setOfflineDismissed] = useState(false);
 
   useEffect(() => {
     const showEventName =
@@ -71,16 +71,13 @@ export const Layout = ({
       ? 0
       : insets.bottom + 8;
   const isOffline = isOfflineNetState(netInfo);
-  const shouldShowOffline = showOfflineBanner && isOffline;
-  const contentTopPadding = shouldShowOffline
-    ? offlineBannerHeight + theme.spacing.sm
-    : 0;
+  const shouldShowOffline = showOfflineBanner && isOffline && !offlineDismissed;
 
   useEffect(() => {
-    if (!shouldShowOffline) {
-      setOfflineBannerHeight(0);
+    if (!isOffline) {
+      setOfflineDismissed(false);
     }
-  }, [shouldShowOffline]);
+  }, [isOffline]);
 
   const content = (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -104,37 +101,31 @@ export const Layout = ({
 
         {shouldShowOffline && (
           <View
-            pointerEvents="none"
-            onLayout={(event) => {
-              const nextHeight = event.nativeEvent.layout.height;
-              if (nextHeight !== offlineBannerHeight) {
-                setOfflineBannerHeight(nextHeight);
-              }
-            }}
+            pointerEvents="box-none"
             style={[
               styles.offlineBannerWrap,
               {
-                top: insets.top + theme.spacing.sm,
-                left: insets.left + theme.spacing.md,
-                right: insets.right + theme.spacing.md,
+                top: theme.spacing.xxl,
+                left: theme.spacing.md,
+                right: theme.spacing.md,
               },
             ]}
           >
-            <OfflineBanner compact style={styles.offlineBanner} />
+            <OfflineBanner
+              compact
+              dismissible
+              onDismiss={() => setOfflineDismissed(true)}
+              style={styles.offlineBanner}
+            />
           </View>
         )}
 
         {disableScroll ? (
-          <View style={[styles.content, { paddingTop: contentTopPadding }]}>
-            {children}
-          </View>
+          <View style={styles.content}>{children}</View>
         ) : (
           <KeyboardAwareScrollView
             style={styles.content}
-            contentContainerStyle={[
-              styles.scrollContent,
-              { paddingTop: contentTopPadding },
-            ]}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             {children}

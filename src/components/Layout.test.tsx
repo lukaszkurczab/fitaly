@@ -1,5 +1,5 @@
 import { Text, Keyboard, Platform, View, StyleSheet } from "react-native";
-import { act } from "@testing-library/react-native";
+import { act, fireEvent } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { Layout } from "@/components/Layout";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -39,9 +39,14 @@ jest.mock("@/components/BottomTabBar", () => ({
 jest.mock("@/components/OfflineBanner", () => {
   const { createElement } =
     jest.requireActual<typeof import("react")>("react");
-  const { Text: RNText } =
+  const { Pressable, Text: RNText } =
     jest.requireActual<typeof import("react-native")>("react-native");
-  const OfflineBanner = () => createElement(RNText, null, "offline-banner");
+  const OfflineBanner = ({ onDismiss }: { onDismiss?: () => void }) =>
+    createElement(
+      Pressable,
+      { onPress: onDismiss, testID: "offline-dismiss-mock" },
+      createElement(RNText, null, "offline-banner"),
+    );
   return { __esModule: true, OfflineBanner, default: OfflineBanner };
 });
 
@@ -120,6 +125,22 @@ describe("Layout", () => {
     );
 
     expect(getByText("offline-banner")).toBeTruthy();
+  });
+
+  it("lets the floating offline banner dismiss without changing network state", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+    const { getByText, getByTestId, queryByText } = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    expect(getByText("offline-banner")).toBeTruthy();
+
+    fireEvent.press(getByTestId("offline-dismiss-mock"));
+
+    expect(queryByText("offline-banner")).toBeNull();
+    expect(getByText("screen-content")).toBeTruthy();
   });
 
   it("registers keyboard listeners matching the current platform", () => {

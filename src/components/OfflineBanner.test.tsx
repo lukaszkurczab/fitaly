@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { fireEvent } from "@testing-library/react-native";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
@@ -38,5 +39,16 @@ describe("OfflineBanner", () => {
 
     expect(getByText("Offline")).toBeTruthy();
     expect(queryByText("Local data only")).toBeNull();
+  });
+
+  it("exposes a dismiss control when dismissible", () => {
+    const onDismiss = jest.fn();
+    const { getByTestId } = renderWithTheme(
+      <OfflineBanner compact dismissible onDismiss={onDismiss} />,
+    );
+
+    fireEvent.press(getByTestId("offline-banner-dismiss-button"));
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

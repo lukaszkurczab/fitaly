@@ -6,6 +6,15 @@ appId: com.lkurczab.fitaly
     id: e2e-ready-offline
 - assertVisible:
     id: offline-banner
+- takeScreenshot: offline-banner-visible
+- swipe:
+    from:
+      id: offline-banner
+    direction: LEFT
+    duration: 450
+- assertNotVisible:
+    id: offline-banner
+- takeScreenshot: offline-banner-dismissed
 - openLink: fitaly://e2e/reset?offline=0&logout=0
 - assertVisible:
     id: e2e-ready-home
