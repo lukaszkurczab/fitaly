@@ -251,6 +251,7 @@ const buildDraftContext = (mealOverrides?: Partial<Meal>) => ({
 
 const buildProps = () => {
   const navigate = jest.fn<(screen: string, params?: unknown) => void>();
+  const dispatch = jest.fn();
   const flowGoTo = jest.fn<(screen: string, params?: unknown) => void>();
   let beforeRemoveListener:
     | ((event: {
@@ -261,6 +262,7 @@ const buildProps = () => {
 
   return {
     navigate,
+    dispatch,
     flowGoTo,
     getBeforeRemoveListener: () => beforeRemoveListener,
     props: {
@@ -268,7 +270,7 @@ const buildProps = () => {
         navigate,
         goBack: jest.fn(),
         canGoBack: jest.fn(() => true),
-        dispatch: jest.fn(),
+        dispatch,
         addListener: jest.fn(
           (_eventName: string, listener: typeof beforeRemoveListener) => {
             beforeRemoveListener = listener ?? undefined;
@@ -410,7 +412,7 @@ describe("ReviewMealScreen", () => {
     expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {});
   });
 
-  it("saves the reviewed meal and navigates home", async () => {
+  it("saves the reviewed meal and resets back home", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
     const ctx = buildDraftContext();
     const testProps = buildProps();
@@ -430,7 +432,13 @@ describe("ReviewMealScreen", () => {
     await waitFor(() => {
       expect(saveMeal).toHaveBeenCalledTimes(1);
       expect(ctx.clearMeal).toHaveBeenCalledWith("user-1");
-      expect(testProps.navigate).toHaveBeenCalledWith("Home");
+      expect(testProps.dispatch).toHaveBeenCalledWith({
+        type: "RESET",
+        payload: {
+          index: 0,
+          routes: [{ name: "Home" }],
+        },
+      });
     });
   });
 
@@ -521,7 +529,13 @@ describe("ReviewMealScreen", () => {
           savedTemplate: { mode: "none" },
         }),
       );
-      expect(testProps.navigate).toHaveBeenCalledWith("Home");
+      expect(testProps.dispatch).toHaveBeenCalledWith({
+        type: "RESET",
+        payload: {
+          index: 0,
+          routes: [{ name: "Home" }],
+        },
+      });
     });
   });
 
@@ -551,7 +565,13 @@ describe("ReviewMealScreen", () => {
           savedTemplate: { mode: "update", templateId: "saved-template-42" },
         }),
       );
-      expect(testProps.navigate).toHaveBeenCalledWith("Home");
+      expect(testProps.dispatch).toHaveBeenCalledWith({
+        type: "RESET",
+        payload: {
+          index: 0,
+          routes: [{ name: "Home" }],
+        },
+      });
     });
   });
 

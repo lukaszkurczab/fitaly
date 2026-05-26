@@ -88,12 +88,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     card: {
       borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: theme.rounded.lg,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
       backgroundColor: theme.surfaceElevated,
       padding: theme.spacing.md,
       gap: theme.spacing.sm,
-      ...theme.depth.raised,
+      ...theme.depth.floating,
     },
     title: {
       color: theme.text,

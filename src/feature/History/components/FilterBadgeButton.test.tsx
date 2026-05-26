@@ -17,6 +17,7 @@ describe("FilterBadgeButton", () => {
     );
 
     expect(getByText("12")).toBeTruthy();
+    expect(getByTestId("history-filter-button")).toBeTruthy();
     expect(getByTestId("history-filter-badge")).toHaveStyle({ minWidth: 20 });
     fireEvent.press(getByLabelText("filters"));
     expect(onPress).toHaveBeenCalledTimes(1);

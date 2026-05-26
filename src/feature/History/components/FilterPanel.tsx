@@ -106,15 +106,17 @@ function compactDateRangeLabel(range: Range, locale?: string): string {
 type ChipButtonProps = {
   label: string;
   selected?: boolean;
+  testID?: string;
   onPress: () => void;
 };
 
-function ChipButton({ label, selected = false, onPress }: ChipButtonProps) {
+function ChipButton({ label, selected = false, testID, onPress }: ChipButtonProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -355,6 +357,7 @@ export const FilterPanel: React.FC<{
             </Text>
             <View style={styles.chipRow}>
               <ChipButton
+                testID="history-filter-date-today"
                 label={t("history:presets.today", "Today")}
                 selected={selectedDatePreset === "today"}
                 onPress={() => {
@@ -410,6 +413,7 @@ export const FilterPanel: React.FC<{
                 }}
               />
               <ChipButton
+                testID="history-filter-calories-300-600"
                 label={t("history:presets.range300To600", "300-600")}
                 selected={selectedCaloriePreset === "300-600"}
                 onPress={() => {
@@ -510,6 +514,7 @@ export const FilterPanel: React.FC<{
           </Pressable>
 
           <Button
+            testID="history-filter-show-results-button"
             label={t("history:actions.showResults", "Show results")}
             onPress={apply}
             style={styles.applyButton}

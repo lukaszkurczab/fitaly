@@ -18,6 +18,7 @@ export const FilterBadgeButton: React.FC<Props> = ({
   return (
     <View style={styles.root} testID="history-filter-button-root">
       <Pressable
+        testID="history-filter-button"
         onPress={onPress}
         style={({ pressed }) => [styles.btn, pressed ? styles.btnPressed : null]}
         accessibilityRole="button"

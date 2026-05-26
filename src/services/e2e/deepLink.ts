@@ -2,7 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp } from "@react-native-firebase/app";
 import { getAuth, signOut } from "@react-native-firebase/auth";
 import { resetNavigation } from "@/navigation/navigate";
-import { stopSyncLoop } from "@/services/offline/sync.engine";
+import {
+  runReconnectReconcile,
+  stopSyncLoop,
+} from "@/services/offline/sync.engine";
 import { resetOfflineStorage } from "@/services/offline/db";
 import { setE2EForcedOffline } from "@/services/e2e/connectivity";
 import { isE2EModeEnabled } from "@/services/e2e/config";
@@ -152,8 +155,16 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
   if (isConnectivityDeepLink(url)) {
     const params = parseQueryParams(url);
     const forceOffline = parseBoolFlag(params.offline, false);
+    const auth = getAuth(getApp());
     setE2EForcedOffline(forceOffline);
     const navigationTarget = resolveNavigationTarget(false);
+    if (!forceOffline && auth.currentUser?.uid) {
+      try {
+        await runReconnectReconcile(auth.currentUser.uid);
+      } catch {
+        // E2E readiness should still update so assertions can expose stale pending UI.
+      }
+    }
     markE2EResetReady(toReadyTarget(navigationTarget, forceOffline));
     return true;
   }

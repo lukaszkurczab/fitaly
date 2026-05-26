@@ -5,6 +5,11 @@
   "screenTitle": "History",
   "screenSubtitle": "A quiet record of your recent meals",
   "searchPlaceholder": "Search meals...",
+  "macroShort": {
+    "protein": "P",
+    "carbs": "C",
+    "fat": "F"
+  },
   "resultsCount_one": "{{count}} result",
   "resultsCount_other": "{{count}} results",
   "sheetTitle": "Filters",

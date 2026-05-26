@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { Layout, SearchBox } from "@/components";
+import AppIcon from "@/components/AppIcon";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { FilterBadgeButton } from "../components/FilterBadgeButton";
@@ -32,6 +33,22 @@ function getMealKcal(meal: Meal): number {
   return Math.round(
     (meal.ingredients || []).reduce(
       (sum, ingredient) => sum + (Number(ingredient?.kcal) || 0),
+      0,
+    ),
+  );
+}
+
+function getMealMacroValue(
+  meal: Meal,
+  key: "protein" | "carbs" | "fat",
+): number {
+  if (typeof meal.totals?.[key] === "number") {
+    return Math.round(meal.totals[key] || 0);
+  }
+
+  return Math.round(
+    (meal.ingredients || []).reduce(
+      (sum, ingredient) => sum + (Number(ingredient?.[key]) || 0),
       0,
     ),
   );
@@ -56,9 +73,15 @@ type HistoryMealRowProps = {
   index: number;
   locale?: string;
   kcalLabel: string;
+  gramLabel: string;
   fallbackMealName: string;
   onPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
   theme: ReturnType<typeof useTheme>;
 };
 
@@ -67,32 +90,41 @@ const HistoryMealRowComponent = ({
   index,
   locale,
   kcalLabel,
+  gramLabel,
   fallbackMealName,
   onPress,
   mealTypeLabel,
+  macroLabels,
   theme,
 }: HistoryMealRowProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const typeLabel = mealTypeLabel(meal);
   const timeLabel =
     formatMealTime(
       meal.timestamp || meal.updatedAt || meal.createdAt,
       locale,
     ) || null;
-  const meta = timeLabel
-    ? `${mealTypeLabel(meal)} · ${timeLabel}`
-    : mealTypeLabel(meal);
+  const meta = timeLabel ? `${typeLabel} · ${timeLabel}` : typeLabel;
+  const kcal = getMealKcal(meal);
+  const protein = getMealMacroValue(meal, "protein");
+  const carbs = getMealMacroValue(meal, "carbs");
+  const fat = getMealMacroValue(meal, "fat");
+  const hasMacroDetails = protein + carbs + fat > 0;
 
   return (
     <Pressable
       testID={`history-meal-row-${index}`}
       onPress={() => onPress(meal)}
       accessibilityRole="button"
-      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${getMealKcal(meal)} ${kcalLabel}`}
+      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${kcal} ${kcalLabel}`}
       style={({ pressed }) => [
         styles.mealRow,
         pressed ? styles.mealRowPressed : null,
       ]}
     >
+      <View style={styles.mealGlyph}>
+        <AppIcon name="empty-meals" size={22} color={theme.primaryStrong} />
+      </View>
       <View style={styles.mealInfo}>
         <View style={styles.mealTitleRow}>
           <Text numberOfLines={1} style={styles.mealName}>
@@ -106,10 +138,37 @@ const HistoryMealRowComponent = ({
         <Text numberOfLines={1} style={styles.mealMeta}>
           {meta}
         </Text>
+        {hasMacroDetails ? (
+          <View style={styles.macroRow}>
+            <View style={[styles.macroChip, styles.macroChipProtein]}>
+              <Text style={[styles.macroChipText, styles.macroChipProteinText]}>
+                {macroLabels.protein} {protein}
+                {gramLabel}
+              </Text>
+            </View>
+            <View style={[styles.macroChip, styles.macroChipCarbs]}>
+              <Text style={[styles.macroChipText, styles.macroChipCarbsText]}>
+                {macroLabels.carbs} {carbs}
+                {gramLabel}
+              </Text>
+            </View>
+            <View style={[styles.macroChip, styles.macroChipFat]}>
+              <Text style={[styles.macroChipText, styles.macroChipFatText]}>
+                {macroLabels.fat} {fat}
+                {gramLabel}
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </View>
-      <Text numberOfLines={1} style={styles.mealKcal}>
-        {getMealKcal(meal)} {kcalLabel}
-      </Text>
+      <View style={styles.mealKcalBlock}>
+        <Text numberOfLines={1} style={styles.mealKcalValue}>
+          {kcal}
+        </Text>
+        <Text numberOfLines={1} style={styles.mealKcalLabel}>
+          {kcalLabel}
+        </Text>
+      </View>
     </Pressable>
   );
 };
@@ -121,9 +180,15 @@ type HistorySectionCardProps = {
   section: DaySection;
   locale?: string;
   kcalLabel: string;
+  gramLabel: string;
   fallbackMealName: string;
   onMealPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
   theme: ReturnType<typeof useTheme>;
 };
 
@@ -131,9 +196,11 @@ const HistorySectionCardComponent = ({
   section,
   locale,
   kcalLabel,
+  gramLabel,
   fallbackMealName,
   onMealPress,
   mealTypeLabel,
+  macroLabels,
   theme,
 }: HistorySectionCardProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -151,21 +218,19 @@ const HistorySectionCardComponent = ({
 
       <View style={styles.sectionCard}>
         {section.data.map((meal, index) => (
-          <View key={meal.cloudId || meal.mealId}>
-            <HistoryMealRow
-              meal={meal}
-              index={index}
-              locale={locale}
-              kcalLabel={kcalLabel}
-              fallbackMealName={fallbackMealName}
-              onPress={onMealPress}
-              mealTypeLabel={mealTypeLabel}
-              theme={theme}
-            />
-            {index < section.data.length - 1 ? (
-              <View style={styles.rowDivider} />
-            ) : null}
-          </View>
+          <HistoryMealRow
+            key={meal.cloudId || meal.mealId}
+            meal={meal}
+            index={index}
+            locale={locale}
+            kcalLabel={kcalLabel}
+            gramLabel={gramLabel}
+            fallbackMealName={fallbackMealName}
+            onPress={onMealPress}
+            mealTypeLabel={mealTypeLabel}
+            macroLabels={macroLabels}
+            theme={theme}
+          />
         ))}
       </View>
     </View>
@@ -269,9 +334,15 @@ export default function HistoryListScreen({
         section={item}
         locale={i18n?.language}
         kcalLabel={state.kcalLabel}
+        gramLabel={t("gram", { ns: "common" })}
         fallbackMealName={t("meal", { ns: "home" })}
         onMealPress={state.onMealPress}
         mealTypeLabel={mealTypeLabel}
+        macroLabels={{
+          protein: t("macroShort.protein", { ns: "history" }),
+          carbs: t("macroShort.carbs", { ns: "history" }),
+          fat: t("macroShort.fat", { ns: "history" }),
+        }}
         theme={theme}
       />
     ),
@@ -300,28 +371,33 @@ export default function HistoryListScreen({
         />
       ) : null}
 
-      <View style={styles.heroBlock}>
-        <Text style={styles.heroTitle}>
-          {t("screenTitle", { ns: "history" })}
-        </Text>
-        <Text style={styles.heroSubtitle}>
-          {t("screenSubtitle", { ns: "history" })}
-        </Text>
-      </View>
+      <View style={styles.heroPanel}>
+        <View style={styles.heroBlock}>
+          <Text style={styles.heroTitle}>
+            {t("screenTitle", { ns: "history" })}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            {t("screenSubtitle", { ns: "history" })}
+          </Text>
+        </View>
 
-      <View style={styles.searchRow}>
-        <SearchBox
-          value={query}
-          onChange={state.setQuery}
-          placeholder={t("searchPlaceholder", {
-            ns: "history",
-          })}
-          style={styles.searchBox}
-        />
-        <FilterBadgeButton
-          activeCount={state.filterCount}
-          onPress={state.toggleShowFilters}
-        />
+        <View style={styles.searchRow}>
+          <SearchBox
+            value={query}
+            onChange={state.setQuery}
+            placeholder={t("searchPlaceholder", {
+              ns: "history",
+            })}
+            style={styles.searchBox}
+            fieldStyle={styles.searchField}
+            inputStyle={styles.searchInput}
+            iconSize={18}
+          />
+          <FilterBadgeButton
+            activeCount={state.filterCount}
+            onPress={state.toggleShowFilters}
+          />
+        </View>
       </View>
 
       {showResultsPill ? (
@@ -446,7 +522,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     listHeader: {
       paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.lg,
+      paddingBottom: theme.spacing.md,
       gap: theme.spacing.md,
     },
     heroBlock: {
@@ -465,6 +541,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    heroPanel: {
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.md,
+      gap: theme.spacing.md,
+      ...theme.depth.floating,
+    },
     searchRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -473,6 +558,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     searchBox: {
       flex: 1,
+    },
+    searchField: {
+      minHeight: 48,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.surface,
+      paddingVertical: 0,
+      borderColor: theme.borderSoft,
+    },
+    searchInput: {
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      marginVertical: 6,
     },
     resultsPill: {
       alignSelf: "center",
@@ -519,28 +616,34 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
     sectionCard: {
-      borderRadius: theme.rounded.lg,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      padding: 6,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.05,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: theme.isDark ? 0 : 1,
+      gap: theme.spacing.sm,
     },
     mealRow: {
-      borderRadius: theme.rounded.sm,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.lg,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surface,
+      padding: theme.spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
+      minHeight: 86,
+      ...theme.depth.floating,
     },
     mealRowPressed: {
-      backgroundColor: theme.background,
+      opacity: 0.92,
+      transform: [{ scale: 0.995 }],
+    },
+    mealGlyph: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.isDark
+        ? "rgba(122, 153, 115, 0.20)"
+        : theme.success.surface,
+      alignItems: "center",
+      justifyContent: "center",
     },
     mealInfo: {
       flex: 1,
@@ -564,10 +667,57 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.regular,
     },
-    mealKcal: {
+    macroRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xxs,
+      flexWrap: "wrap",
+    },
+    macroChip: {
+      borderRadius: theme.rounded.full,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: 2,
+    },
+    macroChipProtein: {
+      backgroundColor: theme.chart.proteinSoft,
+    },
+    macroChipCarbs: {
+      backgroundColor: theme.chart.carbsSoft,
+    },
+    macroChipFat: {
+      backgroundColor: theme.chart.fatSoft,
+    },
+    macroChipText: {
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    macroChipProteinText: {
+      color: theme.chart.protein,
+    },
+    macroChipCarbsText: {
+      color: theme.chart.carbs,
+    },
+    macroChipFatText: {
+      color: theme.chart.fat,
+    },
+    mealKcalBlock: {
+      minWidth: 58,
+      alignItems: "flex-end",
+      justifyContent: "center",
+      gap: 1,
+    },
+    mealKcalValue: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
+      fontFamily: theme.typography.fontFamily.bold,
+      textAlign: "right",
+    },
+    mealKcalLabel: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
       textAlign: "right",
       flexShrink: 0,

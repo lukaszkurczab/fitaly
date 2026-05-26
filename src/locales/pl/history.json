@@ -5,6 +5,11 @@
   "screenTitle": "Historia",
   "screenSubtitle": "Twoje ostatnie posiłki w jednym miejscu",
   "searchPlaceholder": "Szukaj posiłków...",
+  "macroShort": {
+    "protein": "B",
+    "carbs": "W",
+    "fat": "T"
+  },
   "resultsCount_one": "{{count}} wynik",
   "resultsCount_other": "{{count}} wyniku",
   "sheetTitle": "Filtry",

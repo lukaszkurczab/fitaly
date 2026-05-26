@@ -54,32 +54,34 @@ export default function StatisticsScreen({ navigation }: Props) {
   return (
     <Layout disableScroll style={styles.layout} showOfflineBanner={showAnalytics}>
       <View style={styles.container} testID="statistics-screen">
-        <View style={styles.header}>
-          <Text style={styles.title}>{t("statistics:title")}</Text>
-          <Text style={styles.subtitle}>{t("statistics:subtitle")}</Text>
-        </View>
+        <View style={styles.headerPanel}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{t("statistics:title")}</Text>
+            <Text style={styles.subtitle}>{t("statistics:subtitle")}</Text>
+          </View>
 
-        <StatisticsRangeSwitcher
-          active={state.active}
-          options={[
-            { key: "7d", label: t("statistics:ranges.7d") },
-            { key: "30d", label: t("statistics:ranges.30d") },
-            { key: "custom", label: t("statistics:ranges.custom") },
-          ]}
-          onChange={(next) => state.setActive(next as RangeKey)}
-        />
-
-        {state.active === "custom" ? (
-          <StatisticsCustomRangeControl
-            range={state.customRange}
-            onApply={(range) => {
-              state.setCustomRange(range);
-              state.setActive("custom");
-            }}
-            minDate={minCustomRangeDate}
-            maxDate={maxCustomRangeDate}
+          <StatisticsRangeSwitcher
+            active={state.active}
+            options={[
+              { key: "7d", label: t("statistics:ranges.7d") },
+              { key: "30d", label: t("statistics:ranges.30d") },
+              { key: "custom", label: t("statistics:ranges.custom") },
+            ]}
+            onChange={(next) => state.setActive(next as RangeKey)}
           />
-        ) : null}
+
+          {state.active === "custom" ? (
+            <StatisticsCustomRangeControl
+              range={state.customRange}
+              onApply={(range) => {
+                state.setCustomRange(range);
+                state.setActive("custom");
+              }}
+              minDate={minCustomRangeDate}
+              maxDate={maxCustomRangeDate}
+            />
+          ) : null}
+        </View>
 
         <View style={styles.content} testID="statistics-content">
           {state.loadingMeals ? (
@@ -150,10 +152,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     container: {
       flex: 1,
     },
+    headerPanel: {
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.sm,
+      gap: theme.spacing.sm,
+      ...theme.depth.raised,
+    },
     header: {
-      marginTop: theme.spacing.xs,
       gap: theme.spacing.xxs,
-      marginBottom: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.xs,
+      paddingTop: theme.spacing.xxs,
     },
     title: {
       color: theme.text,
@@ -169,7 +180,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     content: {
       flex: 1,
-      marginTop: theme.spacing.sm,
+      marginTop: theme.spacing.md,
     },
     loaderWrap: {
       flex: 1,

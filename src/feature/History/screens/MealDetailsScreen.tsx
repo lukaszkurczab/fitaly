@@ -206,30 +206,32 @@ export default function MealDetailsScreen() {
           ) : null}
 
           <View style={styles.heroCard}>
-            <Text testID="history-meal-details-title" style={styles.heroTitle}>
-              {state.draft.name || mealTypeLabel}
-            </Text>
-            <View style={styles.heroMetaRow}>
-              <Text style={styles.heroMeta}>{mealMeta}</Text>
-              <SyncStatusIndicator
-                syncState={state.draft.syncState}
-                testID={`history-meal-details-sync-${state.draft.syncState}`}
-              />
-            </View>
-          </View>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroCopy}>
+                <Text
+                  testID="history-meal-details-title"
+                  style={styles.heroTitle}
+                  numberOfLines={2}
+                >
+                  {state.draft.name || mealTypeLabel}
+                </Text>
+                <View style={styles.heroMetaRow}>
+                  <Text style={styles.heroMeta}>{mealMeta}</Text>
+                  <SyncStatusIndicator
+                    syncState={state.draft.syncState}
+                    testID={`history-meal-details-sync-${state.draft.syncState}`}
+                  />
+                </View>
+              </View>
 
-          <View style={styles.nutritionCard}>
-            <Text style={styles.sectionEyebrow}>
-              {t("detailsNutritionTitle", {
-                ns: "history",
-              })}
-            </Text>
-
-            <View style={styles.kcalRow}>
-              <Text testID="history-meal-details-kcal" style={styles.kcalValue}>
-                {state.nutrition.kcal}
-              </Text>
-              <Text style={styles.kcalUnit}>{t("kcal", { ns: "common" })}</Text>
+              <View style={styles.kcalBadge}>
+                <Text testID="history-meal-details-kcal" style={styles.kcalValue}>
+                  {state.nutrition.kcal}
+                </Text>
+                <Text style={styles.kcalUnit}>
+                  {t("kcal", { ns: "common" })}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.macroTrack}>
@@ -455,24 +457,40 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       opacity: 0.84,
     },
     heroCard: {
-      borderRadius: 26,
-      backgroundColor: theme.surface,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.surfaceElevated,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      paddingHorizontal: 18,
-      paddingVertical: theme.spacing.xl,
+      padding: theme.spacing.lg,
+      gap: theme.spacing.md,
+      ...theme.depth.floating,
+    },
+    heroTopRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.md,
+    },
+    heroCopy: {
+      flex: 1,
+      minWidth: 0,
       gap: theme.spacing.xs,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.18 : 0.05,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: theme.isDark ? 0 : 2,
     },
     heroTitle: {
       color: theme.text,
       fontSize: theme.typography.size.h1,
       lineHeight: theme.typography.lineHeight.h1,
       fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    kcalBadge: {
+      minWidth: 92,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.success.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      alignItems: "flex-end",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
     },
     heroMeta: {
       color: theme.textSecondary,
@@ -520,16 +538,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     kcalValue: {
       color: theme.text,
-      fontSize: theme.typography.size.displayM,
-      lineHeight: theme.typography.lineHeight.displayM,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
       fontFamily: theme.typography.fontFamily.semiBold,
     },
     kcalUnit: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
+      color: theme.success.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
-      marginBottom: 2,
     },
     macroTrack: {
       height: 8,

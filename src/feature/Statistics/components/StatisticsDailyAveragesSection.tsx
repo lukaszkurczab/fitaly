@@ -51,15 +51,27 @@ export function StatisticsDailyAveragesSection({
     <View style={styles.root} testID="statistics-daily-averages-section">
       <Text style={styles.title}>{t("statistics:dailyAveragesTitle")}</Text>
 
-      <View style={styles.grid}>
-        {items.map((item) => (
-          <View key={item.key} testID={`statistics-average-${item.key}`} style={styles.card}>
-            <View style={[styles.accentBar, { backgroundColor: item.color }]} />
-            <View style={styles.content}>
-              <Text style={styles.label}>{item.label}</Text>
-              <Text style={styles.value}>{item.value}</Text>
-              <Text style={styles.caption}>{t("statistics:dailyAveragesSuffix")}</Text>
+      <View style={styles.card}>
+        {items.map((item, index) => (
+          <View key={item.key}>
+            <View
+              testID={`statistics-average-${item.key}`}
+              style={styles.averageRow}
+            >
+              <View style={[styles.metricDot, { backgroundColor: item.color }]} />
+              <View style={styles.copy}>
+                <Text style={styles.label} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.caption}>
+                  {t("statistics:dailyAveragesSuffix")}
+                </Text>
+              </View>
+              <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
+                {item.value}
+              </Text>
             </View>
+            {index < items.length - 1 ? <View style={styles.divider} /> : null}
           </View>
         ))}
       </View>
@@ -78,51 +90,56 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyL,
       lineHeight: theme.typography.lineHeight.bodyL,
     },
-    grid: {
+    card: {
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.surfaceElevated,
+      overflow: "hidden",
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      ...theme.depth.floating,
+    },
+    averageRow: {
+      minHeight: 58,
       flexDirection: "row",
-      flexWrap: "wrap",
+      alignItems: "center",
       gap: theme.spacing.sm,
     },
-    card: {
-      width: "48%",
-      minHeight: 72,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: theme.rounded.md,
-      backgroundColor: theme.surfaceElevated,
-      flexDirection: "row",
-      overflow: "hidden",
-      paddingVertical: theme.spacing.sm,
-      paddingRight: theme.spacing.sm,
+    metricDot: {
+      width: 10,
+      height: 10,
+      borderRadius: theme.rounded.full,
     },
-    accentBar: {
-      width: theme.spacing.xxs,
-      borderTopLeftRadius: theme.rounded.xs,
-      borderBottomLeftRadius: theme.rounded.xs,
-      marginVertical: theme.spacing.xxs,
-    },
-    content: {
+    copy: {
       flex: 1,
-      paddingLeft: theme.spacing.sm,
-      justifyContent: "center",
-      gap: theme.spacing.xxs,
+      minWidth: 0,
+      gap: 1,
     },
     label: {
-      color: theme.textTertiary,
+      color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      minWidth: 0,
     },
     value: {
       color: theme.text,
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: theme.typography.size.title,
-      lineHeight: theme.typography.lineHeight.title,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
+      textAlign: "right",
+      minWidth: 84,
     },
     caption: {
       color: theme.textTertiary,
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.divider,
+      marginLeft: 22,
     },
   });

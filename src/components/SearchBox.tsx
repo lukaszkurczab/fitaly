@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import AppIcon from "@/components/AppIcon";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@/components/TextInput";
@@ -10,6 +15,9 @@ type Props = {
   placeholder?: string;
   debounceMs?: number;
   style?: StyleProp<ViewStyle>;
+  fieldStyle?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
+  iconSize?: number;
 };
 
 export const SearchBox: React.FC<Props> = ({
@@ -18,6 +26,9 @@ export const SearchBox: React.FC<Props> = ({
   placeholder,
   debounceMs = 200,
   style,
+  fieldStyle,
+  inputStyle,
+  iconSize = 20,
 }) => {
   const { t } = useTranslation();
 
@@ -59,7 +70,7 @@ export const SearchBox: React.FC<Props> = ({
       accessibilityLabel={t("input.search_accessibility")}
       autoCorrect={false}
       spellCheck={false}
-      left={<AppIcon name="search" size={20} />}
+      left={<AppIcon name="search" size={iconSize} />}
       right={
         local.length > 0 ? (
           <Pressable
@@ -72,6 +83,8 @@ export const SearchBox: React.FC<Props> = ({
         ) : null
       }
       style={style}
+      fieldStyle={fieldStyle}
+      inputStyle={inputStyle}
     />
   );
 };

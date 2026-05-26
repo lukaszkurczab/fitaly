@@ -55,5 +55,7 @@ env:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
-- assertVisible:
-    id: tab-home
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000

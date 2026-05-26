@@ -11,10 +11,11 @@ appId: com.lkurczab.fitaly
       id: home-meal-sync-failed-0
     timeout: 10000
 - takeScreenshot: offline-failed-home
-- scrollUntilVisible:
-    element:
-      id: home-view-history-button
-    direction: DOWN
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:
@@ -36,10 +37,11 @@ appId: com.lkurczab.fitaly
       id: home-meal-sync-conflict-0
     timeout: 10000
 - takeScreenshot: offline-conflict-home
-- scrollUntilVisible:
-    element:
-      id: home-view-history-button
-    direction: DOWN
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:

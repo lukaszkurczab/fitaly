@@ -173,7 +173,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     chartFrame: {
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.borderSoft,
       borderRadius: theme.rounded.lg,
       backgroundColor: theme.surface,
       minHeight: CHART_HEIGHT,

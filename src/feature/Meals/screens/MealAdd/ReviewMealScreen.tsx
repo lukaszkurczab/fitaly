@@ -325,7 +325,13 @@ export default function ReviewMealScreen({
           });
           return;
         }
-        navigation.navigate("Home");
+        navigation.dispatch({
+          type: "RESET",
+          payload: {
+            index: 0,
+            routes: [{ name: "Home" }],
+          },
+        } as never);
       } catch {
         setSaving(false);
       }
