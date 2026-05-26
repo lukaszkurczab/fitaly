@@ -34,43 +34,78 @@ export default function DockUtilityRow({
       <Pressable
         testID="share-add-text-button"
         onPress={onAddTextLayer}
-        style={[styles.utilityAction, { borderColor: theme.border }]}
+        style={({ pressed }) => [
+          styles.utilityAction,
+          {
+            backgroundColor: theme.surfaceAlt,
+            borderColor: theme.borderSoft,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={textLabel}
       >
-        <AppIcon name="text" size={16} color={theme.textSecondary} />
+        <AppIcon name="text" size={16} color={theme.primaryStrong} />
       </Pressable>
       <Pressable
         testID="share-add-chart-button"
         onPress={onEnsureChartLayer}
-        style={[styles.utilityAction, { borderColor: theme.border }]}
+        style={({ pressed }) => [
+          styles.utilityAction,
+          {
+            backgroundColor: theme.surfaceAlt,
+            borderColor: theme.borderSoft,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={chartLabel}
       >
-        <AppIcon name="stats" size={16} color={theme.textSecondary} />
+        <AppIcon name="stats" size={16} color={theme.primaryStrong} />
       </Pressable>
       <Pressable
         testID="share-add-card-button"
         onPress={onEnsureCardLayer}
-        style={[styles.utilityAction, { borderColor: theme.border }]}
+        style={({ pressed }) => [
+          styles.utilityAction,
+          {
+            backgroundColor: theme.surfaceAlt,
+            borderColor: theme.borderSoft,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={cardLabel}
       >
-        <AppIcon name="card" size={16} color={theme.textSecondary} />
+        <AppIcon name="card" size={16} color={theme.primaryStrong} />
       </Pressable>
       <Pressable
         testID="share-add-photo-button"
         onPress={onAddOrReplaceAdditionalPhoto}
-        style={[styles.utilityAction, { borderColor: theme.border }]}
+        style={({ pressed }) => [
+          styles.utilityAction,
+          {
+            backgroundColor: theme.surfaceAlt,
+            borderColor: theme.borderSoft,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={photoLabel}
       >
-        <AppIcon name="add-photo" size={16} color={theme.textSecondary} />
+        <AppIcon name="add-photo" size={16} color={theme.primaryStrong} />
       </Pressable>
       <Pressable
         testID="share-reset-button"
         onPress={onResetComposition}
-        style={[styles.utilityAction, { borderColor: theme.border }]}
+        style={({ pressed }) => [
+          styles.utilityAction,
+          {
+            backgroundColor: theme.surfaceAlt,
+            borderColor: theme.borderSoft,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={resetLabel}
       >
@@ -93,7 +128,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    backgroundColor: "#F7F2EA",
     alignItems: "center",
     justifyContent: "center",
   },

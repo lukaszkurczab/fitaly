@@ -25,6 +25,7 @@ export default function DockQuickPanel({
         style={[
           styles.sectionLabel,
           {
+            color: theme.text,
             fontFamily: theme.typography.fontFamily.semiBold,
           },
         ]}
@@ -51,7 +52,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionLabel: {
-    color: "#393128",
     fontSize: 13,
     lineHeight: 15,
     paddingHorizontal: 8,

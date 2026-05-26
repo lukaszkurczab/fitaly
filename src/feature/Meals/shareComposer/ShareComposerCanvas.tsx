@@ -940,6 +940,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     textLayer: {
       fontSize: 32,
       lineHeight: 34,
+      textShadowColor: "rgba(18,21,18,0.32)",
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 8,
     },
     textLayerInput: {
       minWidth: 56,

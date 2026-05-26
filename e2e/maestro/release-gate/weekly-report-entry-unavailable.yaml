@@ -12,6 +12,9 @@ appId: com.lkurczab.fitaly
     element:
       id: weekly-report-card
     direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: weekly-report-card-unavailable
 - tapOn:
     id: weekly-report-card
 - assertVisible:
@@ -24,6 +27,7 @@ appId: com.lkurczab.fitaly
     id: weekly-report-retry-button
 - assertVisible:
     id: weekly-report-unavailable-back-button
+- takeScreenshot: weekly-report-unavailable
 - tapOn:
     id: weekly-report-unavailable-back-button
 - assertVisible:

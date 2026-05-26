@@ -27,20 +27,28 @@ export default function FlowActionButton({
       style={({ pressed }) => [
         styles.flowButton,
         {
-          backgroundColor: primary ? theme.primary : "#FBF8F2",
-          borderColor: primary ? theme.primary : theme.border,
+          backgroundColor: primary
+            ? theme.button.primary.background
+            : theme.button.secondary.background,
+          borderColor: primary
+            ? theme.button.primary.border
+            : theme.button.secondary.border,
           opacity: pressed ? 0.88 : 1,
         },
+        primary ? theme.depth.cta : null,
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={primary ? "#FBF8F2" : "#393128"} />
+        <ActivityIndicator
+          size="small"
+          color={primary ? theme.button.primary.text : theme.button.secondary.text}
+        />
       ) : (
         <Text
           style={[
             styles.flowButtonLabel,
             {
-              color: primary ? "#FBF8F2" : "#393128",
+              color: primary ? theme.button.primary.text : theme.button.secondary.text,
               fontFamily: theme.typography.fontFamily.semiBold,
             },
           ]}

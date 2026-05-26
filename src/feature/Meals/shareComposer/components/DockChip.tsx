@@ -29,13 +29,14 @@ export default function DockChip({
           borderColor: active ? theme.primary : theme.borderSoft,
           opacity: pressed ? 0.85 : 1,
         },
+        !active ? { backgroundColor: theme.surfaceAlt } : null,
       ]}
     >
       <Text
         style={[
           styles.chipLabel,
-          {
-            color: active ? "#FBF8F2" : "#393128",
+            {
+            color: active ? theme.cta.primaryText : theme.textSecondary,
             fontFamily: active
               ? theme.typography.fontFamily.semiBold
               : theme.typography.fontFamily.medium,

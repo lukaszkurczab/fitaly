@@ -36,10 +36,10 @@ export function formatWeeklyPeriod(
 export function getCarryForwardLine(report: WeeklyReport): string {
   const firstPriority = report.priorities[0]?.text?.trim();
   if (!firstPriority) {
-    return "Carry one useful thought forward into next week.";
+    return "Przenieś jedną spokojną myśl do kolejnego tygodnia.";
   }
 
-  return `Carry one thought forward: ${lowerFirst(firstPriority)}`;
+  return `Przenieś jedną myśl dalej: ${lowerFirst(firstPriority)}`;
 }
 
 export function getSignalDotColor(

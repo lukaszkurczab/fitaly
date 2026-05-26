@@ -162,7 +162,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: theme.spacing.lg,
       gap: theme.spacing.md,
       borderWidth: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
+      ...theme.depth.raised,
     },
     containerNeutral: {
       borderColor: theme.border,
@@ -205,7 +206,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.bold,
     },
     reasonBox: {
-      backgroundColor: theme.background,
+      backgroundColor: theme.surfaceAlt,
       borderRadius: theme.rounded.md,
       padding: theme.spacing.md,
       gap: theme.spacing.xs,

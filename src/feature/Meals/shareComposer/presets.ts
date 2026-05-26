@@ -21,26 +21,26 @@ type PresetTemplate = {
 const PRESET_TEMPLATES: Record<SharePresetId, PresetTemplate> = {
   quickClassic: {
     id: "quickClassic",
-    textTransform: { xRatio: 0.5, yRatio: 0.18, scale: 0.94, rotation: 0 },
-    textColor: "#393128",
+    textTransform: { xRatio: 0.36, yRatio: 0.18, scale: 0.72, rotation: 0 },
+    textColor: "#FFFDF8",
     cardVariant: "macroSummaryCard",
-    cardTransform: { xRatio: 0.5, yRatio: 0.22, scale: 1.04, rotation: 0 },
+    cardTransform: { xRatio: 0.66, yRatio: 0.32, scale: 0.76, rotation: 0 },
     overlayPreset: "none",
   },
   quickSidebar: {
     id: "quickSidebar",
-    textTransform: { xRatio: 0.24, yRatio: 0.24, scale: 0.86, rotation: 0 },
-    textColor: "#393128",
+    textTransform: { xRatio: 0.38, yRatio: 0.18, scale: 0.7, rotation: 0 },
+    textColor: "#FFFDF8",
     cardVariant: "macroVerticalStackCard",
-    cardTransform: { xRatio: 0.19, yRatio: 0.36, scale: 1.05, rotation: 0 },
+    cardTransform: { xRatio: 0.25, yRatio: 0.42, scale: 0.92, rotation: 0 },
     overlayPreset: "none",
   },
   quickFooter: {
     id: "quickFooter",
-    textTransform: { xRatio: 0.27, yRatio: 0.72, scale: 0.88, rotation: 0 },
-    textColor: "#393128",
+    textTransform: { xRatio: 0.34, yRatio: 0.66, scale: 0.7, rotation: 0 },
+    textColor: "#FFFDF8",
     cardVariant: "macroSplitCard",
-    cardTransform: { xRatio: 0.5, yRatio: 0.82, scale: 1.02, rotation: 0 },
+    cardTransform: { xRatio: 0.58, yRatio: 0.82, scale: 0.84, rotation: 0 },
     overlayPreset: "none",
   },
 };
@@ -60,9 +60,9 @@ const DEFAULT_MEAL_PHOTO_TRANSFORM: TransformState = {
 };
 
 const DEFAULT_CHART_TRANSFORM: TransformState = {
-  xRatio: 0.18,
-  yRatio: 0.25,
-  scale: 1,
+  xRatio: 0.27,
+  yRatio: 0.4,
+  scale: 0.72,
   rotation: 0,
 };
 
@@ -150,9 +150,9 @@ export function createAdditionalTextLayer(text = "Add note"): ShareTextLayerStat
     italic: false,
     underline: false,
     transform: {
-      xRatio: 0.32,
-      yRatio: 0.58,
-      scale: 0.8,
+      xRatio: 0.35,
+      yRatio: 0.68,
+      scale: 0.72,
       rotation: 0,
     },
     removable: true,

@@ -74,27 +74,31 @@ export default function WeeklyReportCard({ loading, report, onPress }: Props) {
     >
       <View style={styles.headerRow}>
         <Text style={styles.eyebrow}>{t("weeklyReport.eyebrow")}</Text>
-        <AppIcon name="weekly-raport" size={18} color={theme.textSecondary} />
+        <View style={styles.iconWrap}>
+          <AppIcon name="weekly-raport" size={18} color={theme.primaryStrong} />
+        </View>
       </View>
 
       <View style={styles.heroCard}>
-        <View
-          style={[
-            styles.pill,
-            report.status === "not_available" ? styles.pillWarm : null,
-          ]}
-        >
-          <Text
+        <View style={styles.metaRow}>
+          <View
             style={[
-              styles.pillText,
-              report.status === "not_available" ? styles.pillWarmText : null,
+              styles.pill,
+              report.status === "not_available" ? styles.pillWarm : null,
             ]}
           >
-            {loading ? t("weeklyReport.preparingPill") : getStatusPill(report, t)}
-          </Text>
+            <Text
+              style={[
+                styles.pillText,
+                report.status === "not_available" ? styles.pillWarmText : null,
+              ]}
+            >
+              {loading ? t("weeklyReport.preparingPill") : getStatusPill(report, t)}
+            </Text>
+          </View>
+          <Text style={styles.period}>{periodLabel}</Text>
         </View>
 
-        <Text style={styles.period}>{periodLabel}</Text>
         <Text style={styles.title}>
           {loading ? t("weeklyReport.loadingTitle") : getTitle(report, t)}
         </Text>
@@ -103,6 +107,10 @@ export default function WeeklyReportCard({ loading, report, onPress }: Props) {
             ? t("weeklyReport.loadingReadingClosed")
             : getBody(report, t)}
         </Text>
+        <View style={styles.ctaRow}>
+          <Text style={styles.ctaText}>{t("weeklyReport.openCta")}</Text>
+          <AppIcon name="chevron" rotation="-90deg" size={16} color={theme.primaryStrong} />
+        </View>
       </View>
 
     </Pressable>
@@ -129,6 +137,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.semiBold,
     },
+    iconWrap: {
+      width: 34,
+      height: 34,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.success.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+    },
     heroCard: {
       borderRadius: theme.rounded.xl,
       paddingHorizontal: 18,
@@ -136,7 +154,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.xs,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
+      ...theme.depth.raised,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
     },
     pill: {
       alignSelf: "flex-start",
@@ -161,6 +186,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.accentWarmStrong,
     },
     period: {
+      flexShrink: 0,
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: 18,
@@ -177,5 +203,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: 20,
       fontFamily: theme.typography.fontFamily.regular,
+    },
+    ctaRow: {
+      marginTop: theme.spacing.xs,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.borderSoft,
+      paddingTop: theme.spacing.sm,
+    },
+    ctaText: {
+      color: theme.primaryStrong,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
   });

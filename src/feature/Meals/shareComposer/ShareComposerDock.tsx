@@ -55,9 +55,9 @@ type ShareComposerDockProps = {
 };
 
 const DOCK_LAYOUT = {
-  fixedHeight: 176,
-  contentHeight: 74,
-  errorHeight: 14,
+  fixedHeight: 188,
+  contentHeight: 78,
+  errorHeight: 18,
   borderRadius: 28,
   grabberWidth: 37,
   grabberHeight: 4,
@@ -408,18 +408,16 @@ export default function ShareComposerDock({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     dock: {
-      backgroundColor: "#FBF8F2",
+      backgroundColor: theme.surfaceElevated,
       borderRadius: DOCK_LAYOUT.borderRadius,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
       height: DOCK_LAYOUT.fixedHeight,
       overflow: "hidden",
       paddingTop: 10,
       paddingHorizontal: 12,
       paddingBottom: 10,
-      shadowColor: "#393128",
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
+      ...theme.depth.modal,
       gap: 8,
     },
     contentSlot: {
@@ -443,9 +441,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     errorText: {
       color: theme.error.main,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 11,
-      lineHeight: 14,
-      paddingHorizontal: 8,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      paddingHorizontal: 10,
     },
     errorSlot: {
       minHeight: DOCK_LAYOUT.errorHeight,
@@ -457,6 +455,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 4,
-      paddingTop: 2,
+      paddingTop: 0,
     },
   });

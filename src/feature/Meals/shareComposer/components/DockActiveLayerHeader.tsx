@@ -25,6 +25,7 @@ export default function DockActiveLayerHeader({
           style={[
             styles.metaLabel,
             {
+              color: theme.textTertiary,
               fontFamily: theme.typography.fontFamily.medium,
             },
           ]}
@@ -35,6 +36,7 @@ export default function DockActiveLayerHeader({
           style={[
             styles.activeLayerTitle,
             {
+              color: theme.text,
               fontFamily: theme.typography.fontFamily.semiBold,
             },
           ]}
@@ -48,7 +50,8 @@ export default function DockActiveLayerHeader({
           style={[
             styles.localAction,
             {
-              borderColor: theme.border,
+              backgroundColor: theme.error.surface,
+              borderColor: theme.error.border,
             },
           ]}
           accessibilityRole="button"
@@ -56,11 +59,12 @@ export default function DockActiveLayerHeader({
         >
           <Text
             style={[
-              styles.localActionLabel,
-              {
-                fontFamily: theme.typography.fontFamily.medium,
-              },
-            ]}
+            styles.localActionLabel,
+            {
+              color: theme.error.text,
+              fontFamily: theme.typography.fontFamily.medium,
+            },
+          ]}
           >
             {removeLabel}
           </Text>
@@ -78,12 +82,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   metaLabel: {
-    color: "#7A6D5E",
     fontSize: 10,
     lineHeight: 12,
   },
   activeLayerTitle: {
-    color: "#393128",
     fontSize: 15,
     lineHeight: 18,
     marginTop: 2,
@@ -93,13 +95,11 @@ const styles = StyleSheet.create({
     minWidth: 68,
     borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: "#F7F2EA",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
   },
   localActionLabel: {
-    color: "#C69272",
     fontSize: 11,
     lineHeight: 13,
   },

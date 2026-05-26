@@ -57,6 +57,7 @@ const DEFAULT_PRESET: SharePresetId = "quickClassic";
 
 export default function MealShareScreen() {
   const theme = useTheme();
+  const stylesWithTheme = useMemo(() => makeStyles(theme), [theme]);
   const navigation = useNavigation<MealShareNavigation>();
   const route = useRoute<ScreenRoute>();
   const { t } = useTranslation(["share", "common", "meals"]);
@@ -130,6 +131,11 @@ export default function MealShareScreen() {
     error: null,
   });
   const [completed, setCompleted] = useState(false);
+  const activeModeTextColor = theme.cta.primaryText;
+  const inactiveModeSurface = theme.isDark
+    ? theme.surfaceAlt
+    : "rgba(255,253,248,0.86)";
+  const inactiveModeTextColor = theme.textSecondary;
 
   const canvasWidth = useMemo(() => {
     const available = screenWidth - theme.spacing.md * 2;
@@ -777,13 +783,16 @@ export default function MealShareScreen() {
           paddingRight: theme.spacing.md,
         }}
       >
-        <View style={styles.invalidContainer} testID="share-unavailable-state">
+        <View
+          style={[styles.invalidContainer, stylesWithTheme.invalidContainer]}
+          testID="share-unavailable-state"
+        >
           <Pressable
             testID="share-unavailable-close-button"
             onPress={handleClose}
             accessibilityRole="button"
             accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-            style={styles.invalidClose}
+            style={stylesWithTheme.invalidClose}
           >
             <AppIcon name="close" size={14} color={theme.primaryStrong} />
           </Pressable>
@@ -808,9 +817,7 @@ export default function MealShareScreen() {
             accessibilityLabel={t("common:close", { defaultValue: "Close" })}
             style={[
               styles.invalidButton,
-              {
-                backgroundColor: theme.primary,
-              },
+              stylesWithTheme.invalidButton,
             ]}
           >
             <Text style={styles.invalidButtonText}>
@@ -839,12 +846,12 @@ export default function MealShareScreen() {
           onPress={handleClose}
           accessibilityRole="button"
           accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-          style={[styles.closeButtonFloating, { borderColor: theme.border }]}
+          style={stylesWithTheme.closeButtonFloating}
         >
           <AppIcon name="close" size={14} color={theme.primaryStrong} />
         </Pressable>
 
-        <View style={[styles.modeSwitch, { borderColor: theme.border }]}>
+        <View style={stylesWithTheme.modeSwitch}>
           <Pressable
             testID="share-mode-quick-button"
             onPress={() => handleSwitchMode("quick")}
@@ -856,15 +863,21 @@ export default function MealShareScreen() {
             style={[
               styles.modeSwitchChip,
               mode === "quick"
-                ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                : { backgroundColor: "#FBF8F2", borderColor: theme.border },
+                ? stylesWithTheme.modeSwitchChipActive
+                : [
+                    stylesWithTheme.modeSwitchChipInactive,
+                    { backgroundColor: inactiveModeSurface },
+                  ],
             ]}
           >
             <Text
               style={[
                 styles.modeSwitchLabel,
                 {
-                  color: mode === "quick" ? "#FBF8F2" : "#7A6D5E",
+                  color:
+                    mode === "quick"
+                      ? activeModeTextColor
+                      : inactiveModeTextColor,
                 },
               ]}
             >
@@ -882,15 +895,21 @@ export default function MealShareScreen() {
             style={[
               styles.modeSwitchChip,
               mode === "customize"
-                ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                : { backgroundColor: "#FBF8F2", borderColor: theme.border },
+                ? stylesWithTheme.modeSwitchChipActive
+                : [
+                    stylesWithTheme.modeSwitchChipInactive,
+                    { backgroundColor: inactiveModeSurface },
+                  ],
             ]}
           >
             <Text
               style={[
                 styles.modeSwitchLabel,
                 {
-                  color: mode === "customize" ? "#FBF8F2" : "#7A6D5E",
+                  color:
+                    mode === "customize"
+                      ? activeModeTextColor
+                      : inactiveModeTextColor,
                 },
               ]}
             >
@@ -906,8 +925,8 @@ export default function MealShareScreen() {
             {
               width: canvasWidth,
               height: canvasHeight,
-              borderColor: theme.borderSoft,
             },
+            stylesWithTheme.canvasFrame,
           ]}
         >
           <ViewShot ref={shotRef} style={styles.canvasWrap}>
@@ -971,7 +990,10 @@ export default function MealShareScreen() {
           onAddOrReplaceAdditionalPhoto={handleAddOrReplaceAdditionalPhoto}
         />
         {completed ? (
-          <Text testID="share-export-success" style={styles.exportSuccess}>
+          <Text
+            testID="share-export-success"
+            style={stylesWithTheme.exportSuccess}
+          >
             {t("share_saved_to_gallery", {
               ns: "share",
               defaultValue: "Saved to gallery.",
@@ -998,24 +1020,19 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FBF8F2",
   },
   modeSwitch: {
     borderRadius: 16,
-    borderWidth: 1,
     padding: 2,
     flexDirection: "row",
     gap: 3,
-    backgroundColor: "#FBF8F2",
   },
   modeSwitchChip: {
     minHeight: 24,
     minWidth: 67,
     borderRadius: 12,
-    borderWidth: 1,
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -1027,7 +1044,6 @@ const styles = StyleSheet.create({
   },
   canvasFrame: {
     borderRadius: 31,
-    borderWidth: 1,
     overflow: "hidden",
   },
   canvasWrap: {
@@ -1041,25 +1057,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 20,
-  },
-  exportSuccess: {
-    color: "#3A4834",
-    fontFamily: "Inter-SemiBold",
-    fontSize: 11,
-    lineHeight: 13,
-  },
-  invalidClose: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E0D7C7",
-    backgroundColor: "#FBF8F2",
   },
   invalidTitle: {
     fontSize: 20,
@@ -1090,3 +1087,68 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
+
+const makeStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    closeButtonFloating: {
+      ...styles.closeButtonFloating,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      ...theme.depth.raised,
+    },
+    modeSwitch: {
+      ...styles.modeSwitch,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.94)"
+        : "rgba(255,253,248,0.82)",
+      ...theme.depth.raised,
+    },
+    modeSwitchChipActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+      borderWidth: 1,
+    },
+    modeSwitchChipInactive: {
+      borderColor: theme.borderSoft,
+      borderWidth: 1,
+    },
+    canvasFrame: {
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceAlt,
+      ...theme.depth.floating,
+    },
+    exportSuccess: {
+      color: theme.success.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: 11,
+      lineHeight: 13,
+    },
+    invalidContainer: {
+      borderRadius: theme.rounded.xxl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      ...theme.depth.raised,
+    },
+    invalidClose: {
+      position: "absolute",
+      top: 12,
+      left: 12,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceAlt,
+    },
+    invalidButton: {
+      backgroundColor: theme.primary,
+      ...theme.depth.cta,
+    },
+  });

@@ -39,14 +39,21 @@ export default function PresetThumb({
         {
           borderColor: active ? theme.primary : theme.border,
           borderWidth: active ? 1.5 : 1,
+          backgroundColor: theme.surfaceAlt,
           opacity: pressed ? 0.86 : 1,
         },
+        active ? theme.depth.raised : null,
       ]}
     >
       {mealPhotoUri.trim() ? (
         <Image source={{ uri: mealPhotoUri }} resizeMode="cover" style={styles.presetPreviewPhoto} />
       ) : (
-        <View style={styles.presetPreviewPhotoFallback} />
+        <View
+          style={[
+            styles.presetPreviewPhotoFallback,
+            { backgroundColor: theme.surfaceAlt },
+          ]}
+        />
       )}
 
       {presetId === "quickSidebar" ? (
@@ -118,14 +125,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     justifyContent: "center",
-    backgroundColor: "#F8F3EB",
   },
   presetPreviewPhoto: {
     ...StyleSheet.absoluteFillObject,
   },
   presetPreviewPhotoFallback: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#DDD4C7",
   },
   presetPreviewCard: {
     position: "absolute",

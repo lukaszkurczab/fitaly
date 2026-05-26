@@ -16,6 +16,7 @@ appId: com.lkurczab.fitaly
     direction: DOWN
 - assertVisible:
     id: weekly-report-card
+- takeScreenshot: weekly-report-card-ready
 - tapOn:
     id: weekly-report-card
 - assertVisible:
@@ -28,9 +29,11 @@ appId: com.lkurczab.fitaly
     id: weekly-report-summary-section
 - assertVisible:
     id: weekly-report-signals-section
+- takeScreenshot: weekly-report-ready-overview
 - scrollUntilVisible:
     element:
       id: weekly-report-priorities-section
     direction: DOWN
 - assertVisible:
     id: weekly-report-priorities-section
+- takeScreenshot: weekly-report-priorities
