@@ -1,6 +1,6 @@
 ## Project Context
 
-- Stack: Expo SDK 53, React Native 0.79.x, React 19, TypeScript.
+- Stack: Expo SDK 55, React Native 0.83.6, React 19.2, TypeScript 5.9.
 - Backend/services: Firebase (auth, firestore, storage), RevenueCat (react-native-purchases), i18next.
 - Tooling: ESLint v8, tsc typecheck.
 

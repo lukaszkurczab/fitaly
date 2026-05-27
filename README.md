@@ -8,9 +8,9 @@ AI execution is backend-managed: the app calls backend AI endpoints and does not
 
 ## Stack
 
-- Expo SDK 53
-- React Native 0.79.x + React 19
-- TypeScript
+- Expo SDK 55
+- React Native 0.83.6 + React 19.2
+- TypeScript 5.9
 - Firebase (`auth`, `firestore`, `storage`)
 - RevenueCat (`react-native-purchases`)
 - i18next (PL/EN localizations)
@@ -145,7 +145,7 @@ Description:
 - `SENTRY_AUTH_TOKEN` - build-time auth token used by `sentry-cli` for source map upload.
 - `GOOGLE_FONTS_KEY` - used only by `npm run fonts:download`.
 
-The canonical mobile to backend matrix for prod, smoke, and dev/local is [docs/runtime-config.md](./docs/runtime-config.md).
+The canonical mobile to backend matrix for prod, smoke, and dev/local is [../docs/runbooks/runtime-config.md](../docs/runbooks/runtime-config.md).
 
 ### Production release checks
 
@@ -250,36 +250,34 @@ npm run test:targeted -- --coverage --runTestsByPath src/services/release/checkL
 
 ## E2E Maestro
 
-Maestro flows are grouped by role under `e2e/maestro/`. The canonical suites are `smoke`, `release-gate`, `nightly-regression`, and `platform-layout`.
+Maestro flows are grouped by role under `e2e/maestro/`. The canonical suite list is defined in `scripts/e2e/suites.json` and summarized in the workspace [E2E/testing runbook](../docs/runbooks/e2e-testing.md).
 
 ```bash
-# minimal startup/account smoke
-npm run e2e:smoke:foundation
-npm run e2e:smoke:account-launch
+# minimal smoke suite
+npm run e2e:smoke
 
 # release candidate gate
 npm run e2e:release-gate
 
-# broader scheduled/manual checks
-npm run e2e:nightly-regression
+# focused suites
+npm run e2e:add-meal
+npm run e2e:home-history-statistics
 npm run e2e:platform-layout
 ```
 
-Prefer focused Maestro commands such as `npm run e2e:smoke:login`, `npm run e2e:release-gate:add-meal:manual`, or `npm run e2e:platform-layout:small-screen-forms` over a whole suite when validating one flow. Any `e2e-full` wrapper or equivalent full-suite run is reserved for full visual/product review, release gates, larger merges, or explicit request.
-
-See [E2E Maestro Test Matrix](./docs/e2e-test-matrix.md) for fixture/deep link contracts, CI classification, and selector rules.
+Prefer the narrowest suite that covers the touched surface. `npm run e2e:full-review` is reserved for broad visual/product review, release gates, larger merges, or explicit request.
 
 ## Operator docs
 
-- [Public Launch Readiness 2026-04-08](./docs/public-launch-readiness-2026-04-08.md) — current source of truth for what is automated vs manual for public launch; supersedes older external audit notes
-- [Launch Runbook](./docs/launch-runbook.md) — Go/No-Go checklist, rollback matrix, kill-switch and incident flow
+- [Workspace documentation index](../docs/README.md) — canonical documentation entrypoint
+- [Launch Runbook](../docs/runbooks/launch.md) — Go/No-Go checklist, rollback matrix, kill-switch and incident flow
+- [Runtime Config](../docs/runbooks/runtime-config.md) — prod/smoke/dev mobile-backend matrix
+- [E2E/testing runbook](../docs/runbooks/e2e-testing.md) — Maestro suites, fixture/deep link contract, selector rules
+- [Missing Jobs](../docs/missing-jobs/README.md) — active follow-up index after release-hardening archive removal
 - [Canonical Notifications Release Hardening](./docs/notifications-canonical-release-hardening.md) — environment matrix, diagnostics panel, real-device smoke plan, interpretation checklist
 - Backend Ops Monitoring Runbook: `../fitaly-backend/docs/ops-monitoring-runbook.md` — production health/latency thresholds and incident triage
 - Backend Compliance Ops Runbook: `../fitaly-backend/docs/compliance-ops-runbook.md` — data export/delete flow, retention cadence and privacy incident process
 - [Coach Insights v1 Semantics](./docs/coach-insights-v1.md) — mobile contract handling, empty-state modes, telemetry rules
-- [Coach Insights v1 Rollout](./docs/coach-insights-v1-rollout.md) — preconditions, verification, rollback behavior
-- [Smart Reminders v1 Rollout (archival)](./docs/smart-reminders-v1-rollout.md) — historical rollout notes and migration context
-- [Notifications Legacy Sunset Note](./docs/notifications-legacy-sunset-note.md) — what was removed vs retained as compatibility-only
 
 ## License
 
