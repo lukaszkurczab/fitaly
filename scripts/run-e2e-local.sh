@@ -47,6 +47,8 @@ E2E_RUN_ID="${E2E_RUN_ID:-$(date +%s)-$$}"
 E2E_DISPOSABLE_EMAIL="${E2E_DISPOSABLE_EMAIL:-fitaly-e2e-${E2E_RUN_ID}@example.com}"
 E2E_DISPOSABLE_USERNAME="${E2E_DISPOSABLE_USERNAME:-e2e${E2E_RUN_ID//[^A-Za-z0-9]/}}"
 E2E_DISPOSABLE_PASSWORD="${E2E_DISPOSABLE_PASSWORD:-Test1234.}"
+E2E_DELETE_DISPOSABLE_EMAIL="${E2E_DELETE_DISPOSABLE_EMAIL:-fitaly-e2e-delete-${E2E_RUN_ID}@example.com}"
+E2E_DELETE_DISPOSABLE_USERNAME="${E2E_DELETE_DISPOSABLE_USERNAME:-e2edel${E2E_RUN_ID//[^A-Za-z0-9]/}}"
 
 EXPO_LOG="/tmp/expo-e2e.log"
 EXPO_PID=""
@@ -415,11 +417,9 @@ export E2E_APP_ID="${APP_ID}"
 export E2E_EMAIL E2E_PASSWORD E2E_ALT_EMAIL E2E_ALT_PASSWORD
 export E2E_CONFLICT_USERNAME E2E_REGISTER_EMAIL E2E_REGISTER_PASSWORD
 export E2E_RUN_ID E2E_DISPOSABLE_EMAIL E2E_DISPOSABLE_USERNAME E2E_DISPOSABLE_PASSWORD
+export E2E_DELETE_DISPOSABLE_EMAIL E2E_DELETE_DISPOSABLE_USERNAME
 while IFS= read -r -d '' flow_file; do
   perl -0pi -e 's/^appId:\s*com\.lkurczab\.fitaly\s*$/appId: $ENV{E2E_APP_ID}/mg; s/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
-  if [[ "${PLATFORM}" == "ios" ]]; then
-    perl -0pi -e 's/^(- openLink: [^\n]+\n)/$1- runFlow:\n    when:\n      visible: "Otwórz"\n    commands:\n      - tapOn: "Otwórz"\n- runFlow:\n    when:\n      visible: "Open"\n    commands:\n      - tapOn: "Open"\n/gm' "${flow_file}"
-  fi
 done < <(find "${FLOW_WORKDIR}" -type f -name '*.yaml' -print0)
 
 FLOW_SUMMARY_NAMES=()

@@ -10,9 +10,10 @@ import { MealThumbnail } from "@/feature/Meals/components/MealThumbnail";
 type Props = {
   meals: Meal[];
   onOpenMeal?: (meal: Meal) => void;
+  onViewHistory?: () => void;
 };
 
-export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
+export const TodaysMealsList = ({ meals, onOpenMeal, onViewHistory }: Props) => {
   const theme = useTheme();
   const { t, i18n } = useTranslation(["home", "common"]);
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -23,7 +24,26 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
 
   return (
     <View style={styles.container} testID="home-today-meals-list">
-      <Text style={styles.sectionTitle}>{t("home:todaysMeals")}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.sectionTitle}>{t("home:todaysMeals")}</Text>
+        {onViewHistory ? (
+          <Pressable
+            testID="home-view-history-button"
+            onPress={onViewHistory}
+            accessibilityRole="button"
+            accessibilityLabel={t("home:viewHistory")}
+            style={({ pressed }) => [
+              styles.historyButton,
+              pressed ? styles.historyButtonPressed : null,
+            ]}
+          >
+            <AppIcon name="history" size={16} color={theme.primary} />
+            <Text numberOfLines={1} style={styles.historyButtonText}>
+              {t("home:viewHistoryShort")}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       {meals.map((meal, index) => {
         const ingredientTotals =
           Array.isArray(meal.ingredients) && meal.ingredients.length
@@ -147,11 +167,42 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.sm,
       ...theme.depth.floating,
     },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+    },
     sectionTitle: {
       color: theme.text,
       fontSize: theme.typography.size.bodyL,
       lineHeight: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.semiBold,
+      flexShrink: 1,
+    },
+    historyButton: {
+      minHeight: 40,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.xs,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      maxWidth: 136,
+    },
+    historyButtonPressed: {
+      opacity: 0.78,
+    },
+    historyButtonText: {
+      color: theme.primary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.medium,
+      flexShrink: 1,
     },
     row: {
       flexDirection: "row",

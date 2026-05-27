@@ -229,15 +229,28 @@ jest.mock("../components/MacroTargetsRow", () => ({
 jest.mock("../components/TodaysMealsList", () => ({
   TodaysMealsList: ({
     meals,
+    onViewHistory,
   }: {
     meals: Array<{ name?: string | null; syncState?: string }>;
+    onViewHistory?: () => void;
   }) =>
     mockReact.createElement(
-      mockText,
+      mockView,
       null,
-      `meals:${meals.length}:${meals
-        .map((meal) => `${meal.name ?? ""}/${meal.syncState ?? ""}`)
-        .join("|")}`,
+      mockReact.createElement(
+        mockText,
+        null,
+        `meals:${meals.length}:${meals
+          .map((meal) => `${meal.name ?? ""}/${meal.syncState ?? ""}`)
+          .join("|")}`,
+      ),
+      onViewHistory
+        ? mockReact.createElement(
+            mockPressable,
+            { testID: "home-view-history-button", onPress: onViewHistory },
+            mockReact.createElement(mockText, null, "mock-view-history"),
+          )
+        : null,
     ),
 }));
 
@@ -484,7 +497,7 @@ describe("HomeScreen", () => {
     });
 
     const navigation = createNavigation();
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <HomeScreen navigation={navigation as never} />,
     );
 
@@ -492,6 +505,9 @@ describe("HomeScreen", () => {
     expect(getByText("hero-progress:0.25")).toBeTruthy();
     expect(getByText("macro-targets:125/65/225;consumed:25/15/45")).toBeTruthy();
     expect(getByText(/^meals:1:/)).toBeTruthy();
+
+    fireEvent.press(getByTestId("home-view-history-button"));
+    expect(navigation.navigate).toHaveBeenCalledWith("HistoryList");
   });
 
   it("shows pending, failed and conflict meals from the canonical day state in list and progress", () => {

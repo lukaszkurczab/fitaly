@@ -30,6 +30,7 @@ const buildMeal = (overrides: Partial<Meal> = {}): Meal => ({
 describe("TodaysMealsList", () => {
   it("renders meals, computes kcal and handles row presses", () => {
     const onOpenMeal = jest.fn<(meal: Meal) => void>();
+    const onViewHistory = jest.fn();
     const mealWithIngredients = buildMeal({
       mealId: "m1",
       name: "Chicken",
@@ -49,9 +50,11 @@ describe("TodaysMealsList", () => {
       <TodaysMealsList
         meals={[mealWithIngredients, mealWithTotals]}
         onOpenMeal={onOpenMeal}
+        onViewHistory={onViewHistory}
       />,
     );
 
+    expect(screen.getByText("translated:home:viewHistoryShort")).toBeTruthy();
     expect(screen.getByText("Chicken")).toBeTruthy();
     expect(screen.getByText(/150 kcal/)).toBeTruthy();
     expect(screen.getByText("A, B")).toBeTruthy();
@@ -60,6 +63,9 @@ describe("TodaysMealsList", () => {
 
     fireEvent.press(screen.getByText("Chicken"));
     expect(onOpenMeal).toHaveBeenCalledWith(mealWithIngredients);
+
+    fireEvent.press(screen.getByTestId("home-view-history-button"));
+    expect(onViewHistory).toHaveBeenCalledTimes(1);
   });
 
   it("uses translated fallback meal name", () => {

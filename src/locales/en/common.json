@@ -81,6 +81,7 @@
     "savedMealDeleteQueued": "No internet. Deletion saved locally."
   },
   "close": "Close",
+  "dismiss": "Dismiss",
   "delete": "Delete",
   "duplicate": "Duplicate",
   "discard": "Discard",

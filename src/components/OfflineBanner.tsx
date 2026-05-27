@@ -180,8 +180,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingRight: 10,
     },
     bannerCompact: {
-      minHeight: 54,
-      paddingVertical: 8,
+      minHeight: 46,
+      paddingVertical: 6,
       paddingHorizontal: 10,
       margin: 8,
     },

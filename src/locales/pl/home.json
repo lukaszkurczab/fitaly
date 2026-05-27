@@ -17,6 +17,7 @@
   "mealCount_other": "{{count}} posiłki",
   "methodSelector": "Metoda: {{method}}",
   "viewHistory": "Zobacz pełną historię",
+  "viewHistoryShort": "Historia",
   "hero": {
     "greeting": {
       "morning": "Dzień dobry, {{name}}",

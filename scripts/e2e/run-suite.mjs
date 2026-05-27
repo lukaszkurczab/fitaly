@@ -69,25 +69,20 @@ const artifactDir = path.resolve(
 const reportsDir = path.join(artifactDir, "reports");
 const logsDir = path.join(artifactDir, "logs");
 const screenshotsDir = path.join(artifactDir, "screenshots");
-const defaultTestOutputDir = suiteName === "visual-audit" ? artifactDir : screenshotsDir;
+const testOutputDir = process.env.E2E_TEST_OUTPUT_DIR || screenshotsDir;
 
 mkdirSync(reportsDir, { recursive: true });
 mkdirSync(logsDir, { recursive: true });
-if (suiteName === "visual-audit" || process.env.E2E_TEST_OUTPUT_DIR) {
-  mkdirSync(process.env.E2E_TEST_OUTPUT_DIR || defaultTestOutputDir, { recursive: true });
-}
+mkdirSync(testOutputDir, { recursive: true });
 
 const env = {
   ...process.env,
   E2E_RESULTS_DIR: process.env.E2E_RESULTS_DIR || reportsDir,
   E2E_RESULTS_PATH: process.env.E2E_RESULTS_PATH || path.join(reportsDir, "results.xml"),
   E2E_DEBUG_OUTPUT_DIR: process.env.E2E_DEBUG_OUTPUT_DIR || logsDir,
+  E2E_TEST_OUTPUT_DIR: testOutputDir,
   E2E_SUITE_NAME: process.env.E2E_SUITE_NAME || suiteName,
 };
-
-if (suiteName === "visual-audit" || process.env.E2E_TEST_OUTPUT_DIR) {
-  env.E2E_TEST_OUTPUT_DIR = process.env.E2E_TEST_OUTPUT_DIR || defaultTestOutputDir;
-}
 
 if (flags.has("--continue-on-failure")) {
   env.E2E_CONTINUE_ON_FAILURE = "1";
@@ -96,9 +91,7 @@ if (flags.has("--continue-on-failure")) {
 console.log(`[e2e:suite] Running "${suiteName}" (${flows.length} flow(s))`);
 console.log(`[e2e:suite] Reports: ${path.relative(rootDir, env.E2E_RESULTS_DIR)}`);
 console.log(`[e2e:suite] Logs: ${path.relative(rootDir, env.E2E_DEBUG_OUTPUT_DIR)}`);
-if (env.E2E_TEST_OUTPUT_DIR) {
-  console.log(`[e2e:suite] Screenshots: ${path.relative(rootDir, env.E2E_TEST_OUTPUT_DIR)}`);
-}
+console.log(`[e2e:suite] Screenshots: ${path.relative(rootDir, env.E2E_TEST_OUTPUT_DIR)}`);
 
 const child = spawn("bash", ["scripts/run-e2e-local.sh", ...flows], {
   cwd: rootDir,

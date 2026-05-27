@@ -251,6 +251,7 @@ export default function HomeScreen({ navigation }: Props) {
           <TodaysMealsList
             meals={dayMeals}
             onOpenMeal={openMealDetails}
+            onViewHistory={() => navigation.navigate("HistoryList")}
           />
         ) : null}
 
@@ -269,17 +270,19 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ) : null}
 
-        <Pressable
-          testID="home-view-history-button"
-          onPress={() => navigation.navigate("HistoryList")}
-          accessibilityRole="button"
-          accessibilityLabel={t("home:viewHistory")}
-          style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
-        >
-          <Text style={styles.historyLinkText}>
-            {t("home:viewHistory")} →
-          </Text>
-        </Pressable>
+        {mealCount === 0 ? (
+          <Pressable
+            testID="home-view-history-button"
+            onPress={() => navigation.navigate("HistoryList")}
+            accessibilityRole="button"
+            accessibilityLabel={t("home:viewHistory")}
+            style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
+          >
+            <Text style={styles.historyLinkText}>
+              {t("home:viewHistory")} →
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <Modal
@@ -321,6 +324,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       justifyContent: "center",
       minHeight: 58,
+      marginBottom: theme.spacing.nav + theme.spacing.md,
       borderRadius: theme.rounded.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,

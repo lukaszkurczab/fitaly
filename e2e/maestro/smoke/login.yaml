@@ -14,14 +14,9 @@ env:
       - waitForAnimationToEnd
 - runFlow:
     when:
-      visible: "Nie teraz"
+      visible: "Nie teraz|Not [Nn]ow"
     commands:
-      - tapOn: "Nie teraz"
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
 - runFlow:
@@ -47,14 +42,9 @@ env:
     id: login-submit-button
 - runFlow:
     when:
-      visible: "Nie teraz"
+      visible: "Nie teraz|Not [Nn]ow"
     commands:
-      - tapOn: "Nie teraz"
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - extendedWaitUntil:
     visible:
       id: tab-home

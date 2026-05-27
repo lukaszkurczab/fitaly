@@ -8,14 +8,9 @@ env:
 - openLink: __E2E_EXPO_URL__
 - runFlow:
     when:
-      visible: "Nie teraz"
+      visible: "Nie teraz|Not [Nn]ow"
     commands:
-      - tapOn: "Nie teraz"
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1
@@ -105,14 +100,9 @@ env:
 - openLink: __E2E_EXPO_URL__
 - runFlow:
     when:
-      visible: "Nie teraz"
+      visible: "Nie teraz|Not [Nn]ow"
     commands:
-      - tapOn: "Nie teraz"
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
 - extendedWaitUntil:

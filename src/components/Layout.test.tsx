@@ -143,6 +143,43 @@ describe("Layout", () => {
     expect(getByText("screen-content")).toBeTruthy();
   });
 
+  it("anchors the floating offline banner below the top safe area", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+    mockInsets.top = 44;
+    const { UNSAFE_getAllByType } = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const offlineWrap = UNSAFE_getAllByType(View).find((node) => {
+      const flattened = StyleSheet.flatten(node.props.style);
+      return flattened?.position === "absolute" && flattened?.zIndex === 20;
+    });
+
+    expect(offlineWrap).toBeTruthy();
+    expect(StyleSheet.flatten(offlineWrap?.props.style).top).toBe(48);
+  });
+
+  it("uses the same floating offline anchor when no tab bar is shown", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+
+    const { UNSAFE_getAllByType, queryByText } = renderWithTheme(
+      <Layout showNavigation={false} showOfflineBanner>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const offlineWrap = UNSAFE_getAllByType(View).find((node) => {
+      const flattened = StyleSheet.flatten(node.props.style);
+      return flattened?.position === "absolute" && flattened?.zIndex === 20;
+    });
+
+    expect(queryByText("bottom-tab-bar")).toBeNull();
+    expect(offlineWrap).toBeTruthy();
+    expect(StyleSheet.flatten(offlineWrap?.props.style).top).toBe(48);
+  });
+
   it("registers keyboard listeners matching the current platform", () => {
     mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
     const removeShow = jest.fn();
