@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@/theme/useTheme";
 import type { MacroTargets } from "@/utils/calculateMacroTargets";
 import type { Nutrients } from "@/types/meal";
@@ -65,9 +66,28 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
   if (!hasAnyTarget) {
     return null;
   }
+  const cardAccentColors: [string, string, string] = theme.isDark
+    ? [
+        "rgba(255, 253, 248, 0.025)",
+        "rgba(111, 138, 105, 0.04)",
+        "rgba(199, 126, 97, 0.008)",
+      ]
+    : [
+        "rgba(255, 253, 248, 0.38)",
+        "rgba(111, 138, 105, 0.016)",
+        "rgba(199, 126, 97, 0.008)",
+      ];
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={cardAccentColors}
+        locations={[0, 0.7, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardWash}
+      />
       <View style={styles.header}>
         <Text style={styles.title}>{t("home:todaysMacros")}</Text>
       </View>
@@ -120,17 +140,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.cardPaddingLarge,
       paddingVertical: theme.spacing.md,
       gap: theme.spacing.md,
+      overflow: "hidden",
+      position: "relative",
       shadowColor: theme.shadow,
       shadowOpacity: theme.isDark ? 0.18 : 0.06,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: theme.isDark ? 3 : 2,
     },
+    cardWash: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 0,
+    },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: theme.spacing.md,
+      zIndex: 1,
     },
     title: {
       color: theme.text,
@@ -142,6 +169,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     itemsRow: {
       flexDirection: "row",
       gap: theme.spacing.md,
+      zIndex: 1,
     },
     item: {
       flex: 1,

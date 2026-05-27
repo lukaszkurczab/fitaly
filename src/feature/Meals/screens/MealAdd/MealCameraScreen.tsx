@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   View,
@@ -6,7 +6,10 @@ import {
   Pressable,
   Text,
   Linking,
-  PanResponder,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  type GestureResponderEvent,
 } from "react-native";
 import { CameraView } from "expo-camera";
 import * as Device from "expo-device";
@@ -32,9 +35,36 @@ import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppIcon from "@/components/AppIcon";
+import { useAuthContext } from "@/context/AuthContext";
+import { setPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
+
+const CAMERA_MODE_TRANSITION: Parameters<
+  typeof LayoutAnimation.configureNext
+>[0] = {
+  duration: 260,
+  create: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+  update: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+  },
+  delete: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+};
+
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+function configureCameraModeTransition() {
+  LayoutAnimation.configureNext(CAMERA_MODE_TRANSITION);
+}
 
 export default function MealCameraScreen({
   navigation,
@@ -44,6 +74,7 @@ export default function MealCameraScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const { uid } = useAuthContext();
   const { t: tCommon } = useTranslation("common");
   const { t: tMeals } = useTranslation("meals");
   const { t: tChat } = useTranslation("chat");
@@ -51,6 +82,11 @@ export default function MealCameraScreen({
   const fullscreenControlColor = "#FFFDF8";
   const [isCameraFullscreen, setIsCameraFullscreen] =
     useState(fullscreenPreferred);
+  const isCameraFullscreenRef = useRef(fullscreenPreferred);
+  const sheetGestureStartRef = useRef<{ x: number; y: number } | null>(null);
+  const fullscreenGestureStartRef = useRef<{ x: number; y: number } | null>(
+    null,
+  );
   const canStepBack = flow.canGoBack();
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
@@ -101,6 +137,25 @@ export default function MealCameraScreen({
     });
   };
 
+  const setCameraFullscreenMode = useCallback((nextFullscreen: boolean) => {
+    if (isCameraFullscreenRef.current !== nextFullscreen) {
+      configureCameraModeTransition();
+      isCameraFullscreenRef.current = nextFullscreen;
+    }
+
+    setIsCameraFullscreen(nextFullscreen);
+  }, []);
+
+  const handleEnterFullscreenCamera = useCallback(() => {
+    setCameraFullscreenMode(true);
+    void setPhotoFullscreenPreference(uid, true);
+  }, [setCameraFullscreenMode, uid]);
+
+  const handleExitFullscreenCamera = useCallback(() => {
+    setCameraFullscreenMode(false);
+    void setPhotoFullscreenPreference(uid, false);
+  }, [setCameraFullscreenMode, uid]);
+
   const photoCost = credits?.costs.photo ?? 5;
   const rawBadgeLabel = tChat(
     photoCost === 1 ? "credits.costSingle" : "credits.costMultiple",
@@ -134,25 +189,62 @@ export default function MealCameraScreen({
   const isLowCredits = !skipDetection && cameraCreditsState === "low";
   const canUseFullscreenCamera = !showNoCreditsState;
   const showFullscreenCamera = isCameraFullscreen && canUseFullscreenCamera;
+  const fullscreenBottomInset = Math.max(
+    insets.bottom + theme.spacing.lg,
+    theme.spacing.xl,
+  );
+  const fullscreenTopButtonInset = Math.max(
+    insets.top + theme.spacing.xs,
+    theme.spacing.lg,
+  );
 
   useEffect(() => {
-    setIsCameraFullscreen(fullscreenPreferred);
-  }, [fullscreenPreferred]);
+    setCameraFullscreenMode(fullscreenPreferred);
+  }, [fullscreenPreferred, setCameraFullscreenMode]);
 
-  const sheetPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          canUseFullscreenCamera &&
-          gesture.dy > 10 &&
-          Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
-        onPanResponderRelease: (_event, gesture) => {
-          if (canUseFullscreenCamera && gesture.dy > 44) {
-            setIsCameraFullscreen(true);
-          }
-        },
-      }),
-    [canUseFullscreenCamera],
+  const handleSheetTouchStart = useCallback((event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    sheetGestureStartRef.current = { x: pageX, y: pageY };
+  }, []);
+
+  const handleSheetTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const start = sheetGestureStartRef.current;
+      sheetGestureStartRef.current = null;
+      if (!canUseFullscreenCamera || !start) return;
+
+      const { pageX, pageY } = event.nativeEvent;
+      const dx = pageX - start.x;
+      const dy = pageY - start.y;
+      if (dy > 44 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        handleEnterFullscreenCamera();
+      }
+    },
+    [canUseFullscreenCamera, handleEnterFullscreenCamera],
+  );
+
+  const handleFullscreenTouchStart = useCallback(
+    (event: GestureResponderEvent) => {
+      const { pageX, pageY } = event.nativeEvent;
+      fullscreenGestureStartRef.current = { x: pageX, y: pageY };
+    },
+    [],
+  );
+
+  const handleFullscreenTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const start = fullscreenGestureStartRef.current;
+      fullscreenGestureStartRef.current = null;
+      if (!showFullscreenCamera || !start) return;
+
+      const { pageX, pageY } = event.nativeEvent;
+      const dx = pageX - start.x;
+      const dy = pageY - start.y;
+      if (dy < -44 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        handleExitFullscreenCamera();
+      }
+    },
+    [handleExitFullscreenCamera, showFullscreenCamera],
   );
 
   const title = showNoCreditsState
@@ -246,8 +338,9 @@ export default function MealCameraScreen({
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View style={styles.fill} testID="add-meal-photo-screen">
         <MealAddPhotoScaffold
-          topInset={previewTopInset}
+          topInset={showFullscreenCamera ? 0 : previewTopInset}
           previewFillsAvailable={showFullscreenCamera}
+          previewFullBleed={showFullscreenCamera}
           preview={
             e2ePhotoSimulation ? (
               <Image
@@ -267,59 +360,46 @@ export default function MealCameraScreen({
           }
           previewOverlay={
             showFullscreenCamera ? (
-              <View style={styles.fullCameraOverlay} pointerEvents="box-none">
+              <View
+                testID="add-meal-photo-fullscreen-overlay"
+                style={[
+                  styles.fullCameraOverlay,
+                  { paddingBottom: fullscreenBottomInset },
+                ]}
+                onTouchStart={handleFullscreenTouchStart}
+                onTouchEnd={handleFullscreenTouchEnd}
+              >
                 <View style={styles.fullCameraControls} pointerEvents="box-none">
-                  <View style={styles.fullCameraActionRow}>
+                  {!skipDetection ? (
                     <Pressable
-                      testID="add-meal-photo-show-controls-button"
+                      testID="add-meal-photo-fullscreen-change-method-button"
                       accessibilityRole="button"
-                      accessibilityLabel={tMeals("camera_show_controls", {
-                        defaultValue: "Show photo options",
+                      accessibilityLabel={tMeals("change_method", {
+                        defaultValue: "Change add method",
                       })}
-                      onPress={() => setIsCameraFullscreen(false)}
+                      onPress={handleChangeMethod}
                       style={({ pressed }) => [
-                        styles.fullCameraSecondaryButton,
+                        styles.fullCameraMethodButton,
                         pressed ? styles.pressed : null,
                       ]}
                     >
                       <AppIcon
-                        name="more"
+                        name="menu"
                         size={17}
                         color={fullscreenControlColor}
                       />
-                      <Text style={styles.fullCameraSecondaryLabel}>
-                        {tMeals("camera_show_controls", {
-                          defaultValue: "Show options",
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.82}
+                        style={styles.fullCameraSecondaryLabel}
+                      >
+                        {tMeals("camera_change_method_short", {
+                          defaultValue: "Change method",
                         })}
                       </Text>
                     </Pressable>
-
-                    {!skipDetection ? (
-                      <Pressable
-                        testID="add-meal-photo-fullscreen-change-method-button"
-                        accessibilityRole="button"
-                        accessibilityLabel={tMeals("change_method", {
-                          defaultValue: "Change add method",
-                        })}
-                        onPress={handleChangeMethod}
-                        style={({ pressed }) => [
-                          styles.fullCameraSecondaryButton,
-                          pressed ? styles.pressed : null,
-                        ]}
-                      >
-                        <AppIcon
-                          name="edit"
-                          size={16}
-                          color={fullscreenControlColor}
-                        />
-                        <Text style={styles.fullCameraSecondaryLabel}>
-                          {tMeals("change_method", {
-                            defaultValue: "Change method",
-                          })}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
+                  ) : null}
 
                   {!showNoCreditsState ? (
                     <Pressable
@@ -354,7 +434,15 @@ export default function MealCameraScreen({
               accessibilityLabel={tCommon(canStepBack ? "back" : "close", {
                 defaultValue: canStepBack ? "Back" : "Close",
               })}
-              containerStyle={styles.screenCornerNavStyle}
+              containerStyle={[
+                styles.screenCornerNavStyle,
+                showFullscreenCamera
+                  ? {
+                      top: fullscreenTopButtonInset,
+                      left: theme.spacing.lg,
+                    }
+                  : null,
+              ]}
             />
           }
           eyebrow={tMeals("camera_default_label", {
@@ -369,8 +457,14 @@ export default function MealCameraScreen({
           }
           sheetVisible={!showFullscreenCamera}
           showSheetHandle={canUseFullscreenCamera}
-          sheetPanHandlers={
-            canUseFullscreenCamera ? sheetPanResponder.panHandlers : undefined
+          sheetTestID="add-meal-photo-entry-sheet"
+          sheetTouchHandlers={
+            canUseFullscreenCamera
+              ? {
+                  onTouchStart: handleSheetTouchStart,
+                  onTouchEnd: handleSheetTouchEnd,
+                }
+              : undefined
           }
           content={
             <>
@@ -459,19 +553,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
         : "rgba(18, 21, 18, 0.04)",
     },
     fullCameraControls: {
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    fullCameraActionRow: {
       width: "100%",
-      flexDirection: "row",
+      minHeight: 86,
       alignItems: "center",
       justifyContent: "center",
-      flexWrap: "wrap",
-      gap: theme.spacing.xs,
     },
-    fullCameraSecondaryButton: {
+    fullCameraMethodButton: {
+      position: "absolute",
+      left: 0,
+      top: 24,
       minHeight: 38,
+      maxWidth: 126,
       paddingHorizontal: theme.spacing.sm + theme.spacing.xs,
       borderRadius: theme.rounded.full,
       flexDirection: "row",

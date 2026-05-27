@@ -13,6 +13,7 @@ import { emit, on } from "@/services/core/events";
 import {
   isE2EModeEnabled,
 } from "@/services/e2e/config";
+import { getPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
 
 type MealAddMethodNavigationProp = {
   navigate: Pick<
@@ -63,7 +64,6 @@ export const mealAddMethodOptions: readonly MethodOption[] = [
     params: {
       start: "CameraDefault",
       attempt: 1,
-      fullscreenPreferred: true,
     },
   },
   {
@@ -345,13 +345,19 @@ export function useMealAddMethodState(params: {
           start ?? "CameraDefault",
           getInputMethodForOption(option),
         );
-        openAddMeal(option.params);
+        const photoFullscreenPreferred =
+          option.key === "photo" ? await getPhotoFullscreenPreference(uid) : false;
+        openAddMeal(
+          photoFullscreenPreferred
+            ? { ...option.params, fullscreenPreferred: true }
+            : option.params,
+        );
         return;
       }
 
       openSimpleScreen(option.screen);
     },
-    [openAddMeal, openSimpleScreen, primeEmptyMeal],
+    [openAddMeal, openSimpleScreen, primeEmptyMeal, uid],
   );
 
   const checkDraftBeforeLaunch = useCallback(

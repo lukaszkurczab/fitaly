@@ -161,7 +161,38 @@ describe("useMealAddMethodState", () => {
     expect(result.current.resumeDraftMeal).toBeNull();
   });
 
-  it("starts the preferred photo method in fullscreen camera mode", async () => {
+  it("starts the preferred photo method at the instructional entry by default", async () => {
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+    });
+  });
+
+  it("starts the preferred photo method in fullscreen camera mode when stored", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") return "true";
+      return null;
+    });
+
     const navigation = {
       navigate: mockNavigate,
       replace: mockReplace,
@@ -183,6 +214,70 @@ describe("useMealAddMethodState", () => {
       start: "CameraDefault",
       attempt: 1,
       fullscreenPreferred: true,
+    });
+  });
+
+  it("falls back to the instructional photo entry for invalid fullscreen preference values", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") return "fullscreen";
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+    });
+  });
+
+  it("falls back to the instructional photo entry when fullscreen preference storage fails", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") {
+        throw new Error("storage unavailable");
+      }
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
     });
   });
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Linking } from "react-native";
+import { LayoutAnimation, Linking } from "react-native";
 import { fireEvent } from "@testing-library/react-native";
 import {
   afterEach,
@@ -55,9 +55,32 @@ type ButtonProps = {
 
 const mockUseMealCameraState = jest.fn();
 const mockDevice = { isDevice: true };
+const mockSetPhotoFullscreenPreference = jest.fn<
+  (uid: string | null | undefined, enabled: boolean) => Promise<void>
+>();
+
+const buildTouchEvent = (pageY: number) => ({
+  nativeEvent: {
+    pageX: 0,
+    pageY,
+    changedTouches: [{ identifier: 1, pageX: 0, pageY, timestamp: Date.now() }],
+    touches: [{ identifier: 1, pageX: 0, pageY, timestamp: Date.now() }],
+  },
+});
 
 jest.mock("@/feature/Meals/hooks/useMealCameraState", () => ({
   useMealCameraState: (params: unknown) => mockUseMealCameraState(params),
+}));
+
+jest.mock("@/context/AuthContext", () => ({
+  useAuthContext: () => ({ uid: "user-1" }),
+}));
+
+jest.mock("@/feature/Meals/services/photoFullscreenPreference", () => ({
+  setPhotoFullscreenPreference: (
+    uid: string | null | undefined,
+    enabled: boolean,
+  ) => mockSetPhotoFullscreenPreference(uid, enabled),
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -265,8 +288,13 @@ describe("MealCameraScreen", () => {
 
   beforeEach(() => {
     mockUseMealCameraState.mockReset();
+    mockSetPhotoFullscreenPreference.mockReset();
+    mockSetPhotoFullscreenPreference.mockResolvedValue(undefined);
     (globalThis as { __DEV__?: boolean }).__DEV__ = true;
     mockDevice.isDevice = true;
+    jest
+      .spyOn(LayoutAnimation, "configureNext")
+      .mockImplementation(() => undefined);
     jest
       .spyOn(Linking, "openSettings")
       .mockImplementation(async () => Promise.resolve());
@@ -274,6 +302,7 @@ describe("MealCameraScreen", () => {
 
   afterEach(() => {
     (globalThis as { __DEV__?: boolean }).__DEV__ = originalDev;
+    jest.restoreAllMocks();
   });
 
   it("renders an empty layout while camera permission is loading", () => {
@@ -345,6 +374,7 @@ describe("MealCameraScreen", () => {
 
     expect(getByText("✦ chat:credits.costMultiple")).toBeTruthy();
     expect(getByText("Photo")).toBeTruthy();
+    expect(getByText("camera-view")).toBeTruthy();
     expect(getByText("Take a clear photo")).toBeTruthy();
     expect(
       getByText("Center the full meal in the frame. One photo is enough to start."),
@@ -366,11 +396,12 @@ describe("MealCameraScreen", () => {
     const hookState = buildHookState();
     mockUseMealCameraState.mockReturnValue(hookState);
 
-    const { getByTestId, getByText, queryByText } = renderWithTheme(
+    const { getByTestId, queryByTestId, queryByText } = renderWithTheme(
       <MealCameraScreen {...props} />,
     );
 
     expect(queryByText("Take a clear photo")).toBeNull();
+    expect(queryByTestId("add-meal-photo-show-controls-button")).toBeNull();
 
     fireEvent.press(getByTestId("add-meal-photo-fullscreen-capture-button"));
     expect(hookState.handleTakePicture).toHaveBeenCalledTimes(1);
@@ -380,8 +411,54 @@ describe("MealCameraScreen", () => {
       selectionMode: "temporary",
       origin: "mealAddFlow",
     });
+    expect(mockSetPhotoFullscreenPreference).not.toHaveBeenCalled();
+  });
 
-    fireEvent.press(getByTestId("add-meal-photo-show-controls-button"));
+  it("persists the photo fullscreen preference when swiping down into fullscreen", () => {
+    mockDevice.isDevice = true;
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    const hookState = buildHookState();
+    mockUseMealCameraState.mockReturnValue(hookState);
+
+    const { getByTestId, queryByText } = renderWithTheme(
+      <MealCameraScreen {...buildProps()} />,
+    );
+
+    expect(queryByText("Take a clear photo")).toBeTruthy();
+
+    const sheet = getByTestId("add-meal-photo-entry-sheet");
+    fireEvent(sheet, "touchStart", buildTouchEvent(0));
+    fireEvent(sheet, "touchEnd", buildTouchEvent(60));
+
+    expect(LayoutAnimation.configureNext).toHaveBeenCalledTimes(1);
+    expect(mockSetPhotoFullscreenPreference).toHaveBeenCalledWith("user-1", true);
+    expect(queryByText("Take a clear photo")).toBeNull();
+    expect(getByTestId("add-meal-photo-fullscreen-capture-button")).toBeTruthy();
+  });
+
+  it("persists the photo fullscreen preference off when swiping up out of fullscreen", () => {
+    mockDevice.isDevice = true;
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    const hookState = buildHookState();
+    mockUseMealCameraState.mockReturnValue(hookState);
+
+    const { getByTestId, getByText, queryByTestId, queryByText } =
+      renderWithTheme(
+        <MealCameraScreen {...buildProps({ fullscreenPreferred: true })} />,
+      );
+
+    expect(queryByText("Take a clear photo")).toBeNull();
+
+    const overlay = getByTestId("add-meal-photo-fullscreen-overlay");
+    fireEvent(overlay, "touchStart", buildTouchEvent(0));
+    fireEvent(overlay, "touchEnd", buildTouchEvent(-60));
+
+    expect(LayoutAnimation.configureNext).toHaveBeenCalledTimes(1);
+    expect(mockSetPhotoFullscreenPreference).toHaveBeenCalledWith(
+      "user-1",
+      false,
+    );
+    expect(queryByTestId("add-meal-photo-fullscreen-capture-button")).toBeNull();
     expect(getByText("Take a clear photo")).toBeTruthy();
   });
 

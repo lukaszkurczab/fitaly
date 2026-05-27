@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { Button } from "@/components/Button";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -32,12 +33,31 @@ export function HomeHeroCard({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const isSuccess = tone === "success";
+  const cardAccentColors: [string, string, string] = theme.isDark
+    ? [
+        "rgba(255, 253, 248, 0.03)",
+        isSuccess ? "rgba(127, 160, 122, 0.07)" : "rgba(111, 138, 105, 0.05)",
+        "rgba(199, 126, 97, 0.02)",
+      ]
+    : [
+        "rgba(255, 253, 248, 0.56)",
+        isSuccess ? "rgba(111, 138, 105, 0.05)" : "rgba(111, 138, 105, 0.025)",
+        "rgba(199, 126, 97, 0.016)",
+      ];
 
   return (
     <View
       testID="home-hero-card"
       style={[styles.card, isSuccess ? styles.cardSuccess : styles.cardDefault]}
     >
+      <LinearGradient
+        pointerEvents="none"
+        colors={cardAccentColors}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardWash}
+      />
       <View
         pointerEvents="none"
         style={styles.assetSlot}
@@ -173,6 +193,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.success.surface,
       borderColor: theme.success.main,
     },
+    cardWash: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 0,
+    },
     assetSlot: {
       position: "absolute",
       top: theme.spacing.md,
@@ -182,7 +206,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       justifyContent: "center",
       opacity: theme.isDark ? 0.78 : 0.96,
-      zIndex: 0,
+      zIndex: 1,
       transform: [{ translateY: -8 }, { scaleX: -1 }],
     },
     assetImage: {
@@ -193,7 +217,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       width: "67%",
       minHeight: 64,
       gap: theme.spacing.xs,
-      zIndex: 1,
+      zIndex: 2,
     },
     metaBlock: {
       gap: theme.spacing.sm,
@@ -228,7 +252,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     actions: {
       gap: theme.spacing.sm,
-      zIndex: 1,
+      zIndex: 2,
     },
     cta: {
       alignSelf: "flex-start",
@@ -303,7 +327,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
-      zIndex: 1,
+      zIndex: 2,
     },
   });
 

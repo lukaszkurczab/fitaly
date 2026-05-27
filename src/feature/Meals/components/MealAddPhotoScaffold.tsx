@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import type { GestureResponderHandlers, PressableProps } from "react-native";
+import type { PressableProps, ViewProps } from "react-native";
 import { TextButton } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 
@@ -10,6 +10,7 @@ type MealAddPhotoScaffoldProps = {
   preview: ReactNode;
   previewOverlay?: ReactNode;
   previewFillsAvailable?: boolean;
+  previewFullBleed?: boolean;
   topAction?: ReactNode;
   eyebrow: string;
   title: string;
@@ -21,7 +22,8 @@ type MealAddPhotoScaffoldProps = {
   sheetFitContent?: boolean;
   contentPlacement?: "start" | "end";
   showSheetHandle?: boolean;
-  sheetPanHandlers?: GestureResponderHandlers;
+  sheetTestID?: string;
+  sheetTouchHandlers?: Pick<ViewProps, "onTouchEnd" | "onTouchStart">;
   footerNote?: string;
   footerTone?: "default" | "warning";
 };
@@ -40,12 +42,15 @@ type MealAddStatusBannerProps = {
   loading?: boolean;
 };
 
+const DEFAULT_PREVIEW_HEIGHT = 428;
+
 export function MealAddPhotoScaffold({
   topInset,
   previewHeight,
   preview,
   previewOverlay,
   previewFillsAvailable = false,
+  previewFullBleed = false,
   topAction,
   eyebrow,
   title,
@@ -57,7 +62,8 @@ export function MealAddPhotoScaffold({
   sheetFitContent = false,
   contentPlacement = "end",
   showSheetHandle = false,
-  sheetPanHandlers,
+  sheetTestID,
+  sheetTouchHandlers,
   footerNote,
   footerTone = "default",
 }: MealAddPhotoScaffoldProps) {
@@ -69,13 +75,19 @@ export function MealAddPhotoScaffold({
       style={[
         styles.screen,
         topInset !== undefined ? { paddingTop: topInset } : null,
+        previewFullBleed ? styles.screenFullBleed : null,
       ]}
     >
       <View
         style={[
           styles.previewWrap,
           previewFillsAvailable ? styles.previewWrapFill : null,
-          previewHeight ? { height: previewHeight } : null,
+          previewFullBleed
+            ? styles.previewWrapFullBleed
+            : {
+                flex: 0,
+                height: previewHeight ?? DEFAULT_PREVIEW_HEIGHT,
+              },
         ]}
       >
         {preview}
@@ -85,8 +97,9 @@ export function MealAddPhotoScaffold({
 
       {sheetVisible ? (
         <View
+          testID={sheetTestID}
           style={[styles.sheet, sheetFitContent ? styles.sheetFitContent : null]}
-          {...sheetPanHandlers}
+          {...sheetTouchHandlers}
         >
           {showSheetHandle ? <View style={styles.sheetHandle} /> : null}
 
@@ -237,8 +250,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.md,
       backgroundColor: theme.background,
     },
+    screenFullBleed: {
+      paddingTop: 0,
+      paddingHorizontal: 0,
+      gap: 0,
+      backgroundColor: "#121512",
+    },
     previewWrap: {
-      height: 428,
       borderRadius: theme.rounded.xxl,
       overflow: "hidden",
       backgroundColor: "#121512",
@@ -250,6 +268,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       height: undefined,
       minHeight: 300,
+    },
+    previewWrapFullBleed: {
+      flex: 1,
+      height: undefined,
+      minHeight: 0,
+      borderRadius: 0,
+      borderWidth: 0,
+      borderColor: "transparent",
     },
     sheet: {
       flex: 1,

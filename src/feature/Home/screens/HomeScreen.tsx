@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Layout, Modal } from "@/components";
+import { Layout, Modal, type BackgroundGradientLayer } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import { useUserProfileContext } from "@/context/UserProfileContext";
@@ -56,7 +56,9 @@ type HomeAddMethodPresentation = {
   ctaKey: string;
 };
 
-function getHomeAddMethodPresentation(key: string | undefined): HomeAddMethodPresentation {
+function getHomeAddMethodPresentation(
+  key: string | undefined,
+): HomeAddMethodPresentation {
   switch (key) {
     case "photo":
       return { icon: "camera", ctaKey: "home:hero.methodCta.photo" };
@@ -76,23 +78,64 @@ function getHomeAddMethodPresentation(key: string | undefined): HomeAddMethodPre
 export default function HomeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const backgroundGradient = useMemo(
-    () => ({
-      colors: theme.isDark
-        ? ([theme.background, theme.backgroundSecondary, theme.background] as [
-            string,
-            string,
-            string,
-          ])
-        : ([theme.background, theme.backgroundSecondary, theme.background] as [
-            string,
-            string,
-            string,
-          ]),
-      locations: [0, 0.48, 1],
-      start: { x: 0, y: 0 },
-      end: { x: 1, y: 1 },
-    }),
+  const backgroundGradient = useMemo<BackgroundGradientLayer[]>(
+    () =>
+      theme.isDark
+        ? [
+            {
+              colors: ["#151914", theme.background, theme.backgroundSecondary],
+              locations: [0, 0.5, 1],
+              start: { x: 0, y: 0 },
+              end: { x: 1, y: 1 },
+            },
+            {
+              colors: [
+                "rgba(127, 160, 122, 0.10)",
+                "rgba(127, 160, 122, 0.00)",
+                "rgba(199, 126, 97, 0.06)",
+              ],
+              locations: [0, 0.46, 1],
+              start: { x: 1, y: 0 },
+              end: { x: 0, y: 1 },
+            },
+            {
+              colors: [
+                "rgba(255, 253, 248, 0.04)",
+                "rgba(255, 253, 248, 0.00)",
+              ],
+              locations: [0, 1],
+              start: { x: 0, y: 0 },
+              end: { x: 0, y: 1 },
+            },
+          ]
+        : [
+            {
+              colors: ["#F8F0E4", theme.background, "#F1E7DA"],
+              locations: [0, 0.5, 1],
+              start: { x: 0, y: 0 },
+              end: { x: 1, y: 1 },
+            },
+            {
+              colors: [
+                "rgba(255, 253, 248, 0.48)",
+                "rgba(255, 253, 248, 0.08)",
+                "rgba(111, 138, 105, 0.08)",
+              ],
+              locations: [0, 0.58, 1],
+              start: { x: 0, y: 0 },
+              end: { x: 1, y: 1 },
+            },
+            {
+              colors: [
+                "rgba(199, 126, 97, 0.08)",
+                "rgba(199, 126, 97, 0.00)",
+                "rgba(255, 253, 248, 0.14)",
+              ],
+              locations: [0, 0.45, 1],
+              start: { x: 1, y: 0 },
+              end: { x: 0, y: 1 },
+            },
+          ],
     [theme.background, theme.backgroundSecondary, theme.isDark],
   );
   const { t, i18n } = useTranslation(["home", "common", "meals"]);
@@ -119,12 +162,7 @@ export default function HomeScreen({ navigation }: Props) {
     [mealAddEntry.preferredOption.key],
   );
 
-  const {
-    dayMeals,
-    mealCount,
-    consumed,
-    macroTargets,
-  } = homeDay;
+  const { dayMeals, mealCount, consumed, macroTargets } = homeDay;
   const canAccessWeeklyReport =
     canUseFeature("weeklyReport") ||
     Boolean(getE2EFixtureState()?.weeklyReport);
@@ -259,6 +297,12 @@ export default function HomeScreen({ navigation }: Props) {
     }
   }, [mealAddEntry, navigation, retentionSurface]);
 
+  const openHomeMethodChooser = useCallback(() => {
+    navigation.navigate("MealAddMethod", {
+      selectionMode: "persistDefault",
+    });
+  }, [navigation]);
+
   return (
     <Layout backgroundGradient={backgroundGradient}>
       <View style={[styles.screen, styles.screenGap]} testID="home-screen">
@@ -280,11 +324,17 @@ export default function HomeScreen({ navigation }: Props) {
 
             void mealAddEntry.handleDirectStart();
           }}
-          methodLabel={t("home:askAssistantAdvice")}
-          methodIcon={heroModel.showMethodSelector ? addMethodPresentation.icon : undefined}
-          onPressMethodSelector={() => navigation.navigate("Chat")}
+          methodLabel={t("home:chooseAddMethod")}
+          methodIcon={
+            heroModel.showMethodSelector
+              ? addMethodPresentation.icon
+              : undefined
+          }
+          onPressMethodSelector={openHomeMethodChooser}
           progress={heroModel.progress}
-          supportText={heroModel.supportText ?? heroModel.supportCopy ?? undefined}
+          supportText={
+            heroModel.supportText ?? heroModel.supportCopy ?? undefined
+          }
           tone={heroModel.tone}
         />
 
@@ -301,10 +351,7 @@ export default function HomeScreen({ navigation }: Props) {
 
         {mealCount > 0 ? (
           <>
-            <TodaysMealsList
-              meals={dayMeals}
-              onOpenMeal={openMealDetails}
-            />
+            <TodaysMealsList meals={dayMeals} onOpenMeal={openMealDetails} />
             <Pressable
               testID="home-view-history-button"
               onPress={() => navigation.navigate("HistoryList")}
@@ -343,7 +390,10 @@ export default function HomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("HistoryList")}
             accessibilityRole="button"
             accessibilityLabel={t("home:viewHistory")}
-            style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
+            style={({ pressed }) => [
+              styles.historyLink,
+              pressed && styles.historyLinkPressed,
+            ]}
           >
             <Text style={styles.historyLinkText}>
               {t("home:viewHistory")} →

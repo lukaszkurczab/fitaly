@@ -1,5 +1,6 @@
 import { Fragment, useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { useTranslation } from "react-i18next";
@@ -19,9 +20,28 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
     () => new Intl.NumberFormat(i18n.language || undefined),
     [i18n.language],
   );
+  const cardAccentColors: [string, string, string] = theme.isDark
+    ? [
+        "rgba(255, 253, 248, 0.02)",
+        "rgba(111, 138, 105, 0.025)",
+        "rgba(199, 126, 97, 0.006)",
+      ]
+    : [
+        "rgba(255, 253, 248, 0.38)",
+        "rgba(111, 138, 105, 0.016)",
+        "rgba(199, 126, 97, 0.008)",
+      ];
 
   return (
     <View style={styles.container} testID="home-today-meals-list">
+      <LinearGradient
+        pointerEvents="none"
+        colors={cardAccentColors}
+        locations={[0, 0.72, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardWash}
+      />
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>{t("home:todaysMeals")}</Text>
       </View>
@@ -100,15 +120,16 @@ export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
                 </Text>
                 <View style={styles.chipsRow}>
                   <Text style={[styles.chip, styles.proteinChip]}>
-                    {t("meals:protein_short", "P")}{" "}
+                    {t("meals:protein", "Protein")}
+                    {": "}
                     {numberFormatter.format(protein)}g
                   </Text>
                   <Text style={[styles.chip, styles.carbsChip]}>
-                    {t("meals:carbs_short", "C")}{" "}
-                    {numberFormatter.format(carbs)}g
+                    {t("meals:carbs", "Carbs")}: {numberFormatter.format(carbs)}
+                    g
                   </Text>
                   <Text style={[styles.chip, styles.fatChip]}>
-                    {t("meals:fat_short", "F")} {numberFormatter.format(fat)}g
+                    {t("meals:fat", "Fat")}: {numberFormatter.format(fat)}g
                   </Text>
                 </View>
               </View>
@@ -147,16 +168,23 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.cardPaddingLarge,
       paddingVertical: theme.spacing.md,
       gap: theme.spacing.xs,
+      overflow: "hidden",
+      position: "relative",
       shadowColor: theme.shadow,
       shadowOpacity: theme.isDark ? 0.18 : 0.06,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: theme.isDark ? 3 : 2,
     },
+    cardWash: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 0,
+    },
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      zIndex: 1,
     },
     sectionTitle: {
       color: theme.text,
@@ -169,8 +197,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: "row",
       alignItems: "center",
       gap: theme.spacing.md,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: "transparent",
       paddingVertical: theme.spacing.xs,
+      zIndex: 1,
     },
     rowPressed: {
       opacity: 0.88,
@@ -228,5 +257,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     separator: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: theme.borderSoft,
+      zIndex: 1,
     },
   });

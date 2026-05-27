@@ -20,12 +20,34 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: add-meal-photo-screen
 - assertVisible:
-    id: add-meal-photo-e2e-preview
+    id: add-meal-photo-capture-button
+- takeScreenshot: add-meal-photo-first-entry
+- swipe:
+    start: 50%, 64%
+    end: 50%, 86%
+    duration: 600
 - assertVisible:
     id: add-meal-photo-fullscreen-change-method-button
-- takeScreenshot: add-meal-photo-entry
+- takeScreenshot: add-meal-photo-fullscreen
 - tapOn:
-    id: add-meal-photo-fullscreen-capture-button
+    id: add-meal-photo-fullscreen-change-method-button
+- assertVisible:
+    id: meal-add-option-photo
+- takeScreenshot: add-meal-photo-fullscreen-method-switch
+- tapOn:
+    id: meal-add-option-photo
+- assertVisible:
+    id: add-meal-photo-fullscreen-change-method-button
+- takeScreenshot: add-meal-photo-return-to-fullscreen
+- swipe:
+    start: 50%, 72%
+    end: 50%, 46%
+    duration: 600
+- assertVisible:
+    id: add-meal-photo-capture-button
+- takeScreenshot: add-meal-photo-fullscreen-off-after-swipe-up
+- tapOn:
+    id: add-meal-photo-capture-button
 - assertVisible:
     id: add-meal-photo-preparing-screen
 - takeScreenshot: add-meal-photo-preparing

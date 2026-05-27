@@ -65,11 +65,11 @@ jest.mock("react-i18next", () => ({
         return options;
       }
       if (key === "meals:photoTitle") return "Photo";
-      if (key === "meals:textTitle") return "Assistant";
+      if (key === "meals:textTitle") return "Describe meal";
       if (key === "meals:barcodeTitle") return "Barcode";
       if (key === "meals:savedTitle") return "Saved meals";
       if (key === "home:methodSelector") return `Method: ${options?.method}`;
-      if (key === "home:askAssistantAdvice") return "Ask the assistant for advice";
+      if (key === "home:chooseAddMethod") return "Choose how to add";
       if (key === "home:mealCount") {
         return options?.count === 1 ? "1 meal" : `${options?.count ?? 0} meals`;
       }
@@ -467,7 +467,7 @@ describe("HomeScreen", () => {
     expect(getByText("Good morning, Anna")).toBeTruthy();
     expect(getByText("Take meal photo")).toBeTruthy();
     expect(getByText("cta-icon:camera")).toBeTruthy();
-    expect(getByText("Ask the assistant for advice")).toBeTruthy();
+    expect(getByText("Choose how to add")).toBeTruthy();
     expect(getByText("Small steps each day lead to bigger changes.")).toBeTruthy();
     expect(queryByText("weekly-report-card:ready")).toBeNull();
     expect(queryByText(/^meals:1:/)).toBeNull();
@@ -478,9 +478,11 @@ describe("HomeScreen", () => {
       expect(handleDirectStart).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.press(getByText("Ask the assistant for advice"));
+    fireEvent.press(getByText("Choose how to add"));
 
-    expect(navigation.navigate).toHaveBeenCalledWith("Chat");
+    expect(navigation.navigate).toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "persistDefault",
+    });
 
     expect(mockUseWeeklyReport).toHaveBeenCalledWith({
       uid: "user-1",
@@ -856,7 +858,7 @@ describe("HomeScreen", () => {
 
     expect(getByText("Goal reached, Anna")).toBeTruthy();
     expect(getByText("Review your day")).toBeTruthy();
-    expect(getByText("Ask the assistant for advice")).toBeTruthy();
+    expect(getByText("Choose how to add")).toBeTruthy();
 
     fireEvent.press(getByText("Review your day"));
     expect(navigation.navigate).toHaveBeenCalledWith("HistoryList");
