@@ -26,7 +26,25 @@ jest.mock("react-i18next", () => ({
 
 jest.mock("@/components/AppIcon", () => ({
   __esModule: true,
-  default: () => null,
+  default: ({
+    name,
+    rotation,
+    testID,
+  }: {
+    name: string;
+    rotation?: string;
+    testID?: string;
+  }) => {
+    const { createElement } =
+      jest.requireActual<typeof import("react")>("react");
+    const { View } =
+      jest.requireActual<typeof import("react-native")>("react-native");
+
+    return createElement(View, {
+      accessibilityLabel: `${name}:${rotation ?? "none"}`,
+      testID,
+    });
+  },
 }));
 
 jest.mock("@/feature/Meals/components/ResumeDraftSheet", () => ({
@@ -122,6 +140,9 @@ describe("MealAddMethodScreen", () => {
 
     expect(getByText("meals:photoTitle")).toBeTruthy();
     expect(getByText("meals:barcodeTitle")).toBeTruthy();
+    expect(
+      getByTestId("meal-add-option-photo-chevron").props.accessibilityLabel,
+    ).toBe("chevron:180deg");
 
     fireEvent.press(getByTestId("meal-add-option-photo"));
     fireEvent.press(getByTestId("meal-add-option-barcode"));
@@ -221,6 +242,27 @@ describe("MealAddMethodScreen", () => {
     const { getAllByRole } = renderWithTheme(<MealAddMethodScreen />);
 
     fireEvent.press(getAllByRole("button")[0]);
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes a visible close affordance inside the sheet", () => {
+    const navigation = {
+      replace: jest.fn(),
+      navigate: jest.fn(),
+      dispatch: jest.fn(),
+      goBack: jest.fn(),
+    };
+    mockUseNavigation.mockReturnValue(navigation);
+    mockUseMealAddMethodState.mockReturnValue({
+      options: [],
+      handleOptionPress: jest.fn(),
+      showResumeModal: false,
+    });
+
+    const { getByTestId } = renderWithTheme(<MealAddMethodScreen />);
+
+    fireEvent.press(getByTestId("meal-add-method-close-button"));
 
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });

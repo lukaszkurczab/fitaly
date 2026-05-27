@@ -24,6 +24,7 @@ const MealAddMethodScreen = () => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["meals"]);
+  const closeLabel = t("close", { ns: "common", defaultValue: "Close" });
   const persistSelection = route.params?.selectionMode === "persistDefault";
   const resetStackOnStart = route.params?.origin === "mealAddFlow";
 
@@ -38,7 +39,7 @@ const MealAddMethodScreen = () => {
     <View style={styles.overlay}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("close", { ns: "common", defaultValue: "Close" })}
+        accessibilityLabel={closeLabel}
         onPress={() => navigation.goBack()}
         style={styles.dismissArea}
       />
@@ -54,7 +55,22 @@ const MealAddMethodScreen = () => {
           },
         ]}
       >
-        <View style={styles.handle} />
+        <View style={styles.topBar}>
+          <View style={styles.handle} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={closeLabel}
+            hitSlop={8}
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [
+              styles.closeButton,
+              pressed ? styles.closeButtonPressed : null,
+            ]}
+            testID="meal-add-method-close-button"
+          >
+            <AppIcon name="close" size={18} color={theme.textSecondary} />
+          </Pressable>
+        </View>
 
         <View style={styles.header}>
           <View style={styles.headerIcon}>
@@ -124,9 +140,10 @@ const MealAddMethodScreen = () => {
                 <View style={styles.optionChevron}>
                   <AppIcon
                     name="chevron"
-                    rotation="-90deg"
+                    rotation="180deg"
                     size={20}
                     color={theme.textTertiary}
+                    testID={`meal-add-option-${option.key}-chevron`}
                   />
                 </View>
               </Pressable>
@@ -174,12 +191,33 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.md,
       ...theme.depth.modal,
     },
+    topBar: {
+      minHeight: 36,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     handle: {
       width: 40,
       height: 4,
       borderRadius: theme.rounded.full,
       backgroundColor: theme.borderSoft,
       alignSelf: "center",
+    },
+    closeButton: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      width: 36,
+      height: 36,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeButtonPressed: {
+      opacity: 0.72,
     },
     header: {
       flexDirection: "row",

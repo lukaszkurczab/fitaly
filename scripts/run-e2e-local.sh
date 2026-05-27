@@ -34,7 +34,22 @@ TEST_OUTPUT_DIR="${E2E_TEST_OUTPUT_DIR:-}"
 DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
 TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
-API_BASE_URL="${E2E_API_BASE_URL:-${EXPO_PUBLIC_API_BASE_URL:-https://fitaly-backend-smoke.up.railway.app}}"
+SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
+PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
+if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
+  API_BASE_URL="${E2E_API_BASE_URL}"
+else
+  API_BASE_URL="${SMOKE_API_BASE_URL}"
+  if [[ -n "${EXPO_PUBLIC_API_BASE_URL:-}" && "${EXPO_PUBLIC_API_BASE_URL}" != "${SMOKE_API_BASE_URL}" ]]; then
+    echo "[e2e] Ignoring EXPO_PUBLIC_API_BASE_URL from .env for E2E: ${EXPO_PUBLIC_API_BASE_URL}"
+    echo "[e2e] Use E2E_API_BASE_URL to intentionally run E2E against a non-smoke backend."
+  fi
+fi
+if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUCTION_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run E2E against production API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_ALLOW_PRODUCTION_API=1 only for an explicitly approved production verification." >&2
+  exit 1
+fi
 EXPO_URL="${E2E_EXPO_URL:-}"
 E2E_EMAIL="${E2E_EMAIL:-${SMOKE_EXPORT_TEST_EMAIL:-e2e@example.com}}"
 E2E_PASSWORD="${E2E_PASSWORD:-${SMOKE_EXPORT_TEST_PASSWORD:-Test@1234}}"

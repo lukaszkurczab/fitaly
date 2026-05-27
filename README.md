@@ -267,6 +267,12 @@ npm run e2e:platform-layout
 
 Prefer the narrowest suite that covers the touched surface. `npm run e2e:full-review` is reserved for broad visual/product review, release gates, larger merges, or explicit request.
 
+E2E runner backend selection is intentionally isolated from local app config:
+
+- `npm run e2e:*` defaults to `https://fitaly-backend-smoke.up.railway.app`, even when local `.env` sets `EXPO_PUBLIC_API_BASE_URL=http://localhost:8000`.
+- To intentionally run Maestro against a local backend, set `E2E_API_BASE_URL=http://localhost:8000`.
+- Do not use `EXPO_PUBLIC_API_BASE_URL` to select the E2E backend; that variable remains app/runtime config, not the E2E target contract.
+
 ## Operator docs
 
 - [Workspace documentation index](../docs/README.md) — canonical documentation entrypoint
