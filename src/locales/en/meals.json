@@ -121,6 +121,7 @@
   "preparing_review_offline_title": "Your meal is safe",
   "preparing_review_offline_subtitle": "Finish later when you're back online, or add it manually now.",
   "preparing_review_offline_primary": "Save draft",
+  "meal_add_flow_step_counter": "Step {{current}} of {{total}}",
   "review_meal_eyebrow": "Review meal",
   "review_meal_subtitle": "Check the summary, adjust details if needed, then save.",
   "review_meal_save_cta": "Save meal",

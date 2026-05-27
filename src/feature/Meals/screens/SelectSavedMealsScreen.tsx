@@ -8,7 +8,6 @@ import {
   View,
   Platform,
 } from "react-native";
-import type { StackNavigationProp } from "@react-navigation/stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useTheme } from "@/theme/useTheme";
@@ -19,27 +18,25 @@ import {
   Button,
   FullScreenLoader,
   Layout,
-  ScreenCornerNavButton,
   TextInput,
 } from "@/components";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
 import { useTranslation } from "react-i18next";
 import { useSelectSavedMealsState } from "@/feature/Meals/hooks/useSelectSavedMealsState";
 import { syncMyMeals } from "@/services/meals/myMealService";
-import type { RootStackParamList } from "@/navigation/navigate";
 import AppIcon from "@/components/AppIcon";
 import { SavedMealActionCard } from "@/feature/Meals/components/SavedMealActionCard";
+import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
-type SelectSavedMealNavigation = StackNavigationProp<
-  RootStackParamList,
-  "SelectSavedMeal"
->;
 const FOCUS_REFRESH_THROTTLE_MS = 30_000;
 
 export default function SelectSavedMealScreen({
   navigation,
+  flow,
 }: {
-  navigation: SelectSavedMealNavigation;
+  navigation: MealAddScreenProps<"SelectSavedMeal">["navigation"];
+  flow: MealAddScreenProps<"SelectSavedMeal">["flow"];
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -71,7 +68,7 @@ export default function SelectSavedMealScreen({
     saveDraft,
     setLastScreen,
     onNavigateReview: () =>
-      navigation.navigate("AddMeal", { start: "ReviewMeal" }),
+      flow.goTo("ReviewMeal", {}),
     onStartOver: () =>
       navigation.navigate("MealAddMethod", {
         selectionMode: "temporary",
@@ -151,17 +148,21 @@ export default function SelectSavedMealScreen({
     navigation.navigate("Home");
   }, [navigation]);
 
-  const closeButton = (
-    <ScreenCornerNavButton
-      icon="close"
-      onPress={handleExit}
-      accessibilityLabel={t("common:close", { defaultValue: "Close" })}
+  const flowHeader = (
+    <AddMealFlowHeader
+      progress={flow.progress}
+      onBack={flow.goBackOrExit ?? handleExit}
+      onClose={handleExit}
+      testID="select-saved-meal-flow-header"
+      backTestID="select-saved-meal-back"
+      closeTestID="select-saved-meal-close"
     />
   );
 
   if (loading) {
     return (
-      <Layout disableScroll showNavigation={false}>
+      <Layout disableScroll showNavigation={false} style={styles.layout}>
+        {flowHeader}
         <View testID="select-saved-meal-loading-state" style={styles.screen}>
           <FullScreenLoader />
         </View>
@@ -173,7 +174,7 @@ export default function SelectSavedMealScreen({
     const isOfflineEmpty = !isOnline && !queryText.trim();
     return (
       <Layout disableScroll showNavigation={false} style={styles.layout}>
-        {closeButton}
+        {flowHeader}
 
         <View style={styles.screen} testID="select-saved-meal-screen">
           {header}
@@ -242,7 +243,7 @@ export default function SelectSavedMealScreen({
 
   return (
     <Layout disableScroll showNavigation={false} style={styles.layout}>
-      {closeButton}
+      {flowHeader}
 
       <View style={styles.screen} testID="select-saved-meal-screen">
         {header}

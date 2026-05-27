@@ -9,7 +9,8 @@ export type RootStackParamList = {
           | "BarcodeScan"
           | "DescribeMeal"
           | "ReviewMeal"
-          | "EditMealDetails";
+          | "EditMealDetails"
+          | "SelectSavedMeal";
         id?: string;
         skipDetection?: boolean;
         attempt?: number;
@@ -51,7 +52,6 @@ export type RootStackParamList = {
   AppSettings: undefined;
   ChangePassword: undefined;
   SendFeedback: undefined;
-  SelectSavedMeal: undefined;
   Language: undefined;
   UsernameChange: undefined;
   Register: undefined;

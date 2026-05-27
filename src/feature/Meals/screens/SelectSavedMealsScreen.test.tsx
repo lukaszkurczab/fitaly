@@ -169,6 +169,31 @@ const buildMeal = (overrides?: Partial<Meal>): Meal => ({
   ...overrides,
 });
 
+const buildProps = ({
+  navigation,
+  flow,
+}: {
+  navigation?: Record<string, unknown>;
+  flow?: Record<string, unknown>;
+} = {}) => ({
+  navigation: {
+    canGoBack: jest.fn(() => true),
+    goBack: jest.fn(),
+    navigate: jest.fn(),
+    ...navigation,
+  } as never,
+  flow: {
+    goTo: jest.fn(),
+    replace: jest.fn(),
+    goBack: jest.fn(),
+    canGoBack: jest.fn(() => false),
+    goBackOrExit: jest.fn(),
+    progress: { current: 1, total: 2, path: "saved" },
+    ...flow,
+  } as never,
+  params: {},
+});
+
 describe("SelectSavedMealScreen", () => {
   beforeEach(() => {
     selectSavedMealsFocusEffect = undefined;
@@ -197,12 +222,14 @@ describe("SelectSavedMealScreen", () => {
       viewabilityConfig: {},
     });
 
-    const { getByText, queryByText } = renderWithTheme(
-      <SelectSavedMealScreen navigation={{} as never} />,
+    const { getByText, getByTestId } = renderWithTheme(
+      <SelectSavedMealScreen {...buildProps()} />,
     );
 
     expect(getByText("full-screen-loader")).toBeTruthy();
-    expect(queryByText("close-button")).toBeNull();
+    expect(getByTestId("select-saved-meal-flow-header")).toBeTruthy();
+    expect(getByTestId("select-saved-meal-back")).toBeTruthy();
+    expect(getByTestId("select-saved-meal-close")).toBeTruthy();
   });
 
   it("shows the empty state and supports starting over", () => {
@@ -223,7 +250,7 @@ describe("SelectSavedMealScreen", () => {
     });
 
     const { getByText } = renderWithTheme(
-      <SelectSavedMealScreen navigation={{} as never} />,
+      <SelectSavedMealScreen {...buildProps()} />,
     );
 
     fireEvent.press(getByText("change-search"));
@@ -252,13 +279,15 @@ describe("SelectSavedMealScreen", () => {
       viewabilityConfig: {},
     });
 
-    const { getByLabelText } = renderWithTheme(
+    const { getByTestId } = renderWithTheme(
       <SelectSavedMealScreen
-        navigation={{ canGoBack: () => true, goBack, navigate } as never}
+        {...buildProps({
+          navigation: { canGoBack: () => true, goBack, navigate },
+        })}
       />,
     );
 
-    fireEvent.press(getByLabelText("common:close"));
+    fireEvent.press(getByTestId("select-saved-meal-close"));
 
     expect(goBack).toHaveBeenCalledTimes(1);
     expect(navigate).not.toHaveBeenCalled();
@@ -281,7 +310,7 @@ describe("SelectSavedMealScreen", () => {
     });
 
     const { getByText } = renderWithTheme(
-      <SelectSavedMealScreen navigation={{} as never} />,
+      <SelectSavedMealScreen {...buildProps()} />,
     );
 
     expect(getByText("savedMeals.offlineEmpty")).toBeTruthy();
@@ -304,14 +333,16 @@ describe("SelectSavedMealScreen", () => {
     });
 
     const navigate = jest.fn();
-    const { getByText, getByLabelText } = renderWithTheme(
+    const { getByText, getByTestId } = renderWithTheme(
       <SelectSavedMealScreen
-        navigation={{ canGoBack: () => false, goBack: jest.fn(), navigate } as never}
+        {...buildProps({
+          navigation: { canGoBack: () => false, goBack: jest.fn(), navigate },
+        })}
       />,
     );
 
     fireEvent.press(getByText("add:Chicken pasta"));
-    fireEvent.press(getByLabelText("common:close"));
+    fireEvent.press(getByTestId("select-saved-meal-close"));
 
     expect(getByText("input:chi")).toBeTruthy();
     expect(handleAddMeal).toHaveBeenCalledWith(
@@ -322,6 +353,7 @@ describe("SelectSavedMealScreen", () => {
 
   it("passes working sync and navigation callbacks to state hook", async () => {
     const navigate = jest.fn();
+    const goTo = jest.fn();
     mockUseSelectSavedMealsState.mockReturnValue({
       step: 20,
       queryText: "",
@@ -337,7 +369,9 @@ describe("SelectSavedMealScreen", () => {
     });
 
     renderWithTheme(
-      <SelectSavedMealScreen navigation={{ navigate } as unknown as never} />,
+      <SelectSavedMealScreen
+        {...buildProps({ navigation: { navigate }, flow: { goTo } })}
+      />,
     );
 
     const hookArgs = mockUseSelectSavedMealsState.mock.calls.at(-1)?.[0] as {
@@ -351,7 +385,7 @@ describe("SelectSavedMealScreen", () => {
     hookArgs.onStartOver();
 
     expect(mockSyncMyMeals).toHaveBeenCalledWith("user-1");
-    expect(navigate).toHaveBeenCalledWith("AddMeal", { start: "ReviewMeal" });
+    expect(goTo).toHaveBeenCalledWith("ReviewMeal", {});
     expect(navigate).toHaveBeenCalledWith("MealAddMethod", {
       selectionMode: "temporary",
       origin: "mealAddFlow",
@@ -376,9 +410,7 @@ describe("SelectSavedMealScreen", () => {
       viewabilityConfig: {},
     });
 
-    renderWithTheme(
-      <SelectSavedMealScreen navigation={{} as never} />,
-    );
+    renderWithTheme(<SelectSavedMealScreen {...buildProps()} />);
 
     selectSavedMealsFocusEffect?.();
     expect(refresh).not.toHaveBeenCalled();

@@ -8,10 +8,17 @@ const mockUseNavigation = jest.fn();
 const mockUseRoute = jest.fn();
 const mockMapMealAddScreens = jest.fn();
 const mockBackHandlerAddEventListener = jest.fn();
+let mockDraftMeal: { inputMethod?: string | null } | null = null;
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
   useRoute: () => mockUseRoute(),
+}));
+
+jest.mock("@contexts/MealDraftContext", () => ({
+  useMealDraftContext: () => ({
+    meal: mockDraftMeal,
+  }),
 }));
 
 jest.mock("../feature/MapMealAddScreens", () => {
@@ -30,6 +37,12 @@ jest.mock("../feature/MapMealAddScreens", () => {
           replace: (name: string, params?: unknown) => void;
           goBack: () => void;
           canGoBack: () => boolean;
+          goBackOrExit?: () => void;
+          progress?: {
+            current: number;
+            total: number;
+            path: string;
+          };
         };
         params: Record<string, unknown>;
       }) {
@@ -73,6 +86,18 @@ jest.mock("../feature/MapMealAddScreens", () => {
             null,
             `can-go-back:${String(props.flow.canGoBack())}`,
           ),
+          createElement(
+            Text,
+            null,
+            `progress:${JSON.stringify(props.flow.progress)}`,
+          ),
+          createElement(
+            Pressable,
+            {
+              onPress: props.flow.goBackOrExit,
+            },
+            createElement(Text, null, "flow-go-back-or-exit"),
+          ),
           createElement(Text, null, `params:${JSON.stringify(props.params)}`),
         );
       };
@@ -90,6 +115,7 @@ describe("AddMealScreen", () => {
     backHandlerListener = undefined;
     beforeRemoveListener = undefined;
     mockMapMealAddScreens.mockClear();
+    mockDraftMeal = null;
 
     jest
       .spyOn(BackHandler, "addEventListener")
@@ -103,6 +129,8 @@ describe("AddMealScreen", () => {
 
     mockUseNavigation.mockReturnValue({
       goBack: jest.fn(),
+      canGoBack: jest.fn(() => true),
+      navigate: jest.fn(),
       addListener: jest.fn(
         (_eventName: string, listener: typeof beforeRemoveListener) => {
           beforeRemoveListener = listener ?? undefined;
@@ -180,6 +208,28 @@ describe("AddMealScreen", () => {
     expect(getByText("params:{}")).toBeTruthy();
   });
 
+  it("maps the SelectSavedMeal start into the saved Add Meal path", () => {
+    mockUseRoute.mockReturnValue({
+      params: {
+        start: "SelectSavedMeal",
+      },
+    });
+
+    const { getByText } = renderWithTheme(<AddMealScreen />);
+
+    expect(getByText("screen:SelectSavedMeal")).toBeTruthy();
+    expect(
+      getByText('progress:{"current":1,"total":2,"path":"saved"}'),
+    ).toBeTruthy();
+
+    fireEvent.press(getByText("flow-go-to-no-params"));
+
+    expect(getByText("screen:ReviewMeal")).toBeTruthy();
+    expect(
+      getByText('progress:{"current":2,"total":2,"path":"saved"}'),
+    ).toBeTruthy();
+  });
+
   it("falls back to CameraDefault for unknown start values", () => {
     mockUseRoute.mockReturnValue({
       params: {
@@ -235,10 +285,14 @@ describe("AddMealScreen", () => {
     };
     mockUseNavigation.mockReturnValue(navigation);
     mockUseRoute.mockReturnValue({ params: { start: "EditMealDetails" } });
+    mockDraftMeal = { inputMethod: "saved" };
 
     const { getByText } = renderWithTheme(<AddMealScreen />);
 
     expect(getByText("screen:EditMealDetails")).toBeTruthy();
+    expect(
+      getByText('progress:{"current":2,"total":2,"path":"saved"}'),
+    ).toBeTruthy();
     fireEvent.press(getByText("flow-go-to"));
     expect(getByText("screen:IngredientsNotRecognized")).toBeTruthy();
     expect(getByText("can-go-back:true")).toBeTruthy();

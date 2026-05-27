@@ -25,11 +25,11 @@ import {
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { useTheme } from "@/theme/useTheme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 const MAX_RETRIES = 3;
-const TEXT_PREVIEW_HEIGHT = 360;
+const TEXT_PREVIEW_HEIGHT = 300;
 const ANALYZING_MIN_VISIBLE_MS = 900;
 
 const nextRetryCount = (current: number) => Math.min(current + 1, MAX_RETRIES);
@@ -66,16 +66,17 @@ const buildInitialMeal = (uid: string): Meal => ({
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function TextAnalyzingScreen({
+  navigation,
   flow,
   params,
 }: MealAddScreenProps<"TextAnalyzing">) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation(["meals", "chat"]);
   const { uid } = useAuthContext();
   const { language } = useAppSettingsContext();
-  const { meal, saveDraft, setLastScreen, setMeal } = useMealDraftContext();
+  const { clearMeal, meal, saveDraft, setLastScreen, setMeal } =
+    useMealDraftContext();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { applyAccessFromResponse, refreshAccess } = useAccessContext();
   const mealRef = useRef(meal);
@@ -85,14 +86,6 @@ export default function TextAnalyzingScreen({
   const retries = params.retries ?? 0;
   const analysisLang = language || "en";
   const analysisKey = params.analysisRequestId;
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
 
   useEffect(() => {
     mealRef.current = meal;
@@ -290,12 +283,41 @@ export default function TextAnalyzingScreen({
     trimmedName,
     uid,
   ]);
+  const handleBack = () => {
+    if (flow.canGoBack()) {
+      flow.goBack();
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  };
+  const handleCloseFlow = () => {
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  };
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View style={styles.fill} testID="add-meal-text-analyzing-screen">
+        <AddMealFlowHeader
+          progress={flow.progress}
+          onBack={handleBack}
+          onClose={handleCloseFlow}
+          containerStyle={styles.flowHeader}
+          testID="add-meal-text-analyzing-flow-header"
+          backTestID="add-meal-text-analyzing-back"
+          closeTestID="add-meal-text-analyzing-close"
+        />
         <MealAddPhotoScaffold
-          topInset={previewTopInset}
           previewHeight={TEXT_PREVIEW_HEIGHT}
           preview={
             <View style={styles.preview}>
@@ -343,7 +365,6 @@ export default function TextAnalyzingScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
-      paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
@@ -358,6 +379,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.lg,
       paddingBottom: theme.spacing.lg,
+    },
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
     previewNameField: {
       marginBottom: 24,

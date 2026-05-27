@@ -121,6 +121,7 @@
   "preparing_review_offline_title": "Twój posiłek jest bezpieczny",
   "preparing_review_offline_subtitle": "Dokończ później, gdy wrócisz online, albo dodaj go ręcznie już teraz.",
   "preparing_review_offline_primary": "Zapisz wersję roboczą",
+  "meal_add_flow_step_counter": "Krok {{current}} z {{total}}",
   "review_meal_eyebrow": "Przegląd posiłku",
   "review_meal_subtitle": "Sprawdź podsumowanie, popraw szczegóły w razie potrzeby i zapisz.",
   "review_meal_save_cta": "Zapisz posiłek",

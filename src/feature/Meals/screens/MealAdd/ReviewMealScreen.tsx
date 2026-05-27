@@ -16,7 +16,6 @@ import {
   KeyboardAwareScrollView,
   Layout,
   PhotoPreview,
-  ScreenCornerNavButton,
   TextButton,
   UnsavedChangesModal,
 } from "@/components";
@@ -36,6 +35,7 @@ import {
   deriveMealTimingMetadata,
   formatMealDayKey,
 } from "@/services/meals/mealMetadata";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 const IMAGE_HEIGHT = 164;
 
@@ -273,6 +273,14 @@ export default function ReviewMealScreen({
     flow.goTo("EditMealDetails", {});
   }, [flow]);
 
+  const handleFlowBack = useCallback(() => {
+    if (!flow.canGoBack()) {
+      flow.goBackOrExit?.();
+      return;
+    }
+    flow.goBack();
+  }, [flow]);
+
   const handleSave = useCallback(
     async (openShareComposer: boolean) => {
       if (!meal || !userData?.uid || saving || !uid || isEmptyReviewMeal) return;
@@ -418,15 +426,16 @@ export default function ReviewMealScreen({
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
-      <ScreenCornerNavButton
-        icon="close"
-        onPress={guard.requestExit}
-        accessibilityLabel={t("close", { ns: "common", defaultValue: "Close" })}
-        containerStyle={styles.screenCornerNavButton}
-        testID="review-meal-close"
-      />
-
       <View style={styles.screen} testID="review-meal-screen">
+        <AddMealFlowHeader
+          progress={flow.progress}
+          onBack={handleFlowBack}
+          onClose={guard.requestExit}
+          testID="review-meal-flow-header"
+          backTestID="review-meal-back"
+          closeTestID="review-meal-close"
+        />
+
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           contentContainerStyle={[
@@ -771,7 +780,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingTop: theme.spacing.xxxl + theme.spacing.lg,
+      paddingTop: theme.spacing.sm,
       gap: theme.spacing.md,
     },
     heroBlock: {
@@ -1108,10 +1117,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     emptyAction: {
       alignSelf: "stretch",
-    },
-    screenCornerNavButton: {
-      top: 0,
-      left: 0,
-      right: undefined,
     },
   });

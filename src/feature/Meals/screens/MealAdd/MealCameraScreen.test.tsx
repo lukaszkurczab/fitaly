@@ -273,6 +273,7 @@ const buildProps = (
       navigate: jest.fn(),
       goBack: jest.fn(),
       replace: jest.fn(),
+      canGoBack: jest.fn(() => true),
     } as unknown as MealAddScreenProps<"CameraDefault">["navigation"],
     flow: {
       goTo: jest.fn(),
@@ -365,15 +366,17 @@ describe("MealCameraScreen", () => {
     });
     mockUseMealCameraState.mockReturnValue(hookState);
 
-    const { getByText } = renderWithTheme(<MealCameraScreen {...props} />);
+    const { getAllByText, getByTestId, getByText } = renderWithTheme(
+      <MealCameraScreen {...props} />,
+    );
 
-    fireEvent.press(getByText("back:Back"));
+    fireEvent.press(getByTestId("add-meal-photo-back"));
     fireEvent.press(getByText("Take photo"));
     fireEvent.press(getByText("Change add method"));
     fireEvent.press(getByText("chat:limit.upgradeCta"));
 
     expect(getByText("✦ chat:credits.costMultiple")).toBeTruthy();
-    expect(getByText("Photo")).toBeTruthy();
+    expect(getAllByText("Photo").length).toBeGreaterThan(0);
     expect(getByText("camera-view")).toBeTruthy();
     expect(getByText("Take a clear photo")).toBeTruthy();
     expect(
@@ -572,19 +575,20 @@ describe("MealCameraScreen", () => {
     expect(queryByText("Take photo")).toBeNull();
   });
 
-  it("renders the top-left close button on the entry camera screen", () => {
+  it("renders back and close controls on the entry camera screen", () => {
     const props = buildProps();
     props.flow.canGoBack = jest.fn(() => false) as never;
     mockUseMealCameraState.mockReturnValue(buildHookState());
 
-    const { getByText, queryByText } = renderWithTheme(
+    const { getByTestId } = renderWithTheme(
       <MealCameraScreen {...props} />,
     );
 
-    fireEvent.press(getByText("close:Close"));
+    expect(getByTestId("add-meal-photo-back")).toBeTruthy();
+    expect(getByTestId("add-meal-photo-close")).toBeTruthy();
 
-    expect(queryByText("close:Close")).toBeTruthy();
-    expect(queryByText("back:Back")).toBeNull();
+    fireEvent.press(getByTestId("add-meal-photo-close"));
+
     expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
   });
 

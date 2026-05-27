@@ -1,7 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import type { NavigationProp } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
-import { KeyboardAwareScrollView, Layout } from "@/components";
+import {
+  KeyboardAwareScrollView,
+  Layout,
+  UnsavedChangesModal,
+} from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { useMealDetailsForm } from "@/feature/Meals/hooks/useMealDetailsForm";
 import type { MealDetailsDraftAdapter } from "@/feature/Meals/hooks/useMealDetailsForm";
@@ -9,6 +14,7 @@ import {
   formatMealTime,
   getMealDateOrNow,
 } from "@/feature/Meals/hooks/useMealDetailsForm";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 import MealDetailsEmptyState from "@/feature/Meals/screens/MealAdd/components/MealDetailsEmptyState";
 import MealPhotoSection from "@/feature/Meals/screens/MealAdd/components/MealPhotoSection";
 import MealBasicsSection from "@/feature/Meals/screens/MealAdd/components/MealBasicsSection";
@@ -22,18 +28,20 @@ import type { MealAddFlowApi } from "@/feature/Meals/feature/MapMealAddScreens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import type { RootStackParamList } from "@/navigation/navigate";
 
 type Mode = "review";
+type MealDetailsFormNavigation = Pick<
+  NavigationProp<RootStackParamList>,
+  "addListener" | "canGoBack" | "dispatch" | "goBack" | "navigate"
+>;
 
 type Props = {
   flow: MealAddFlowApi;
-  navigation: {
-    navigate: (
-      screen: "Home" | "MealAddMethod",
-      params?: { selectionMode: "temporary"; origin: "mealAddFlow" },
-    ) => void;
-  };
+  navigation: MealDetailsFormNavigation;
   mode: Mode;
+  showAddMealFlowHeader?: boolean;
   onReviewSubmit?: (meal: Meal) => Promise<void> | void;
   reviewSubmitLabel?: string;
   reviewFallbackLabel?: string;
@@ -62,7 +70,7 @@ export function MealDetailsFormScreen({
 
 function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter">) {
   const { uid } = useAuthContext();
-  const { meal, loadDraft, saveDraft, setMeal, setLastScreen } =
+  const { meal, clearMeal, loadDraft, saveDraft, setMeal, setLastScreen } =
     useMealDraftContext();
 
   useEffect(() => {
@@ -81,12 +89,13 @@ function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter"
           await saveDraft(uid, nextMeal);
         }
       },
+      clearMeal,
       retryLoadDraft: async () => {
         if (!uid) return;
         await loadDraft(uid);
       },
     }),
-    [loadDraft, meal, saveDraft, setMeal, uid],
+    [clearMeal, loadDraft, meal, saveDraft, setMeal, uid],
   );
 
   return <MealDetailsFormScreenInner {...props} draftAdapter={draftAdapter} />;
@@ -94,7 +103,9 @@ function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter"
 
 function MealDetailsFormScreenInner({
   flow,
+  navigation,
   mode,
+  showAddMealFlowHeader = false,
   onReviewSubmit,
   reviewSubmitLabel,
   reviewFallbackLabel,
@@ -146,6 +157,23 @@ function MealDetailsFormScreenInner({
     onReviewSubmit,
     draftAdapter,
   });
+  const guard = useUnsavedChangesGuard({
+    navigation,
+    hasUnsavedChanges: Boolean(uid && meal),
+    enabled: showAddMealFlowHeader,
+    interceptHardwareBack: showAddMealFlowHeader,
+    onDiscard: () => {
+      if (!uid) return;
+      void draftAdapter.clearMeal?.(uid);
+    },
+    onExit: () => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
+      navigation.navigate("Home");
+    },
+  });
 
   const selectedAt = getMealDateOrNow(mealTimestamp);
   const mealTypeLabel = t(meal?.type ?? "other", { ns: "meals" });
@@ -171,6 +199,19 @@ function MealDetailsFormScreenInner({
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View style={styles.screen} testID="meal-details-form-screen">
+        {showAddMealFlowHeader ? (
+          <AddMealFlowHeader
+            progress={flow.progress}
+            onBack={() => {
+              void handleSubmit();
+            }}
+            onClose={guard.requestExit}
+            testID="edit-meal-flow-header"
+            backTestID="edit-meal-back"
+            closeTestID="edit-meal-close"
+          />
+        ) : null}
+
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           extraScrollOffset={theme.spacing.xs}
@@ -178,6 +219,9 @@ function MealDetailsFormScreenInner({
           contentContainerStyle={[
             styles.scrollContent,
             {
+              paddingTop: showAddMealFlowHeader
+                ? theme.spacing.sm
+                : theme.spacing.lg,
               paddingBottom:
                 theme.spacing.xxxl + 92 + footerBottomInset,
             },
@@ -267,6 +311,18 @@ function MealDetailsFormScreenInner({
           void handleDeleteIngredient();
         }}
       />
+
+      {showAddMealFlowHeader ? (
+        <UnsavedChangesModal
+          visible={guard.confirmVisible}
+          title={t("confirm_exit_title", { ns: "meals" })}
+          message={t("confirm_exit_message", { ns: "meals" })}
+          discardLabel={t("leave", { ns: "common" })}
+          continueEditingLabel={t("cancel", { ns: "common" })}
+          onDiscard={guard.confirmExit}
+          onContinueEditing={guard.cancelExit}
+        />
+      ) : null}
     </Layout>
   );
 }
@@ -286,7 +342,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       gap: theme.spacing.sm,
-      paddingTop: theme.spacing.lg,
     },
     headerBlock: {
       gap: theme.spacing.xxs,

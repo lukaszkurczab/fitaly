@@ -5,9 +5,11 @@ import IngredientsNotRecognizedScreen from "../screens/MealAdd/IngredientsNotRec
 import MealCameraScreen from "../screens/MealAdd/MealCameraScreen";
 import PreparingReviewPhotoScreen from "../screens/MealAdd/PreparingReviewPhotoScreen";
 import ReviewMealScreen from "../screens/MealAdd/ReviewMealScreen";
+import SelectSavedMealScreen from "../screens/SelectSavedMealsScreen";
 import TextAnalyzingScreen from "../screens/MealAdd/TextAnalyzingScreen";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
+import type { MealAddFlowProgress } from "@/feature/Meals/utils/mealAddFlowProgress";
 
 export type MealAddScreenName =
   | "CameraDefault"
@@ -17,6 +19,7 @@ export type MealAddScreenName =
   | "TextAnalyzing"
   | "ReviewMeal"
   | "EditMealDetails"
+  | "SelectSavedMeal"
   | "IngredientsNotRecognized";
 
 export type MealAddSimulatorCreditsState = "ok" | "low" | "none";
@@ -67,6 +70,7 @@ export type MealAddStepParams = {
   };
   ReviewMeal: Record<string, never>;
   EditMealDetails: Record<string, never>;
+  SelectSavedMeal: Record<string, never>;
   IngredientsNotRecognized: {
     image?: string;
     id?: string;
@@ -86,6 +90,8 @@ export type MealAddFlowApi = {
   ) => void;
   goBack: () => void;
   canGoBack: () => boolean;
+  goBackOrExit?: () => void;
+  progress?: MealAddFlowProgress;
 };
 
 export type MealAddScreenProps<N extends MealAddScreenName> = {
@@ -110,6 +116,8 @@ const MapMealAddScreens = (screenName: MealAddScreenName) => {
       return ReviewMealScreen;
     case "EditMealDetails":
       return EditMealDetailsScreen;
+    case "SelectSavedMeal":
+      return SelectSavedMealScreen;
     case "IngredientsNotRecognized":
       return IngredientsNotRecognizedScreen;
     default:

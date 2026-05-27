@@ -202,6 +202,46 @@ describe("EditMealDetailsScreen", () => {
     });
   });
 
+  it("renders the Add Meal flow header, returns to review from back, and safely discards on close", async () => {
+    const saveDraft = jest.fn(async (_uid: string, _draft?: Meal | null) => undefined);
+    const setMeal = jest.fn();
+    const clearMeal = jest.fn();
+    const props = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: buildMeal(),
+      loadDraft: jest.fn(async () => undefined),
+      saveDraft,
+      setMeal,
+      setLastScreen: jest.fn(async () => undefined),
+      clearMeal,
+    });
+
+    const { getAllByText, getByTestId, getByText, queryByText } =
+      renderWithTheme(
+        <EditMealDetailsScreen {...props} />,
+      );
+
+    expect(getByTestId("edit-meal-flow-header")).toBeTruthy();
+    expect(getAllByText("Edit details").length).toBeGreaterThan(0);
+    expect(queryByText("Back to summary")).toBeNull();
+
+    fireEvent.changeText(getByTestId("meal-name-input"), "Header edit");
+    fireEvent.press(getByTestId("edit-meal-back"));
+
+    await waitFor(() => {
+      expect(saveDraft).toHaveBeenCalled();
+      expect(props.flow.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.press(getByTestId("edit-meal-close"));
+    expect(getByText("common:leave")).toBeTruthy();
+
+    fireEvent.press(getByText("common:leave"));
+    expect(clearMeal).toHaveBeenCalledWith("user-1");
+    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
   it("replaces the editor with review when manual entry starts on the editor", async () => {
     const saveDraft = jest.fn(async (_uid: string, _draft?: Meal | null) => undefined);
     const setMeal = jest.fn();

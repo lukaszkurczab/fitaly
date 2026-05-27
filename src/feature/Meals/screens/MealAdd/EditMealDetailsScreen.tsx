@@ -15,6 +15,7 @@ export default function EditMealDetailsScreen({
       navigation={navigation}
       flow={flow}
       mode="review"
+      showAddMealFlowHeader
       reviewPhotoUri={reviewPhotoUri}
       onReviewPhotoPress={() => {
         if (!meal?.mealId) return;

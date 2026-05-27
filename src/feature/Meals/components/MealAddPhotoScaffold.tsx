@@ -42,7 +42,7 @@ type MealAddStatusBannerProps = {
   loading?: boolean;
 };
 
-const DEFAULT_PREVIEW_HEIGHT = 428;
+const DEFAULT_PREVIEW_HEIGHT = 360;
 
 export function MealAddPhotoScaffold({
   topInset,
@@ -244,10 +244,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      paddingTop: 24,
+      paddingTop: theme.spacing.sm,
       paddingHorizontal: theme.spacing.sm,
       paddingBottom: 0,
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
       backgroundColor: theme.background,
     },
     screenFullBleed: {

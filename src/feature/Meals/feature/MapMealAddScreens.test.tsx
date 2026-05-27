@@ -56,6 +56,13 @@ jest.mock("../screens/MealAdd/IngredientsNotRecognizedScreen", () => ({
   },
 }));
 
+jest.mock("../screens/SelectSavedMealsScreen", () => ({
+  __esModule: true,
+  default: function MockSelectSavedMealScreen() {
+    return null;
+  },
+}));
+
 import BarcodeScanScreen from "../screens/MealAdd/BarcodeScanScreen";
 import DescribeMealScreen from "../screens/MealAdd/DescribeMealScreen";
 import EditMealDetailsScreen from "../screens/MealAdd/EditMealDetailsScreen";
@@ -63,6 +70,7 @@ import IngredientsNotRecognizedScreen from "../screens/MealAdd/IngredientsNotRec
 import MealCameraScreen from "../screens/MealAdd/MealCameraScreen";
 import PreparingReviewPhotoScreen from "../screens/MealAdd/PreparingReviewPhotoScreen";
 import ReviewMealScreen from "../screens/MealAdd/ReviewMealScreen";
+import SelectSavedMealScreen from "../screens/SelectSavedMealsScreen";
 import TextAnalyzingScreen from "../screens/MealAdd/TextAnalyzingScreen";
 import MapMealAddScreens from "./MapMealAddScreens";
 
@@ -77,6 +85,7 @@ describe("MapMealAddScreens", () => {
     expect(MapMealAddScreens("TextAnalyzing")).toBe(TextAnalyzingScreen);
     expect(MapMealAddScreens("ReviewMeal")).toBe(ReviewMealScreen);
     expect(MapMealAddScreens("EditMealDetails")).toBe(EditMealDetailsScreen);
+    expect(MapMealAddScreens("SelectSavedMeal")).toBe(SelectSavedMealScreen);
     expect(MapMealAddScreens("IngredientsNotRecognized")).toBe(
       IngredientsNotRecognizedScreen,
     );

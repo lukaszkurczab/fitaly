@@ -18,6 +18,7 @@ export type MealDetailsDraftAdapter = {
   uid: string | null;
   meal: Meal | null;
   persistMeal: (meal: Meal) => Promise<void> | void;
+  clearMeal?: (uid: string) => Promise<void> | void;
   retryLoadDraft?: () => Promise<void> | void;
 };
 

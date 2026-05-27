@@ -332,6 +332,29 @@ describe("ReviewMealScreen", () => {
     expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {});
   });
 
+  it("renders the Add Meal flow header with separate back and close actions", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByTestId("review-meal-flow-header")).toBeTruthy();
+    expect(queryByText("Meal summary")).toBeNull();
+    expect(queryByText("Check and save")).toBeNull();
+
+    fireEvent.press(getByTestId("review-meal-back"));
+    expect(testProps.props.flow.goBack).toHaveBeenCalledTimes(1);
+    expect(ctx.clearMeal).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId("review-meal-close"));
+    await waitFor(() => {
+      expect(getByText("common:leave")).toBeTruthy();
+    });
+  });
+
   it("does not show the add-photo slot when the meal has no photo", () => {
     const ctx = buildDraftContext({ photoUrl: null });
     const testProps = buildProps();

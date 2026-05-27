@@ -355,4 +355,38 @@ describe("useMealAddMethodState", () => {
       }),
     );
   });
+
+  it("starts saved-meal reuse inside the AddMeal stack without priming an empty draft", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+      }),
+    );
+
+    const savedOption = result.current.options.find(
+      (option) => option.key === "saved",
+    );
+
+    expect(savedOption).toBeTruthy();
+
+    await act(async () => {
+      await result.current.handleOptionPress(savedOption!);
+    });
+
+    expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
+      start: "SelectSavedMeal",
+    });
+    expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(mockSetLastScreen).not.toHaveBeenCalled();
+  });
 });

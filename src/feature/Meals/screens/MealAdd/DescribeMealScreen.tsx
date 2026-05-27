@@ -8,14 +8,12 @@ import {
   Pressable,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Button,
   ErrorBox,
   KeyboardAwareScrollView,
   Layout,
   Modal,
-  ScreenCornerNavButton,
   TextInput,
   UnsavedChangesModal,
 } from "@/components";
@@ -28,6 +26,7 @@ import {
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { useTheme } from "@/theme/useTheme";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 const DESCRIPTION_LINES = 8;
 
@@ -38,18 +37,9 @@ export default function DescribeMealScreen({
 }: MealAddScreenProps<"DescribeMeal">) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation(["meals", "chat", "common"]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const isKeyboardVisible = keyboardHeight > 0;
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
 
   const {
     name,
@@ -205,6 +195,17 @@ export default function DescribeMealScreen({
         </Text>
       </View>
     ) : null;
+  const flowHeader = (
+    <AddMealFlowHeader
+      progress={flow.progress}
+      onBack={guard.requestExit}
+      onClose={guard.requestExit}
+      containerStyle={styles.flowHeader}
+      testID="add-meal-text-flow-header"
+      backTestID="add-meal-text-back"
+      closeTestID="add-meal-text-close"
+    />
+  );
 
   return (
     <>
@@ -220,6 +221,7 @@ export default function DescribeMealScreen({
           testID="add-meal-text-screen"
           accessible={false}
         >
+          {flowHeader}
           <KeyboardAwareScrollView
             style={styles.scroller}
             contentContainerStyle={styles.scrollContent}
@@ -227,8 +229,7 @@ export default function DescribeMealScreen({
             showsVerticalScrollIndicator={false}
           >
               <MealAddPhotoScaffold
-                topInset={previewTopInset}
-                previewHeight={360}
+                previewHeight={300}
                 preview={
                   <View style={styles.preview}>
                     <TextInput
@@ -269,17 +270,6 @@ export default function DescribeMealScreen({
                       maxLength={80}
                     />
                   </View>
-                }
-                topAction={
-                  <ScreenCornerNavButton
-                    icon={canStepBack ? "back" : "close"}
-                    onPress={guard.requestExit}
-                    accessibilityLabel={t(canStepBack ? "back" : "close", {
-                      ns: "common",
-                      defaultValue: canStepBack ? "Back" : "Close",
-                    })}
-                    containerStyle={styles.screenCornerNavStyle}
-                  />
                 }
                 eyebrow={t("describe_meal_sheet_overline", { ns: "meals" })}
                 title={t("describe_meal_sheet_title", { ns: "meals" })}
@@ -401,7 +391,6 @@ export default function DescribeMealScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
-      paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
@@ -422,9 +411,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.surfaceElevated,
       paddingHorizontal: theme.spacing.lg,
       paddingRight: theme.spacing.lg,
-      paddingTop: theme.spacing.xxxl + theme.spacing.md,
+      paddingTop: theme.spacing.lg,
       paddingBottom: theme.spacing.lg,
       gap: theme.spacing.md,
+    },
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
     previewDescriptionField: {
       flex: 1,
@@ -466,10 +458,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     inlineNoteWarning: {
       color: theme.accentWarm,
-    },
-    screenCornerNavStyle: {
-      top: 0,
-      left: 0,
-      right: undefined,
     },
   });

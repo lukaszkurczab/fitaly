@@ -18,7 +18,6 @@ import {
   Button,
   Layout,
   PhotoPreview,
-  ScreenCornerNavButton,
 } from "@/components";
 import { Modal } from "@/components/Modal";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
@@ -36,7 +35,9 @@ import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppIcon from "@/components/AppIcon";
 import { useAuthContext } from "@/context/AuthContext";
+import { useMealDraftContext } from "@contexts/MealDraftContext";
 import { setPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
@@ -75,6 +76,7 @@ export default function MealCameraScreen({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { uid } = useAuthContext();
+  const { clearMeal } = useMealDraftContext();
   const { t: tCommon } = useTranslation("common");
   const { t: tMeals } = useTranslation("meals");
   const { t: tChat } = useTranslation("chat");
@@ -94,15 +96,6 @@ export default function MealCameraScreen({
   const e2eAiSeed = getE2EFixtureState()?.ai;
   const e2ePhotoSimulation =
     e2eAiSeed === "photoSuccess" || e2eAiSeed === "photoSlow";
-
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
 
   const {
     permission,
@@ -128,6 +121,17 @@ export default function MealCameraScreen({
       return;
     }
     navigation.goBack();
+  };
+
+  const handleCloseFlow = () => {
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
   };
 
   const handleChangeMethod = () => {
@@ -192,10 +196,6 @@ export default function MealCameraScreen({
   const fullscreenBottomInset = Math.max(
     insets.bottom + theme.spacing.lg,
     theme.spacing.xl,
-  );
-  const fullscreenTopButtonInset = Math.max(
-    insets.top + theme.spacing.xs,
-    theme.spacing.lg,
   );
 
   useEffect(() => {
@@ -278,15 +278,28 @@ export default function MealCameraScreen({
             count: Math.max(previewRemainingAfterPhoto, 0),
             defaultValue: "Only {{count}} credits left after this photo",
           })
-        : tMeals("camera_credits_remaining_note", {
+      : tMeals("camera_credits_remaining_note", {
             count: Math.max(previewRemainingAfterPhoto, 0),
             defaultValue: "✦ {{count}} credits remaining",
           });
+  const flowHeader = (
+    <AddMealFlowHeader
+      progress={flow.progress}
+      onBack={handleTopLeftPress}
+      onClose={handleCloseFlow}
+      containerStyle={styles.flowHeader}
+      testID="add-meal-photo-flow-header"
+      backTestID="add-meal-photo-back"
+      closeTestID="add-meal-photo-close"
+    />
+  );
 
   if (!permission && !e2ePhotoSimulation) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.flexBackground} testID="add-meal-photo-loading-state" />
+        <View style={styles.fill} testID="add-meal-photo-loading-state">
+          {flowHeader}
+        </View>
       </Layout>
     );
   }
@@ -295,26 +308,29 @@ export default function MealCameraScreen({
     const blocked = permission.canAskAgain === false;
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.permissionWrap} testID="add-meal-photo-permission-state">
-          <Text style={styles.permissionTitle}>
-            {tCommon("camera_permission_title")}
-          </Text>
-          <Text style={styles.permissionSubtitle}>
-            {blocked
-              ? tMeals("camera_permission_blocked_message")
-              : tCommon("camera_permission_message")}
-          </Text>
-          <Pressable
-            testID="add-meal-photo-permission-button"
-            onPress={blocked ? () => Linking.openSettings() : requestPermission}
-            style={styles.permissionButton}
-            accessibilityRole="button"
-            accessibilityLabel={tCommon("continue")}
-          >
-            <Text style={styles.permissionButtonLabel}>
-              {tCommon("continue")}
+        <View style={styles.fill} testID="add-meal-photo-permission-state">
+          {flowHeader}
+          <View style={styles.permissionContent}>
+            <Text style={styles.permissionTitle}>
+              {tCommon("camera_permission_title")}
             </Text>
-          </Pressable>
+            <Text style={styles.permissionSubtitle}>
+              {blocked
+                ? tMeals("camera_permission_blocked_message")
+                : tCommon("camera_permission_message")}
+            </Text>
+            <Pressable
+              testID="add-meal-photo-permission-button"
+              onPress={blocked ? () => Linking.openSettings() : requestPermission}
+              style={styles.permissionButton}
+              accessibilityRole="button"
+              accessibilityLabel={tCommon("continue")}
+            >
+              <Text style={styles.permissionButtonLabel}>
+                {tCommon("continue")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </Layout>
     );
@@ -323,22 +339,30 @@ export default function MealCameraScreen({
   if (photoUri) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <PhotoPreview
-          photoUri={photoUri}
-          onRetake={handleRetake}
-          onAccept={handleAccept}
-          secondaryText={tCommon("camera_retake")}
-          primaryText={tCommon("camera_use_photo")}
-        />
+        <View style={styles.fill}>
+          {flowHeader}
+          <PhotoPreview
+            photoUri={photoUri}
+            onRetake={handleRetake}
+            onAccept={handleAccept}
+            secondaryText={tCommon("camera_retake")}
+            primaryText={tCommon("camera_use_photo")}
+          />
+        </View>
       </Layout>
     );
   }
 
   return (
-    <Layout showNavigation={false} disableScroll style={styles.layout}>
+    <Layout
+      showNavigation={false}
+      disableScroll
+      style={showFullscreenCamera ? styles.fullscreenLayout : styles.layout}
+    >
       <View style={styles.fill} testID="add-meal-photo-screen">
+        {showFullscreenCamera ? null : flowHeader}
         <MealAddPhotoScaffold
-          topInset={showFullscreenCamera ? 0 : previewTopInset}
+          topInset={showFullscreenCamera ? 0 : undefined}
           previewFillsAvailable={showFullscreenCamera}
           previewFullBleed={showFullscreenCamera}
           preview={
@@ -427,24 +451,6 @@ export default function MealCameraScreen({
               </View>
             ) : undefined
           }
-          topAction={
-            <ScreenCornerNavButton
-              icon={canStepBack ? "back" : "close"}
-              onPress={handleTopLeftPress}
-              accessibilityLabel={tCommon(canStepBack ? "back" : "close", {
-                defaultValue: canStepBack ? "Back" : "Close",
-              })}
-              containerStyle={[
-                styles.screenCornerNavStyle,
-                showFullscreenCamera
-                  ? {
-                      top: fullscreenTopButtonInset,
-                      left: theme.spacing.lg,
-                    }
-                  : null,
-              ]}
-            />
-          }
           eyebrow={tMeals("camera_default_label", {
             defaultValue: "Photo",
           })}
@@ -531,6 +537,11 @@ export default function MealCameraScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
+    fullscreenLayout: {
       paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
@@ -604,11 +615,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     pressed: {
       opacity: 0.82,
     },
-    flexBackground: {
-      flex: 1,
-      backgroundColor: theme.background,
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
-    permissionWrap: {
+    permissionContent: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
@@ -654,10 +664,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     inlineNoteWarning: {
       color: theme.accentWarm,
-    },
-    screenCornerNavStyle: {
-      top: 0,
-      left: 0,
-      right: undefined,
     },
   });

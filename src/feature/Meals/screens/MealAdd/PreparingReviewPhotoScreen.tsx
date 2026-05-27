@@ -20,7 +20,7 @@ import {
   MealAddPhotoScaffold,
   MealAddStatusBanner,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 type PreparingReviewUiState =
   | "preparing"
@@ -67,11 +67,11 @@ export default function PreparingReviewPhotoScreen({
 }: MealAddScreenProps<"PreparingReviewPhoto">) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation(["common", "meals"]);
   const { uid } = useAuthContext();
   const { language } = useAppSettingsContext();
-  const { meal, saveDraft, setMeal, updateMeal } = useMealDraftContext();
+  const { clearMeal, meal, saveDraft, setMeal, updateMeal } =
+    useMealDraftContext();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { applyAccessFromResponse, refreshAccess } = useAccessContext();
   const [uiState, setUiState] = useState<PreparingReviewUiState>("preparing");
@@ -84,15 +84,6 @@ export default function PreparingReviewPhotoScreen({
     __DEV__ &&
     !Device.isDevice &&
     Boolean(params.simulatorReviewState);
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
-
   const ensureDraftWithPhoto = useCallback(async () => {
     if (!uid || !params.image || meal) return meal;
 
@@ -318,6 +309,29 @@ export default function PreparingReviewPhotoScreen({
     ignoreResultRef.current = true;
     navigation.navigate("Home");
   }, [navigation]);
+  const handleBack = useCallback(() => {
+    ignoreResultRef.current = true;
+    if (flow.canGoBack()) {
+      flow.goBack();
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  }, [flow, navigation]);
+  const handleCloseFlow = useCallback(() => {
+    ignoreResultRef.current = true;
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  }, [clearMeal, navigation, uid]);
 
   const screenCopy = useMemo(() => {
     switch (uiState) {
@@ -392,8 +406,16 @@ export default function PreparingReviewPhotoScreen({
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View testID="add-meal-photo-preparing-screen" style={styles.screen}>
-      <MealAddPhotoScaffold
-        topInset={previewTopInset}
+        <AddMealFlowHeader
+          progress={flow.progress}
+          onBack={handleBack}
+          onClose={handleCloseFlow}
+          containerStyle={styles.flowHeader}
+          testID="add-meal-photo-preparing-flow-header"
+          backTestID="add-meal-photo-preparing-back"
+          closeTestID="add-meal-photo-preparing-close"
+        />
+        <MealAddPhotoScaffold
         preview={
           params.image && !imageError ? (
             <Image
@@ -476,7 +498,7 @@ export default function PreparingReviewPhotoScreen({
             </View>
           )
         }
-      />
+        />
       </View>
     </Layout>
   );
@@ -485,7 +507,6 @@ export default function PreparingReviewPhotoScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
-      paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
@@ -504,6 +525,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     previewOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: "rgba(18, 21, 18, 0.22)",
+    },
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
     actions: {
       gap: theme.spacing.sm,

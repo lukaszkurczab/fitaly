@@ -47,12 +47,7 @@ type AddMealMethodOption = MethodOptionBase & {
   screen: "AddMeal";
   params: NonNullable<RootStackParamList["AddMeal"]>;
 };
-
-type NonAddMealMethodOption = MethodOptionBase & {
-  screen: "SelectSavedMeal";
-};
-
-export type MethodOption = AddMealMethodOption | NonAddMealMethodOption;
+export type MethodOption = AddMealMethodOption;
 
 export const mealAddMethodOptions: readonly MethodOption[] = [
   {
@@ -101,7 +96,10 @@ export const mealAddMethodOptions: readonly MethodOption[] = [
     icon: "saved-items",
     titleKey: "savedTitle",
     descKey: "savedDesc",
-    screen: "SelectSavedMeal",
+    screen: "AddMeal",
+    params: {
+      start: "SelectSavedMeal",
+    },
   },
 ] as const;
 
@@ -309,55 +307,27 @@ export function useMealAddMethodState(params: {
     [params.navigation, params.replaceOnStart, params.resetStackOnStart],
   );
 
-  const openSimpleScreen = useCallback(
-    (name: "SelectSavedMeal") => {
-      if (params.resetStackOnStart) {
-        params.navigation.dispatch(
-          {
-            type: "RESET",
-            payload: {
-              index: 1,
-              routes: [
-                { name: "Home" },
-                { name },
-              ],
-            },
-          } as never,
-        );
-        return;
-      }
-
-      if (params.replaceOnStart) {
-        params.navigation.replace(name);
-        return;
-      }
-
-      params.navigation.navigate(name);
-    },
-    [params.navigation, params.replaceOnStart, params.resetStackOnStart],
-  );
-
   const executeOption = useCallback(
     async (option: MethodOption) => {
-      if (option.screen === "AddMeal") {
-        const start = option.params.start;
-        await primeEmptyMeal(
-          start ?? "CameraDefault",
-          getInputMethodForOption(option),
-        );
-        const photoFullscreenPreferred =
-          option.key === "photo" ? await getPhotoFullscreenPreference(uid) : false;
-        openAddMeal(
-          photoFullscreenPreferred
-            ? { ...option.params, fullscreenPreferred: true }
-            : option.params,
-        );
+      if (option.key === "saved") {
+        openAddMeal(option.params);
         return;
       }
 
-      openSimpleScreen(option.screen);
+      const start = option.params.start;
+      await primeEmptyMeal(
+        start ?? "CameraDefault",
+        getInputMethodForOption(option),
+      );
+      const photoFullscreenPreferred =
+        option.key === "photo" ? await getPhotoFullscreenPreference(uid) : false;
+      openAddMeal(
+        photoFullscreenPreferred
+          ? { ...option.params, fullscreenPreferred: true }
+          : option.params,
+      );
     },
-    [openAddMeal, openSimpleScreen, primeEmptyMeal, uid],
+    [openAddMeal, primeEmptyMeal, uid],
   );
 
   const checkDraftBeforeLaunch = useCallback(

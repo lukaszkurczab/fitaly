@@ -20,7 +20,6 @@ import {
   Button,
   ErrorBox,
   Layout,
-  ScreenCornerNavButton,
   TextInput,
 } from "@/components";
 import { useTheme } from "@/theme/useTheme";
@@ -44,8 +43,9 @@ import { MealAddBarcodePreview } from "@/feature/Meals/components/MealAddBarcode
 import { buildBarcodeDraft } from "@/feature/Meals/utils/buildBarcodeDraft";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
-const BARCODE_PREVIEW_HEIGHT = 352;
+const BARCODE_PREVIEW_HEIGHT = 300;
 
 export default function BarcodeScanScreen({
   navigation,
@@ -61,7 +61,8 @@ export default function BarcodeScanScreen({
   const keyboardInset = useKeyboardInset();
   const [permission, requestPermission] = useCameraPermissions();
   const { uid } = useAuthContext();
-  const { meal, saveDraft, setLastScreen, setMeal } = useMealDraftContext();
+  const { clearMeal, meal, saveDraft, setLastScreen, setMeal } =
+    useMealDraftContext();
 
   const [detectedCode, setDetectedCode] = useState<string | null>(
     params.code ?? null,
@@ -87,14 +88,6 @@ export default function BarcodeScanScreen({
     [],
   );
 
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
   const manualSheetMaxHeight = useMemo(() => {
     const defaultMaxHeight = windowHeight * 0.76;
     const compactMaxHeight = windowHeight * 0.5;
@@ -159,6 +152,16 @@ export default function BarcodeScanScreen({
 
     navigation.goBack();
   }, [canStepBack, dismissManualEntry, flow, navigation, showManualEntry]);
+  const handleCloseFlow = useCallback(() => {
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  }, [clearMeal, navigation, uid]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -327,11 +330,24 @@ export default function BarcodeScanScreen({
         defaultValue:
           "Point the camera at the barcode. We will ask you to confirm the number before searching.",
       });
+  const flowHeader = (
+    <AddMealFlowHeader
+      progress={flow.progress}
+      onBack={handleExit}
+      onClose={handleCloseFlow}
+      containerStyle={styles.flowHeader}
+      testID="barcode-flow-header"
+      backTestID="barcode-back"
+      closeTestID="barcode-close"
+    />
+  );
 
   if (!permission && !e2eBarcodeSimulation) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.flexBackground} testID="barcode-loading-state" />
+        <View style={styles.fill} testID="barcode-loading-state">
+          {flowHeader}
+        </View>
       </Layout>
     );
   }
@@ -340,24 +356,27 @@ export default function BarcodeScanScreen({
     const blocked = permission.canAskAgain === false;
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.permissionWrap} testID="barcode-permission-state">
-          <Text style={styles.permissionTitle}>
-            {tCommon("camera_permission_title")}
-          </Text>
-          <Text style={styles.permissionSubtitle}>
-            {blocked
-              ? tMeals(
-                  "barcode_camera_permission_blocked_message",
-                  "Enable camera access in settings to scan barcodes.",
-                )
-              : tCommon("camera_permission_message")}
-          </Text>
-          <Button
-            testID="barcode-permission-button"
-            label={tCommon("continue")}
-            onPress={blocked ? () => Linking.openSettings() : requestPermission}
-            style={styles.permissionButton}
-          />
+        <View style={styles.fill} testID="barcode-permission-state">
+          {flowHeader}
+          <View style={styles.permissionContent}>
+            <Text style={styles.permissionTitle}>
+              {tCommon("camera_permission_title")}
+            </Text>
+            <Text style={styles.permissionSubtitle}>
+              {blocked
+                ? tMeals(
+                    "barcode_camera_permission_blocked_message",
+                    "Enable camera access in settings to scan barcodes.",
+                  )
+                : tCommon("camera_permission_message")}
+            </Text>
+            <Button
+              testID="barcode-permission-button"
+              label={tCommon("continue")}
+              onPress={blocked ? () => Linking.openSettings() : requestPermission}
+              style={styles.permissionButton}
+            />
+          </View>
         </View>
       </Layout>
     );
@@ -371,8 +390,8 @@ export default function BarcodeScanScreen({
       keyboardAvoiding={false}
     >
       <View style={styles.fill} testID="barcode-scan-screen">
+        {flowHeader}
         <MealAddPhotoScaffold
-          topInset={previewTopInset}
           previewHeight={BARCODE_PREVIEW_HEIGHT}
           preview={
             <MealAddBarcodePreview
@@ -392,16 +411,6 @@ export default function BarcodeScanScreen({
                 />
               )}
             </MealAddBarcodePreview>
-          }
-          topAction={
-            <ScreenCornerNavButton
-              icon={canStepBack ? "back" : "close"}
-              onPress={handleExit}
-              accessibilityLabel={tCommon(canStepBack ? "back" : "close", {
-                defaultValue: canStepBack ? "Back" : "Close",
-              })}
-              containerStyle={styles.screenCornerNavStyle}
-            />
           }
           eyebrow={tMeals("barcode_scan_eyebrow", {
             defaultValue: "Barcode",
@@ -593,7 +602,6 @@ export default function BarcodeScanScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
-      paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
@@ -602,19 +610,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    flexBackground: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
     camera: {
       flex: 1,
     },
-    screenCornerNavStyle: {
-      top: 0,
-      left: 0,
-      right: undefined,
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
-    permissionWrap: {
+    permissionContent: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",

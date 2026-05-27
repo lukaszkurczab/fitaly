@@ -3,11 +3,17 @@ import { BackHandler } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
+import { useMealDraftContext } from "@contexts/MealDraftContext";
 import MapMealAddScreens, {
   type MealAddFlowApi,
   type MealAddScreenName,
   type MealAddStepParams,
 } from "../feature/MapMealAddScreens";
+import {
+  resolveMealAddFlowPath,
+  resolveMealAddFlowProgress,
+  type MealAddFlowPath,
+} from "@/feature/Meals/utils/mealAddFlowProgress";
 
 type Step<N extends MealAddScreenName = MealAddScreenName> = {
   name: N;
@@ -28,6 +34,7 @@ const createStep = <N extends MealAddScreenName>(
 export default function AddMealScreen() {
   const navigation = useNavigation<AddMealNavigationProp>();
   const route = useRoute<AddMealRouteProp>();
+  const { meal } = useMealDraftContext();
 
   const initialStep: Step = useMemo(() => {
     const p = (route.params ?? {}) as NonNullable<RootStackParamList["AddMeal"]>;
@@ -68,6 +75,10 @@ export default function AddMealScreen() {
       return { name: "EditMealDetails", params: {} };
     }
 
+    if (start === "SelectSavedMeal") {
+      return { name: "SelectSavedMeal", params: {} };
+    }
+
     return {
       name: "CameraDefault",
       params: {
@@ -81,22 +92,46 @@ export default function AddMealScreen() {
   }, [route.params]);
 
   const [stack, setStack] = useState<Step[]>([initialStep]);
+  const [flowPath, setFlowPath] = useState<MealAddFlowPath>(() =>
+    resolveMealAddFlowPath(initialStep.name, meal?.inputMethod),
+  );
 
   useEffect(() => {
     setStack([initialStep]);
+    setFlowPath(resolveMealAddFlowPath(initialStep.name));
   }, [initialStep]);
 
+  useEffect(() => {
+    if (
+      initialStep.name !== "ReviewMeal" &&
+      initialStep.name !== "EditMealDetails"
+    ) {
+      return;
+    }
+    setFlowPath(resolveMealAddFlowPath(initialStep.name, meal?.inputMethod));
+  }, [initialStep.name, meal?.inputMethod]);
+
   const goTo = useCallback<MealAddFlowApi["goTo"]>((name, params) => {
+    setFlowPath((currentPath) =>
+      name === "ReviewMeal"
+        ? currentPath
+        : resolveMealAddFlowPath(name, meal?.inputMethod),
+    );
     setStack((prev) => [...prev, createStep(name, params)]);
-  }, []);
+  }, [meal?.inputMethod]);
 
   const replace = useCallback<MealAddFlowApi["replace"]>((name, params) => {
+    setFlowPath((currentPath) =>
+      name === "ReviewMeal"
+        ? currentPath
+        : resolveMealAddFlowPath(name, meal?.inputMethod),
+    );
     setStack((prev) => {
       const next = [...prev];
       next[next.length - 1] = createStep(name, params);
       return next;
     });
-  }, []);
+  }, [meal?.inputMethod]);
 
   const goBack = useCallback(() => {
     setStack((prev) => {
@@ -106,6 +141,25 @@ export default function AddMealScreen() {
   }, []);
 
   const canGoBack = useCallback(() => stack.length > 1, [stack.length]);
+  const goBackOrExit = useCallback(() => {
+    if (stack.length > 1) {
+      goBack();
+      return;
+    }
+
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate("Home");
+  }, [goBack, navigation, stack.length]);
+
+  const current = stack[stack.length - 1];
+  const progress = useMemo(
+    () => resolveMealAddFlowProgress(flowPath, current.name),
+    [current.name, flowPath],
+  );
 
   const flow: MealAddFlowApi = useMemo(
     () => ({
@@ -113,11 +167,11 @@ export default function AddMealScreen() {
       goBack,
       replace,
       canGoBack,
+      goBackOrExit,
+      progress,
     }),
-    [goTo, goBack, replace, canGoBack],
+    [goTo, goBack, replace, canGoBack, goBackOrExit, progress],
   );
-
-  const current = stack[stack.length - 1];
 
   useEffect(() => {
     const usesParentHardwareBack =

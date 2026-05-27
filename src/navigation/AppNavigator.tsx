@@ -35,7 +35,6 @@ import ContactSupportScreen from "@/feature/UserProfile/screens/ContactSupportSc
 import AppSettingsScreen from "@/feature/UserProfile/screens/AppSettingsScreen";
 import ManageSubscriptionScreen from "@/feature/Subscription/screens/ManageSubscriptionScreen";
 import SavedMealsScreen from "@/feature/History/screens/SavedMealsScreen";
-import SelectSavedMealScreen from "@/feature/Meals/screens/SelectSavedMealsScreen";
 import NotificationsScreen from "@/feature/UserProfile/screens/NotificationsScreen";
 import DeleteAccountScreen from "@/feature/UserProfile/screens/DeleteAccountScreen";
 import MealShareScreen from "@/feature/Meals/screens/MealShareScreen";
@@ -97,10 +96,6 @@ function renderAppScreens() {
       <Stack.Screen
         name="EditHistoryMealDetails"
         component={EditHistoryMealDetailsScreen}
-      />
-      <Stack.Screen
-        name="SelectSavedMeal"
-        component={SelectSavedMealScreen}
       />
       <Stack.Screen
         name="UsernameChange"
