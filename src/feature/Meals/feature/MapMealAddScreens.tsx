@@ -34,6 +34,7 @@ export type MealAddStepParams = {
     id?: string;
     skipDetection?: boolean;
     attempt?: number;
+    fullscreenPreferred?: boolean;
     showPremiumModal?: boolean;
     simulatorCreditsState?: MealAddSimulatorCreditsState;
     simulatorReviewState?: MealAddSimulatorReviewState;

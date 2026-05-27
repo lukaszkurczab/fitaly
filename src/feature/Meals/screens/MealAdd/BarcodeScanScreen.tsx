@@ -428,16 +428,36 @@ export default function BarcodeScanScreen({
               ) : null}
 
               {detectedCode ? (
-                <Button
-                  testID="barcode-lookup-button"
-                  label={tMeals("barcode_scan_search_cta", {
-                    defaultValue: "Search product",
-                  })}
-                  onPress={() => {
-                    void handleLookup();
-                  }}
-                  loading={lookupLoading}
-                />
+                <>
+                  <View
+                    testID="barcode-detected-summary"
+                    style={styles.detectedSummary}
+                  >
+                    <Text style={styles.detectedSummaryLabel}>
+                      {tMeals("barcode_scan_detected_label", {
+                        defaultValue: "Code detected",
+                      })}
+                    </Text>
+                    <Text
+                      style={styles.detectedSummaryCode}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.82}
+                    >
+                      {detectedCode}
+                    </Text>
+                  </View>
+                  <Button
+                    testID="barcode-lookup-button"
+                    label={tMeals("barcode_scan_search_cta", {
+                      defaultValue: "Search product",
+                    })}
+                    onPress={() => {
+                      void handleLookup();
+                    }}
+                    loading={lookupLoading}
+                  />
+                </>
               ) : null}
 
               <Button
@@ -591,6 +611,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     screenCornerNavStyle: {
       top: 0,
+      left: 0,
+      right: undefined,
     },
     permissionWrap: {
       flex: 1,
@@ -614,6 +636,35 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     permissionButton: {
       alignSelf: "stretch",
+    },
+    detectedSummary: {
+      minHeight: 52,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.primarySoft,
+      backgroundColor: theme.success.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+    },
+    detectedSummaryLabel: {
+      color: theme.primaryStrong,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      textTransform: "uppercase",
+      flexShrink: 0,
+    },
+    detectedSummaryCode: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      textAlign: "right",
+      flexShrink: 1,
     },
     manualOverlay: {
       ...StyleSheet.absoluteFillObject,

@@ -40,6 +40,8 @@ export default function AddMealScreen() {
           id: p.id,
           skipDetection: !!p.skipDetection,
           attempt: typeof p.attempt === "number" ? p.attempt : 1,
+          fullscreenPreferred:
+            p.fullscreenPreferred === true ? true : undefined,
         },
       };
     }
@@ -72,6 +74,8 @@ export default function AddMealScreen() {
         id: p.id,
         skipDetection: !!p.skipDetection,
         attempt: typeof p.attempt === "number" ? p.attempt : 1,
+        fullscreenPreferred:
+          p.fullscreenPreferred === true ? true : undefined,
       },
     };
   }, [route.params]);

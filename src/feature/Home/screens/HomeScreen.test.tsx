@@ -84,6 +84,12 @@ jest.mock("react-i18next", () => ({
         return "Small steps each day lead to bigger changes.";
       }
       if (key === "home:hero.todayInProgress.cta") return "Log next meal";
+      if (key === "home:hero.methodCta.photo") return "Take meal photo";
+      if (key === "home:hero.methodCta.text") return "Describe meal";
+      if (key === "home:hero.methodCta.barcode") return "Scan barcode";
+      if (key === "home:hero.methodCta.saved") return "Use saved meal";
+      if (key === "home:hero.methodCta.manual") return "Enter manually";
+      if (key === "home:hero.methodCta.default") return "Add meal";
       if (key === "home:hero.pastIncomplete.meta") return "You missed a meal log";
       if (key === "home:hero.pastIncomplete.cta") return "Add a missed meal";
       if (key === "home:hero.pastIncomplete.supportCopy") {
@@ -167,6 +173,7 @@ jest.mock("../components/HomeHeroCard", () => ({
     meta,
     ctaLabel,
     methodLabel,
+    methodIcon,
     progress,
     supportText,
     onPressCta,
@@ -176,6 +183,7 @@ jest.mock("../components/HomeHeroCard", () => ({
     meta: string;
     ctaLabel: string;
     methodLabel?: string;
+    methodIcon?: string;
     progress?: number | null;
     supportText?: string | null;
     onPressCta: () => void;
@@ -191,6 +199,9 @@ jest.mock("../components/HomeHeroCard", () => ({
         { onPress: onPressCta },
         mockReact.createElement(mockText, null, ctaLabel),
       ),
+      methodIcon
+        ? mockReact.createElement(mockText, null, `cta-icon:${methodIcon}`)
+        : null,
       methodLabel
         ? mockReact.createElement(
             mockPressable,
@@ -229,10 +240,8 @@ jest.mock("../components/MacroTargetsRow", () => ({
 jest.mock("../components/TodaysMealsList", () => ({
   TodaysMealsList: ({
     meals,
-    onViewHistory,
   }: {
     meals: Array<{ name?: string | null; syncState?: string }>;
-    onViewHistory?: () => void;
   }) =>
     mockReact.createElement(
       mockView,
@@ -244,13 +253,6 @@ jest.mock("../components/TodaysMealsList", () => ({
           .map((meal) => `${meal.name ?? ""}/${meal.syncState ?? ""}`)
           .join("|")}`,
       ),
-      onViewHistory
-        ? mockReact.createElement(
-            mockPressable,
-            { testID: "home-view-history-button", onPress: onViewHistory },
-            mockReact.createElement(mockText, null, "mock-view-history"),
-          )
-        : null,
     ),
 }));
 
@@ -463,13 +465,14 @@ describe("HomeScreen", () => {
     );
 
     expect(getByText("Good morning, Anna")).toBeTruthy();
-    expect(getByText("Log breakfast")).toBeTruthy();
+    expect(getByText("Take meal photo")).toBeTruthy();
+    expect(getByText("cta-icon:camera")).toBeTruthy();
     expect(getByText("Ask the assistant for advice")).toBeTruthy();
     expect(getByText("Small steps each day lead to bigger changes.")).toBeTruthy();
     expect(queryByText("weekly-report-card:ready")).toBeNull();
     expect(queryByText(/^meals:1:/)).toBeNull();
 
-    fireEvent.press(getByText("Log breakfast"));
+    fireEvent.press(getByText("Take meal photo"));
 
     await waitFor(() => {
       expect(handleDirectStart).toHaveBeenCalledTimes(1);
@@ -490,6 +493,29 @@ describe("HomeScreen", () => {
     });
   });
 
+  it("uses the preferred text method presentation for the Home hero CTA", () => {
+    mockUseMealAddMethodState.mockReturnValue({
+      preferredOption: {
+        key: "text",
+        icon: "assistant",
+        titleKey: "textTitle",
+      },
+      showResumeModal: false,
+      handleDirectStart: jest.fn(async () => undefined),
+      handleContinueDraft: jest.fn(async () => undefined),
+      handleDiscardDraft: jest.fn(async () => undefined),
+      closeResumeModal: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(getByText("Describe meal")).toBeTruthy();
+    expect(getByText("cta-icon:text")).toBeTruthy();
+  });
+
   it("renders the in-progress today state with subtle progress and meals list", () => {
     mockUseMeals.mockReturnValue({
       meals: [createMeal()],
@@ -501,7 +527,7 @@ describe("HomeScreen", () => {
       <HomeScreen navigation={navigation as never} />,
     );
 
-    expect(getByText("Log next meal")).toBeTruthy();
+    expect(getByText("Take meal photo")).toBeTruthy();
     expect(getByText("hero-progress:0.25")).toBeTruthy();
     expect(getByText("macro-targets:125/65/225;consumed:25/15/45")).toBeTruthy();
     expect(getByText(/^meals:1:/)).toBeTruthy();
@@ -716,7 +742,7 @@ describe("HomeScreen", () => {
 
     fireEvent.press(getByText("pick-2026-03-17"));
 
-    expect(getByText("Add a missed meal")).toBeTruthy();
+    expect(getByText("Take meal photo")).toBeTruthy();
     expect(getByText("You missed a meal log")).toBeTruthy();
     expect(getByText("You can still fill in what was missing.")).toBeTruthy();
     expect(queryByText(/^coach-insight-card:/)).toBeNull();
@@ -783,7 +809,7 @@ describe("HomeScreen", () => {
 
     fireEvent.press(getByText("pick-2026-03-17"));
 
-    expect(getByText("Add a missed meal")).toBeTruthy();
+    expect(getByText("Take meal photo")).toBeTruthy();
     expect(getByText("hero-progress:0.35")).toBeTruthy();
     expect(getByText(/^meals:1:/)).toBeTruthy();
     expect(queryByText("You missed a meal log")).toBeNull();

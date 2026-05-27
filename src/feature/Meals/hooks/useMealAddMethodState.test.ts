@@ -161,6 +161,31 @@ describe("useMealAddMethodState", () => {
     expect(result.current.resumeDraftMeal).toBeNull();
   });
 
+  it("starts the preferred photo method in fullscreen camera mode", async () => {
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+      fullscreenPreferred: true,
+    });
+  });
+
   it("resets the stack when starting a new method from inside the meal add flow", async () => {
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
 

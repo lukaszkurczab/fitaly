@@ -63,6 +63,7 @@ export const mealAddMethodOptions: readonly MethodOption[] = [
     params: {
       start: "CameraDefault",
       attempt: 1,
+      fullscreenPreferred: true,
     },
   },
   {

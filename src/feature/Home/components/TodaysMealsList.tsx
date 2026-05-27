@@ -1,21 +1,19 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { useTranslation } from "react-i18next";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
-import AppIcon from "@/components/AppIcon";
 import { MealThumbnail } from "@/feature/Meals/components/MealThumbnail";
 
 type Props = {
   meals: Meal[];
   onOpenMeal?: (meal: Meal) => void;
-  onViewHistory?: () => void;
 };
 
-export const TodaysMealsList = ({ meals, onOpenMeal, onViewHistory }: Props) => {
+export const TodaysMealsList = ({ meals, onOpenMeal }: Props) => {
   const theme = useTheme();
-  const { t, i18n } = useTranslation(["home", "common"]);
+  const { t, i18n } = useTranslation(["home", "common", "meals"]);
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language || undefined),
@@ -26,23 +24,6 @@ export const TodaysMealsList = ({ meals, onOpenMeal, onViewHistory }: Props) => 
     <View style={styles.container} testID="home-today-meals-list">
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>{t("home:todaysMeals")}</Text>
-        {onViewHistory ? (
-          <Pressable
-            testID="home-view-history-button"
-            onPress={onViewHistory}
-            accessibilityRole="button"
-            accessibilityLabel={t("home:viewHistory")}
-            style={({ pressed }) => [
-              styles.historyButton,
-              pressed ? styles.historyButtonPressed : null,
-            ]}
-          >
-            <AppIcon name="history" size={16} color={theme.primary} />
-            <Text numberOfLines={1} style={styles.historyButtonText}>
-              {t("home:viewHistoryShort")}
-            </Text>
-          </Pressable>
-        ) : null}
       </View>
       {meals.map((meal, index) => {
         const ingredientTotals =
@@ -57,28 +38,20 @@ export const TodaysMealsList = ({ meals, onOpenMeal, onViewHistory }: Props) => 
                 { kcal: 0, protein: 0, carbs: 0, fat: 0 },
               )
             : null;
-        const kcal = ingredientTotals?.kcal ?? (meal.totals?.kcal ?? 0);
+        const kcal = ingredientTotals?.kcal ?? meal.totals?.kcal ?? 0;
         const protein = Math.max(
           0,
-          Math.round(ingredientTotals?.protein ?? (meal.totals?.protein ?? 0)),
+          Math.round(ingredientTotals?.protein ?? meal.totals?.protein ?? 0),
         );
         const carbs = Math.max(
           0,
-          Math.round(ingredientTotals?.carbs ?? (meal.totals?.carbs ?? 0)),
+          Math.round(ingredientTotals?.carbs ?? meal.totals?.carbs ?? 0),
         );
         const fat = Math.max(
           0,
-          Math.round(ingredientTotals?.fat ?? (meal.totals?.fat ?? 0)),
+          Math.round(ingredientTotals?.fat ?? meal.totals?.fat ?? 0),
         );
 
-        const subtitle =
-          Array.isArray(meal.ingredients) && meal.ingredients.length
-            ? meal.ingredients
-                .slice(0, 3)
-                .map((ingredient) => ingredient.name?.trim())
-                .filter((value): value is string => !!value)
-                .join(", ")
-            : null;
         const mealTime = formatMealTime(meal.timestamp, i18n.language);
         const mealInitial = (meal.name || t("home:meal"))
           .trim()
@@ -86,66 +59,74 @@ export const TodaysMealsList = ({ meals, onOpenMeal, onViewHistory }: Props) => 
           .toUpperCase();
 
         return (
-          <Pressable
-            key={meal.cloudId || meal.mealId || `${meal.name}-${meal.timestamp}`}
-            testID={`home-today-meal-row-${index}`}
-            onPress={onOpenMeal ? () => onOpenMeal(meal) : undefined}
-            accessibilityRole="button"
-            accessibilityLabel={`${meal.name || t("meal")}, ${numberFormatter.format(Math.max(0, Math.round(kcal)))} kcal`}
-            style={({ pressed }) => [
-              styles.row,
-              pressed ? styles.rowPressed : null,
-            ]}
+          <Fragment
+            key={
+              meal.cloudId || meal.mealId || `${meal.name}-${meal.timestamp}`
+            }
           >
-            <MealThumbnail
-              meal={meal}
-              size={60}
-              borderRadius={theme.rounded.lg}
-              placeholderLabel={mealInitial}
-            />
-            <View style={styles.info}>
-              <View style={styles.titleRow}>
-                <Text numberOfLines={2} style={styles.name}>
-                  {meal.name || t("home:meal")}
+            <Pressable
+              testID={`home-today-meal-row-${index}`}
+              onPress={onOpenMeal ? () => onOpenMeal(meal) : undefined}
+              accessibilityRole="button"
+              accessibilityLabel={`${meal.name || t("meal")}, ${numberFormatter.format(Math.max(0, Math.round(kcal)))} kcal`}
+              style={({ pressed }) => [
+                styles.row,
+                pressed ? styles.rowPressed : null,
+              ]}
+            >
+              <MealThumbnail
+                meal={meal}
+                size={60}
+                borderRadius={theme.rounded.lg}
+                placeholderLabel={mealInitial}
+              />
+              <View style={styles.info}>
+                <View style={styles.titleRow}>
+                  <Text numberOfLines={2} style={styles.name}>
+                    {meal.name || t("home:meal")}
+                  </Text>
+                  <SyncStatusIndicator
+                    syncState={meal.syncState}
+                    testID={`home-meal-sync-${meal.syncState}-${index}`}
+                  />
+                </View>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {[
+                    mealTime,
+                    `${numberFormatter.format(Math.max(0, Math.round(kcal)))} kcal`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </Text>
-                <SyncStatusIndicator
-                  syncState={meal.syncState}
-                  testID={`home-meal-sync-${meal.syncState}-${index}`}
-                />
+                <View style={styles.chipsRow}>
+                  <Text style={[styles.chip, styles.proteinChip]}>
+                    {t("meals:protein_short", "P")}{" "}
+                    {numberFormatter.format(protein)}g
+                  </Text>
+                  <Text style={[styles.chip, styles.carbsChip]}>
+                    {t("meals:carbs_short", "C")}{" "}
+                    {numberFormatter.format(carbs)}g
+                  </Text>
+                  <Text style={[styles.chip, styles.fatChip]}>
+                    {t("meals:fat_short", "F")} {numberFormatter.format(fat)}g
+                  </Text>
+                </View>
               </View>
-              <Text numberOfLines={1} style={styles.meta}>
-                {[mealTime, `${numberFormatter.format(Math.max(0, Math.round(kcal)))} kcal`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </Text>
-              {subtitle ? (
-                <Text numberOfLines={1} style={styles.subtitle}>
-                  {subtitle}
-                </Text>
-              ) : null}
-              <View style={styles.chipsRow}>
-                <Text style={[styles.chip, styles.proteinChip]}>
-                  B {numberFormatter.format(protein)}g
-                </Text>
-                <Text style={[styles.chip, styles.carbsChip]}>
-                  W {numberFormatter.format(carbs)}g
-                </Text>
-                <Text style={[styles.chip, styles.fatChip]}>
-                  T {numberFormatter.format(fat)}g
-                </Text>
-              </View>
-            </View>
-            <View style={styles.moreWrap}>
-              <AppIcon name="more" size={24} color={theme.textSecondary} />
-            </View>
-          </Pressable>
+            </Pressable>
+            {index < meals.length - 1 ? (
+              <View style={styles.separator} />
+            ) : null}
+          </Fragment>
         );
       })}
     </View>
   );
 };
 
-function formatMealTime(timestamp: Meal["timestamp"], locale?: string): string | null {
+function formatMealTime(
+  timestamp: Meal["timestamp"],
+  locale?: string,
+): string | null {
   if (!timestamp) return null;
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return null;
@@ -163,45 +144,25 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      padding: theme.spacing.sm,
-      gap: theme.spacing.sm,
-      ...theme.depth.floating,
+      paddingHorizontal: theme.spacing.cardPaddingLarge,
+      paddingVertical: theme.spacing.md,
+      gap: theme.spacing.xs,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.18 : 0.06,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: theme.isDark ? 3 : 2,
     },
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: theme.spacing.sm,
     },
     sectionTitle: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
       fontFamily: theme.typography.fontFamily.semiBold,
-      flexShrink: 1,
-    },
-    historyButton: {
-      minHeight: 40,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: theme.spacing.xs,
-      borderRadius: theme.rounded.full,
-      backgroundColor: theme.surfaceAlt,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      maxWidth: 136,
-    },
-    historyButtonPressed: {
-      opacity: 0.78,
-    },
-    historyButtonText: {
-      color: theme.primary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.medium,
       flexShrink: 1,
     },
     row: {
@@ -209,10 +170,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       gap: theme.spacing.md,
       backgroundColor: theme.surfaceElevated,
-      borderRadius: theme.rounded.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      padding: theme.spacing.xs,
+      paddingVertical: theme.spacing.xs,
     },
     rowPressed: {
       opacity: 0.88,
@@ -240,17 +198,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
     },
-    subtitle: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.regular,
-    },
     chipsRow: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: theme.spacing.xs,
-      paddingTop: 2,
+      paddingTop: theme.spacing.xxs,
     },
     chip: {
       borderRadius: theme.rounded.full,
@@ -273,9 +225,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.chart.fat,
       backgroundColor: theme.macro.fatSoft,
     },
-    moreWrap: {
-      width: 28,
-      alignItems: "center",
-      justifyContent: "center",
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.borderSoft,
     },
   });

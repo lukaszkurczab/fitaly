@@ -21,9 +21,11 @@ appId: com.lkurczab.fitaly
     id: add-meal-photo-screen
 - assertVisible:
     id: add-meal-photo-e2e-preview
+- assertVisible:
+    id: add-meal-photo-fullscreen-change-method-button
 - takeScreenshot: add-meal-photo-entry
 - tapOn:
-    id: add-meal-photo-capture-button
+    id: add-meal-photo-fullscreen-capture-button
 - assertVisible:
     id: add-meal-photo-preparing-screen
 - takeScreenshot: add-meal-photo-preparing

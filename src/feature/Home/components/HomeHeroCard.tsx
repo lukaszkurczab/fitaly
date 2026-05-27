@@ -46,7 +46,8 @@ export function HomeHeroCard({
       >
         <Image
           source={require("../../../../assets/images/image.png")}
-          style={{ height: "100%", width: "100%" }}
+          resizeMode="contain"
+          style={styles.assetImage}
         />
       </View>
 
@@ -135,7 +136,7 @@ export function HomeHeroCard({
             <View style={styles.methodChevronWrap}>
               <AppIcon
                 name="chevron"
-                rotation="-90deg"
+                rotation="180deg"
                 size={24}
                 color={theme.textTertiary}
               />
@@ -159,7 +160,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.sm,
       overflow: "hidden",
       position: "relative",
-      ...theme.depth.floating,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.2 : 0.07,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: theme.isDark ? 3 : 2,
     },
     cardDefault: {
       backgroundColor: theme.surfaceElevated,
@@ -176,7 +181,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       width: 172,
       alignItems: "center",
       justifyContent: "center",
+      opacity: theme.isDark ? 0.78 : 0.96,
+      zIndex: 0,
       transform: [{ translateY: -8 }, { scaleX: -1 }],
+    },
+    assetImage: {
+      height: "100%",
+      width: "100%",
     },
     header: {
       width: "67%",
@@ -256,7 +267,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       justifyContent: "space-between",
       gap: theme.spacing.md,
-      ...theme.depth.raised,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.14 : 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: theme.isDark ? 2 : 1,
     },
     methodSelectorPressed: {
       opacity: 0.88,

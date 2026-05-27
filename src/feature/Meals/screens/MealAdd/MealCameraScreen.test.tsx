@@ -242,7 +242,9 @@ function baseHookState() {
   };
 }
 
-const buildProps = () =>
+const buildProps = (
+  params: Partial<MealAddScreenProps<"CameraDefault">["params"]> = {},
+) =>
   ({
     navigation: {
       navigate: jest.fn(),
@@ -255,7 +257,7 @@ const buildProps = () =>
       goBack: jest.fn(),
       canGoBack: jest.fn(() => true),
     } as unknown as MealAddScreenProps<"CameraDefault">["flow"],
-    params: {},
+    params,
   }) as MealAddScreenProps<"CameraDefault">;
 
 describe("MealCameraScreen", () => {
@@ -355,6 +357,58 @@ describe("MealCameraScreen", () => {
       selectionMode: "temporary",
       origin: "mealAddFlow",
     });
+  });
+
+  it("starts in fullscreen camera mode when the photo method requests it", () => {
+    mockDevice.isDevice = true;
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    const props = buildProps({ fullscreenPreferred: true });
+    const hookState = buildHookState();
+    mockUseMealCameraState.mockReturnValue(hookState);
+
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <MealCameraScreen {...props} />,
+    );
+
+    expect(queryByText("Take a clear photo")).toBeNull();
+
+    fireEvent.press(getByTestId("add-meal-photo-fullscreen-capture-button"));
+    expect(hookState.handleTakePicture).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(getByTestId("add-meal-photo-fullscreen-change-method-button"));
+    expect(props.navigation.navigate).toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "temporary",
+      origin: "mealAddFlow",
+    });
+
+    fireEvent.press(getByTestId("add-meal-photo-show-controls-button"));
+    expect(getByText("Take a clear photo")).toBeTruthy();
+  });
+
+  it("keeps the no-credits photo state in the options sheet even when fullscreen is requested", () => {
+    mockDevice.isDevice = true;
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    mockUseMealCameraState.mockReturnValue(
+      buildHookState({
+        canUsePhotoAi: false,
+        credits: {
+          userId: "user-1",
+          tier: "free",
+          balance: 0,
+          allocation: 100,
+          periodStartAt: "2026-03-01T00:00:00.000Z",
+          periodEndAt: "2026-04-01T00:00:00.000Z",
+          costs: { chat: 1, textMeal: 1, photo: 5 },
+        },
+      }),
+    );
+
+    const { getByText, queryByTestId } = renderWithTheme(
+      <MealCameraScreen {...buildProps({ fullscreenPreferred: true })} />,
+    );
+
+    expect(getByText("No credits left for photo")).toBeTruthy();
+    expect(queryByTestId("add-meal-photo-fullscreen-capture-button")).toBeNull();
   });
 
   it("does not render simulator preview controls on simulator", () => {

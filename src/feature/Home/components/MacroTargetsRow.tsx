@@ -70,11 +70,6 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("home:todaysMacros")}</Text>
-        <View style={styles.detailsPill}>
-          <Text style={styles.detailsText}>
-            {t("home:details", "Details")}
-          </Text>
-        </View>
       </View>
 
       <View style={styles.itemsRow}>
@@ -87,17 +82,11 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.78}
                 style={[styles.label, { color: item.color }]}
               >
                 {item.label}
               </Text>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.72}
-                style={styles.value}
-              >
+              <Text numberOfLines={1} style={styles.value}>
                 <Text style={styles.valueStrong}>{item.consumed}</Text>
                 <Text style={styles.valueMuted}> / {item.target}g</Text>
               </Text>
@@ -128,9 +117,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      padding: theme.spacing.sm,
-      gap: theme.spacing.sm,
-      ...theme.depth.floating,
+      paddingHorizontal: theme.spacing.cardPaddingLarge,
+      paddingVertical: theme.spacing.md,
+      gap: theme.spacing.md,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.18 : 0.06,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: theme.isDark ? 3 : 2,
     },
     header: {
       flexDirection: "row",
@@ -141,34 +135,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     title: {
       color: theme.text,
       flex: 1,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
       fontFamily: theme.typography.fontFamily.semiBold,
-    },
-    detailsPill: {
-      minHeight: 34,
-      borderRadius: theme.rounded.md,
-      backgroundColor: theme.surfaceAlt,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: theme.spacing.sm,
-    },
-    detailsText: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.medium,
     },
     itemsRow: {
       flexDirection: "row",
-      gap: theme.spacing.sm,
+      gap: theme.spacing.md,
     },
     item: {
       flex: 1,
       minWidth: 0,
-      gap: 3,
+      gap: theme.spacing.xxs,
     },
     value: {
       fontSize: theme.typography.size.bodyM,
@@ -177,10 +155,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     valueStrong: {
       color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.semiBold,
     },
     valueMuted: {
       color: theme.textTertiary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
     },
     progressTrack: {
@@ -200,8 +182,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     percent: {
       color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.medium,
     },
   });

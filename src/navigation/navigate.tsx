@@ -13,6 +13,7 @@ export type RootStackParamList = {
         id?: string;
         skipDetection?: boolean;
         attempt?: number;
+        fullscreenPreferred?: boolean;
         code?: string;
         showManualEntry?: boolean;
         image?: string;

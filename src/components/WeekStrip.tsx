@@ -109,11 +109,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingTop: theme.spacing.xxs,
     },
     dayItemSelected: {
-      minHeight: 78,
+      minHeight: 72,
       backgroundColor: theme.primary,
       borderColor: theme.primary,
-      borderRadius: theme.rounded.lg,
-      ...theme.depth.floating,
+      borderRadius: theme.rounded.md,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.16 : 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: theme.isDark ? 2 : 1,
     },
     weekdayText: {
       fontSize: theme.typography.size.overline,
@@ -143,7 +147,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       height: 5,
       borderRadius: theme.rounded.full,
       backgroundColor: theme.textInverse,
-      marginTop: theme.spacing.xxs,
+      marginTop: 2,
     },
     dayNumberToday: {
       fontFamily: theme.typography.fontFamily.semiBold,

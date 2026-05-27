@@ -9,6 +9,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@/theme/useTheme";
 import {
   BottomTabBar,
@@ -28,6 +29,12 @@ type LayoutProps = {
   style?: StyleProp<ViewStyle>;
   showOfflineBanner?: boolean;
   keyboardAvoiding?: boolean;
+  backgroundGradient?: {
+    colors: [string, string, ...string[]];
+    locations?: number[];
+    start?: { x: number; y: number };
+    end?: { x: number; y: number };
+  };
 };
 
 export const Layout = ({
@@ -37,6 +44,7 @@ export const Layout = ({
   style,
   showOfflineBanner = showNavigation,
   keyboardAvoiding = true,
+  backgroundGradient,
 }: LayoutProps) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -79,13 +87,25 @@ export const Layout = ({
     }
   }, [isOffline]);
 
+  const rootBackgroundColor = backgroundGradient?.colors[0] ?? theme.background;
+
   const content = (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
+    <View style={[styles.root, { backgroundColor: rootBackgroundColor }]}>
+      {backgroundGradient ? (
+        <LinearGradient
+          pointerEvents="none"
+          colors={backgroundGradient.colors}
+          locations={backgroundGradient.locations}
+          start={backgroundGradient.start ?? { x: 0, y: 0 }}
+          end={backgroundGradient.end ?? { x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <View
         style={[
           styles.surface,
           {
-            backgroundColor: theme.background,
+            backgroundColor: backgroundGradient ? "transparent" : theme.background,
             paddingTop: insets.top + theme.spacing.md,
             paddingBottom: bottomPadding,
             paddingLeft: insets.left + theme.spacing.screenPadding,
@@ -96,7 +116,7 @@ export const Layout = ({
       >
         <StatusBar
           barStyle={theme.mode === "dark" ? "light-content" : "dark-content"}
-          backgroundColor={theme.background}
+          backgroundColor={rootBackgroundColor}
         />
 
         {shouldShowOffline && (

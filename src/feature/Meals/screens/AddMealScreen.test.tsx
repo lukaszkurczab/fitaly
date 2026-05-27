@@ -123,6 +123,7 @@ describe("AddMealScreen", () => {
         id: "meal-1",
         skipDetection: true,
         attempt: 2,
+        fullscreenPreferred: true,
       },
     });
 
@@ -131,7 +132,7 @@ describe("AddMealScreen", () => {
     expect(getByText("screen:CameraDefault")).toBeTruthy();
     expect(
       getByText(
-        'params:{"id":"meal-1","skipDetection":true,"attempt":2}',
+        'params:{"id":"meal-1","skipDetection":true,"attempt":2,"fullscreenPreferred":true}',
       ),
     ).toBeTruthy();
   });

@@ -232,19 +232,6 @@ export default function DescribeMealScreen({
                 preview={
                   <View style={styles.preview}>
                     <TextInput
-                      testID="add-meal-text-name-input"
-                      label={t("meal_name", { ns: "meals" })}
-                      value={name}
-                      onChangeText={onNameChange}
-                      placeholder={t("describe_meal_name_placeholder", {
-                        ns: "meals",
-                      })}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      spellCheck={false}
-                      maxLength={80}
-                    />
-                    <TextInput
                       testID="add-meal-text-description-input"
                       label={t("describe_meal_quick_description_label", {
                         ns: "meals",
@@ -267,6 +254,19 @@ export default function DescribeMealScreen({
                       fieldStyle={styles.previewDescriptionInputShell}
                       inputStyle={styles.previewDescriptionInput}
                       scrollEnabled
+                    />
+                    <TextInput
+                      testID="add-meal-text-name-input"
+                      label={t("meal_name", { ns: "meals" })}
+                      value={name}
+                      onChangeText={onNameChange}
+                      placeholder={t("describe_meal_name_placeholder", {
+                        ns: "meals",
+                      })}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      maxLength={80}
                     />
                   </View>
                 }
@@ -422,7 +422,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: theme.surfaceElevated,
       paddingHorizontal: theme.spacing.lg,
       paddingRight: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
+      paddingTop: theme.spacing.xxxl + theme.spacing.md,
       paddingBottom: theme.spacing.lg,
       gap: theme.spacing.md,
     },
@@ -469,5 +469,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     screenCornerNavStyle: {
       top: 0,
+      left: 0,
+      right: undefined,
     },
   });

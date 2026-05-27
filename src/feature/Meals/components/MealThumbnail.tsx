@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import * as FileSystem from "@/services/core/fileSystem";
-import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { FallbackImage } from "@/feature/History/components/FallbackImage";
 import { ensureLocalMealPhoto } from "@/services/meals/mealService.images";
-import AppIcon from "@/components/AppIcon";
 
 type MealThumbnailProps = {
   meal: Meal;
@@ -19,11 +16,7 @@ export function MealThumbnail({
   meal,
   size,
   borderRadius,
-  placeholderLabel,
-  showPlaceholderIcon = false,
 }: MealThumbnailProps) {
-  const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
 
@@ -105,51 +98,5 @@ export function MealThumbnail({
     );
   }
 
-  return (
-    <View
-      style={[
-        styles.placeholder,
-        {
-          width: size,
-          height: size,
-          borderRadius,
-        },
-      ]}
-    >
-      {showPlaceholderIcon ? (
-        <AppIcon
-          name="image"
-          size={Math.max(16, Math.round(size * 0.28))}
-          color={theme.primary}
-          style={styles.placeholderIcon}
-        />
-      ) : null}
-      <Text style={styles.placeholderText}>
-        {placeholderLabel ?? "No\nphoto"}
-      </Text>
-    </View>
-  );
+  return null;
 }
-
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
-    placeholder: {
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      overflow: "hidden",
-      gap: 3,
-    },
-    placeholderIcon: {
-      opacity: 0.82,
-    },
-    placeholderText: {
-      color: theme.textTertiary,
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 9,
-      lineHeight: 10,
-      textAlign: "center",
-    },
-  });

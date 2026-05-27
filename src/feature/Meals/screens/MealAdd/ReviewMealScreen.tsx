@@ -771,7 +771,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingTop: theme.spacing.xl,
+      paddingTop: theme.spacing.xxxl + theme.spacing.lg,
       gap: theme.spacing.md,
     },
     heroBlock: {
@@ -1111,5 +1111,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     screenCornerNavButton: {
       top: 0,
+      left: 0,
+      right: undefined,
     },
   });

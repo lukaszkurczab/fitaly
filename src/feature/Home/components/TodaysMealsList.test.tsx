@@ -50,22 +50,20 @@ describe("TodaysMealsList", () => {
       <TodaysMealsList
         meals={[mealWithIngredients, mealWithTotals]}
         onOpenMeal={onOpenMeal}
-        onViewHistory={onViewHistory}
       />,
     );
 
-    expect(screen.getByText("translated:home:viewHistoryShort")).toBeTruthy();
+    expect(screen.queryByText("translated:home:viewHistory →")).toBeNull();
     expect(screen.getByText("Chicken")).toBeTruthy();
     expect(screen.getByText(/150 kcal/)).toBeTruthy();
-    expect(screen.getByText("A, B")).toBeTruthy();
+    expect(screen.queryByText("A, B")).toBeNull();
     expect(screen.getByText("Omelette")).toBeTruthy();
     expect(screen.getByText(/320 kcal/)).toBeTruthy();
 
     fireEvent.press(screen.getByText("Chicken"));
     expect(onOpenMeal).toHaveBeenCalledWith(mealWithIngredients);
 
-    fireEvent.press(screen.getByTestId("home-view-history-button"));
-    expect(onViewHistory).toHaveBeenCalledTimes(1);
+    expect(onViewHistory).not.toHaveBeenCalled();
   });
 
   it("uses translated fallback meal name", () => {

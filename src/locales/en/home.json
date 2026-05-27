@@ -31,6 +31,14 @@
     "todayInProgress": {
       "cta": "Log next meal"
     },
+    "methodCta": {
+      "photo": "Take meal photo",
+      "text": "Describe meal",
+      "barcode": "Scan barcode",
+      "saved": "Use saved meal",
+      "manual": "Enter manually",
+      "default": "Add meal"
+    },
     "pastIncomplete": {
       "meta": "You missed a meal log",
       "cta": "Add a missed meal",

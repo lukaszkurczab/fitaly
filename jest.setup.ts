@@ -145,6 +145,17 @@ jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
 }));
 
+jest.mock("react-native-linear-gradient", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  return {
+    __esModule: true,
+    default: ({ children, ...props }: { children?: unknown }) =>
+      React.createElement(View, props, children),
+  };
+});
+
 jest.mock("@sentry/react-native", () => ({
   __esModule: true,
   init: jest.fn(),

@@ -40,6 +40,21 @@ export function MealAddBarcodePreview({
         </View>
 
         <View style={styles.frame}>
+          <View
+            style={[
+              styles.barcodeGuide,
+              detectedCode ? styles.barcodeGuideDetected : null,
+            ]}
+          >
+            {[8, 18, 10, 24, 14, 28, 10, 20, 16, 26, 8, 18].map(
+              (height, index) => (
+                <View
+                  key={`${height}-${index}`}
+                  style={[styles.barcodeGuideBar, { height }]}
+                />
+              ),
+            )}
+          </View>
           <View style={[styles.cornerH, styles.cornerTopLeftH]} />
           <View style={[styles.cornerV, styles.cornerTopLeftV]} />
           <View style={[styles.cornerH, styles.cornerTopRightH]} />
@@ -154,6 +169,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: "rgba(165, 185, 157, 0.72)",
       alignItems: "center",
       justifyContent: "center",
+    },
+    barcodeGuide: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      opacity: 0.58,
+    },
+    barcodeGuideDetected: {
+      opacity: 0.32,
+    },
+    barcodeGuideBar: {
+      width: 4,
+      borderRadius: 2,
+      backgroundColor: "#FFF7EB",
     },
     bars: {
       flexDirection: "row",

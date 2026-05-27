@@ -194,11 +194,14 @@ describe("BarcodeScanScreen", () => {
     });
     const props = buildProps();
 
-    const { getByText } = renderWithTheme(<BarcodeScanScreen {...props} />);
+    const { getAllByText, getByTestId, getByText } = renderWithTheme(
+      <BarcodeScanScreen {...props} />,
+    );
 
     fireEvent.press(getByText("barcode-scan"));
 
-    expect(getByText("5901234123457")).toBeTruthy();
+    expect(getAllByText("5901234123457")).toHaveLength(2);
+    expect(getByTestId("barcode-detected-summary")).toBeTruthy();
     expect(mockLookupBarcodeProduct).not.toHaveBeenCalled();
 
     fireEvent.press(getByText("Search product"));

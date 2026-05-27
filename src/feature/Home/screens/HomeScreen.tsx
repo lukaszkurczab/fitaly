@@ -21,6 +21,7 @@ import { useMealAddMethodState } from "@/feature/Meals/hooks/useMealAddMethodSta
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
 import { buildHomeHeroModel } from "@/feature/Home/services/homeHeroPresenter";
+import type { AppIconName } from "@/components/AppIcon";
 import {
   buildHomeRetentionSurface,
   shouldRequestHomeCoach,
@@ -50,9 +51,50 @@ type Props = {
   navigation: HomeNavigation;
 };
 
+type HomeAddMethodPresentation = {
+  icon: AppIconName;
+  ctaKey: string;
+};
+
+function getHomeAddMethodPresentation(key: string | undefined): HomeAddMethodPresentation {
+  switch (key) {
+    case "photo":
+      return { icon: "camera", ctaKey: "home:hero.methodCta.photo" };
+    case "text":
+      return { icon: "text", ctaKey: "home:hero.methodCta.text" };
+    case "barcode":
+      return { icon: "scan-barcode", ctaKey: "home:hero.methodCta.barcode" };
+    case "saved":
+      return { icon: "saved-items", ctaKey: "home:hero.methodCta.saved" };
+    case "manual":
+      return { icon: "edit", ctaKey: "home:hero.methodCta.manual" };
+    default:
+      return { icon: "add", ctaKey: "home:hero.methodCta.default" };
+  }
+}
+
 export default function HomeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const backgroundGradient = useMemo(
+    () => ({
+      colors: theme.isDark
+        ? ([theme.background, theme.backgroundSecondary, theme.background] as [
+            string,
+            string,
+            string,
+          ])
+        : ([theme.background, theme.backgroundSecondary, theme.background] as [
+            string,
+            string,
+            string,
+          ]),
+      locations: [0, 0.48, 1],
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
+    }),
+    [theme.background, theme.backgroundSecondary, theme.isDark],
+  );
   const { t, i18n } = useTranslation(["home", "common", "meals"]);
   const { userData } = useUserProfileContext();
   const { uid } = useAuthContext();
@@ -72,6 +114,10 @@ export default function HomeScreen({ navigation }: Props) {
     navigation,
     replaceOnStart: false,
   });
+  const addMethodPresentation = useMemo(
+    () => getHomeAddMethodPresentation(mealAddEntry.preferredOption.key),
+    [mealAddEntry.preferredOption.key],
+  );
 
   const {
     dayMeals,
@@ -187,6 +233,12 @@ export default function HomeScreen({ navigation }: Props) {
     },
     [navigation],
   );
+  const heroCtaLabel =
+    heroModel.ctaAction === "add_meal"
+      ? t(addMethodPresentation.ctaKey, {
+          defaultValue: heroModel.ctaLabel,
+        })
+      : heroModel.ctaLabel;
 
   const handleCoachCta = useCallback(() => {
     if (retentionSurface.type !== "coach_insight") {
@@ -208,7 +260,7 @@ export default function HomeScreen({ navigation }: Props) {
   }, [mealAddEntry, navigation, retentionSurface]);
 
   return (
-    <Layout>
+    <Layout backgroundGradient={backgroundGradient}>
       <View style={[styles.screen, styles.screenGap]} testID="home-screen">
         <WeekStrip
           days={last7Days}
@@ -219,7 +271,7 @@ export default function HomeScreen({ navigation }: Props) {
         <HomeHeroCard
           title={heroModel.title}
           meta={heroModel.meta}
-          ctaLabel={heroModel.ctaLabel}
+          ctaLabel={heroCtaLabel}
           onPressCta={() => {
             if (heroModel.ctaAction === "review_history") {
               navigation.navigate("HistoryList");
@@ -229,7 +281,7 @@ export default function HomeScreen({ navigation }: Props) {
             void mealAddEntry.handleDirectStart();
           }}
           methodLabel={t("home:askAssistantAdvice")}
-          methodIcon={heroModel.showMethodSelector ? mealAddEntry.preferredOption.icon : undefined}
+          methodIcon={heroModel.showMethodSelector ? addMethodPresentation.icon : undefined}
           onPressMethodSelector={() => navigation.navigate("Chat")}
           progress={heroModel.progress}
           supportText={heroModel.supportText ?? heroModel.supportCopy ?? undefined}
@@ -248,11 +300,26 @@ export default function HomeScreen({ navigation }: Props) {
         ) : null}
 
         {mealCount > 0 ? (
-          <TodaysMealsList
-            meals={dayMeals}
-            onOpenMeal={openMealDetails}
-            onViewHistory={() => navigation.navigate("HistoryList")}
-          />
+          <>
+            <TodaysMealsList
+              meals={dayMeals}
+              onOpenMeal={openMealDetails}
+            />
+            <Pressable
+              testID="home-view-history-button"
+              onPress={() => navigation.navigate("HistoryList")}
+              accessibilityRole="button"
+              accessibilityLabel={t("home:viewHistory")}
+              style={({ pressed }) => [
+                styles.historyLink,
+                pressed && styles.historyLinkPressed,
+              ]}
+            >
+              <Text style={styles.historyLinkText}>
+                {t("home:viewHistory")} →
+              </Text>
+            </Pressable>
+          </>
         ) : null}
 
         {retentionSurface.type === "weekly_report" ? (
@@ -317,21 +384,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     screenGap: {
-      gap: theme.spacing.md,
+      gap: theme.spacing.lg,
     },
     historyLink: {
-      alignSelf: "stretch",
+      alignSelf: "center",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 58,
+      minHeight: 40,
       marginBottom: theme.spacing.nav + theme.spacing.md,
       borderRadius: theme.rounded.lg,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceAlt,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-      ...theme.depth.raised,
+      borderColor: "transparent",
+      backgroundColor: "transparent",
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xxs,
     },
     historyLinkPressed: {
       opacity: 0.6,

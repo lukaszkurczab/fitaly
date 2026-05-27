@@ -31,6 +31,14 @@
     "todayInProgress": {
       "cta": "Dodaj kolejny posiłek"
     },
+    "methodCta": {
+      "photo": "Zrób zdjęcie posiłku",
+      "text": "Opisz posiłek",
+      "barcode": "Zeskanuj kod",
+      "saved": "Użyj zapisanego posiłku",
+      "manual": "Wpisz ręcznie",
+      "default": "Dodaj posiłek"
+    },
     "pastIncomplete": {
       "meta": "Brakuje wpisu z tego dnia",
       "cta": "Dodaj pominięty posiłek",
