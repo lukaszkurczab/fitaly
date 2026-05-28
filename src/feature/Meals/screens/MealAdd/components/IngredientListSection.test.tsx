@@ -38,6 +38,8 @@ describe("IngredientListSection", () => {
 
     expect(getAllByText("+")).toHaveLength(1);
     expect(getByText("Add ingredient")).toBeTruthy();
+    expect(getByText("100 g")).toBeTruthy();
+    expect(getByText("130 kcal | P 2 g | C 28 g | F 0 g")).toBeTruthy();
 
     fireEvent.press(getByText("Add ingredient"));
     expect(onOpenIngredientEditor).toHaveBeenCalledWith(null);

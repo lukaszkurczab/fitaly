@@ -38,13 +38,41 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: ingredient-editor-sheet
 - takeScreenshot: review-edit-save-ingredient-sheet
+- assertVisible:
+    id: ingredient-editor-kcal-input
+- assertVisible:
+    id: ingredient-editor-protein-input
+- takeScreenshot: review-edit-save-ingredient-macro-fields
 - tapOn:
     id: ingredient-editor-name-input
 - eraseText
-- inputText: Visual edit ingredient
-- assertVisible:
-    id: ingredient-editor-submit-button
+- inputText: Natural yogurt
 - takeScreenshot: review-edit-save-ingredient-keyboard
+- tapOn:
+    id: ingredient-editor-amount-input
+- eraseText
+- inputText: 200
+- takeScreenshot: review-edit-save-ingredient-quantity-keyboard
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+- tapOn:
+    id: ingredient-editor-protein-input
+- eraseText
+- inputText: 10
+- tapOn:
+    id: ingredient-editor-carbs-input
+- eraseText
+- inputText: 14
+- tapOn:
+    id: ingredient-editor-fat-input
+- eraseText
+- inputText: 4
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-submit-button
+    direction: DOWN
 - tapOn:
     id: ingredient-editor-submit-button
 - assertVisible:

@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -37,6 +38,26 @@ export default function MealPhotoSection({
         pressed ? styles.selectionFieldPressed : null,
       ]}
     >
+      <LinearGradient
+        pointerEvents="none"
+        colors={
+          theme.isDark
+            ? [
+                "rgba(255, 255, 255, 0.035)",
+                "rgba(126, 153, 120, 0.06)",
+                "rgba(0, 0, 0, 0)",
+              ]
+            : [
+                "rgba(255, 255, 255, 0.92)",
+                "rgba(250, 247, 240, 0.78)",
+                "rgba(126, 153, 120, 0.08)",
+              ]
+        }
+        locations={[0, 0.58, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardGradient}
+      />
       {reviewPhotoUri ? (
         <Image source={{ uri: reviewPhotoUri }} style={styles.photoPreview} />
       ) : (
@@ -84,6 +105,8 @@ export default function MealPhotoSection({
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     photoCard: {
+      position: "relative",
+      overflow: "hidden",
       minHeight: 72,
       borderRadius: theme.rounded.xl,
       borderWidth: 1,
@@ -95,6 +118,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       gap: theme.spacing.sm,
       ...theme.depth.raised,
+    },
+    cardGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: theme.rounded.xl,
     },
     selectionFieldPressed: {
       opacity: 0.72,

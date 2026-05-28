@@ -6,6 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 import { IngredientEditor } from "@/components/IngredientEditor";
@@ -74,6 +75,26 @@ export default function IngredientEditorModal({
             },
           ]}
         >
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              theme.isDark
+                ? [
+                    "rgba(255, 255, 255, 0.05)",
+                    "rgba(126, 153, 120, 0.08)",
+                    "rgba(0, 0, 0, 0)",
+                  ]
+                : [
+                    "rgba(255, 255, 255, 0.98)",
+                    "rgba(250, 247, 240, 0.9)",
+                    "rgba(126, 153, 120, 0.1)",
+                  ]
+            }
+            locations={[0, 0.56, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sheetGradient}
+          />
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>
             {t(
@@ -89,6 +110,13 @@ export default function IngredientEditorModal({
               },
             )}
           </Text>
+          <Text style={styles.sheetSubtitle}>
+            {t("review_meal_edit_ingredient_sheet_subtitle", {
+              ns: "meals",
+              defaultValue:
+                "Name, amount and approximate macros are enough.",
+            })}
+          </Text>
           {ingredientDraft ? (
             <KeyboardAwareScrollView
               showsVerticalScrollIndicator={false}
@@ -103,13 +131,13 @@ export default function IngredientEditorModal({
                 submitLabel={t(
                   editingIngredientIndex === null
                     ? "add_ingredient"
-                    : "save_changes",
+                    : "review_meal_edit_save_ingredient",
                   {
-                    ns: editingIngredientIndex === null ? "meals" : "common",
+                    ns: "meals",
                     defaultValue:
                       editingIngredientIndex === null
                         ? "Add ingredient"
-                        : "Save changes",
+                        : "Save ingredient",
                   },
                 )}
                 showDelete={editingIngredientIndex !== null}
@@ -138,6 +166,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
         : "rgba(47, 49, 43, 0.42)",
     },
     sheet: {
+      overflow: "hidden",
       backgroundColor: theme.surfaceElevated,
       borderTopLeftRadius: theme.rounded.xxl,
       borderTopRightRadius: theme.rounded.xxl,
@@ -147,6 +176,11 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.lg,
       gap: theme.spacing.sm,
       ...theme.depth.modal,
+    },
+    sheetGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderTopLeftRadius: theme.rounded.xxl,
+      borderTopRightRadius: theme.rounded.xxl,
     },
     ingredientSheet: {
       maxHeight: "70%",
@@ -164,6 +198,14 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: 25,
       fontFamily: theme.typography.fontFamily.semiBold,
       textAlign: "center",
+    },
+    sheetSubtitle: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      textAlign: "center",
+      marginTop: -theme.spacing.xs,
+      marginHorizontal: theme.spacing.sm,
     },
     ingredientEditorContent: {
       paddingBottom: theme.spacing.xs,

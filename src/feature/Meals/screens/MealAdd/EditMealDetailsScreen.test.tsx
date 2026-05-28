@@ -220,10 +220,10 @@ describe("EditMealDetailsScreen", () => {
     const { getAllByText, getByTestId, getByText, queryByText } =
       renderWithTheme(
         <EditMealDetailsScreen {...props} />,
-      );
+    );
 
     expect(getByTestId("edit-meal-flow-header")).toBeTruthy();
-    expect(getAllByText("Edit details").length).toBeGreaterThan(0);
+    expect(getAllByText("Correction").length).toBeGreaterThan(0);
     expect(queryByText("Back to summary")).toBeNull();
 
     fireEvent.changeText(getByTestId("meal-name-input"), "Header edit");

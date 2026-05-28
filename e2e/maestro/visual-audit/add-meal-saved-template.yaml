@@ -17,7 +17,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: select-saved-meal-search-input
 - eraseText
-- inputText: E2E Saved
+- inputText: Vegetable
 - hideKeyboard
 - assertVisible:
     id: saved-meal-add-e2e-saved-meal-1

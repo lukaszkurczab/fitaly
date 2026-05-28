@@ -115,7 +115,7 @@ describe("IngredientEditor", () => {
   it("supports the sheet variant actions for adding a new ingredient", () => {
     const onCommit = jest.fn();
     const onCancel = jest.fn();
-    const { getByText, queryByText } = renderWithTheme(
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
       <IngredientEditor
         initial={{
           id: "ing-2",
@@ -140,7 +140,19 @@ describe("IngredientEditor", () => {
     fireEvent.press(getByText("meals:add_ingredient"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(getByTestId("ingredient-editor-macro-error")).toBeTruthy();
+
+    fireEvent.changeText(getByTestId("ingredient-editor-protein-input"), "2");
+    fireEvent.press(getByText("meals:add_ingredient"));
+
     expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protein: 2,
+        kcal: 8,
+      }),
+    );
     expect(queryByText("common:remove")).toBeNull();
   });
 
@@ -168,6 +180,33 @@ describe("IngredientEditor", () => {
     expect(queryByText("meals:review_meal_edit_ingredient_unit")).toBeNull();
     expect(queryByDisplayValue("ml")).toBeNull();
     expect(queryByText("›")).toBeNull();
+  });
+
+  it("shows macro estimate fields in sheet variant", () => {
+    const { getByTestId } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-8",
+          name: "Rice",
+          amount: 150,
+          unit: "g",
+          protein: 4,
+          carbs: 42,
+          fat: 1,
+          kcal: 190,
+        }}
+        variant="sheet"
+        onCommit={() => undefined}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    expect(getByTestId("ingredient-editor-nutrition-section")).toBeTruthy();
+    expect(getByTestId("ingredient-editor-kcal-input")).toBeTruthy();
+    expect(getByTestId("ingredient-editor-protein-input")).toBeTruthy();
+    expect(getByTestId("ingredient-editor-carbs-input")).toBeTruthy();
+    expect(getByTestId("ingredient-editor-fat-input")).toBeTruthy();
   });
 
   it("keeps unit read-only in sheet variant commit flow", () => {
@@ -237,6 +276,41 @@ describe("IngredientEditor", () => {
       kcal: 330,
     });
     expect(queryByText("meals:recalc_title")).toBeNull();
+  });
+
+  it("derives kcal from sheet macros when kcal is left empty", () => {
+    const onCommit = jest.fn();
+    const { getByText } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-9",
+          name: "Cottage cheese",
+          amount: 100,
+          unit: "g",
+          protein: 12,
+          carbs: 4,
+          fat: 3,
+          kcal: 0,
+        }}
+        variant="sheet"
+        submitLabel="meals:add_ingredient"
+        showDelete={false}
+        onCommit={onCommit}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.press(getByText("meals:add_ingredient"));
+
+    expect(onCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protein: 12,
+        carbs: 4,
+        fat: 3,
+        kcal: 91,
+      }),
+    );
   });
 
   it("asks after amount blur and recalculates fields without committing", () => {

@@ -146,7 +146,7 @@ export default function MealDetailsScreen() {
 
   const ingredientCount = state.draft.ingredients.length;
   const canUseE2EPhotoFallback =
-    isE2EModeEnabled() && state.draft.name === "E2E Photo Meal";
+    isE2EModeEnabled() && state.draft.inputMethod === "photo";
   const canShareMeal = Boolean(
     (state.effectivePhotoUri || canUseE2EPhotoFallback) &&
       (state.draft.cloudId || state.draft.mealId),

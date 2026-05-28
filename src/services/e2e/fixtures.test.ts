@@ -155,7 +155,7 @@ describe("E2E fixtures", () => {
       expect.objectContaining({
         meal: expect.objectContaining({
           userUid: "user-1",
-          name: "E2E Today Meal",
+          name: "Yogurt berry bowl",
           inputMethod: "manual",
         }),
       }),
@@ -173,7 +173,7 @@ describe("E2E fixtures", () => {
     expect(mockSaveMealTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         meal: expect.objectContaining({
-          name: "E2E Photo Meal",
+          name: "Mediterranean plate",
           inputMethod: "photo",
           photoUrl: "file:///sampleMeal-local.jpg",
           photoLocalPath: "file:///sampleMeal-local.jpg",
@@ -193,7 +193,7 @@ describe("E2E fixtures", () => {
     expect(mockUpsertMyMealLocal).toHaveBeenCalledWith(
       "user-1",
       expect.objectContaining({
-        name: "E2E Saved Bowl",
+        name: "Vegetable grain bowl",
         source: "saved",
         inputMethod: "saved",
       }),
@@ -209,7 +209,7 @@ describe("E2E fixtures", () => {
     expect(markers).toEqual(["fixture-user-with-draft"]);
     expect(mockSetItem).toHaveBeenCalledWith(
       "current_meal_draft_user-1",
-      expect.stringContaining("E2E Draft Meal"),
+      expect.stringContaining("Chicken rice bowl"),
     );
     expect(mockSetItem).toHaveBeenCalledWith(
       "current_meal_draft_screen_user-1",
@@ -229,13 +229,13 @@ describe("E2E fixtures", () => {
 
     expect(mockUpsertMealLocal).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "E2E Failed Meal",
+        name: "Egg sandwich",
         syncState: "failed",
       }),
     );
     expect(mockUpsertMealLocal).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "E2E Conflict Meal",
+        name: "Tomato pasta",
         syncState: "conflict",
       }),
     );
@@ -282,11 +282,11 @@ describe("E2E fixtures", () => {
     expect(access?.credits?.allocation).toBe(800);
     expect(access?.features.aiChat.enabled).toBe(false);
     expect(resolveE2EBarcodeLookup()).toEqual(
-      expect.objectContaining({ kind: "found", name: "E2E Barcode Yogurt" }),
+      expect.objectContaining({ kind: "found", name: "Natural yogurt" }),
     );
     await expect(resolveE2ETextMealAnalysis("user-1")).resolves.toEqual(
       expect.objectContaining({
-        ingredients: [expect.objectContaining({ name: "E2E analyzed bowl" })],
+        ingredients: [expect.objectContaining({ name: "Analyzed grain bowl" })],
       }),
     );
     expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
@@ -335,7 +335,7 @@ describe("E2E fixtures", () => {
 
     await expect(resolveE2EPhotoAnalysis("user-1")).resolves.toEqual(
       expect.objectContaining({
-        ingredients: [expect.objectContaining({ name: "E2E analyzed bowl" })],
+        ingredients: [expect.objectContaining({ name: "Analyzed grain bowl" })],
       }),
     );
   });

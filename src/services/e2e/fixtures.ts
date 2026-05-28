@@ -259,7 +259,7 @@ function meal(params: {
     [
       ingredient({
         id: `${params.id}-ingredient`,
-        name: "E2E grilled bowl",
+        name: "Grilled chicken",
         kcal: 420,
         protein: 32,
         carbs: 41,
@@ -346,7 +346,7 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-today-meal",
-        name: "E2E Today Meal",
+        name: "Yogurt berry bowl",
         inputMethod: "manual",
       }),
     );
@@ -360,7 +360,7 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-failed-meal",
-          name: "E2E Failed Meal",
+          name: "Egg sandwich",
           inputMethod: "manual",
         }),
         syncState: "failed",
@@ -376,7 +376,7 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-conflict-meal",
-          name: "E2E Conflict Meal",
+          name: "Tomato pasta",
           inputMethod: "manual",
         }),
         syncState: "conflict",
@@ -392,7 +392,7 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-photo-meal",
-        name: "E2E Photo Meal",
+        name: "Mediterranean plate",
         source: "ai",
         inputMethod: "photo",
         photoUrl: sampleMealUri,
@@ -407,7 +407,7 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-1",
-        name: "E2E Saved Bowl",
+        name: "Vegetable grain bowl",
         source: "saved",
         inputMethod: "saved",
       }),
@@ -417,13 +417,13 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-2",
-        name: "E2E Saved Smoothie",
+        name: "Berry protein smoothie",
         source: "saved",
         inputMethod: "saved",
         ingredients: [
           ingredient({
             id: "e2e-smoothie-ingredient",
-            name: "E2E protein smoothie",
+            name: "Yogurt protein smoothie",
             kcal: 310,
             protein: 28,
             carbs: 30,
@@ -439,7 +439,7 @@ async function applyNamedFixture(
     const draft = meal({
       uid,
       id: "e2e-draft-meal",
-      name: "E2E Draft Meal",
+      name: "Chicken rice bowl",
       source: "manual",
       inputMethod: "manual",
     });
@@ -587,7 +587,7 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
     ...creditsStatus(uid, fixtureState.credits ?? "ok"),
     ingredients: [
       {
-        name: "E2E analyzed bowl",
+        name: "Analyzed grain bowl",
         amount: 100,
         kcal: 430,
         protein: 31,
@@ -601,7 +601,7 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
 function e2eAiIngredient(): Ingredient {
   return ingredient({
     id: "e2e-ai-ingredient",
-    name: "E2E analyzed bowl",
+    name: "Analyzed grain bowl",
     kcal: 430,
     protein: 31,
     carbs: 45,
@@ -874,10 +874,10 @@ export function resolveE2EBarcodeLookup(): BarcodeLookupResult | null {
     case "known":
       return {
         kind: "found",
-        name: "E2E Barcode Yogurt",
+        name: "Natural yogurt",
         ingredient: ingredient({
           id: "e2e-barcode-ingredient",
-          name: "E2E Barcode Yogurt",
+          name: "Natural yogurt",
           kcal: 120,
           protein: 10,
           carbs: 12,

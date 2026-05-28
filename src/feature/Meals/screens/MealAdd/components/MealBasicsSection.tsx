@@ -1,4 +1,5 @@
 import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@/components";
 import AppIcon from "@/components/AppIcon";
@@ -29,9 +30,29 @@ export default function MealBasicsSection({
 
   return (
     <View style={styles.sectionBlock}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={
+          theme.isDark
+            ? [
+                "rgba(255, 255, 255, 0.035)",
+                "rgba(126, 153, 120, 0.055)",
+                "rgba(0, 0, 0, 0)",
+              ]
+            : [
+                "rgba(255, 255, 255, 0.94)",
+                "rgba(250, 247, 240, 0.8)",
+                "rgba(126, 153, 120, 0.075)",
+              ]
+        }
+        locations={[0, 0.58, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardGradient}
+      />
       <Text style={styles.sectionLabel}>
         {t("review_meal_edit_meal_basics", {
-          defaultValue: "Meal basics",
+          defaultValue: "Main details",
         })}
       </Text>
 
@@ -116,6 +137,8 @@ export default function MealBasicsSection({
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     sectionBlock: {
+      position: "relative",
+      overflow: "hidden",
       gap: theme.spacing.sm,
       borderRadius: theme.rounded.xl,
       borderWidth: StyleSheet.hairlineWidth,
@@ -124,11 +147,15 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: theme.spacing.md,
       ...theme.depth.raised,
     },
+    cardGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: theme.rounded.xl,
+    },
     sectionLabel: {
       color: theme.text,
       fontSize: theme.typography.size.bodyS,
       lineHeight: 20,
-      fontFamily: theme.typography.fontFamily.medium,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
     fieldRow: {
       flexDirection: "row",

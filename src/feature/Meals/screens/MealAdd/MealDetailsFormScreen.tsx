@@ -197,7 +197,37 @@ function MealDetailsFormScreenInner({
   }
 
   return (
-    <Layout showNavigation={false} disableScroll style={styles.layout}>
+    <Layout
+      showNavigation={false}
+      disableScroll
+      style={styles.layout}
+      backgroundGradient={[
+        {
+          colors: theme.isDark
+            ? [theme.background, theme.backgroundSecondary, theme.background]
+            : [theme.background, theme.surfaceAlt, theme.background],
+          locations: [0, 0.58, 1],
+          start: { x: 0, y: 0 },
+          end: { x: 0, y: 1 },
+        },
+        {
+          colors: theme.isDark
+            ? [
+                "rgba(126, 153, 120, 0.10)",
+                "rgba(255, 255, 255, 0.015)",
+                "rgba(0, 0, 0, 0)",
+              ]
+            : [
+                "rgba(255, 255, 255, 0.58)",
+                "rgba(126, 153, 120, 0.12)",
+                "rgba(210, 145, 112, 0.06)",
+              ],
+          locations: [0, 0.5, 1],
+          start: { x: 0, y: 0 },
+          end: { x: 1, y: 1 },
+        },
+      ]}
+    >
       <View style={styles.screen} testID="meal-details-form-screen">
         {showAddMealFlowHeader ? (
           <AddMealFlowHeader
@@ -232,13 +262,20 @@ function MealDetailsFormScreenInner({
             <Text style={styles.headerEyebrow}>
               {t("review_meal_edit_eyebrow", {
                 ns: "meals",
-                defaultValue: "Edit details",
+                defaultValue: "Correction",
               })}
             </Text>
             <Text style={styles.headerTitle}>
               {t("review_meal_edit_screen_title", {
                 ns: "meals",
                 defaultValue: "Edit meal details",
+              })}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {t("review_meal_edit_correction_subtitle", {
+                ns: "meals",
+                defaultValue:
+                  "Adjust only what needs correcting.",
               })}
             </Text>
           </View>
@@ -359,5 +396,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.h1,
       lineHeight: theme.typography.lineHeight.h1,
       fontFamily: theme.typography.fontFamily.bold,
+    },
+    headerSubtitle: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      maxWidth: 330,
     },
   });
