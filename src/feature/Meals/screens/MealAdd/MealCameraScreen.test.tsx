@@ -406,6 +406,12 @@ describe("MealCameraScreen", () => {
     expect(queryByText("Take a clear photo")).toBeNull();
     expect(queryByTestId("add-meal-photo-show-controls-button")).toBeNull();
 
+    fireEvent.press(getByTestId("add-meal-photo-fullscreen-back"));
+    expect(props.flow.goBack).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(getByTestId("add-meal-photo-fullscreen-close"));
+    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
+
     fireEvent.press(getByTestId("add-meal-photo-fullscreen-capture-button"));
     expect(hookState.handleTakePicture).toHaveBeenCalledTimes(1);
 

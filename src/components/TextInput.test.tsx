@@ -1,13 +1,60 @@
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import { Text, StyleSheet } from "react-native";
+import {
+  Text,
+  StyleSheet,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import type { ReactTestInstance } from "react-test-renderer";
 import { TextInput as AppTextInput } from "@/components/TextInput";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import { themes } from "@/theme/themes";
+import { typography } from "@/theme/typography";
 
 const MockAdornment = ({ size, color }: { size?: number; color?: string }) => (
   <Text>{`${size ?? "none"}-${color ?? "none"}`}</Text>
 );
+
+const flattenInputStyle = (input: ReactTestInstance) =>
+  StyleSheet.flatten(input.props.style as StyleProp<TextStyle>);
+
+const findInputWrapperStyle = (input: ReactTestInstance) => {
+  let current = input.parent;
+
+  while (current) {
+    const style = StyleSheet.flatten(
+      current.props.style as StyleProp<ViewStyle>,
+    );
+
+    if (style?.flexDirection === "row" && style?.borderWidth === 1) {
+      return style;
+    }
+
+    current = current.parent;
+  }
+
+  throw new Error("TextInput wrapper not found");
+};
+
+const expectSingleLineCenteredMetrics = (
+  input: ReactTestInstance,
+  lineHeight = typography.lineHeight.bodyL,
+) => {
+  expect(flattenInputStyle(input)).toEqual(
+    expect.objectContaining({
+      height: lineHeight,
+      lineHeight,
+      textAlignVertical: "center",
+      includeFontPadding: false,
+      paddingVertical: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      marginVertical: 0,
+    }),
+  );
+};
 
 describe("TextInput", () => {
   it("renders label, right label and error text", () => {
@@ -71,12 +118,113 @@ describe("TextInput", () => {
       />,
     );
 
-    expect(StyleSheet.flatten(getByPlaceholderText("Age").props.style)).toEqual(
+    expectSingleLineCenteredMetrics(getByPlaceholderText("Age"));
+    expect(findInputWrapperStyle(getByPlaceholderText("Age"))).toEqual(
       expect.objectContaining({
-        height: "100%",
-        textAlignVertical: "center",
-        includeFontPadding: false,
+        minHeight: 52,
         paddingVertical: 0,
+        alignItems: "center",
+        justifyContent: "center",
+      }),
+    );
+  });
+
+  it("keeps single-line alignment metrics after custom input styles", () => {
+    const { getByPlaceholderText } = renderWithTheme(
+      <AppTextInput
+        value="query"
+        onChangeText={() => undefined}
+        placeholder="Search meals"
+        inputStyle={{
+          lineHeight: typography.lineHeight.bodyM,
+          marginVertical: 6,
+          paddingVertical: 8,
+        }}
+      />,
+    );
+
+    expectSingleLineCenteredMetrics(
+      getByPlaceholderText("Search meals"),
+      typography.lineHeight.bodyM,
+    );
+  });
+
+  it("keeps centered single-line metrics and error visuals in error state", () => {
+    const { getByTestId } = renderWithTheme(
+      <AppTextInput
+        testID="email-input"
+        errorTestID="email-error"
+        value="bad-email"
+        onChangeText={() => undefined}
+        error="Invalid email"
+      />,
+    );
+
+    const input = getByTestId("email-input");
+
+    expectSingleLineCenteredMetrics(input);
+    expect(findInputWrapperStyle(input)).toEqual(
+      expect.objectContaining({
+        backgroundColor: themes.light.input.backgroundError,
+        borderColor: themes.light.input.borderError,
+      }),
+    );
+    expect(StyleSheet.flatten(getByTestId("email-error").props.style)).toEqual(
+      expect.objectContaining({ color: themes.light.error.text }),
+    );
+  });
+
+  it("keeps centered single-line metrics and disabled visuals when disabled", () => {
+    const { getByTestId, getByText } = renderWithTheme(
+      <AppTextInput
+        testID="password-input"
+        label="Password"
+        value=""
+        onChangeText={() => undefined}
+        disabled
+      />,
+    );
+
+    const input = getByTestId("password-input");
+
+    expect(input.props.editable).toBe(false);
+    expectSingleLineCenteredMetrics(input);
+    expect(findInputWrapperStyle(input)).toEqual(
+      expect.objectContaining({
+        backgroundColor: themes.light.input.backgroundDisabled,
+        borderColor: themes.light.input.borderDisabled,
+      }),
+    );
+    expect(StyleSheet.flatten(getByText("Password").props.style)).toEqual(
+      expect.objectContaining({ color: themes.light.textTertiary }),
+    );
+  });
+
+  it("keeps multiline inputs top-aligned while preserving multiline sizing", () => {
+    const { getByTestId } = renderWithTheme(
+      <AppTextInput
+        testID="notes-input"
+        value="Line one\nLine two"
+        onChangeText={() => undefined}
+        multiline
+        numberOfLines={3}
+        inputMaxHeight={160}
+        inputStyle={{
+          minHeight: 88,
+          marginVertical: 12,
+        }}
+      />,
+    );
+
+    expect(
+      StyleSheet.flatten(getByTestId("notes-input").props.style),
+    ).toEqual(
+      expect.objectContaining({
+        maxHeight: 160,
+        minHeight: 88,
+        marginVertical: 12,
+        textAlignVertical: "top",
+        includeFontPadding: false,
       }),
     );
   });

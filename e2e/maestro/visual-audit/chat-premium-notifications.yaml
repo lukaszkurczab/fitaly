@@ -59,10 +59,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Premium visual bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado
-- tapOn: "KRÓTKI OPIS"
+    point: "50%,30%"
 - scrollUntilVisible:
     element:
       id: add-meal-text-upgrade-button

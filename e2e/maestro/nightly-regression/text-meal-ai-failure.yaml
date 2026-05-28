@@ -19,10 +19,8 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: AI failure bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado and tahini
-- hideKeyboard
+    point: "50%,30%"
+- waitForAnimationToEnd
 - assertVisible:
     id: add-meal-text-analyze-button
 - tapOn:

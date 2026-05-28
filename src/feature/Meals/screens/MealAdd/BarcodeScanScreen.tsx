@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BackHandler,
+  Keyboard,
   Linking,
   Pressable,
   ScrollView,
@@ -37,7 +38,6 @@ import type {
 import {
   MealAddPhotoScaffold,
   MealAddStatusBanner,
-  MealAddTextLink,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { MealAddBarcodePreview } from "@/feature/Meals/components/MealAddBarcodePreview";
 import { buildBarcodeDraft } from "@/feature/Meals/utils/buildBarcodeDraft";
@@ -45,7 +45,10 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
-const BARCODE_PREVIEW_HEIGHT = 300;
+const BARCODE_PREVIEW_COMPACT_HEIGHT = 240;
+const BARCODE_PREVIEW_MAX_HEIGHT = 356;
+
+type BarcodeDisplayCodeSource = MealAddBarcodeCodeSource | "edited";
 
 export default function BarcodeScanScreen({
   navigation,
@@ -68,7 +71,7 @@ export default function BarcodeScanScreen({
     params.code ?? null,
   );
   const [codeSource, setCodeSource] = useState<
-    MealAddBarcodeCodeSource | undefined
+    BarcodeDisplayCodeSource | undefined
   >(params.codeSource);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(
@@ -77,10 +80,20 @@ export default function BarcodeScanScreen({
   const [manualCode, setManualCode] = useState(params.code ?? "");
   const [manualError, setManualError] = useState<string | undefined>();
   const [lookupError, setLookupError] = useState<string | undefined>();
+  const [notFoundRecovery, setNotFoundRecovery] = useState(false);
   const e2eBarcodeFixture = getE2EFixtureState()?.barcode;
   const e2eBarcodeSimulation = Boolean(e2eBarcodeFixture);
   const compactManualSheet =
     keyboardInset > 0 && Boolean(manualError || lookupError);
+  const compactScannerLayout = windowHeight < 720;
+  const barcodePreviewHeight = useMemo(() => {
+    if (compactScannerLayout) {
+      return BARCODE_PREVIEW_COMPACT_HEIGHT;
+    }
+
+    const scaledHeight = Math.round(windowHeight * (detectedCode ? 0.38 : 0.4));
+    return Math.min(BARCODE_PREVIEW_MAX_HEIGHT, Math.max(320, scaledHeight));
+  }, [compactScannerLayout, detectedCode, windowHeight]);
 
   const canStepBack = flow.canGoBack();
   const barcodeTypes = useMemo<BarcodeType[]>(
@@ -116,6 +129,7 @@ export default function BarcodeScanScreen({
     setShowManualEntry(Boolean(params.showManualEntry));
     setManualError(undefined);
     setLookupError(undefined);
+    setNotFoundRecovery(false);
   }, [params.code, params.codeSource, params.showManualEntry]);
 
   useEffect(() => {
@@ -125,6 +139,7 @@ export default function BarcodeScanScreen({
     setManualCode("5901234123457");
     setLookupError(undefined);
     setManualError(undefined);
+    setNotFoundRecovery(false);
   }, [e2eBarcodeFixture]);
 
   useEffect(() => {
@@ -135,9 +150,17 @@ export default function BarcodeScanScreen({
 
   const dismissManualEntry = useCallback(() => {
     setManualError(undefined);
+    setLookupError(undefined);
+    setNotFoundRecovery(false);
+
+    if (codeSource === "manual" || codeSource === "edited") {
+      setDetectedCode(null);
+      setCodeSource(undefined);
+      setManualCode("");
+    }
 
     setShowManualEntry(false);
-  }, []);
+  }, [codeSource]);
 
   const handleExit = useCallback(() => {
     if (showManualEntry) {
@@ -204,6 +227,7 @@ export default function BarcodeScanScreen({
       setManualCode(code);
       setLookupError(undefined);
       setManualError(undefined);
+      setNotFoundRecovery(false);
     },
     [lookupLoading],
   );
@@ -230,7 +254,7 @@ export default function BarcodeScanScreen({
   const handleLookup = useCallback(
     async (
       codeToSearch?: string,
-      codeSourceOverride?: MealAddBarcodeCodeSource,
+      codeSourceOverride?: BarcodeDisplayCodeSource,
     ) => {
       const code = codeToSearch ?? detectedCode;
       if (!code || lookupLoading) return;
@@ -238,6 +262,7 @@ export default function BarcodeScanScreen({
 
       setLookupLoading(true);
       setLookupError(undefined);
+      setNotFoundRecovery(false);
 
       try {
         const result = await lookupBarcodeProduct(code);
@@ -246,12 +271,8 @@ export default function BarcodeScanScreen({
           setDetectedCode(code);
           setCodeSource(resolvedCodeSource);
           setManualCode(code);
-          setLookupError(
-            tMeals("barcode_scan_not_found_error", {
-              defaultValue:
-                "We couldn't find a product. Edit the code or choose another method.",
-            }),
-          );
+          setNotFoundRecovery(true);
+          Keyboard.dismiss();
           return;
         }
 
@@ -262,6 +283,7 @@ export default function BarcodeScanScreen({
                 "We couldn't search this barcode right now. Try again.",
             }),
           );
+          Keyboard.dismiss();
           return;
         }
 
@@ -278,7 +300,7 @@ export default function BarcodeScanScreen({
     setManualCode(detectedCode ?? "");
     setManualError(undefined);
     setLookupError(undefined);
-    setCodeSource("manual");
+    setNotFoundRecovery(false);
 
     setShowManualEntry(true);
   }, [detectedCode]);
@@ -296,9 +318,15 @@ export default function BarcodeScanScreen({
 
     setManualCode(parsed);
     setManualError(undefined);
+    setNotFoundRecovery(false);
 
-    void handleLookup(parsed, "manual");
-  }, [handleLookup, manualCode, tMeals]);
+    const submittedSource: BarcodeDisplayCodeSource =
+      detectedCode && detectedCode !== parsed ? "edited" : "manual";
+    setCodeSource(submittedSource);
+    Keyboard.dismiss();
+
+    void handleLookup(parsed, submittedSource);
+  }, [detectedCode, handleLookup, manualCode, tMeals]);
 
   const handleChangeMethod = useCallback(() => {
     navigation.navigate("MealAddMethod", {
@@ -307,12 +335,34 @@ export default function BarcodeScanScreen({
     });
   }, [navigation]);
 
+  const renderNotFoundRecovery = (
+    recovery: boolean,
+    testID: string,
+  ) => {
+    if (!recovery) return null;
+
+    return (
+      <View testID={testID} style={styles.lookupRecoveryBox}>
+        <Text style={styles.lookupRecoveryTitle}>
+          {tMeals("barcode_scan_not_found_title", {
+            defaultValue: "We don't have this product in the database yet.",
+          })}
+        </Text>
+        <Text style={styles.lookupRecoveryText}>
+          {tMeals("barcode_scan_not_found_body", {
+            defaultValue: "Check the code or add this meal another way.",
+          })}
+        </Text>
+      </View>
+    );
+  };
+
   const previewLabel = detectedCode
     ? tMeals("barcode_scan_detected_badge", {
         defaultValue: "Detected code",
       })
     : tMeals("barcode_scan_preview_label", {
-        defaultValue: "Place the code inside the frame",
+        defaultValue: "Place the code in the frame",
       });
   const title = detectedCode
     ? tMeals("barcode_scan_detected_title", {
@@ -323,12 +373,11 @@ export default function BarcodeScanScreen({
       });
   const description = detectedCode
     ? tMeals("barcode_scan_detected_subtitle", {
-        defaultValue:
-          "We found a barcode. Search for the product or edit the code first.",
+        defaultValue: "Check the number, then search the product.",
       })
     : tMeals("barcode_scan_subtitle", {
         defaultValue:
-          "Point the camera at the barcode. We will ask you to confirm the number before searching.",
+          "Place the code in the frame. After scanning, confirm the number before searching.",
       });
   const flowHeader = (
     <AddMealFlowHeader
@@ -392,7 +441,7 @@ export default function BarcodeScanScreen({
       <View style={styles.fill} testID="barcode-scan-screen">
         {flowHeader}
         <MealAddPhotoScaffold
-          previewHeight={BARCODE_PREVIEW_HEIGHT}
+          previewHeight={barcodePreviewHeight}
           preview={
             <MealAddBarcodePreview
               label={previewLabel}
@@ -417,17 +466,19 @@ export default function BarcodeScanScreen({
           })}
           title={title}
           description={description}
-          sheetFitContent={Boolean(detectedCode)}
+          sheetFitContent={!compactScannerLayout}
           contentPlacement="start"
           content={
             <>
               {!detectedCode ? (
-                <MealAddStatusBanner
-                  label={tMeals("barcode_scan_status", {
-                    defaultValue: "Scanning for a code",
-                  })}
-                  loading
-                />
+                <View testID="barcode-live-status" style={styles.liveStatus}>
+                  <MealAddStatusBanner
+                    label={tMeals("barcode_scan_status", {
+                      defaultValue: "Scanning for a code",
+                    })}
+                    loading
+                  />
+                </View>
               ) : null}
 
               {lookupError ? (
@@ -436,56 +487,66 @@ export default function BarcodeScanScreen({
                 </View>
               ) : null}
 
+              {!showManualEntry
+                ? renderNotFoundRecovery(
+                    notFoundRecovery,
+                    "barcode-lookup-not-found",
+                  )
+                : null}
+
               {detectedCode ? (
-                <>
-                  <View
-                    testID="barcode-detected-summary"
-                    style={styles.detectedSummary}
-                  >
-                    <Text style={styles.detectedSummaryLabel}>
-                      {tMeals("barcode_scan_detected_label", {
-                        defaultValue: "Code detected",
-                      })}
-                    </Text>
-                    <Text
-                      style={styles.detectedSummaryCode}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.82}
-                    >
-                      {detectedCode}
-                    </Text>
-                  </View>
-                  <Button
-                    testID="barcode-lookup-button"
-                    label={tMeals("barcode_scan_search_cta", {
-                      defaultValue: "Search product",
-                    })}
-                    onPress={() => {
-                      void handleLookup();
-                    }}
-                    loading={lookupLoading}
-                  />
-                </>
+                <Button
+                  testID="barcode-lookup-button"
+                  label={tMeals("barcode_scan_search_cta", {
+                    defaultValue: "Search product",
+                  })}
+                  onPress={() => {
+                    void handleLookup();
+                  }}
+                  loading={lookupLoading}
+                />
               ) : null}
 
-              <Button
+              <Pressable
                 testID="barcode-open-manual-button"
-                label={tMeals("barcode_scan_manual_cta", {
+                onPress={handleOpenManualEntry}
+                disabled={lookupLoading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: lookupLoading }}
+                accessibilityLabel={tMeals("barcode_scan_manual_cta", {
                   defaultValue: "Enter code manually",
                 })}
-                onPress={handleOpenManualEntry}
-                variant="secondary"
-                disabled={lookupLoading}
-              />
+                style={({ pressed }) => [
+                  styles.manualFallbackButton,
+                  pressed && !lookupLoading ? styles.secondaryActionPressed : null,
+                  lookupLoading ? styles.secondaryActionDisabled : null,
+                ]}
+              >
+                <Text style={styles.manualFallbackText}>
+                  {tMeals("barcode_scan_manual_cta", {
+                    defaultValue: "Enter code manually",
+                  })}
+                </Text>
+              </Pressable>
 
-              <MealAddTextLink
+              <Pressable
                 testID="barcode-change-method-button"
-                label={tMeals("change_method", {
+                onPress={handleChangeMethod}
+                accessibilityRole="button"
+                accessibilityLabel={tMeals("change_method", {
                   defaultValue: "Change add method",
                 })}
-                onPress={handleChangeMethod}
-              />
+                style={({ pressed }) => [
+                  styles.changeMethodButton,
+                  pressed ? styles.secondaryActionPressed : null,
+                ]}
+              >
+                <Text style={styles.changeMethodText}>
+                  {tMeals("change_method", {
+                    defaultValue: "Change add method",
+                  })}
+                </Text>
+              </Pressable>
             </>
           }
         />
@@ -527,14 +588,6 @@ export default function BarcodeScanScreen({
                     defaultValue: "Enter code",
                   })}
                 </Text>
-                {!compactManualSheet ? (
-                  <Text style={styles.manualSubtitle}>
-                    {tMeals("barcode_scan_sheet_subtitle", {
-                      defaultValue:
-                        "Type the numbers under the bars if scanning is difficult.",
-                    })}
-                  </Text>
-                ) : null}
 
                 <TextInput
                   testID="barcode-manual-input"
@@ -543,26 +596,34 @@ export default function BarcodeScanScreen({
                     setManualCode(value);
                     if (manualError) setManualError(undefined);
                     if (lookupError) setLookupError(undefined);
+                    if (notFoundRecovery) setNotFoundRecovery(false);
                   }}
                   keyboardType="number-pad"
                   placeholder={tMeals("barcode_scan_sheet_placeholder", {
-                    defaultValue: "Enter numbers only",
+                    defaultValue: "Enter code",
                   })}
                   helperText={tMeals("barcode_scan_sheet_helper", {
-                    defaultValue: "Numeric input only. Usually 8 to 13 digits.",
+                    defaultValue: "Barcodes are usually 8 to 13 digits.",
                   })}
                   error={manualError}
+                  errorTestID="barcode-manual-validation-error"
                   fieldStyle={styles.manualInputField}
                   inputStyle={styles.manualInputText}
                 />
+
+                {renderNotFoundRecovery(
+                  showManualEntry && notFoundRecovery,
+                  "barcode-manual-not-found",
+                )}
+
                 {lookupError ? (
                   <View
                     testID="barcode-manual-error"
                     style={styles.manualErrorBox}
                   >
                     <Text style={styles.manualErrorTitle}>
-                      {tMeals("barcode_scan_not_found_title", {
-                        defaultValue: "Product not found",
+                      {tMeals("barcode_scan_lookup_error_title", {
+                        defaultValue: "Search failed",
                       })}
                     </Text>
                     <Text style={styles.manualErrorText}>{lookupError}</Text>
@@ -639,34 +700,46 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     permissionButton: {
       alignSelf: "stretch",
     },
-    detectedSummary: {
-      minHeight: 52,
-      borderRadius: theme.rounded.md,
+    liveStatus: {
+      alignSelf: "stretch",
+    },
+    manualFallbackButton: {
+      minHeight: 44,
+      alignSelf: "stretch",
+      borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.primarySoft,
-      backgroundColor: theme.success.surface,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      flexDirection: "row",
+      borderColor: theme.border,
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: theme.spacing.sm,
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.md,
+      backgroundColor: "transparent",
     },
-    detectedSummaryLabel: {
-      color: theme.primaryStrong,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.semiBold,
-      textTransform: "uppercase",
-      flexShrink: 0,
-    },
-    detectedSummaryCode: {
+    manualFallbackText: {
       color: theme.text,
       fontSize: theme.typography.size.bodyM,
       lineHeight: theme.typography.lineHeight.bodyM,
-      fontFamily: theme.typography.fontFamily.semiBold,
-      textAlign: "right",
-      flexShrink: 1,
+      fontFamily: theme.typography.fontFamily.medium,
+      textAlign: "center",
+    },
+    changeMethodButton: {
+      minHeight: 38,
+      alignSelf: "center",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.md,
+    },
+    changeMethodText: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.medium,
+      textAlign: "center",
+    },
+    secondaryActionPressed: {
+      opacity: 0.7,
+    },
+    secondaryActionDisabled: {
+      opacity: 0.48,
     },
     manualOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -690,7 +763,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       ...theme.depth.modal,
     },
     manualSheetContent: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     manualSheetContentCompact: {
       gap: theme.spacing.xs,
@@ -704,29 +777,47 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     manualTitle: {
       color: theme.text,
-      fontSize: theme.typography.size.h2,
-      lineHeight: theme.typography.lineHeight.h2,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
       fontFamily: theme.typography.fontFamily.bold,
-      textAlign: "center",
-    },
-    manualSubtitle: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
-      fontFamily: theme.typography.fontFamily.regular,
       textAlign: "center",
     },
     manualActions: {
       gap: theme.spacing.xs,
+      marginTop: theme.spacing.xxs,
     },
     manualInputField: {
-      minHeight: 52,
+      height: 56,
       borderRadius: theme.rounded.md,
     },
     manualInputText: {
       fontSize: theme.typography.size.bodyL,
       lineHeight: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.medium,
+      fontVariant: ["tabular-nums"],
+    },
+    lookupRecoveryBox: {
+      borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(137, 162, 132, 0.1)"
+        : "rgba(239, 231, 218, 0.72)",
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.xs,
+    },
+    lookupRecoveryTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    lookupRecoveryText: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.regular,
     },
     manualErrorBox: {
       borderRadius: theme.rounded.md,

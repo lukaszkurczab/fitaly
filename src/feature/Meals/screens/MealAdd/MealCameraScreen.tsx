@@ -393,6 +393,60 @@ export default function MealCameraScreen({
                 onTouchStart={handleFullscreenTouchStart}
                 onTouchEnd={handleFullscreenTouchEnd}
               >
+                <View
+                  testID="add-meal-photo-fullscreen-top-controls"
+                  style={[
+                    styles.fullCameraTopControls,
+                    {
+                      paddingTop: Math.max(
+                        insets.top + theme.spacing.sm,
+                        theme.spacing.xl,
+                      ),
+                    },
+                  ]}
+                  pointerEvents="box-none"
+                >
+                  <Pressable
+                    testID="add-meal-photo-fullscreen-back"
+                    accessibilityRole="button"
+                    accessibilityLabel={tCommon("back", {
+                      defaultValue: "Back",
+                    })}
+                    hitSlop={8}
+                    onPress={handleTopLeftPress}
+                    style={({ pressed }) => [
+                      styles.fullCameraTopButton,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <AppIcon
+                      name="arrow"
+                      size={20}
+                      color={fullscreenControlColor}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    testID="add-meal-photo-fullscreen-close"
+                    accessibilityRole="button"
+                    accessibilityLabel={tCommon("close", {
+                      defaultValue: "Close",
+                    })}
+                    hitSlop={8}
+                    onPress={handleCloseFlow}
+                    style={({ pressed }) => [
+                      styles.fullCameraTopButton,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <AppIcon
+                      name="close"
+                      size={18}
+                      color={fullscreenControlColor}
+                    />
+                  </Pressable>
+                </View>
+
                 <View style={styles.fullCameraControls} pointerEvents="box-none">
                   {!skipDetection ? (
                     <Pressable
@@ -568,6 +622,31 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       minHeight: 86,
       alignItems: "center",
       justifyContent: "center",
+    },
+    fullCameraTopControls: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: theme.spacing.lg,
+    },
+    fullCameraTopButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.76)"
+        : "rgba(36, 41, 36, 0.58)",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.18)"
+        : "rgba(255, 253, 248, 0.24)",
     },
     fullCameraMethodButton: {
       position: "absolute",

@@ -28,7 +28,7 @@ appId: com.lkurczab.fitaly
     id: barcode-manual-submit-button
 - extendedWaitUntil:
     visible:
-      id: barcode-manual-error
+      id: barcode-manual-not-found
     timeout: 15000
 - assertVisible:
     id: barcode-manual-cancel-button

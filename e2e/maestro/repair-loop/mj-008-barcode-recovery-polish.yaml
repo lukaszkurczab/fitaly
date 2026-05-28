@@ -1,0 +1,158 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-unknown
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-live-status
+- tapOn:
+    id: barcode-open-manual-button
+- assertVisible:
+    id: barcode-manual-sheet
+- takeScreenshot: mj008-barcode-manual-initial-light
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 5900000000000
+- assertVisible:
+    id: barcode-manual-submit-button
+- takeScreenshot: mj008-barcode-manual-valid-keyboard-light
+- tapOn:
+    id: barcode-manual-submit-button
+- extendedWaitUntil:
+    visible:
+      id: barcode-manual-not-found
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: mj008-barcode-not-found-light
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 123
+- tapOn:
+    id: barcode-manual-submit-button
+- assertVisible:
+    id: barcode-manual-validation-error
+- takeScreenshot: mj008-barcode-invalid-code-light
+- tapOn:
+    id: barcode-manual-cancel-button
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-live-status
+- takeScreenshot: mj008-barcode-return-to-scanning-light
+- tapOn:
+    id: barcode-close
+
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-profile-details-row
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- tapOn:
+    id: back-title-header-back
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-unknown
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-live-status
+- tapOn:
+    id: barcode-open-manual-button
+- assertVisible:
+    id: barcode-manual-sheet
+- takeScreenshot: mj008-barcode-manual-initial-dark
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 5900000000000
+- assertVisible:
+    id: barcode-manual-submit-button
+- takeScreenshot: mj008-barcode-manual-valid-keyboard-dark
+- tapOn:
+    id: barcode-manual-submit-button
+- extendedWaitUntil:
+    visible:
+      id: barcode-manual-not-found
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: mj008-barcode-not-found-dark
+- tapOn:
+    id: barcode-manual-input
+- eraseText
+- inputText: 123
+- tapOn:
+    id: barcode-manual-submit-button
+- assertVisible:
+    id: barcode-manual-validation-error
+- takeScreenshot: mj008-barcode-invalid-code-dark
+- tapOn:
+    id: barcode-manual-cancel-button
+- assertVisible:
+    id: barcode-scan-screen
+- tapOn:
+    id: barcode-close
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=known"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-barcode-known
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-barcode
+- tapOn:
+    id: meal-add-option-barcode
+- assertVisible:
+    id: barcode-scan-screen
+- assertVisible:
+    id: barcode-preview-detected-code
+- assertVisible:
+    id: barcode-lookup-button
+- tapOn:
+    id: barcode-lookup-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- takeScreenshot: mj008-barcode-success-review-dark

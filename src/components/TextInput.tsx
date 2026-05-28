@@ -197,6 +197,9 @@ export const TextInput = forwardRef<RNTextInput, Props>(
         <View
           style={[
             styles.inputWrapper,
+            multiline
+              ? styles.multilineInputWrapper
+              : styles.singleLineInputWrapper,
             {
               backgroundColor,
               borderColor,
@@ -254,14 +257,12 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             maxLength={maxLength}
             style={[
               styles.input,
+              multiline ? styles.multilineInput : styles.singleLineInput,
               {
                 maxHeight: multiline ? inputMaxHeight : undefined,
-                height: multiline ? undefined : "100%",
-                textAlignVertical: multiline ? "top" : "center",
-                includeFontPadding: false,
-                paddingVertical: 0,
               },
               inputStyle,
+              multiline && styles.multilineInputAlignment,
             ]}
             selectionColor={theme.primary}
             underlineColorAndroid="transparent"
@@ -312,15 +313,29 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexDirection: "row",
       gap: theme.spacing.sm,
       paddingHorizontal: theme.spacing.sm,
-      justifyContent: "center",
+    },
+    singleLineInputWrapper: {
+      paddingVertical: theme.spacing.xs,
+    },
+    multilineInputWrapper: {
       paddingVertical: theme.spacing.xxs,
     },
     input: {
       flex: 1,
       color: theme.input.text,
       fontSize: theme.typography.size.bodyL,
+      height: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.regular,
+    },
+    singleLineInput: {
+      marginVertical: 0,
+    },
+    multilineInput: {
       marginVertical: theme.spacing.xs,
+    },
+    multilineInputAlignment: {
+      textAlignVertical: "top",
+      includeFontPadding: false,
     },
     rightLabel: {
       color: theme.textSecondary,

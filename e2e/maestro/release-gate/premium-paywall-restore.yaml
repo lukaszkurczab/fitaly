@@ -21,10 +21,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Premium gated bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado and tahini
-- tapOn: "KRÓTKI OPIS"
+    point: "50%,30%"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:

@@ -21,11 +21,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: E2E Stats Bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce.
-- tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - assertVisible:
     id: add-meal-text-analyze-button

@@ -32,6 +32,12 @@ export type MealAddSimulatorReviewState =
 
 export type MealAddBarcodeCodeSource = "scan" | "manual";
 
+export type MealAddTextIngredientInput = {
+  id: string;
+  name: string;
+  amount: string;
+};
+
 export type MealAddStepParams = {
   CameraDefault: {
     id?: string;
@@ -57,8 +63,10 @@ export type MealAddStepParams = {
   DescribeMeal: {
     name?: string;
     quickDescription?: string;
+    textIngredients?: MealAddTextIngredientInput[];
+    servingAmount?: string;
     retries?: number;
-    descriptionError?: string;
+    nameError?: string;
     submitError?: string;
     showLimitModal?: boolean;
   };
@@ -66,6 +74,8 @@ export type MealAddStepParams = {
     analysisRequestId: string;
     name: string;
     quickDescription: string;
+    textIngredients?: MealAddTextIngredientInput[];
+    servingAmount?: string;
     retries?: number;
   };
   ReviewMeal: Record<string, never>;

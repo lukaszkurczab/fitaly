@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent } from "@testing-library/react-native";
+import { fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import DescribeMealScreen from "@/feature/Meals/screens/MealAdd/DescribeMealScreen";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
@@ -18,29 +18,41 @@ type TextInputProps = {
   testID?: string;
   multiline?: boolean;
   numberOfLines?: number;
+  value?: string;
+  onChangeText?: (text: string) => void;
   style?: object;
   fieldStyle?: unknown;
   inputStyle?: unknown;
 };
 
 const mockUseMealTextAiState = jest.fn();
+const mockGetTextDetailsExpandedPreference = jest.fn<() => Promise<boolean>>();
+const mockSetTextDetailsExpandedPreference = jest.fn<
+  (_uid: string | null | undefined, _expanded: boolean) => Promise<void>
+>();
 
 const buildTextAiState = (overrides: Record<string, unknown> = {}) => ({
   name: "",
   quickDescription: "",
+  textIngredients: [],
+  servingAmount: "",
   loading: false,
   showLimitModal: false,
   creditsUsed: 0,
   creditsBalance: 74,
   textMealCost: 1,
   remainingCreditsAfterAnalyze: 73,
-  descriptionError: undefined,
+  nameError: undefined,
   submitError: undefined,
   analyzeDisabled: false,
   analysisState: "ready",
   creditAllocation: 100,
   onNameChange: jest.fn(),
   onQuickDescriptionChange: jest.fn(),
+  onServingAmountChange: jest.fn(),
+  onAddTextIngredient: jest.fn(),
+  onUpdateTextIngredient: jest.fn(),
+  onRemoveTextIngredient: jest.fn(),
   onAnalyze: jest.fn(),
   closeLimitModal: jest.fn(),
   openPaywall: jest.fn(),
@@ -49,6 +61,18 @@ const buildTextAiState = (overrides: Record<string, unknown> = {}) => ({
 
 jest.mock("@/feature/Meals/hooks/useMealTextAiState", () => ({
   useMealTextAiState: (params: unknown) => mockUseMealTextAiState(params),
+}));
+
+jest.mock("@/context/AuthContext", () => ({
+  useAuthContext: () => ({ uid: "user-1" }),
+}));
+
+jest.mock("@/feature/Meals/services/textDetailsPreference", () => ({
+  getTextDetailsExpandedPreference: () => mockGetTextDetailsExpandedPreference(),
+  setTextDetailsExpandedPreference: (
+    uid: string | null | undefined,
+    expanded: boolean,
+  ) => mockSetTextDetailsExpandedPreference(uid, expanded),
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -112,6 +136,8 @@ jest.mock("@/components", () => {
       testID,
       multiline,
       numberOfLines,
+      value,
+      onChangeText,
       style,
       fieldStyle,
       inputStyle,
@@ -120,6 +146,17 @@ jest.mock("@/components", () => {
         View,
         { testID, style },
         createElement(Text, null, label ?? ""),
+        testID
+          ? createElement(
+              Pressable,
+              {
+                testID: `${testID}-change-text`,
+                onPress: () => onChangeText?.("changed"),
+                accessibilityRole: "button",
+              },
+              createElement(Text, null, value ?? ""),
+            )
+          : null,
         testID
           ? createElement(
               Text,
@@ -152,11 +189,26 @@ jest.mock("@/components", () => {
           Text,
           {
             testID:
-              label === "meals:meal_name"
+              label === "meals:describe_meal_name_label"
                 ? "describe-meal-name-autocap"
                 : "describe-meal-description-autocap",
           },
           autoCapitalize ?? "undefined",
+        ),
+      ),
+    NumberInput: (props: TextInputProps) =>
+      createElement(
+        View,
+        { testID: props.testID, style: props.style },
+        createElement(Text, null, props.label ?? ""),
+        createElement(
+          Pressable,
+          {
+            testID: props.testID ? `${props.testID}-change-text` : undefined,
+            onPress: () => props.onChangeText?.("120"),
+            accessibilityRole: "button",
+          },
+          createElement(Text, null, props.value ?? ""),
         ),
       ),
   };
@@ -198,6 +250,8 @@ jest.mock("@/feature/Meals/components/MealAddPhotoScaffold", () => ({
 describe("DescribeMealScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetTextDetailsExpandedPreference.mockResolvedValue(false);
+    mockSetTextDetailsExpandedPreference.mockResolvedValue(undefined);
     mockUseMealTextAiState.mockReturnValue(buildTextAiState());
   });
 
@@ -222,10 +276,37 @@ describe("DescribeMealScreen", () => {
     const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
 
     expect(getByTestId("describe-meal-name-autocap").props.children).toBe("none");
+    fireEvent.press(getByTestId("add-meal-text-details-toggle"));
     expect(getByTestId("describe-meal-description-autocap").props.children).toBe("none");
   });
 
-  it("keeps the quick description input expanded in the preview", () => {
+  it("starts with optional details collapsed", () => {
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <DescribeMealScreen {...props} />,
+    );
+
+    expect(getByTestId("add-meal-text-details-toggle")).toBeTruthy();
+    expect(queryByTestId("add-meal-text-description-input")).toBeNull();
+  });
+
+  it("expands optional details as lightweight fields and persists the state", () => {
     const props = {
       navigation: {
         navigate: jest.fn(),
@@ -244,13 +325,97 @@ describe("DescribeMealScreen", () => {
     } as MealAddScreenProps<"DescribeMeal">;
 
     const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    fireEvent.press(getByTestId("add-meal-text-details-toggle"));
+
     const descriptionInput = getByTestId("add-meal-text-description-input");
 
     expect(getByTestId("add-meal-text-description-input-multiline").props.children).toBe("true");
-    expect(getByTestId("add-meal-text-description-input-number-of-lines").props.children).toBe("8");
-    expect(descriptionInput.props.style).toBeTruthy();
+    expect(getByTestId("add-meal-text-description-input-number-of-lines").props.children).toBe("4");
+    expect(descriptionInput).toBeTruthy();
+    expect(getByTestId("add-meal-text-ingredients-add-button")).toBeTruthy();
+    expect(getByTestId("add-meal-text-serving-input")).toBeTruthy();
     expect(getByTestId("add-meal-text-description-input-field-style").props.children).toBe("true");
     expect(getByTestId("add-meal-text-description-input-input-style").props.children).toBe("true");
+    expect(mockSetTextDetailsExpandedPreference).toHaveBeenCalledWith(
+      "user-1",
+      true,
+    );
+  });
+
+  it("renders editable ingredient rows when optional ingredients exist", () => {
+    const onUpdateTextIngredient = jest.fn();
+    const onRemoveTextIngredient = jest.fn();
+    mockUseMealTextAiState.mockReturnValue(
+      buildTextAiState({
+        textIngredients: [{ id: "ingredient-1", name: "Rice", amount: "120" }],
+        onUpdateTextIngredient,
+        onRemoveTextIngredient,
+      }),
+    );
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: { textIngredients: [{ id: "ingredient-1", name: "Rice", amount: "120" }] },
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    expect(getByTestId("add-meal-text-ingredient-name-input-0")).toBeTruthy();
+    expect(getByTestId("add-meal-text-ingredient-amount-input-0")).toBeTruthy();
+
+    fireEvent.press(
+      getByTestId("add-meal-text-ingredient-name-input-0-change-text"),
+    );
+    fireEvent.press(
+      getByTestId("add-meal-text-ingredient-amount-input-0-change-text"),
+    );
+    fireEvent.press(getByTestId("add-meal-text-ingredient-remove-button-0"));
+
+    expect(onUpdateTextIngredient).toHaveBeenCalledWith("ingredient-1", {
+      name: "changed",
+    });
+    expect(onUpdateTextIngredient).toHaveBeenCalledWith("ingredient-1", {
+      amount: "120",
+    });
+    expect(onRemoveTextIngredient).toHaveBeenCalledWith("ingredient-1");
+  });
+
+  it("restores the persisted expanded optional-details state", async () => {
+    mockGetTextDetailsExpandedPreference.mockResolvedValue(true);
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
+
+    await waitFor(() => {
+      expect(getByTestId("add-meal-text-description-input")).toBeTruthy();
+    });
   });
 
   it("opens the temporary method chooser", () => {
@@ -304,11 +469,11 @@ describe("DescribeMealScreen", () => {
     expect(getByText("✦ 73 credits remaining")).toBeTruthy();
   });
 
-  it("explains disabled CTA when description is missing", () => {
+  it("explains disabled CTA when meal name is missing", () => {
     mockUseMealTextAiState.mockReturnValue({
       ...buildTextAiState(),
       analyzeDisabled: true,
-      analysisState: "missing_description",
+      analysisState: "missing_name",
       creditsBalance: 74,
       remainingCreditsAfterAnalyze: 73,
     });
@@ -331,7 +496,7 @@ describe("DescribeMealScreen", () => {
 
     const { getByText } = renderWithTheme(<DescribeMealScreen {...props} />);
 
-    expect(getByText("Add a meal description to prepare a summary.")).toBeTruthy();
+    expect(getByText("Enter a meal name to prepare a summary.")).toBeTruthy();
   });
 
   it("explains disabled CTA while credits are unverified", () => {
