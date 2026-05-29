@@ -7,7 +7,7 @@ import { ErrorBox, ScreenCornerNavButton } from "@/components";
 import { GlobalActionButtons } from "@/components/GlobalActionButtons";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import AppIcon from "@/components/AppIcon";
+import Svg, { Path, Rect } from "react-native-svg";
 import { AuthScreenLayout } from "@/feature/Auth/components/AuthScreenLayout";
 import { getFirebaseAuth } from "@/FirebaseConfig";
 import { authSendPasswordReset } from "@/feature/Auth/services/authService";
@@ -24,6 +24,29 @@ function getErrorCode(err: unknown): string | null {
   if (!err || typeof err !== "object") return null;
   const code = (err as { code?: unknown }).code;
   return typeof code === "string" ? code : null;
+}
+
+function MailStatusIcon({ color }: { color: string }) {
+  return (
+    <Svg width={28} height={28} viewBox="0 0 28 28" fill="none">
+      <Rect
+        x={4.5}
+        y={7}
+        width={19}
+        height={14}
+        rx={3}
+        stroke={color}
+        strokeWidth={1.8}
+      />
+      <Path
+        d="M5 8.5L14 15.25L23 8.5"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
 export default function CheckMailboxScreen({ navigation }: Props) {
@@ -161,7 +184,9 @@ export default function CheckMailboxScreen({ navigation }: Props) {
     >
       <View style={styles.mailCard}>
         <View style={styles.iconBadge}>
-          <AppIcon name="email" size={28} color={theme.primary} />
+          <MailStatusIcon
+            color={theme.isDark ? theme.textInverse : theme.surface}
+          />
         </View>
         <View style={styles.mailCopy}>
           <Text style={styles.mailTitle}>
@@ -200,7 +225,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.primarySoft,
+      backgroundColor: theme.isDark ? theme.primarySoft : theme.primary,
     },
     mailCopy: {
       flex: 1,

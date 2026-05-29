@@ -52,8 +52,8 @@ describe("AuthScreenLayout", () => {
       });
     });
 
-    expect(queryByText("italy")).toBeNull();
-    expect(getByText("Witaj ponownie")).toBeTruthy();
+    expect(getByText("italy")).toBeTruthy();
+    expect(queryByText("Witaj ponownie")).toBeNull();
     expect(getByText("login-form")).toBeTruthy();
   });
 

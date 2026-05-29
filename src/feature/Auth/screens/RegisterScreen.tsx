@@ -16,7 +16,6 @@ import {
   ErrorBox,
   LinkText,
   Checkbox,
-  ScreenCornerNavButton,
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import { useRegister } from "@/feature/Auth/hooks/useRegister";
@@ -50,6 +49,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsTouched, setTermsTouched] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [touched, setTouched] = useState({
     username: false,
@@ -110,13 +110,24 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
         ? t(errors.confirmPassword)
         : undefined;
 
+  const isCoreFormValid =
+    usernameIsValid &&
+    emailIsValid &&
+    passwordIsValid &&
+    Boolean(confirmPassword) &&
+    confirmPasswordIsValid;
+
+  const termsError =
+    (termsTouched && !termsAccepted) || errors.terms
+      ? t(errors.terms ?? "must_accept_terms")
+      : undefined;
+
   const isFormDisabled =
     !usernameIsValid ||
     !emailIsValid ||
     !passwordIsValid ||
     !confirmPassword ||
     !confirmPasswordIsValid ||
-    !termsAccepted ||
     loading ||
     !isConnected;
 
@@ -127,7 +138,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       password: true,
       confirmPassword: true,
     });
-    if (isFormDisabled) return;
+    setTermsTouched(true);
+    if (!isCoreFormValid || !termsAccepted || loading || !isConnected) return;
     Keyboard.dismiss();
     register(
       email.trim(),
@@ -147,7 +159,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       testID={testID}
       onPress={toggle}
       accessibilityLabel={t("toggle_password_visibility")}
-      hitSlop={8}
+      style={styles.visibilityToggle}
     >
       <AppIcon
         name={!show ? "eye-off" : "eye"}
@@ -164,15 +176,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       compactOnKeyboardVisible
       formStyle={styles.authFormSpacing}
       compactFormStyle={styles.authFormSpacingCompact}
-      topAction={
-        <ScreenCornerNavButton
-          icon="back"
-          onPress={() => navigation.replace("Login")}
-          accessibilityLabel={t("common:back", { defaultValue: "Wróć" })}
-          testID="register-back-button"
-          containerStyle={styles.backButton}
-        />
-      }
       banner={
         !isConnected ? (
           <ErrorBox
@@ -222,8 +225,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           error={usernameError}
           accessibilityLabel={t("username")}
           editable={!loading}
-          icon={<AppIcon name="person" />}
-          iconPosition="right"
           style={styles.field}
         />
 
@@ -243,8 +244,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           error={emailError}
           accessibilityLabel={t("email", { ns: "login" })}
           editable={!loading}
-          icon={<AppIcon name="email" />}
-          iconPosition="right"
           style={styles.field}
         />
 
@@ -265,7 +264,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
           error={passwordError}
           accessibilityLabel={t("password", { ns: "login" })}
-          left={<AppIcon name="lock" size={20} color={theme.textSecondary} />}
           right={renderEyeIcon(
             showPassword,
             () => setShowPassword((v) => !v),
@@ -294,7 +292,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           }
           error={confirmPasswordError}
           accessibilityLabel={t("confirm_password")}
-          left={<AppIcon name="lock" size={20} color={theme.textSecondary} />}
           right={renderEyeIcon(
             showConfirm,
             () => setShowConfirm((v) => !v),
@@ -311,12 +308,13 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               checked={termsAccepted}
               onChange={(checked) => {
                 setTermsAccepted(checked);
+                setTermsTouched(true);
                 clearFieldError("terms");
               }}
               disabled={loading}
-              error={Boolean(errors.terms)}
+              error={Boolean(termsError)}
               accessibilityLabel={
-                errors.terms ? t(errors.terms) : t("accept_terms_full")
+                termsError ? termsError : t("accept_terms_full")
               }
               style={styles.termsCheckbox}
             />
@@ -325,14 +323,14 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 <Text
                   style={[
                     styles.helperText,
-                    errors.terms ? styles.termsTextError : null,
+                    termsError ? styles.termsTextError : null,
                   ]}
                 >
                   {t("accept_terms")}{" "}
                 </Text>
                 <LinkText
                   text={t("terms")}
-                  style={errors.terms ? styles.termsLinkError : undefined}
+                  style={termsError ? styles.termsLinkError : undefined}
                   onPress={() => {
                     const url = getTermsUrl();
                     if (url) void Linking.openURL(url);
@@ -341,17 +339,25 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 <Text
                   style={[
                     styles.helperText,
-                    errors.terms ? styles.termsTextError : null,
+                    termsError ? styles.termsTextError : null,
                   ]}
                 >
                   {` ${t("terms_conjunction")} `}
                 </Text>
                 <LinkText
                   text={t("privacy_policy")}
-                  style={errors.terms ? styles.termsLinkError : undefined}
+                  style={termsError ? styles.termsLinkError : undefined}
                   onPress={() => navigation.navigate("Privacy")}
                 />
               </View>
+              {termsError ? (
+                <Text
+                  testID="register-terms-error"
+                  style={styles.termsErrorText}
+                >
+                  {termsError}
+                </Text>
+              ) : null}
             </View>
           </View>
         </View>
@@ -368,11 +374,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     authFormSpacingCompact: {
       paddingTop: theme.spacing.sm,
     },
-    backButton: {
-      top: theme.spacing.xs,
-      left: 0,
-      right: undefined,
-    },
     formBlock: {
       width: "100%",
     },
@@ -388,17 +389,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     confirmField: {
       marginBottom: theme.spacing.sectionGap,
     },
+    visibilityToggle: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginVertical: -theme.spacing.sm,
+      marginRight: -theme.spacing.xs,
+    },
     legalSection: {
       marginBottom: theme.spacing.sm,
     },
     termsRow: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       width: "100%",
     },
     termsCheckbox: {
       marginRight: theme.spacing.sm,
-      marginTop: theme.spacing.xxs,
     },
     termsCopy: {
       flex: 1,
@@ -418,5 +426,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     termsLinkError: {
       color: theme.error.text,
+    },
+    termsErrorText: {
+      color: theme.error.text,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
+      marginTop: theme.spacing.xs,
     },
   });
