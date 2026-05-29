@@ -72,7 +72,12 @@ export default function AddMealScreen() {
     }
 
     if (start === "EditMealDetails") {
-      return { name: "EditMealDetails", params: {} };
+      return {
+        name: "EditMealDetails",
+        params: {
+          submitIntent: p.submitIntent ?? "replaceReview",
+        },
+      };
     }
 
     if (start === "SelectSavedMeal") {

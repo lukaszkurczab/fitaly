@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -26,6 +32,7 @@ type Props = {
   submitLabel?: string;
   showDelete?: boolean;
   testIDPrefix?: string;
+  showSheetActions?: boolean;
 };
 
 const parseNum = (v: string) => {
@@ -37,18 +44,26 @@ type NumericIngredientKey = "amount" | "protein" | "carbs" | "fat" | "kcal";
 
 const AMOUNT_MAX_DECIMALS = 1;
 
-export const IngredientEditor: React.FC<Props> = ({
-  initial,
-  onCommit,
-  onCancel,
-  onDelete,
-  onChangePartial,
-  errors = {},
-  variant = "default",
-  submitLabel,
-  showDelete = true,
-  testIDPrefix = "ingredient-editor",
-}) => {
+export type IngredientEditorHandle = {
+  submit: () => void;
+};
+
+const IngredientEditorComponent = (
+  {
+    initial,
+    onCommit,
+    onCancel,
+    onDelete,
+    onChangePartial,
+    errors = {},
+    variant = "default",
+    submitLabel,
+    showDelete = true,
+    testIDPrefix = "ingredient-editor",
+    showSheetActions = true,
+  }: Props,
+  ref: React.ForwardedRef<IngredientEditorHandle>,
+) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["meals", "common"]);
@@ -195,6 +210,10 @@ export const IngredientEditor: React.FC<Props> = ({
 
     commitIngredient();
   };
+
+  useImperativeHandle(ref, () => ({
+    submit: commit,
+  }));
 
   const applyAmountRecalcChoice = (recalculateMacros: boolean) => {
     const next = buildIngredientForCommit({ recalculateMacros });
@@ -643,7 +662,7 @@ export const IngredientEditor: React.FC<Props> = ({
       )}
 
       {isSheetVariant ? (
-        renderSheetActions()
+        showSheetActions ? renderSheetActions() : null
       ) : (
         <>
           <Button
@@ -716,6 +735,10 @@ export const IngredientEditor: React.FC<Props> = ({
     </View>
   );
 };
+
+export const IngredientEditor = React.forwardRef(IngredientEditorComponent);
+
+IngredientEditor.displayName = "IngredientEditor";
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({

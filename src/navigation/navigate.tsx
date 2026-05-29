@@ -18,6 +18,7 @@ export type RootStackParamList = {
         code?: string;
         showManualEntry?: boolean;
         image?: string;
+        submitIntent?: "goBack" | "replaceReview";
         reason?:
           | "not_recognized"
           | "ai_unavailable"

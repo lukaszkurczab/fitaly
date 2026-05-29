@@ -199,7 +199,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     assetSlot: {
       position: "absolute",
-      top: theme.spacing.md,
+      top: theme.spacing.xxs,
       right: -theme.spacing.xl,
       height: 172,
       width: 172,
@@ -207,11 +207,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
       opacity: theme.isDark ? 0.78 : 0.96,
       zIndex: 1,
-      transform: [{ translateY: -8 }, { scaleX: -1 }],
+      transform: [{ scaleX: -1 }],
     },
     assetImage: {
-      height: "100%",
-      width: "100%",
+      height: 172,
+      width: 172,
     },
     header: {
       width: "67%",

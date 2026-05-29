@@ -3,13 +3,22 @@ import { Keyboard } from "react-native";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 import type { Ingredient, Meal, MealType } from "@/types/meal";
-import type { MealAddFlowApi } from "@/feature/Meals/feature/MapMealAddScreens";
+import type {
+  MealAddEditSubmitIntent,
+  MealAddFlowApi,
+} from "@/feature/Meals/feature/MapMealAddScreens";
+import { hasReviewableMealContent } from "@/feature/Meals/utils/reviewMealDraft";
+import {
+  deriveMealTimingMetadata,
+  formatMealDayKey,
+} from "@/services/meals/mealMetadata";
 
 export type MealDetailsFormMode = "review";
 
 type UseMealDetailsFormParams = {
   mode: MealDetailsFormMode;
   flow: MealAddFlowApi;
+  submitIntent: MealAddEditSubmitIntent;
   onReviewSubmit?: (meal: Meal) => Promise<void> | void;
   draftAdapter: MealDetailsDraftAdapter;
 };
@@ -55,6 +64,7 @@ function buildDraftIngredient(source?: Ingredient | null): Ingredient {
 export function useMealDetailsForm({
   mode,
   flow,
+  submitIntent,
   onReviewSubmit,
   draftAdapter,
 }: UseMealDetailsFormParams) {
@@ -157,8 +167,15 @@ export function useMealDetailsForm({
     const baseDate = getMealDateOrNow(mealTimestamp);
     const nextTimestamp = new Date(baseDate);
     nextTimestamp.setHours(pickerDate.getHours(), pickerDate.getMinutes(), 0, 0);
+    const nextTimestampIso = nextTimestamp.toISOString();
+    const timingMetadata = deriveMealTimingMetadata(nextTimestampIso);
 
-    await persistMealPatch({ timestamp: nextTimestamp.toISOString() });
+    await persistMealPatch({
+      timestamp: nextTimestampIso,
+      dayKey: formatMealDayKey(nextTimestamp),
+      loggedAtLocalMin: timingMetadata.loggedAtLocalMin,
+      tzOffsetMin: timingMetadata.tzOffsetMin,
+    });
     setHasPendingChanges(true);
     setTimePickerVisible(false);
   }, [mealTimestamp, persistMealPatch, pickerDate]);
@@ -215,10 +232,19 @@ export function useMealDetailsForm({
     handleCloseIngredientEditor();
   }, [currentMeal, editingIngredientIndex, handleCloseIngredientEditor, persistMeal]);
 
+  const canSubmitReview = hasReviewableMealContent(
+    currentMeal
+      ? {
+          ...currentMeal,
+          name: mealName.trim() || currentMeal.name,
+        }
+      : null,
+  );
+
   const handleSubmit = useCallback(async () => {
     const trimmedName = mealName.trim();
 
-    if (!currentMeal) return;
+    if (!currentMeal || (!onReviewSubmit && !canSubmitReview)) return;
     const nextMeal: Meal = {
       ...currentMeal,
       name: trimmedName || null,
@@ -227,18 +253,20 @@ export function useMealDetailsForm({
     await persistMeal(nextMeal);
     if (onReviewSubmit) {
       await onReviewSubmit(nextMeal);
-    } else if (flow.canGoBack()) {
+    } else if (submitIntent === "goBack") {
       flow.goBack();
     } else {
       flow.replace("ReviewMeal", {});
     }
     setHasPendingChanges(false);
   }, [
+    canSubmitReview,
     flow,
     currentMeal,
     mealName,
     onReviewSubmit,
     persistMeal,
+    submitIntent,
   ]);
 
   const locale = i18n?.language || "en";
@@ -289,5 +317,6 @@ export function useMealDetailsForm({
     handleDeleteIngredient,
     handleSubmit,
     hasPendingChanges,
+    canSubmitReview,
   };
 }

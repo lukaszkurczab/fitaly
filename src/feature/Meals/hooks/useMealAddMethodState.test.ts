@@ -347,6 +347,7 @@ describe("useMealAddMethodState", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
       start: "EditMealDetails",
+      submitIntent: "replaceReview",
     });
     expect(mockSaveDraft).toHaveBeenCalledWith(
       "user-1",

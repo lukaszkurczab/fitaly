@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,7 +10,6 @@ import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import AppIcon from "@/components/AppIcon";
 import {
-  Button,
   ErrorBox,
   KeyboardAwareScrollView,
   Layout,
@@ -23,15 +21,17 @@ import {
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAuthContext } from "@/context/AuthContext";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
-import { MealAddTextLink } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { useMealTextAiState } from "@/feature/Meals/hooks/useMealTextAiState";
 import {
   getTextDetailsExpandedPreference,
   setTextDetailsExpandedPreference,
 } from "@/feature/Meals/services/textDetailsPreference";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
+import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useTheme } from "@/theme/useTheme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DETAILS_LINES = 4;
 const DETAILS_MAX_LENGTH = 300;
@@ -56,7 +56,9 @@ export default function DescribeMealScreen({
       ];
   const { t, i18n } = useTranslation(["meals", "chat", "common"]);
   const { uid } = useAuthContext();
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset({ includeSafeArea: true });
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const hasRouteTextIngredients = Boolean(
     params.textIngredients?.some(
       (ingredient) =>
@@ -71,7 +73,7 @@ export default function DescribeMealScreen({
   );
   const [detailsExpanded, setDetailsExpanded] = useState(hasRouteDetails);
   const detailsPreferenceTouchedRef = useRef(false);
-  const isKeyboardVisible = keyboardHeight > 0;
+  const isKeyboardVisible = keyboardInset > 0;
 
   const {
     name,
@@ -228,64 +230,73 @@ export default function DescribeMealScreen({
     },
   });
 
-  useEffect(() => {
-    const showEventName =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEventName =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEventName, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener(hideEventName, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  const renderAnalyzeButton = (style = styles.primaryButton) => (
-    <Button
-      testID="add-meal-text-analyze-button"
-      label={t("describe_meal_primary_cta", { ns: "meals" })}
-      onPress={onAnalyze}
-      disabled={analyzeDisabled}
-      loading={loading}
-      style={style}
+  const renderActions = () => (
+    <AddMealBottomActionBar
+      bottomInset={isKeyboardVisible ? theme.spacing.xs : footerBottomInset}
+      keyboardInset={keyboardInset}
+      compact={isKeyboardVisible}
+      helperText={isKeyboardVisible ? undefined : ctaHelperText}
+      helperTone={creditsNoteWarning ? "warning" : "default"}
+      primaryAction={{
+        testID: "add-meal-text-analyze-button",
+        label: t("describe_meal_primary_cta", { ns: "meals" }),
+        compactLabel: t("describe_meal_primary_cta_compact", {
+          ns: "meals",
+          defaultValue: "Analyze",
+        }),
+        onPress: onAnalyze,
+        disabled: analyzeDisabled,
+        loading,
+      }}
+      secondaryAction={
+        isKeyboardVisible
+          ? {
+              testID: "add-meal-text-change-method-button",
+              label: t("camera_change_method_short", {
+                ns: "meals",
+                defaultValue: "Change method",
+              }),
+              compactLabel: t("change_method_compact", {
+                ns: "meals",
+                defaultValue: "Change",
+              }),
+              onPress: () =>
+                navigation.navigate("MealAddMethod", {
+                  selectionMode: "temporary",
+                  origin: "mealAddFlow",
+                }),
+              disabled: loading,
+              variant: "secondary",
+            }
+          : undefined
+      }
+      linkActions={[
+        ...(showUpgradeLink
+          ? [
+              {
+                testID: "add-meal-text-upgrade-button",
+                label: t("limit.upgradeCta", { ns: "chat" }),
+                onPress: openPaywall,
+                disabled: loading,
+              },
+            ]
+          : []),
+        ...(!isKeyboardVisible
+          ? [
+              {
+                testID: "add-meal-text-change-method-button",
+                label: t("change_method", { ns: "meals" }),
+                onPress: () =>
+                  navigation.navigate("MealAddMethod", {
+                    selectionMode: "temporary",
+                    origin: "mealAddFlow",
+                  }),
+                disabled: loading,
+              },
+            ]
+          : []),
+      ]}
     />
-  );
-
-  const renderCtaHelperText = () =>
-    ctaHelperText ? (
-      <View accessible accessibilityLabel="add-meal-text-credits-explanation">
-        <Text
-          testID="add-meal-text-credits-explanation"
-          style={[
-            styles.inlineNote,
-            creditsNoteWarning ? styles.inlineNoteWarning : null,
-          ]}
-        >
-          {ctaHelperText}
-        </Text>
-      </View>
-    ) : null;
-
-  const renderActions = (buttonStyle = styles.primaryButton) => (
-    <>
-      {renderCtaHelperText()}
-      {renderAnalyzeButton(buttonStyle)}
-      {showUpgradeLink ? (
-        <MealAddTextLink
-          testID="add-meal-text-upgrade-button"
-          label={t("limit.upgradeCta", { ns: "chat" })}
-          onPress={openPaywall}
-          disabled={loading}
-        />
-      ) : null}
-    </>
   );
 
   const flowHeader = (
@@ -320,7 +331,7 @@ export default function DescribeMealScreen({
             contentContainerStyle={[
               styles.scrollContent,
               isKeyboardVisible
-                ? { paddingBottom: keyboardHeight + 132 }
+                ? { paddingBottom: keyboardInset + 132 }
                 : null,
             ]}
             extraScrollOffset={theme.spacing.xs}
@@ -576,36 +587,11 @@ export default function DescribeMealScreen({
 
               <View style={styles.spacer} />
 
-              {!isKeyboardVisible ? (
-                <View style={styles.actions}>
-                  {renderActions()}
-                  <MealAddTextLink
-                    testID="add-meal-text-change-method-button"
-                    label={t("change_method", { ns: "meals" })}
-                    onPress={() =>
-                      navigation.navigate("MealAddMethod", {
-                        selectionMode: "temporary",
-                        origin: "mealAddFlow",
-                      })
-                    }
-                    disabled={loading}
-                  />
-                </View>
-              ) : null}
             </View>
           </KeyboardAwareScrollView>
         </Pressable>
 
-        {isKeyboardVisible ? (
-          <View
-            style={[
-              styles.keyboardActionBar,
-              { bottom: keyboardHeight + theme.spacing.sm },
-            ]}
-          >
-            {renderActions(styles.keyboardPrimaryButton)}
-          </View>
-        ) : null}
+        {renderActions()}
 
         <Modal
           testID="add-meal-text-limit-modal"
@@ -827,39 +813,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     spacer: {
       flex: 1,
       minHeight: theme.spacing.lg,
-    },
-    actions: {
-      gap: theme.spacing.sm,
-    },
-    primaryButton: {
-      minHeight: 48,
-      borderRadius: theme.rounded.lg,
-    },
-    keyboardPrimaryButton: {
-      minHeight: 46,
-      borderRadius: theme.rounded.lg,
-    },
-    keyboardActionBar: {
-      position: "absolute",
-      left: theme.spacing.lg,
-      right: theme.spacing.lg,
-      gap: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.rounded.xl,
-      backgroundColor: theme.surfaceElevated,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.borderSoft,
-      ...theme.depth.floating,
-    },
-    inlineNote: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.regular,
-      textAlign: "center",
-    },
-    inlineNoteWarning: {
-      color: theme.accentWarm,
     },
   });

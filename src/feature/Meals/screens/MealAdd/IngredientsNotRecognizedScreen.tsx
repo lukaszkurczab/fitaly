@@ -45,7 +45,7 @@ export default function IngredientsNotRecognizedScreen({
   };
 
   const handleManualEntry = () => {
-    flow.replace("EditMealDetails", {});
+    flow.replace("EditMealDetails", { submitIntent: "replaceReview" });
   };
 
   const handleOpenProductDatabase = () => {

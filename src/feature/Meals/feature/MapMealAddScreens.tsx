@@ -38,6 +38,8 @@ export type MealAddTextIngredientInput = {
   amount: string;
 };
 
+export type MealAddEditSubmitIntent = "goBack" | "replaceReview";
+
 export type MealAddStepParams = {
   CameraDefault: {
     id?: string;
@@ -79,7 +81,9 @@ export type MealAddStepParams = {
     retries?: number;
   };
   ReviewMeal: Record<string, never>;
-  EditMealDetails: Record<string, never>;
+  EditMealDetails: {
+    submitIntent: MealAddEditSubmitIntent;
+  };
   SelectSavedMeal: Record<string, never>;
   IngredientsNotRecognized: {
     image?: string;

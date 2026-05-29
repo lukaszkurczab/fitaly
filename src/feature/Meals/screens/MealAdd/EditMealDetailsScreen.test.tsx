@@ -9,6 +9,8 @@ import type { Meal } from "@/types/meal";
 type ButtonProps = {
   label: string;
   onPress: () => void;
+  disabled?: boolean;
+  testID?: string;
 };
 
 const mockUseAuthContext = jest.fn();
@@ -65,10 +67,28 @@ jest.mock("@/components", () => {
       ),
     Card: ({ children }: { children?: unknown }) =>
       createElement(View, null, children as never),
-    Button: ({ label, onPress }: ButtonProps) =>
+    Button: ({ label, onPress, disabled, testID }: ButtonProps) =>
       createElement(
         Pressable,
-        { onPress, accessibilityRole: "button" },
+        {
+          onPress,
+          disabled,
+          testID,
+          accessibilityRole: "button",
+          accessibilityState: { disabled: !!disabled },
+        },
+        createElement(Text, null, label),
+      ),
+    TextButton: ({ label, onPress, disabled, testID }: ButtonProps) =>
+      createElement(
+        Pressable,
+        {
+          onPress,
+          disabled,
+          testID,
+          accessibilityRole: "button",
+          accessibilityState: { disabled: !!disabled },
+        },
         createElement(Text, null, label),
       ),
     TextInput: ({
@@ -162,7 +182,7 @@ const buildProps = () =>
       goBack: jest.fn(),
       canGoBack: jest.fn(() => true),
     } as unknown as MealAddScreenProps<"EditMealDetails">["flow"],
-    params: {},
+    params: { submitIntent: "goBack" },
   }) as MealAddScreenProps<"EditMealDetails">;
 
 describe("EditMealDetailsScreen", () => {
@@ -246,7 +266,7 @@ describe("EditMealDetailsScreen", () => {
     const saveDraft = jest.fn(async (_uid: string, _draft?: Meal | null) => undefined);
     const setMeal = jest.fn();
     const props = buildProps();
-    props.flow.canGoBack = jest.fn(() => false);
+    props.params = { submitIntent: "replaceReview" };
 
     mockUseMealDraftContext.mockReturnValue({
       meal: buildMeal(),
@@ -262,12 +282,35 @@ describe("EditMealDetailsScreen", () => {
     );
 
     fireEvent.changeText(getByTestId("meal-name-input"), "Manual meal");
-    fireEvent.press(getByText("Back to review"));
+    fireEvent.press(getByText("Go to review"));
 
     await waitFor(() => {
       expect(saveDraft).toHaveBeenCalled();
       expect(props.flow.goBack).not.toHaveBeenCalled();
       expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    });
+  });
+
+  it("keeps direct manual submit disabled until the draft has reviewable content", () => {
+    const props = buildProps();
+    props.params = { submitIntent: "replaceReview" };
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: buildMeal({ name: null, ingredients: [], photoUrl: null }),
+      loadDraft: jest.fn(async () => undefined),
+      saveDraft: jest.fn(async () => undefined),
+      setMeal: jest.fn(),
+      setLastScreen: jest.fn(async () => undefined),
+      clearMeal: jest.fn(),
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <EditMealDetailsScreen {...props} />,
+    );
+
+    expect(getByText("Go to review")).toBeTruthy();
+    expect(getByTestId("meal-details-form-submit-button").props.accessibilityState).toEqual({
+      disabled: true,
     });
   });
 
@@ -320,5 +363,55 @@ describe("EditMealDetailsScreen", () => {
 
     expect(queryByText("Meal time")).toBeNull();
     expect(setMeal).not.toHaveBeenCalled();
+  });
+
+  it("keeps draft dayKey and local timing metadata aligned when applying meal time", async () => {
+    const finalTimestamp = "2026-03-20T08:30:00.000Z";
+    const expectedDate = new Date(finalTimestamp);
+    const saveDraft = jest.fn(
+      async (_uid: string, _draft?: Meal | null) => undefined,
+    );
+    const setMeal = jest.fn();
+    const props = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: buildMeal({
+        timestamp: finalTimestamp,
+        dayKey: "2026-01-10",
+        loggedAtLocalMin: 999,
+        tzOffsetMin: 999,
+      }),
+      loadDraft: jest.fn(async () => undefined),
+      saveDraft,
+      setMeal,
+      setLastScreen: jest.fn(async () => undefined),
+      clearMeal: jest.fn(),
+    });
+
+    const { getByLabelText, getByText } = renderWithTheme(
+      <EditMealDetailsScreen {...props} />,
+    );
+
+    fireEvent.press(getByLabelText("Time"));
+    fireEvent.press(getByText("Apply"));
+
+    await waitFor(() => {
+      expect(setMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timestamp: finalTimestamp,
+          dayKey: "2026-03-20",
+          loggedAtLocalMin:
+            expectedDate.getHours() * 60 + expectedDate.getMinutes(),
+          tzOffsetMin: -expectedDate.getTimezoneOffset(),
+        }),
+      );
+      expect(saveDraft).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          timestamp: finalTimestamp,
+          dayKey: "2026-03-20",
+        }),
+      );
+    });
   });
 });

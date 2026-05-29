@@ -44,6 +44,15 @@ const ThemeContext = createContext<ThemeContextType>({
   setMode: () => {},
 });
 
+const e2eModeListeners = new Set<(mode: ThemeMode) => void>();
+
+export function setE2EThemeMode(mode: ThemeMode): void {
+  AsyncStorage.setItem(THEME_MODE_STORAGE_KEY, mode).catch(() => {
+    // Ignore persistence errors; the mounted provider still updates.
+  });
+  e2eModeListeners.forEach((listener) => listener(mode));
+}
+
 export const ThemeProvider: React.FC<Props> = ({
   children,
   mode,
@@ -117,6 +126,18 @@ export const ThemeProvider: React.FC<Props> = ({
     },
     [onModeChange],
   );
+
+  useEffect(() => {
+    const listener = (nextMode: ThemeMode) => {
+      setInternalMode(nextMode);
+      setShouldFollowSystem(false);
+      onModeChange?.(nextMode);
+    };
+    e2eModeListeners.add(listener);
+    return () => {
+      e2eModeListeners.delete(listener);
+    };
+  }, [onModeChange]);
 
   return (
     <ThemeContext.Provider value={{ theme, mode: internalMode, setMode }}>

@@ -316,7 +316,7 @@ describe("BarcodeScanScreen", () => {
     expect(mockLayoutProps).toHaveBeenLastCalledWith(
       expect.objectContaining({ keyboardAvoiding: false }),
     );
-    expect(sheetStyle.marginBottom).toBe(280);
+    expect(sheetStyle.marginBottom).toBe(260);
     expect(sheetStyle.maxHeight).toEqual(expect.any(Number));
     expect(sheetStyle.maxHeight).toBeGreaterThan(0);
   });

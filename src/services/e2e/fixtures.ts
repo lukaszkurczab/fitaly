@@ -258,12 +258,31 @@ function meal(params: {
     params.ingredients ??
     [
       ingredient({
-        id: `${params.id}-ingredient`,
-        name: "Grilled chicken",
-        kcal: 420,
-        protein: 32,
-        carbs: 41,
-        fat: 14,
+        id: `${params.id}-chicken`,
+        name: "Kurczak grillowany",
+        amount: 140,
+        kcal: 230,
+        protein: 40,
+        carbs: 0,
+        fat: 6,
+      }),
+      ingredient({
+        id: `${params.id}-rice`,
+        name: "Ryż gotowany",
+        amount: 160,
+        kcal: 210,
+        protein: 4,
+        carbs: 45,
+        fat: 1,
+      }),
+      ingredient({
+        id: `${params.id}-vegetables`,
+        name: "Warzywa na parze",
+        amount: 120,
+        kcal: 70,
+        protein: 3,
+        carbs: 12,
+        fat: 1,
       }),
     ];
   return {
@@ -346,8 +365,37 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-today-meal",
-        name: "Yogurt berry bowl",
+        name: "Jogurt z owocami i granolą",
         inputMethod: "manual",
+        ingredients: [
+          ingredient({
+            id: "e2e-today-greek-yogurt",
+            name: "Jogurt grecki",
+            amount: 200,
+            kcal: 150,
+            protein: 14,
+            carbs: 10,
+            fat: 5,
+          }),
+          ingredient({
+            id: "e2e-today-blueberries",
+            name: "Borówki",
+            amount: 80,
+            kcal: 45,
+            protein: 1,
+            carbs: 11,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-today-granola",
+            name: "Granola",
+            amount: 40,
+            kcal: 180,
+            protein: 5,
+            carbs: 28,
+            fat: 7,
+          }),
+        ],
       }),
     );
     return;
@@ -360,8 +408,37 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-failed-meal",
-          name: "Egg sandwich",
+          name: "Kanapka z jajkiem",
           inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-failed-bread",
+              name: "Pieczywo pełnoziarniste",
+              amount: 80,
+              kcal: 190,
+              protein: 8,
+              carbs: 34,
+              fat: 3,
+            }),
+            ingredient({
+              id: "e2e-failed-eggs",
+              name: "Jajka gotowane",
+              amount: 100,
+              kcal: 155,
+              protein: 13,
+              carbs: 1,
+              fat: 11,
+            }),
+            ingredient({
+              id: "e2e-failed-tomato",
+              name: "Pomidor",
+              amount: 60,
+              kcal: 12,
+              protein: 1,
+              carbs: 3,
+              fat: 0,
+            }),
+          ],
         }),
         syncState: "failed",
       },
@@ -376,8 +453,37 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-conflict-meal",
-          name: "Tomato pasta",
+          name: "Makaron z pomidorami",
           inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-conflict-pasta",
+              name: "Makaron gotowany",
+              amount: 180,
+              kcal: 280,
+              protein: 9,
+              carbs: 56,
+              fat: 2,
+            }),
+            ingredient({
+              id: "e2e-conflict-sauce",
+              name: "Sos pomidorowy",
+              amount: 120,
+              kcal: 80,
+              protein: 2,
+              carbs: 14,
+              fat: 2,
+            }),
+            ingredient({
+              id: "e2e-conflict-parmesan",
+              name: "Parmesan",
+              amount: 20,
+              kcal: 80,
+              protein: 7,
+              carbs: 1,
+              fat: 6,
+            }),
+          ],
         }),
         syncState: "conflict",
       },
@@ -392,10 +498,39 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-photo-meal",
-        name: "Mediterranean plate",
+        name: "Talerz z kurczakiem",
         source: "ai",
         inputMethod: "photo",
         photoUrl: sampleMealUri,
+        ingredients: [
+          ingredient({
+            id: "e2e-photo-chicken",
+            name: "Kurczak grillowany",
+            amount: 150,
+            kcal: 245,
+            protein: 43,
+            carbs: 0,
+            fat: 6,
+          }),
+          ingredient({
+            id: "e2e-photo-potatoes",
+            name: "Pieczone ziemniaki",
+            amount: 160,
+            kcal: 210,
+            protein: 4,
+            carbs: 38,
+            fat: 5,
+          }),
+          ingredient({
+            id: "e2e-photo-salad",
+            name: "Sałatka z ogórka i pomidora",
+            amount: 120,
+            kcal: 45,
+            protein: 2,
+            carbs: 8,
+            fat: 1,
+          }),
+        ],
       }),
     );
     return;
@@ -407,9 +542,38 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-1",
-        name: "Vegetable grain bowl",
+        name: "Miska z kaszą i warzywami",
         source: "saved",
         inputMethod: "saved",
+        ingredients: [
+          ingredient({
+            id: "e2e-saved-bulgur",
+            name: "Kasza bulgur",
+            amount: 160,
+            kcal: 170,
+            protein: 6,
+            carbs: 37,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-saved-chickpeas",
+            name: "Ciecierzyca",
+            amount: 100,
+            kcal: 165,
+            protein: 9,
+            carbs: 27,
+            fat: 3,
+          }),
+          ingredient({
+            id: "e2e-saved-vegetables",
+            name: "Pieczone warzywa",
+            amount: 140,
+            kcal: 90,
+            protein: 3,
+            carbs: 16,
+            fat: 2,
+          }),
+        ],
       }),
     );
     await seedSavedMeal(
@@ -417,17 +581,36 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-2",
-        name: "Berry protein smoothie",
+        name: "Koktajl białkowy z owocami",
         source: "saved",
         inputMethod: "saved",
         ingredients: [
           ingredient({
-            id: "e2e-smoothie-ingredient",
-            name: "Yogurt protein smoothie",
-            kcal: 310,
-            protein: 28,
-            carbs: 30,
-            fat: 8,
+            id: "e2e-smoothie-yogurt",
+            name: "Jogurt grecki",
+            amount: 180,
+            kcal: 135,
+            protein: 17,
+            carbs: 7,
+            fat: 4,
+          }),
+          ingredient({
+            id: "e2e-smoothie-berries",
+            name: "Owoce jagodowe",
+            amount: 120,
+            kcal: 65,
+            protein: 1,
+            carbs: 15,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-smoothie-banana",
+            name: "Banana",
+            amount: 90,
+            kcal: 80,
+            protein: 1,
+            carbs: 21,
+            fat: 0,
           }),
         ],
       }),
@@ -439,7 +622,7 @@ async function applyNamedFixture(
     const draft = meal({
       uid,
       id: "e2e-draft-meal",
-      name: "Chicken rice bowl",
+      name: "Kurczak z ryżem",
       source: "manual",
       inputMethod: "manual",
     });
@@ -587,12 +770,12 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
     ...creditsStatus(uid, fixtureState.credits ?? "ok"),
     ingredients: [
       {
-        name: "Analyzed grain bowl",
-        amount: 100,
-        kcal: 430,
-        protein: 31,
-        carbs: 45,
-        fat: 13,
+        name: "Kurczak z ryżem",
+        amount: 380,
+        kcal: 520,
+        protein: 38,
+        carbs: 58,
+        fat: 14,
       },
     ],
   };
@@ -601,11 +784,12 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
 function e2eAiIngredient(): Ingredient {
   return ingredient({
     id: "e2e-ai-ingredient",
-    name: "Analyzed grain bowl",
-    kcal: 430,
-    protein: 31,
-    carbs: 45,
-    fat: 13,
+    name: "Kurczak z ryżem",
+    amount: 380,
+    kcal: 520,
+    protein: 38,
+    carbs: 58,
+    fat: 14,
   });
 }
 
@@ -874,10 +1058,10 @@ export function resolveE2EBarcodeLookup(): BarcodeLookupResult | null {
     case "known":
       return {
         kind: "found",
-        name: "Natural yogurt",
+        name: "Jogurt naturalny",
         ingredient: ingredient({
           id: "e2e-barcode-ingredient",
-          name: "Natural yogurt",
+          name: "Jogurt naturalny",
           kcal: 120,
           protein: 10,
           carbs: 12,

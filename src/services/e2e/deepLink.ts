@@ -20,10 +20,13 @@ import {
   parseE2ESeedCommand,
   resetE2EFixtureState,
 } from "@/services/e2e/fixtures";
+import { setE2EThemeMode } from "@/theme/ThemeProvider";
+import type { ThemeMode } from "@/theme/themes";
 
 type ResetOptions = {
   forceOffline: boolean;
   logout: boolean;
+  themeMode: ThemeMode | null;
 };
 
 const RESET_PATH = "fitaly://e2e/reset";
@@ -40,6 +43,14 @@ function parseBoolFlag(value: string | undefined, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function parseThemeMode(value: string | undefined): ThemeMode | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "light" || normalized === "dark") {
+    return normalized;
+  }
+  return null;
 }
 
 function parseQueryParams(url: string): Record<string, string> {
@@ -109,6 +120,10 @@ async function runReset(options: ResetOptions) {
     // Async storage reset is best-effort for E2E runs.
   }
 
+  if (options.themeMode) {
+    setE2EThemeMode(options.themeMode);
+  }
+
   try {
     await resetE2EFixtureState();
   } catch {
@@ -135,8 +150,9 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
     const params = parseQueryParams(url);
     const forceOffline = parseBoolFlag(params.offline, false);
     const logout = parseBoolFlag(params.logout, true);
+    const themeMode = parseThemeMode(params.theme);
 
-    await runReset({ forceOffline, logout });
+    await runReset({ forceOffline, logout, themeMode });
     return true;
   }
 

@@ -35,7 +35,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-name-input
 - eraseText
-- inputText: Visual Audit Bowl
+- inputText: Kurczak z ryżem
 - assertVisible:
     id: add-meal-text-name-input
 - takeScreenshot: add-meal-text-keyboard

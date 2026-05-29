@@ -6,14 +6,19 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { useRef } from "react";
 import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
-import { IngredientEditor } from "@/components/IngredientEditor";
+import {
+  IngredientEditor,
+  type IngredientEditorHandle,
+} from "@/components/IngredientEditor";
 import { useTheme } from "@/theme/useTheme";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import type { Ingredient } from "@/types/meal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 
 type IngredientEditorModalProps = {
   visible: boolean;
@@ -34,10 +39,31 @@ export default function IngredientEditorModal({
 }: IngredientEditorModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const keyboardInset = useKeyboardInset();
+  const keyboardInset = useKeyboardInset({ includeSafeArea: true });
   const { height: windowHeight } = useWindowDimensions();
   const { t } = useTranslation(["meals", "common"]);
   const styles = createStyles(theme);
+  const editorRef = useRef<IngredientEditorHandle>(null);
+  const isKeyboardVisible = keyboardInset > 0;
+  const submitLabel = t(
+    editingIngredientIndex === null
+      ? "add_ingredient"
+      : "review_meal_edit_save_ingredient",
+    {
+      ns: "meals",
+      defaultValue:
+        editingIngredientIndex === null
+          ? "Add ingredient"
+          : "Save ingredient",
+    },
+  );
+  const compactSubmitLabel =
+    editingIngredientIndex === null
+      ? t("add_ingredient_compact", {
+          ns: "meals",
+          defaultValue: "Add",
+        })
+      : t("save", { ns: "common", defaultValue: "Save" });
   const sheetDefaultMaxHeight = windowHeight * (keyboardInset > 0 ? 0.64 : 0.7);
   const sheetAvailableHeight =
     windowHeight - insets.top - theme.spacing.md - keyboardInset;
@@ -45,6 +71,8 @@ export default function IngredientEditorModal({
     320,
     Math.min(sheetDefaultMaxHeight, sheetAvailableHeight),
   );
+  const keyboardSheetOverlap = theme.spacing.lg;
+  const keyboardSheetPadding = theme.spacing.xl + theme.spacing.xxs;
 
   return (
     <RNModal
@@ -68,9 +96,15 @@ export default function IngredientEditorModal({
           style={[
             styles.sheet,
             styles.ingredientSheet,
+            isKeyboardVisible ? styles.ingredientSheetKeyboard : null,
             {
-              marginBottom: keyboardInset,
-              paddingBottom: theme.spacing.xl + insets.bottom,
+              marginBottom: isKeyboardVisible
+                ? Math.max(0, keyboardInset - keyboardSheetOverlap)
+                : 0,
+              paddingBottom:
+                isKeyboardVisible
+                  ? keyboardSheetPadding
+                  : theme.spacing.xl + insets.bottom,
               maxHeight: sheetMaxHeight,
             },
           ]}
@@ -110,42 +144,65 @@ export default function IngredientEditorModal({
               },
             )}
           </Text>
-          <Text style={styles.sheetSubtitle}>
-            {t("review_meal_edit_ingredient_sheet_subtitle", {
-              ns: "meals",
-              defaultValue:
-                "Name, amount and approximate macros are enough.",
-            })}
-          </Text>
+          {!isKeyboardVisible ? (
+            <Text style={styles.sheetSubtitle}>
+              {t("review_meal_edit_ingredient_sheet_subtitle", {
+                ns: "meals",
+                defaultValue:
+                  "Name, amount and approximate macros are enough.",
+              })}
+            </Text>
+          ) : null}
           {ingredientDraft ? (
-            <KeyboardAwareScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="always"
-              contentContainerStyle={styles.ingredientEditorContent}
-            >
-              <IngredientEditor
-                testIDPrefix="ingredient-editor"
-                key={ingredientDraft.id}
-                initial={ingredientDraft}
-                variant="sheet"
-                submitLabel={t(
-                  editingIngredientIndex === null
-                    ? "add_ingredient"
-                    : "review_meal_edit_save_ingredient",
-                  {
-                    ns: "meals",
-                    defaultValue:
-                      editingIngredientIndex === null
-                        ? "Add ingredient"
-                        : "Save ingredient",
+            <>
+              <KeyboardAwareScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="always"
+                contentContainerStyle={[
+                  styles.ingredientEditorContent,
+                  isKeyboardVisible
+                    ? styles.ingredientEditorContentKeyboard
+                    : null,
+                ]}
+              >
+                <IngredientEditor
+                  ref={editorRef}
+                  testIDPrefix="ingredient-editor"
+                  key={ingredientDraft.id}
+                  initial={ingredientDraft}
+                  variant="sheet"
+                  submitLabel={submitLabel}
+                  showDelete={editingIngredientIndex !== null}
+                  showSheetActions={false}
+                  onCommit={onCommit}
+                  onCancel={onClose}
+                  onDelete={onDelete}
+                />
+              </KeyboardAwareScrollView>
+              <AddMealBottomActionBar
+                placement="inline"
+                horizontalPadding={0}
+                bottomInset={0}
+                compact={isKeyboardVisible}
+                primaryAction={{
+                  testID: "ingredient-editor-submit-button",
+                  label: submitLabel,
+                  compactLabel: compactSubmitLabel,
+                  onPress: () => {
+                    editorRef.current?.submit();
                   },
-                )}
-                showDelete={editingIngredientIndex !== null}
-                onCommit={onCommit}
-                onCancel={onClose}
-                onDelete={onDelete}
+                }}
+                secondaryAction={{
+                  testID: "ingredient-editor-cancel-button",
+                  label: t("cancel", { ns: "common" }),
+                  variant: "secondary",
+                  onPress: onClose,
+                }}
+                style={
+                  isKeyboardVisible ? styles.ingredientActionBarKeyboard : null
+                }
               />
-            </KeyboardAwareScrollView>
+            </>
           ) : null}
         </View>
       </View>
@@ -185,6 +242,9 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     ingredientSheet: {
       maxHeight: "70%",
     },
+    ingredientSheetKeyboard: {
+      gap: theme.spacing.xs,
+    },
     sheetHandle: {
       width: 40,
       height: 4,
@@ -208,6 +268,12 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       marginHorizontal: theme.spacing.sm,
     },
     ingredientEditorContent: {
-      paddingBottom: theme.spacing.xs,
+      paddingBottom: theme.spacing.sm,
+    },
+    ingredientEditorContentKeyboard: {
+      paddingBottom: 0,
+    },
+    ingredientActionBarKeyboard: {
+      paddingTop: 0,
     },
   });

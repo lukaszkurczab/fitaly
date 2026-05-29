@@ -1,0 +1,42 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-ingredients-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- scrollUntilVisible:
+    element:
+      id: ingredient-list-section
+    direction: DOWN
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Jogurt naturalny
+- tapOn:
+    id: ingredient-editor-amount-input
+- eraseText
+- inputText: 200
+- takeScreenshot: addmeal-bottom-ingredient-compact-keyboard

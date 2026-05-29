@@ -126,6 +126,12 @@ jest.mock("@/components", () => {
         { onPress, disabled, testID, accessibilityRole: "button" },
         createElement(Text, null, label),
       ),
+    TextButton: ({ label, onPress, disabled, testID }: ButtonProps) =>
+      createElement(
+        Pressable,
+        { onPress, disabled, testID, accessibilityRole: "button" },
+        createElement(Text, null, label),
+      ),
     ErrorBox: ({ message }: { message: string }) =>
       createElement(Text, null, message),
     Modal: () => null,

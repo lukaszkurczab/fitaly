@@ -49,7 +49,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: meal-name-input
 - eraseText
-- inputText: Small Screen Visual Audit Meal Name With Many Words
+- inputText: Tortilla z indykiem i hummusem
 - assertVisible:
     id: meal-name-input
 - takeScreenshot: small-screen-form

@@ -45,7 +45,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-name-input
 - eraseText
-- inputText: Dark Visual Bowl
+- inputText: Kurczak z ryżem
 - tapOn:
     point: "50%,30%"
 - waitForAnimationToEnd

@@ -23,6 +23,9 @@ type ButtonProps = {
 type CheckboxProps = {
   checked: boolean;
   onChange: (next: boolean) => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  testID?: string;
 };
 
 type ModalProps = {
@@ -85,7 +88,17 @@ jest.mock("react-i18next", () => ({
       options?: { ns?: string; defaultValue?: string; count?: number },
     ) => {
       const labels: Record<string, string> = {
+        breakfast: "Breakfast",
+        carbs: "Węglowodany",
         carbs_compact: "Węgle",
+        lunch: "Lunch",
+        review_meal_no_photo_overline: "Meal review",
+        review_meal_save_template_create_title: "Save as my meal",
+        review_meal_save_template_create_helper:
+          "Makes it quicker to add again next time.",
+        review_meal_save_template_update_title: "Update saved meal",
+        review_meal_save_template_update_helper:
+          "Keeps these changes for the next time you reuse it.",
       };
       return (
         labels[key] ??
@@ -151,13 +164,22 @@ jest.mock("@/components", () => {
         { onPress, accessibilityRole: "button" },
         createElement(Text, null, "close-button"),
       ),
-    Checkbox: ({ checked, onChange }: CheckboxProps) =>
+    Checkbox: ({
+      checked,
+      onChange,
+      disabled,
+      accessibilityLabel,
+      testID,
+    }: CheckboxProps) =>
       createElement(
         Pressable,
         {
-          onPress: () => onChange(!checked),
-          testID: "save-to-my-meals-checkbox",
+          onPress: () => !disabled && onChange(!checked),
+          disabled,
+          testID,
           accessibilityRole: "checkbox",
+          accessibilityLabel,
+          accessibilityState: { checked, disabled: !!disabled },
         },
         createElement(Text, null, checked ? "checked" : "unchecked"),
       ),
@@ -236,7 +258,7 @@ const buildMeal = (overrides?: Partial<Meal>): Meal => ({
   updatedAt: "2026-01-10T12:00:00.000Z",
   syncState: "synced",
   source: "manual",
-  photoUrl: "file:///meal.jpg",
+  photoUrl: null,
   ...overrides,
 });
 
@@ -314,22 +336,122 @@ describe("ReviewMealScreen", () => {
     jest.restoreAllMocks();
   });
 
-  it("routes to edit details from the review action block", async () => {
+  it("does not duplicate the edit details action in the review footer", () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
 
-    const { getByText } = renderWithTheme(
+    const { getByTestId, queryByText } = renderWithTheme(
       <ReviewMealScreen {...testProps.props} />,
     );
 
-    await waitFor(() => {
-      expect(mockGetInfoAsync).toHaveBeenCalledWith("file:///meal.jpg");
+    expect(queryByText("Edit details")).toBeNull();
+    expect(getByTestId("review-meal-ingredients-edit-button")).toBeTruthy();
+  });
+
+  it("routes ingredient summary affordances to edit meal details", () => {
+    const ctx = buildDraftContext({
+      photoUrl: null,
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Chicken",
+          amount: 180,
+          unit: "g",
+          kcal: 250,
+          protein: 35,
+          carbs: 0,
+          fat: 8,
+        },
+      ],
     });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
 
-    fireEvent.press(getByText("Edit details"));
+    const { getByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
 
-    expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {});
+    fireEvent.press(getByTestId("review-meal-ingredient-row-0"));
+    fireEvent.press(getByTestId("review-meal-ingredients-edit-button"));
+
+    expect(testProps.flowGoTo).toHaveBeenNthCalledWith(
+      1,
+      "EditMealDetails",
+      { submitIntent: "goBack" },
+    );
+    expect(testProps.flowGoTo).toHaveBeenNthCalledWith(
+      2,
+      "EditMealDetails",
+      { submitIntent: "goBack" },
+    );
+  });
+
+  it("renders the ingredient count in the section title", () => {
+    const ctx = buildDraftContext({
+      photoUrl: null,
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Chicken",
+          amount: 180,
+          unit: "g",
+          kcal: 250,
+          protein: 35,
+          carbs: 0,
+          fat: 8,
+        },
+        {
+          id: "ing-2",
+          name: "Rice",
+          amount: 150,
+          unit: "g",
+          kcal: 190,
+          protein: 4,
+          carbs: 42,
+          fat: 1,
+        },
+        {
+          id: "ing-3",
+          name: "Vegetables",
+          amount: 120,
+          unit: "g",
+          kcal: 70,
+          protein: 3,
+          carbs: 12,
+          fat: 2,
+        },
+      ],
+    });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByText("Ingredients (3)")).toBeTruthy();
+    expect(queryByText("{{count}} ingredients")).toBeNull();
+    expect(getByText("Edit ingredients")).toBeTruthy();
+    expect(getByTestId("review-meal-ingredients-edit-button")).toBeTruthy();
+  });
+
+  it("keeps meal time as metadata without a change-time affordance", () => {
+    const ctx = buildDraftContext({
+      type: "lunch",
+      timestamp: "2026-01-10T12:30:00.000",
+    });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+
+    const { getByText, queryByTestId, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByText(/Lunch • .*12:30/)).toBeTruthy();
+    expect(queryByTestId("review-meal-change-time-button")).toBeNull();
+    expect(queryByText("Change time")).toBeNull();
+    expect(testProps.flowGoTo).not.toHaveBeenCalled();
   });
 
   it("renders the Add Meal flow header with separate back and close actions", async () => {
@@ -355,21 +477,39 @@ describe("ReviewMealScreen", () => {
     });
   });
 
-  it("does not show the add-photo slot when the meal has no photo", () => {
+  it("renders an intentional no-photo summary when the meal has no photo", () => {
     const ctx = buildDraftContext({ photoUrl: null });
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
 
-    const { queryByText, queryByTestId } = renderWithTheme(
-      <ReviewMealScreen {...testProps.props} />,
-    );
+    const { getByTestId, getByText, queryByText, queryByTestId } =
+      renderWithTheme(<ReviewMealScreen {...testProps.props} />);
 
+    expect(getByTestId("review-meal-no-photo-summary")).toBeTruthy();
+    expect(getByText("Meal review")).toBeTruthy();
+    expect(getByText("Protein bowl")).toBeTruthy();
+    expect(queryByTestId("review-meal-photo")).toBeNull();
     expect(queryByText("Add meal photo")).toBeNull();
     expect(queryByTestId("review-meal-add-photo")).toBeNull();
     expect(testProps.flowGoTo).not.toHaveBeenCalled();
   });
 
-  it("renders calories as the hero summary and macros as compact chips", () => {
+  it("keeps the photo variant when a meal photo is available", async () => {
+    const ctx = buildDraftContext({ photoUrl: "https://example.com/meal.jpg" });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-photo")).toBeTruthy();
+    });
+    expect(queryByTestId("review-meal-no-photo-summary")).toBeNull();
+  });
+
+  it("renders calories as the hero summary and macros as accessible tiles", () => {
     const ctx = buildDraftContext({
       photoUrl: null,
       ingredients: [
@@ -396,7 +536,9 @@ describe("ReviewMealScreen", () => {
     expect(getByText("Protein")).toBeTruthy();
     expect(getByText("Węgle")).toBeTruthy();
     expect(getByText("Fat")).toBeTruthy();
-    expect(getByLabelText("Carbs: 12g")).toBeTruthy();
+    expect(getByLabelText("Protein: 35 g")).toBeTruthy();
+    expect(getByLabelText("Węglowodany: 12 g")).toBeTruthy();
+    expect(getByLabelText("Fat: 8 g")).toBeTruthy();
   });
 
   it("keeps empty review drafts from saving and routes the empty-state CTA to editing", async () => {
@@ -432,7 +574,9 @@ describe("ReviewMealScreen", () => {
     });
 
     fireEvent.press(getByTestId("review-meal-empty-edit-button"));
-    expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {});
+    expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {
+      submitIntent: "goBack",
+    });
   });
 
   it("saves the reviewed meal and resets back home", async () => {
@@ -467,7 +611,9 @@ describe("ReviewMealScreen", () => {
 
   it("saves meal and opens share composer from review entry", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
-    const ctx = buildDraftContext();
+    const ctx = buildDraftContext({
+      photoUrl: "https://example.com/meal.jpg",
+    });
     const testProps = buildProps();
 
     mockUseMealDraftContext.mockReturnValue(ctx);
@@ -562,6 +708,38 @@ describe("ReviewMealScreen", () => {
     });
   });
 
+  it("creates a saved template only when the saved-meal option is checked", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext({
+      source: "manual",
+      inputMethod: "manual",
+    });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByText("Save as my meal")).toBeTruthy();
+    expect(queryByText("Makes it quicker to add again next time.")).toBeNull();
+
+    fireEvent.press(getByTestId("review-meal-save-to-my-meals-checkbox"));
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          savedTemplate: { mode: "create" },
+        }),
+      );
+    });
+  });
+
   it("updates existing saved template when checkbox is checked", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
     const ctx = buildDraftContext({
@@ -575,11 +753,16 @@ describe("ReviewMealScreen", () => {
       meals: [],
     });
 
-    const { getByTestId, getByText } = renderWithTheme(
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
       <ReviewMealScreen {...testProps.props} />,
     );
 
-    fireEvent.press(getByTestId("save-to-my-meals-checkbox"));
+    expect(getByText("Update saved meal")).toBeTruthy();
+    expect(
+      queryByText("Keeps these changes for the next time you reuse it."),
+    ).toBeNull();
+
+    fireEvent.press(getByTestId("review-meal-save-to-my-meals-checkbox"));
     fireEvent.press(getByText("Save meal"));
 
     await waitFor(() => {

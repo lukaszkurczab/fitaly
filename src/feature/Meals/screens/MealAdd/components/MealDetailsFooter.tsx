@@ -1,59 +1,80 @@
-import { StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components";
+import type { MealAddEditSubmitIntent } from "@/feature/Meals/feature/MapMealAddScreens";
+import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 import { useTheme } from "@/theme/useTheme";
 
 type MealDetailsFooterProps = {
   reviewSubmitLabel?: string;
+  submitIntent: MealAddEditSubmitIntent;
   footerBottomInset?: number;
+  keyboardInset?: number;
+  disabled?: boolean;
+  onSecondaryAction: () => void;
   onSubmit: () => void;
 };
 
 export default function MealDetailsFooter({
   reviewSubmitLabel,
+  submitIntent,
   footerBottomInset = 0,
+  keyboardInset = 0,
+  disabled = false,
+  onSecondaryAction,
   onSubmit,
 }: MealDetailsFooterProps) {
-  const theme = useTheme();
   const { t } = useTranslation(["meals", "common"]);
-  const styles = createStyles(theme);
+  const theme = useTheme();
+  const isReviewEdit = submitIntent === "goBack";
 
   return (
-    <View style={[styles.footer, { paddingBottom: footerBottomInset }]}>
-      <Button
-        testID="meal-details-form-submit-button"
-        label={
+    <AddMealBottomActionBar
+      bottomInset={footerBottomInset}
+      keyboardInset={keyboardInset}
+      compact={keyboardInset > 0}
+      horizontalPadding={theme.spacing.screenPaddingWide}
+      horizontalBleed={theme.spacing.screenPaddingWide}
+      secondaryAction={{
+        testID: "meal-details-form-secondary-button",
+        label: isReviewEdit
+          ? t("cancel", { ns: "common", defaultValue: "Cancel" })
+          : t("camera_change_method_short", {
+              ns: "meals",
+              defaultValue: "Change method",
+            }),
+        compactLabel: isReviewEdit
+          ? t("cancel", { ns: "common", defaultValue: "Cancel" })
+          : t("change_method_compact", {
+              ns: "meals",
+              defaultValue: "Change",
+            }),
+        onPress: onSecondaryAction,
+        variant: "secondary",
+      }}
+      primaryAction={{
+        testID: "meal-details-form-submit-button",
+        label:
           reviewSubmitLabel ??
-          t("review_meal_edit_done", {
-            ns: "meals",
-            defaultValue: "Back to review",
-          })
-        }
-        onPress={onSubmit}
-        style={styles.submitButton}
-      />
-    </View>
+          (isReviewEdit
+            ? t("review_meal_edit_done", {
+                ns: "meals",
+                defaultValue: "Back to review",
+              })
+            : t("review_meal_edit_prepare_summary", {
+                ns: "meals",
+                defaultValue: "Go to review",
+              })),
+        compactLabel: isReviewEdit
+          ? t("review_meal_edit_done_compact", {
+              ns: "meals",
+              defaultValue: "Done",
+            })
+          : t("review_meal_edit_summary_compact", {
+              ns: "meals",
+              defaultValue: "Summary",
+            }),
+        onPress: onSubmit,
+        disabled,
+      }}
+    />
   );
 }
-
-const createStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
-    footer: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      paddingTop: theme.spacing.sm,
-      gap: theme.spacing.xs,
-      backgroundColor: theme.surfaceElevated,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.borderSoft,
-      borderTopLeftRadius: theme.rounded.xl,
-      borderTopRightRadius: theme.rounded.xl,
-      ...theme.depth.tabBar,
-    },
-    submitButton: {
-      minHeight: 50,
-      borderRadius: 14,
-    },
-  });

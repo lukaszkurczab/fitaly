@@ -79,6 +79,7 @@ export const mealAddMethodOptions: readonly MethodOption[] = [
     screen: "AddMeal",
     params: {
       start: "EditMealDetails",
+      submitIntent: "replaceReview",
     },
   },
   {

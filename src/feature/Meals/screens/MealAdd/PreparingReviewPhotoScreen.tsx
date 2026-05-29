@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Image, StyleSheet, View } from "react-native";
 import * as Device from "expo-device";
-import { Button, Layout } from "@/components";
+import { Layout } from "@/components";
 import { useTranslation } from "react-i18next";
 import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
@@ -21,6 +21,7 @@ import {
   MealAddStatusBanner,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
+import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 
 type PreparingReviewUiState =
   | "preparing"
@@ -277,7 +278,7 @@ export default function PreparingReviewPhotoScreen({
 
   const handleManualEntry = useCallback(() => {
     ignoreResultRef.current = true;
-    flow.replace("EditMealDetails", {});
+    flow.replace("EditMealDetails", { submitIntent: "replaceReview" });
   }, [flow]);
 
   const handleKeepWaiting = useCallback(() => {
@@ -452,10 +453,12 @@ export default function PreparingReviewPhotoScreen({
               />
             </View>
           ) : (
-            <View style={styles.actions}>
-              <Button
-                variant="secondary"
-                label={
+            <AddMealBottomActionBar
+              placement="inline"
+              horizontalPadding={0}
+              secondaryAction={{
+                variant: "secondary",
+                label:
                   uiState === "slow"
                     ? t("preparing_review_slow_secondary", {
                         ns: "meals",
@@ -464,13 +467,11 @@ export default function PreparingReviewPhotoScreen({
                     : t("preparing_review_failed_secondary", {
                         ns: "meals",
                         defaultValue: "Add manually",
-                      })
-                }
-                onPress={handleManualEntry}
-                style={styles.secondaryButton}
-              />
-              <Button
-                label={
+                      }),
+                onPress: handleManualEntry,
+              }}
+              primaryAction={{
+                label:
                   uiState === "slow"
                     ? t("preparing_review_slow_primary", {
                         ns: "meals",
@@ -484,18 +485,15 @@ export default function PreparingReviewPhotoScreen({
                       : t("preparing_review_failed_primary", {
                           ns: "meals",
                           defaultValue: "Try again",
-                        })
-                }
-                onPress={
+                        }),
+                onPress:
                   uiState === "slow"
                     ? handleKeepWaiting
                     : uiState === "offline"
                       ? handleSaveDraft
-                      : handleTryAgain
-                }
-                style={styles.primaryButton}
-              />
-            </View>
+                      : handleTryAgain,
+              }}
+            />
           )
         }
         />
@@ -528,16 +526,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     flowHeader: {
       marginHorizontal: theme.spacing.lg,
-    },
-    actions: {
-      gap: theme.spacing.sm,
-    },
-    secondaryButton: {
-      minHeight: 48,
-      borderRadius: 14,
-    },
-    primaryButton: {
-      minHeight: 54,
-      borderRadius: 14,
     },
   });

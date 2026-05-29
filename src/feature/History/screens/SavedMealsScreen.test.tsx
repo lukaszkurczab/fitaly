@@ -530,6 +530,7 @@ describe("SavedMealsScreen", () => {
       );
       expect(navigate).toHaveBeenNthCalledWith(3, "AddMeal", {
         start: "EditMealDetails",
+        submitIntent: "replaceReview",
       });
     });
   });

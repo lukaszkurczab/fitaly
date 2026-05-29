@@ -24,12 +24,16 @@ import MealTypePickerModal from "@/feature/Meals/screens/MealAdd/components/Meal
 import MealTimePickerModal from "@/feature/Meals/screens/MealAdd/components/MealTimePickerModal";
 import IngredientEditorModal from "@/feature/Meals/screens/MealAdd/components/IngredientEditorModal";
 import type { Meal } from "@/types/meal";
-import type { MealAddFlowApi } from "@/feature/Meals/feature/MapMealAddScreens";
+import type {
+  MealAddEditSubmitIntent,
+  MealAddFlowApi,
+} from "@/feature/Meals/feature/MapMealAddScreens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import type { RootStackParamList } from "@/navigation/navigate";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 type Mode = "review";
 type MealDetailsFormNavigation = Pick<
@@ -41,6 +45,7 @@ type Props = {
   flow: MealAddFlowApi;
   navigation: MealDetailsFormNavigation;
   mode: Mode;
+  submitIntent?: MealAddEditSubmitIntent;
   showAddMealFlowHeader?: boolean;
   onReviewSubmit?: (meal: Meal) => Promise<void> | void;
   reviewSubmitLabel?: string;
@@ -105,6 +110,7 @@ function MealDetailsFormScreenInner({
   flow,
   navigation,
   mode,
+  submitIntent = "replaceReview",
   showAddMealFlowHeader = false,
   onReviewSubmit,
   reviewSubmitLabel,
@@ -119,6 +125,7 @@ function MealDetailsFormScreenInner({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["meals", "common"]);
   const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset({ includeSafeArea: true });
   const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
 
   const {
@@ -151,9 +158,11 @@ function MealDetailsFormScreenInner({
     handleCommitIngredient,
     handleDeleteIngredient,
     handleSubmit,
+    canSubmitReview,
   } = useMealDetailsForm({
     mode,
     flow,
+    submitIntent,
     onReviewSubmit,
     draftAdapter,
   });
@@ -178,6 +187,17 @@ function MealDetailsFormScreenInner({
   const selectedAt = getMealDateOrNow(mealTimestamp);
   const mealTypeLabel = t(meal?.type ?? "other", { ns: "meals" });
   const mealTimeLabel = formatMealTime(selectedAt, locale, prefers12h);
+  const handleSecondaryFooterAction = () => {
+    if (submitIntent === "goBack") {
+      flow.goBack();
+      return;
+    }
+
+    navigation.navigate("MealAddMethod", {
+      selectionMode: "temporary",
+      origin: "mealAddFlow",
+    });
+  };
 
   if (!meal || !uid) {
     return (
@@ -200,6 +220,7 @@ function MealDetailsFormScreenInner({
     <Layout
       showNavigation={false}
       disableScroll
+      keyboardAvoiding={false}
       style={styles.layout}
       backgroundGradient={[
         {
@@ -308,7 +329,11 @@ function MealDetailsFormScreenInner({
 
         <MealDetailsFooter
           reviewSubmitLabel={reviewSubmitLabel}
+          submitIntent={submitIntent}
           footerBottomInset={footerBottomInset}
+          keyboardInset={keyboardInset}
+          disabled={!onReviewSubmit && !canSubmitReview}
+          onSecondaryAction={handleSecondaryFooterAction}
           onSubmit={() => {
             void handleSubmit();
           }}
