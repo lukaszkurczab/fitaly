@@ -1,8 +1,4 @@
 appId: com.lkurczab.fitaly
-env:
-  E2E_DISPOSABLE_EMAIL: fitaly-e2e@example.com
-  E2E_DISPOSABLE_USERNAME: e2edisposable
-  E2E_DISPOSABLE_PASSWORD: Test1234.
 ---
 - stopApp
 - openLink: __E2E_EXPO_URL__
@@ -13,7 +9,7 @@ env:
       - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
-- openLink: fitaly://e2e/reset?logout=1
+- openLink: fitaly://e2e/reset?logout=1&theme=dark
 - assertVisible:
     id: e2e-ready-login
 - assertVisible:
@@ -60,6 +56,9 @@ env:
     element:
       id: onboarding-weight-input
     direction: DOWN
+- swipe:
+    direction: UP
+    duration: 300
 - tapOn:
     id: onboarding-weight-input
 - eraseText
@@ -72,20 +71,54 @@ env:
     id: onboarding-age-input
 - eraseText
 - inputText: "34"
+- assertVisible:
+    id: onboarding-step-1
 - tapOn:
     id: onboarding-step-1-next-button
 - assertVisible:
     id: onboarding-step-2
+- takeScreenshot: mj021-step2-dark
+- tapOn:
+    id: onboarding-preferences-dropdown-field
+- tapOn: "Keto"
+- tapOn:
+    point: "50%,28%"
+- tapOn:
+    id: onboarding-goal-lose
+- takeScreenshot: mj021-step2-selected-dark
 - tapOn:
     id: onboarding-step-2-next-button
 - assertVisible:
     id: onboarding-step-3
+- takeScreenshot: mj021-step3-dark
+- tapOn:
+    id: onboarding-condition-diabetes
+- tapOn:
+    id: onboarding-allergy-gluten
+- takeScreenshot: mj021-step3-selected-dark
 - tapOn:
     id: onboarding-step-3-skip-button
 - assertVisible:
     id: onboarding-confirm-modal
+- takeScreenshot: mj021-step3-skip-confirm-dark
 - tapOn:
-    id: onboarding-confirm-primary-button
+    id: onboarding-confirm-secondary-button
+- assertVisible:
+    id: onboarding-step-3
+- swipe:
+    direction: UP
+    duration: 500
+- swipe:
+    direction: UP
+    duration: 500
+- tapOn:
+    id: onboarding-lifestyle-notes-input
+- inputText: "night shifts"
+- takeScreenshot: mj021-step3-keyboard-dark
+- tapOn:
+    point: "50%,20%"
+- tapOn:
+    id: onboarding-step-3-next-button
 - assertVisible:
     id: onboarding-step-4
 - tapOn:
@@ -94,28 +127,6 @@ env:
     visible:
       id: home-screen
     timeout: 30000
-- assertVisible:
-    id: tab-home
-- stopApp
-- openLink: __E2E_EXPO_URL__
-- runFlow:
-    when:
-      visible: "Nie teraz|Not [Nn]ow"
-    commands:
-      - tapOn: "Nie teraz|Not [Nn]ow"
-- assertVisible:
-    id: e2e-booted
-- extendedWaitUntil:
-    visible:
-      id: home-screen
-    timeout: 15000
-- assertVisible:
-    id: tab-home
-- assertNotVisible:
-    id: login-screen
-- assertNotVisible:
-    id: onboarding-step-1
-
 - tapOn:
     id: tab-profile
 - assertVisible:
@@ -138,5 +149,3 @@ env:
     visible:
       id: login-screen
     timeout: 30000
-- assertVisible:
-    id: login-email-input

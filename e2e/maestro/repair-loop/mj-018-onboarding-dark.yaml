@@ -1,29 +1,6 @@
 appId: com.lkurczab.fitaly
-env:
-  E2E_DISPOSABLE_EMAIL: fitaly-e2e@example.com
-  E2E_DISPOSABLE_USERNAME: e2edisposable
-  E2E_DISPOSABLE_PASSWORD: Test1234.
 ---
-- stopApp
-- openLink: __E2E_EXPO_URL__
-- runFlow:
-    when:
-      visible: "Nie teraz|Not [Nn]ow"
-    commands:
-      - tapOn: "Nie teraz|Not [Nn]ow"
-- assertVisible:
-    id: e2e-booted
-- openLink: fitaly://e2e/reset?logout=1
-- assertVisible:
-    id: e2e-ready-login
-- assertVisible:
-    id: login-screen
-- tapOn:
-    id: login-register-link
-- extendedWaitUntil:
-    visible:
-      id: register-username-input
-    timeout: 10000
+- runFlow: ../visual-audit/auth-dark-entry.yaml
 - tapOn:
     id: register-username-input
 - eraseText
@@ -56,6 +33,7 @@ env:
     timeout: 30000
 - assertVisible:
     id: onboarding-step-1
+- takeScreenshot: dark-onboarding-start
 - scrollUntilVisible:
     element:
       id: onboarding-weight-input
@@ -76,46 +54,28 @@ env:
     id: onboarding-step-1-next-button
 - assertVisible:
     id: onboarding-step-2
+- takeScreenshot: dark-onboarding-step-2
 - tapOn:
     id: onboarding-step-2-next-button
 - assertVisible:
     id: onboarding-step-3
+- takeScreenshot: dark-onboarding-step-3
 - tapOn:
     id: onboarding-step-3-skip-button
 - assertVisible:
     id: onboarding-confirm-modal
+- takeScreenshot: dark-onboarding-skip-confirm
 - tapOn:
     id: onboarding-confirm-primary-button
 - assertVisible:
     id: onboarding-step-4
+- takeScreenshot: dark-onboarding-step-4
 - tapOn:
     id: onboarding-step-4-submit-button
 - extendedWaitUntil:
     visible:
       id: home-screen
     timeout: 30000
-- assertVisible:
-    id: tab-home
-- stopApp
-- openLink: __E2E_EXPO_URL__
-- runFlow:
-    when:
-      visible: "Nie teraz|Not [Nn]ow"
-    commands:
-      - tapOn: "Nie teraz|Not [Nn]ow"
-- assertVisible:
-    id: e2e-booted
-- extendedWaitUntil:
-    visible:
-      id: home-screen
-    timeout: 15000
-- assertVisible:
-    id: tab-home
-- assertNotVisible:
-    id: login-screen
-- assertNotVisible:
-    id: onboarding-step-1
-
 - tapOn:
     id: tab-profile
 - assertVisible:
@@ -138,5 +98,3 @@ env:
     visible:
       id: login-screen
     timeout: 30000
-- assertVisible:
-    id: login-email-input

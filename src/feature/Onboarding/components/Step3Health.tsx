@@ -1,19 +1,96 @@
 import { useMemo } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import {
+  Button,
   GlobalActionButtons,
-  LongTextInput,
-  SelectableGroup,
   TextInput,
 } from "@/components";
+import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
 import {
   ALLERGY_OPTIONS,
   CHRONIC_DISEASE_OPTIONS,
 } from "@/feature/Onboarding/constants";
+import { createOnboardingMaterialStyles } from "@/feature/Onboarding/components/onboardingMaterial";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import type { Allergy, ChronicDisease } from "@/types";
+
+type HealthChipOption<T extends string> = {
+  value: T;
+  label: string;
+  testID?: string;
+};
+
+type HealthChipGroupProps<T extends string> = {
+  label: string;
+  helperText: string;
+  options: HealthChipOption<T>[];
+  values: T[];
+  onChange: (value: T) => void;
+};
+
+function HealthChipGroup<T extends string>({
+  label,
+  helperText,
+  options,
+  values,
+  onChange,
+}: HealthChipGroupProps<T>) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeChipStyles(theme), [theme]);
+
+  return (
+    <View>
+      <Text style={styles.groupLabel}>{label}</Text>
+      <Text style={styles.groupHelper}>{helperText}</Text>
+
+      <View style={styles.chipWrap}>
+        {options.map((option) => {
+          const selected = values.includes(option.value);
+
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="checkbox"
+              accessibilityLabel={option.label}
+              accessibilityState={{ checked: selected, selected }}
+              onPress={() => onChange(option.value)}
+              testID={option.testID}
+              style={({ pressed }) => [
+                styles.chip,
+                selected ? styles.chipSelected : null,
+                pressed ? styles.chipPressed : null,
+              ]}
+            >
+              {selected ? (
+                <View style={styles.checkMark}>
+                  <AppIcon
+                    name="check"
+                    size={12}
+                    color={theme.isDark ? theme.text : theme.textInverse}
+                  />
+                </View>
+              ) : null}
+              <Text
+                style={[styles.chipText, selected ? styles.chipTextSelected : null]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 type Props = {
   form: OnboardingFormData;
@@ -64,6 +141,68 @@ export default function Step3Health({
     (form.allergies?.length ?? 0) > 0 ||
     !!form.allergiesOther?.trim() ||
     !!form.lifestyle?.trim();
+  const conditionOptions = useMemo(
+    () =>
+      CHRONIC_DISEASE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey),
+        testID: `onboarding-condition-${option.value}`,
+      })),
+    [t],
+  );
+  const allergyOptions = useMemo(
+    () =>
+      ALLERGY_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey),
+        testID: `onboarding-allergy-${option.value}`,
+      })),
+    [t],
+  );
+
+  const toggleChronicDisease = (nextValue: ChronicDisease) => {
+    setForm((current) => {
+      const currentValues = current.chronicDiseases ?? [];
+      const hasValue = currentValues.includes(nextValue);
+      const nextValues = hasValue
+        ? currentValues.filter((item) => item !== nextValue)
+        : [...currentValues, nextValue];
+
+      return {
+        ...current,
+        chronicDiseases: nextValues as ChronicDisease[],
+        chronicDiseasesOther: nextValues.includes("other")
+          ? (current.chronicDiseasesOther ?? "")
+          : "",
+      };
+    });
+    setErrors((current) => ({
+      ...current,
+      chronicDiseasesOther: undefined,
+    }));
+  };
+
+  const toggleAllergy = (nextValue: Allergy) => {
+    setForm((current) => {
+      const currentValues = current.allergies ?? [];
+      const hasValue = currentValues.includes(nextValue);
+      const nextValues = hasValue
+        ? currentValues.filter((item) => item !== nextValue)
+        : [...currentValues, nextValue];
+
+      return {
+        ...current,
+        allergies: nextValues as Allergy[],
+        allergiesOther: nextValues.includes("other")
+          ? (current.allergiesOther ?? "")
+          : "",
+      };
+    });
+    setErrors((current) => ({
+      ...current,
+      allergiesOther: undefined,
+    }));
+  };
 
   return (
     <View style={styles.container} testID="onboarding-step-3">
@@ -83,37 +222,12 @@ export default function Step3Health({
         </View>
 
         <View style={styles.panel}>
-          <SelectableGroup
+          <HealthChipGroup
             label={t("step3.conditionsLabel")}
-            options={CHRONIC_DISEASE_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-            }))}
+            helperText={t("step3.conditionsHelper")}
+            options={conditionOptions}
             values={form.chronicDiseases ?? []}
-            onChange={(nextValue) => {
-              setForm((current) => {
-                const currentValues = current.chronicDiseases ?? [];
-                const hasValue = currentValues.includes(nextValue);
-                const nextValues = hasValue
-                  ? currentValues.filter((item) => item !== nextValue)
-                  : [...currentValues, nextValue];
-
-                return {
-                  ...current,
-                  chronicDiseases: nextValues as ChronicDisease[],
-                  chronicDiseasesOther: nextValues.includes("other")
-                    ? (current.chronicDiseasesOther ?? "")
-                    : "",
-                };
-              });
-              setErrors((current) => ({
-                ...current,
-                chronicDiseasesOther: undefined,
-              }));
-            }}
-            selectionMode="multiple"
-            variant="chip"
-            size="compact"
+            onChange={toggleChronicDisease}
           />
 
           {hasChronicOther ? (
@@ -133,42 +247,18 @@ export default function Step3Health({
               }}
               placeholder={t("healthProfile.disease.otherPlaceholder")}
               error={errors.chronicDiseasesOther}
+              fieldStyle={styles.inputField}
             />
           ) : null}
         </View>
 
         <View style={styles.panel}>
-          <SelectableGroup
+          <HealthChipGroup
             label={t("step3.allergiesLabel")}
-            options={ALLERGY_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-            }))}
+            helperText={t("step3.allergiesHelper")}
+            options={allergyOptions}
             values={form.allergies ?? []}
-            onChange={(nextValue) => {
-              setForm((current) => {
-                const currentValues = current.allergies ?? [];
-                const hasValue = currentValues.includes(nextValue);
-                const nextValues = hasValue
-                  ? currentValues.filter((item) => item !== nextValue)
-                  : [...currentValues, nextValue];
-
-                return {
-                  ...current,
-                  allergies: nextValues as Allergy[],
-                  allergiesOther: nextValues.includes("other")
-                    ? (current.allergiesOther ?? "")
-                    : "",
-                };
-              });
-              setErrors((current) => ({
-                ...current,
-                allergiesOther: undefined,
-              }));
-            }}
-            selectionMode="multiple"
-            variant="chip"
-            size="compact"
+            onChange={toggleAllergy}
           />
 
           {hasAllergyOther ? (
@@ -188,12 +278,13 @@ export default function Step3Health({
               }}
               placeholder={t("healthProfile.allergy.otherPlaceholder")}
               error={errors.allergiesOther}
+              fieldStyle={styles.inputField}
             />
           ) : null}
         </View>
 
         <View style={styles.panel}>
-          <LongTextInput
+          <TextInput
             testID="onboarding-lifestyle-notes-input"
             label={t("step3.notesLabel")}
             value={form.lifestyle ?? ""}
@@ -204,16 +295,38 @@ export default function Step3Health({
               }));
             }}
             placeholder={t("step3.notesPlaceholder")}
+            multiline
             maxLength={220}
-            numberOfLines={3}
+            numberOfLines={2}
             inputStyle={styles.notesInput}
+            fieldStyle={styles.notesField}
+            autoCapitalize="sentences"
+            autoCorrect
           />
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
+        {hasHealthInput ? (
+          <View style={styles.skipRow}>
+            <Button
+              testID="onboarding-step-3-skip-button"
+              label={t("step3.skipCta")}
+              variant="ghost"
+              onPress={onSkip}
+              disabled={submitting}
+              fullWidth={false}
+              style={styles.skipButton}
+              textStyle={styles.skipButtonText}
+            />
+          </View>
+        ) : null}
         <GlobalActionButtons
-          primaryTestID="onboarding-step-3-next-button"
+          primaryTestID={
+            hasHealthInput
+              ? "onboarding-step-3-next-button"
+              : "onboarding-step-3-skip-button"
+          }
           label={hasHealthInput ? t("step3.primaryCta") : t("step3.skipCta")}
           onPress={hasHealthInput ? onContinue : onSkip}
           loading={submitting}
@@ -222,14 +335,18 @@ export default function Step3Health({
           secondaryTestID="onboarding-step-3-back-button"
           layout="row"
           rowOrder="secondary-primary"
+          containerStyle={styles.footerActions}
         />
       </View>
     </View>
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const material = createOnboardingMaterialStyles(theme);
+
+  return StyleSheet.create({
+    ...material,
     container: {
       flex: 1,
     },
@@ -238,25 +355,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       paddingBottom: theme.spacing.xl,
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
     },
     header: {
       gap: theme.spacing.xs,
     },
     optionalBadge: {
-      alignSelf: "flex-start",
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.rounded.full,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      ...material.optionalBadge,
     },
     optionalBadgeText: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.medium,
+      ...material.optionalBadgeText,
     },
     title: {
       color: theme.text,
@@ -271,23 +379,110 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
+      ...material.panel,
       padding: theme.spacing.md,
-      borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.sm,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.06,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 3,
+      gap: theme.spacing.md,
     },
     footer: {
-      paddingTop: theme.spacing.sm,
-      backgroundColor: theme.background,
+      ...material.footer,
+    },
+    skipRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: -theme.spacing.xs,
+    },
+    skipButton: {
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.full,
+    },
+    skipButtonText: {
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
     },
     notesInput: {
-      minHeight: 82,
+      minHeight: 58,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+    },
+    notesField: {
+      ...material.inputField,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.10)"
+        : "rgba(207, 197, 184, 0.58)",
+      backgroundColor: theme.isDark
+        ? "rgba(30, 35, 30, 0.68)"
+        : "rgba(255, 253, 248, 0.64)",
+    },
+  });
+};
+
+const makeChipStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    groupLabel: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    groupHelper: {
+      marginTop: theme.spacing.xxs,
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    chipWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: theme.spacing.xs,
+      marginTop: theme.spacing.sm,
+    },
+    chip: {
+      minHeight: 38,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xxs,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.62)",
+      backgroundColor: theme.isDark
+        ? "rgba(30, 35, 30, 0.66)"
+        : "rgba(255, 253, 248, 0.60)",
+    },
+    chipSelected: {
+      borderColor: theme.isDark
+        ? "rgba(166, 189, 160, 0.52)"
+        : "rgba(79, 104, 75, 0.38)",
+      backgroundColor: theme.isDark
+        ? "rgba(137, 162, 132, 0.20)"
+        : "rgba(111, 138, 105, 0.14)",
+    },
+    chipPressed: {
+      opacity: 0.86,
+    },
+    checkMark: {
+      width: 18,
+      height: 18,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark ? theme.primarySoft : theme.primary,
+    },
+    chipText: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    chipTextSelected: {
+      color: theme.isDark ? theme.primaryStrong : theme.primaryStrong,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
   });

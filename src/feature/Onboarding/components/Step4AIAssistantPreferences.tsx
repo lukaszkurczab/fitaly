@@ -1,15 +1,21 @@
 import { useMemo } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useTranslation } from "react-i18next";
 import {
-  GlobalActionButtons,
-  SelectableGroup,
-} from "@/components";
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useTranslation } from "react-i18next";
+import { GlobalActionButtons } from "@/components/GlobalActionButtons";
 import { useTheme } from "@/theme/useTheme";
 import {
   AI_PERSONA_OPTIONS,
 } from "@/feature/Onboarding/constants";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
+import { createOnboardingMaterialStyles } from "@/feature/Onboarding/components/onboardingMaterial";
+import type { AiPersona } from "@/types";
 
 type Props = {
   form: OnboardingFormData;
@@ -29,8 +35,24 @@ export default function Step4AIAssistantPreferences({
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const selectedPersona = form.aiPersona ?? "calm_guide";
+  const toneOptions = useMemo(
+    () =>
+      AI_PERSONA_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey),
+        description: t(option.descriptionKey),
+      })),
+    [t],
+  );
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
+  const handlePersonaPress = (nextPersona: AiPersona) => {
+    setForm((current) => ({
+      ...current,
+      aiPersona: nextPersona,
+    }));
+  };
 
   return (
     <View style={styles.container} testID="onboarding-step-4">
@@ -50,23 +72,47 @@ export default function Step4AIAssistantPreferences({
         </View>
 
         <View style={styles.panel}>
-          <SelectableGroup
-            label={t("step4.toneLabel")}
-            options={AI_PERSONA_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-              description: t(option.descriptionKey),
-            }))}
-            value={form.aiPersona ?? "calm_guide"}
-            onChange={(nextPersona) => {
-              setForm((current) => ({
-                ...current,
-                aiPersona: nextPersona,
-              }));
-            }}
-            variant="card"
-            size="compact"
-          />
+          <View style={styles.toneList}>
+            {toneOptions.map((option) => {
+              const selected = option.value === selectedPersona;
+
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="radio"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ checked: selected, selected }}
+                  onPress={() => handlePersonaPress(option.value)}
+                  testID={`onboarding-ai-persona-${option.value}`}
+                  style={({ pressed }) => [
+                    styles.toneCard,
+                    selected ? styles.toneCardSelected : null,
+                    pressed ? styles.toneCardPressed : null,
+                  ]}
+                >
+                  <View style={styles.toneBody}>
+                    <Text
+                      style={[
+                        styles.toneTitle,
+                        selected ? styles.toneTitleSelected : null,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.toneDescription,
+                        selected ? styles.toneDescriptionSelected : null,
+                      ]}
+                    >
+                      {option.description}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
 
@@ -81,14 +127,20 @@ export default function Step4AIAssistantPreferences({
           secondaryTestID="onboarding-step-4-back-button"
           layout="row"
           rowOrder="secondary-primary"
+          containerStyle={styles.footerActions}
+          primaryStyle={styles.primaryCta}
+          secondaryStyle={styles.secondaryCta}
         />
       </View>
     </View>
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const material = createOnboardingMaterialStyles(theme);
+
+  return StyleSheet.create({
+    ...material,
     container: {
       flex: 1,
     },
@@ -97,25 +149,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       paddingBottom: theme.spacing.xl,
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
     },
     header: {
       gap: theme.spacing.xs,
     },
     optionalBadge: {
-      alignSelf: "flex-start",
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.rounded.full,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      ...material.optionalBadge,
     },
     optionalBadgeText: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.medium,
+      ...material.optionalBadgeText,
     },
     title: {
       color: theme.text,
@@ -130,17 +173,63 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
+      ...material.panel,
       padding: theme.spacing.md,
+      gap: theme.spacing.md,
+    },
+    toneList: {
+      gap: theme.spacing.xs,
+    },
+    toneCard: {
+      minHeight: 76,
+      flexDirection: "row",
+      overflow: "hidden",
       borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.sm,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.06,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 3,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.62)",
+      backgroundColor: theme.isDark
+        ? "rgba(30, 35, 30, 0.66)"
+        : "rgba(255, 253, 248, 0.66)",
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    toneCardSelected: {
+      borderColor: theme.isDark
+        ? "rgba(166, 189, 160, 0.58)"
+        : "rgba(79, 104, 75, 0.40)",
+      backgroundColor: theme.isDark
+        ? "rgba(137, 162, 132, 0.18)"
+        : "rgba(111, 138, 105, 0.11)",
+    },
+    toneCardPressed: {
+      opacity: 0.9,
+    },
+    toneBody: {
+      flex: 1,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      gap: theme.spacing.xxs,
+    },
+    toneTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    toneTitleSelected: {
+      color: theme.isDark ? theme.primaryStrong : theme.primaryStrong,
+    },
+    toneDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    toneDescriptionSelected: {
+      color: theme.isDark ? theme.text : theme.textSecondary,
     },
     disclaimer: {
       color: theme.textSecondary,
@@ -149,7 +238,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     footer: {
+      ...material.footer,
       paddingTop: theme.spacing.sm,
-      backgroundColor: theme.background,
+      backgroundColor: theme.isDark
+        ? "rgba(27, 31, 27, 0.94)"
+        : "rgba(255, 253, 248, 0.78)",
+    },
+    primaryCta: {
+      minHeight: 56,
+    },
+    secondaryCta: {
+      minHeight: 56,
     },
   });
+};

@@ -14,6 +14,7 @@
   "step1": {
     "title": "Podstawy",
     "description": "Kilka prostych danych pomoże nam od razu ustawić plan na właściwych parametrach.",
+    "measurementsLabel": "Twoje dane",
     "unitsLabel": "Jednostki",
     "sexLabel": "Płeć",
     "agePlaceholder": "Wpisz wiek",
@@ -22,27 +23,29 @@
     "primaryCta": "Dalej"
   },
   "step2": {
-    "title": "Ułóż swój plan",
-    "description": "Wybierz preferencje i tempo, które będą realne w codziennym rytmie.",
+    "title": "Dopasuj plan",
+    "description": "Wybierz tylko to, co realnie pasuje do Twoich posiłków i tempa.",
     "preferencesLabel": "Preferencje żywieniowe",
-    "preferencesHelper": "Zaznacz tylko to, co ma znaczenie. Jeśli wolisz, zostaw to puste.",
+    "preferencesHelper": "Możesz zostawić puste. Zaznacz tylko stałe preferencje.",
     "activityLabel": "Poziom aktywności",
     "goalLabel": "Cel wagowy",
     "calorieAdjustmentLabel": "Dzienna korekta kalorii: {{percentage}}%",
-    "calorieDecreaseHelper": "Lżejsza korekta łatwiej się utrzymuje. W każdej chwili możesz to później dopracować.",
-    "calorieIncreaseHelper": "Mniejsza korekta zwykle łatwiej utrzymuje regularność planu.",
+    "calorieDecreaseHelper": "Lżejszą korektę zwykle łatwiej utrzymać na co dzień.",
+    "calorieIncreaseHelper": "Spokojniejsza nadwyżka pomaga utrzymać regularność planu.",
     "primaryCta": "Dalej"
   },
   "step3": {
-    "title": "Szczegóły zdrowotne",
-    "description": "Dodaj wszystko, co warto wziąć pod uwagę. Możesz też wrócić do tego później.",
-    "conditionsLabel": "Choroby przewlekłe",
-    "conditionsOtherLabel": "Inna choroba przewlekła",
-    "allergiesLabel": "Alergie lub nietolerancje",
-    "allergiesOtherLabel": "Inna alergia lub nietolerancja",
-    "notesLabel": "Dodatkowe informacje o rutynie lub stylu życia",
-    "notesPlaceholder": "Napisz tylko to, co pomoże nam utrzymać plan praktycznym i bezpiecznym.",
-    "primaryCta": "Zapisz dalej",
+    "title": "Kontekst zdrowotny",
+    "description": "Podziel się tylko tym, co może wpływać na jedzenie. Możesz pominąć i wrócić później.",
+    "conditionsLabel": "Zdrowie do uwzględnienia",
+    "conditionsHelper": "Zaznacz tylko to, co ma znaczenie przy planowaniu posiłków.",
+    "conditionsOtherLabel": "Co jeszcze warto uwzględnić?",
+    "allergiesLabel": "Alergie i nietolerancje",
+    "allergiesHelper": "Zaznacz tylko te, które mają znaczenie przy wyborze jedzenia.",
+    "allergiesOtherLabel": "Jaka inna alergia lub nietolerancja?",
+    "notesLabel": "Rutyna lub ograniczenia",
+    "notesPlaceholder": "Np. praca zmianowa, mało czasu na gotowanie albo produkty, których unikasz.",
+    "primaryCta": "Dalej",
     "skipCta": "Pomiń"
   },
   "step4": {
@@ -99,29 +102,29 @@
       "diabetes": "Cukrzyca",
       "hypertension": "Nadciśnienie",
       "asthma": "Astma",
-      "other": "Inne",
-      "otherPlaceholder": "Opisz, co dotyczy Ciebie"
+      "other": "Coś innego",
+      "otherPlaceholder": "Krótko opisz, co dotyczy Ciebie"
     },
     "allergy": {
       "peanuts": "Orzeszki ziemne",
       "gluten": "Gluten",
       "lactose": "Laktoza",
-      "other": "Inne",
-      "otherPlaceholder": "Opisz, co dotyczy Ciebie"
+      "other": "Coś innego",
+      "otherPlaceholder": "Krótko opisz, co dotyczy Ciebie"
     }
   },
   "ai": {
     "style": {
-      "none": "Domyślny",
-      "concise": "Zwięzły",
-      "friendly": "Przyjazny",
-      "detailed": "Szczegółowy"
+      "none": "Spokojny przewodnik",
+      "concise": "Konkretny prowadzący",
+      "friendly": "Ciepły kompan",
+      "detailed": "Ciepło śródziemnomorskie"
     },
     "styleDescription": {
-      "none": "Zrównoważone wsparcie bez dodatkowych preferencji.",
-      "concise": "Krótkie, jasne odpowiedzi skupione na następnym kroku.",
-      "friendly": "Cieplejszy ton i odrobina więcej wsparcia.",
-      "detailed": "Więcej kontekstu, gdy chcesz rozumieć dlaczego."
+      "none": "Spokojne wskazówki i dużo miejsca na Twoje tempo.",
+      "concise": "Krótko, jasno i z naciskiem na następny krok.",
+      "friendly": "Więcej otuchy i ludzkiego tonu, bez presji.",
+      "detailed": "Więcej kontekstu, gdy chcesz rozumieć decyzje."
     },
     "focus": {
       "none": "Domyślny",
@@ -138,7 +141,7 @@
   },
   "skipStepModal": {
     "title": "Pominąć ten krok?",
-    "step3Body": "Szczegóły zdrowotne możesz dodać później, jeśli chcesz, żebyśmy uwzględniali je w planie.",
+    "step3Body": "Pominiemy ten krok i nie zapiszemy tych szczegółów. Możesz dodać je później w profilu.",
     "step4Body": "Ton i focus asystenta możesz dopasować później z poziomu profilu.",
     "primaryCta": "Pomiń",
     "secondaryCta": "Wróć"
@@ -147,8 +150,8 @@
     "title": "Zapisać zmiany przed wyjściem?",
     "body": "Możesz zapisać to, co już zmieniłeś, albo wyjść bez stosowania tych edycji.",
     "primaryCta": "Zapisz",
-    "secondaryCta": "Odrzuć",
-    "closeA11y": "Zamknij edycję onboardingu"
+    "secondaryCta": "Wyjdź",
+    "closeA11y": "Zamknij"
   },
   "errors": {
     "ageRequired": "Podaj wiek",

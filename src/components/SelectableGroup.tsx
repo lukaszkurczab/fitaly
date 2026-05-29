@@ -166,9 +166,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
       borderRadius: theme.rounded.full,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.70)",
+      backgroundColor: theme.isDark
+        ? "rgba(32, 37, 32, 0.84)"
+        : "rgba(255, 253, 248, 0.72)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -180,15 +184,24 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     chipOptionSelected: {
       borderColor: theme.primaryStrong,
       backgroundColor: theme.primaryStrong,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.22 : 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
     },
     cardOption: {
       minHeight: 72,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.md,
       borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.68)",
+      backgroundColor: theme.isDark
+        ? "rgba(32, 37, 32, 0.86)"
+        : "rgba(255, 253, 248, 0.76)",
       gap: theme.spacing.xxs,
     },
     cardOptionCompact: {
@@ -200,6 +213,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     cardOptionSelected: {
       borderColor: theme.primaryStrong,
       backgroundColor: theme.primarySoft,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.24 : 0.1,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
     },
     chipLabel: {
       color: theme.text,

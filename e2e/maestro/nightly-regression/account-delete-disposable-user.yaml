@@ -81,7 +81,7 @@ env:
 - assertVisible:
     id: onboarding-step-3
 - tapOn:
-    id: onboarding-step-3-next-button
+    id: onboarding-step-3-skip-button
 - assertVisible:
     id: onboarding-confirm-modal
 - tapOn:

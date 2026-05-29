@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/Checkbox";
 import {
   getPickerControlStyleParts,
+  type PickerControlSurfaceTone,
   PICKER_MENU_BOTTOM_OFFSET,
   PICKER_MENU_MAX_HEIGHT,
 } from "@/components/pickerControlStyles";
@@ -44,6 +45,7 @@ type CheckboxDropdownProps<T extends string | number> = {
   disabledValues?: T[];
   style?: StyleProp<ViewStyle>;
   renderLabel?: (option: Option<T>) => React.ReactNode;
+  surfaceTone?: PickerControlSurfaceTone;
   testID?: string;
 };
 
@@ -64,10 +66,14 @@ export function CheckboxDropdown<T extends string | number>({
   disabledValues,
   style,
   renderLabel,
+  surfaceTone = "default",
   testID,
 }: CheckboxDropdownProps<T>) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const styles = useMemo(
+    () => makeStyles(theme, surfaceTone),
+    [surfaceTone, theme],
+  );
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
   const { t } = useTranslation("common");
@@ -275,11 +281,16 @@ export function CheckboxDropdown<T extends string | number>({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
-    ...getPickerControlStyleParts(theme),
+const makeStyles = (
+  theme: ReturnType<typeof useTheme>,
+  surfaceTone: PickerControlSurfaceTone,
+) => {
+  const control = getPickerControlStyleParts(theme, { surfaceTone });
+
+  return StyleSheet.create({
+    ...control,
     valueText: {
-      ...getPickerControlStyleParts(theme).valueText,
+      ...control.valueText,
       flex: 1,
     },
     valueTextPlaceholder: {
@@ -297,7 +308,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flexGrow: 1,
     },
     option: {
-      ...getPickerControlStyleParts(theme).option,
+      ...control.option,
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: "transparent",
@@ -313,10 +324,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     optionText: {
-      ...getPickerControlStyleParts(theme).optionText,
+      ...control.optionText,
       flex: 1,
     },
     optionTextDisabled: {
       color: theme.textSecondary,
     },
   });
+};

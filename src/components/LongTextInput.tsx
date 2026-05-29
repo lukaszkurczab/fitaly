@@ -1,7 +1,7 @@
 import { forwardRef, useMemo } from "react";
 import { View, TextInput as RNTextInput, Text, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
-import type { ViewStyle, TextStyle } from "react-native";
+import type { StyleProp, ViewStyle, TextStyle } from "react-native";
 import { TextInput as AppTextInput } from "@/components/TextInput";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
   label?: string;
   error?: string;
   style?: ViewStyle;
+  fieldStyle?: StyleProp<ViewStyle>;
   inputStyle?: TextStyle;
   disabled?: boolean;
   editable?: boolean;
@@ -32,6 +33,7 @@ export const LongTextInput = forwardRef<RNTextInput, Props>(
       label,
       error,
       style,
+      fieldStyle,
       inputStyle,
       disabled = false,
       editable,
@@ -63,6 +65,7 @@ export const LongTextInput = forwardRef<RNTextInput, Props>(
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
+          fieldStyle={fieldStyle}
           inputStyle={[styles.input, inputStyle]}
           disabled={disabled}
           editable={editable}

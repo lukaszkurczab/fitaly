@@ -6,6 +6,7 @@ import { useTheme } from "@/theme/useTheme";
 import { cmToFtIn, ftInToCm, kgToLbs, lbsToKg } from "@/utils/units";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
 import { SEX_OPTIONS, UNITS_OPTIONS } from "@/feature/Onboarding/constants";
+import { createOnboardingMaterialStyles } from "@/feature/Onboarding/components/onboardingMaterial";
 
 type Props = {
   form: OnboardingFormData;
@@ -102,7 +103,7 @@ export default function Step1BasicData({
         </View>
 
         <View style={styles.panel}>
-          <View style={styles.topRow}>
+          <View style={styles.controlStack}>
             <RowPicker
               testID="onboarding-units-picker"
               label={t("step1.unitsLabel")}
@@ -117,11 +118,10 @@ export default function Step1BasicData({
                   unitsSystem: nextUnitsSystem,
                 }));
               }}
-              style={styles.topRowItem}
+              surfaceTone="soft"
+              size="compact"
             />
-          </View>
 
-          <View style={styles.topRow}>
             <RowPicker
               testID="onboarding-sex-picker"
               label={t("step1.sexLabel")}
@@ -138,112 +138,128 @@ export default function Step1BasicData({
                 clearError("sex");
               }}
               error={errors.sex}
-              style={styles.topRowItem}
+              surfaceTone="soft"
+              size="compact"
             />
           </View>
 
-          <NumberInput
-            testID="onboarding-age-input"
-            label={t("age")}
-            value={getString(form.age)}
-            onChangeText={(nextAge) => {
-              setForm((current) => ({
-                ...current,
-                age: nextAge,
-              }));
-              clearError("age");
-            }}
-            keyboardType="number-pad"
-            maxDecimals={0}
-            allowEmptyOnBlur
-            placeholder={t("step1.agePlaceholder")}
-            error={errors.age}
-            accessibilityLabel={t("age")}
-            returnKeyType="done"
-          />
+          <View style={styles.sectionDivider} />
 
-          {form.unitsSystem === "metric" ? (
+          <View style={styles.measurementHeader}>
+            <Text style={styles.measurementTitle}>
+              {t("step1.measurementsLabel")}
+            </Text>
+          </View>
+
+          <View style={styles.inputStack}>
             <NumberInput
-              testID="onboarding-height-input"
-              label={t("height")}
-              value={getString(form.height)}
-              onChangeText={(nextHeight) => {
+              testID="onboarding-age-input"
+              label={t("age")}
+              value={getString(form.age)}
+              onChangeText={(nextAge) => {
                 setForm((current) => ({
                   ...current,
-                  height: nextHeight,
+                  age: nextAge,
                 }));
-                clearError("height");
+                clearError("age");
               }}
               keyboardType="number-pad"
               maxDecimals={0}
               allowEmptyOnBlur
-              placeholder={t("step1.heightPlaceholder")}
-              rightLabel="cm"
-              error={errors.height}
-              accessibilityLabel={t("height")}
+              placeholder={t("step1.agePlaceholder")}
+              error={errors.age}
+              accessibilityLabel={t("age")}
+              returnKeyType="done"
+              fieldStyle={styles.inputField}
             />
-          ) : (
-            <View style={styles.row}>
-              <NumberInput
-                testID="onboarding-height-ft-input"
-                label={t("heightFt")}
-                value={displayFt ? String(displayFt) : ""}
-                onChangeText={handleHeightFeetChange}
-                keyboardType="number-pad"
-                maxDecimals={0}
-                allowEmptyOnBlur
-                placeholder="ft"
-                rightLabel="ft"
-                error={errors.height}
-                accessibilityLabel={t("heightFt")}
-                style={styles.rowItem}
-              />
-              <NumberInput
-                testID="onboarding-height-in-input"
-                label={t("heightIn")}
-                value={String(displayInch || "")}
-                onChangeText={handleHeightInchChange}
-                keyboardType="number-pad"
-                maxDecimals={0}
-                allowEmptyOnBlur
-                placeholder="in"
-                rightLabel="in"
-                error={errors.heightInch}
-                accessibilityLabel={t("heightIn")}
-                style={styles.rowItem}
-              />
-            </View>
-          )}
 
-          <NumberInput
-            testID="onboarding-weight-input"
-            label={t("weight")}
-            value={
-              form.unitsSystem === "metric"
-                ? getString(form.weight)
-                : displayLbs
-                  ? String(displayLbs)
-                  : ""
-            }
-            onChangeText={
-              form.unitsSystem === "metric"
-                ? (nextWeight) => {
-                    setForm((current) => ({
-                      ...current,
-                      weight: nextWeight,
-                    }));
-                    clearError("weight");
-                  }
-                : handleWeightLbsChange
-            }
-            keyboardType="number-pad"
-            maxDecimals={0}
-            allowEmptyOnBlur
-            placeholder={t("step1.weightPlaceholder")}
-            rightLabel={form.unitsSystem === "metric" ? "kg" : "lb"}
-            error={errors.weight}
-            accessibilityLabel={t("weight")}
-          />
+            {form.unitsSystem === "metric" ? (
+              <NumberInput
+                testID="onboarding-height-input"
+                label={t("height")}
+                value={getString(form.height)}
+                onChangeText={(nextHeight) => {
+                  setForm((current) => ({
+                    ...current,
+                    height: nextHeight,
+                  }));
+                  clearError("height");
+                }}
+                keyboardType="number-pad"
+                maxDecimals={0}
+                allowEmptyOnBlur
+                placeholder={t("step1.heightPlaceholder")}
+                rightLabel="cm"
+                error={errors.height}
+                accessibilityLabel={t("height")}
+                fieldStyle={styles.inputField}
+              />
+            ) : (
+              <View style={styles.row}>
+                <NumberInput
+                  testID="onboarding-height-ft-input"
+                  label={t("heightFt")}
+                  value={displayFt ? String(displayFt) : ""}
+                  onChangeText={handleHeightFeetChange}
+                  keyboardType="number-pad"
+                  maxDecimals={0}
+                  allowEmptyOnBlur
+                  placeholder="ft"
+                  rightLabel="ft"
+                  error={errors.height}
+                  accessibilityLabel={t("heightFt")}
+                  fieldStyle={styles.inputField}
+                  style={styles.rowItem}
+                />
+                <NumberInput
+                  testID="onboarding-height-in-input"
+                  label={t("heightIn")}
+                  value={String(displayInch || "")}
+                  onChangeText={handleHeightInchChange}
+                  keyboardType="number-pad"
+                  maxDecimals={0}
+                  allowEmptyOnBlur
+                  placeholder="in"
+                  rightLabel="in"
+                  error={errors.heightInch}
+                  accessibilityLabel={t("heightIn")}
+                  fieldStyle={styles.inputField}
+                  style={styles.rowItem}
+                />
+              </View>
+            )}
+
+            <NumberInput
+              testID="onboarding-weight-input"
+              label={t("weight")}
+              value={
+                form.unitsSystem === "metric"
+                  ? getString(form.weight)
+                  : displayLbs
+                    ? String(displayLbs)
+                    : ""
+              }
+              onChangeText={
+                form.unitsSystem === "metric"
+                  ? (nextWeight) => {
+                      setForm((current) => ({
+                        ...current,
+                        weight: nextWeight,
+                      }));
+                      clearError("weight");
+                    }
+                  : handleWeightLbsChange
+              }
+              keyboardType="number-pad"
+              maxDecimals={0}
+              allowEmptyOnBlur
+              placeholder={t("step1.weightPlaceholder")}
+              rightLabel={form.unitsSystem === "metric" ? "kg" : "lb"}
+              error={errors.weight}
+              accessibilityLabel={t("weight")}
+              fieldStyle={styles.inputField}
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -262,8 +278,11 @@ export default function Step1BasicData({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const material = createOnboardingMaterialStyles(theme);
+
+  return StyleSheet.create({
+    ...material,
     container: {
       flex: 1,
     },
@@ -290,35 +309,40 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
+      ...material.panel,
       padding: theme.spacing.md,
-      borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.xs,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.06,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 3,
+      gap: theme.spacing.sm,
+    },
+    measurementHeader: {
+      gap: theme.spacing.xxs,
+    },
+    measurementTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    sectionDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.54)",
     },
     row: {
       flexDirection: "row",
       gap: theme.spacing.sm,
     },
-    topRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
+    controlStack: {
       gap: theme.spacing.sm,
     },
-    topRowItem: {
-      flex: 1,
+    inputStack: {
+      gap: theme.spacing.xs,
     },
     rowItem: {
       flex: 1,
     },
     footer: {
-      paddingTop: theme.spacing.sm,
-      backgroundColor: theme.background,
+      ...material.footer,
     },
   });
+};

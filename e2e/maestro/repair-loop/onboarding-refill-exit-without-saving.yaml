@@ -1,0 +1,36 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      text: "Zaktualizuj ankietę żywieniową|Update nutrition survey"
+    direction: DOWN
+- tapOn: "Zaktualizuj ankietę żywieniową|Update nutrition survey"
+- assertVisible:
+    id: onboarding-step-1
+- assertVisible:
+    id: onboarding-refill-close-button
+- takeScreenshot: onboarding-refill-step-1-close
+- scrollUntilVisible:
+    element:
+      id: onboarding-weight-input
+    direction: DOWN
+- tapOn:
+    id: onboarding-weight-input
+- eraseText
+- inputText: "79"
+- tapOn:
+    id: onboarding-refill-close-button
+- assertVisible:
+    id: onboarding-confirm-modal
+- assertVisible: "Zapisz i wyjdź|Save and exit"
+- assertVisible: "Wyjdź bez zapisu|Exit without saving"
+- takeScreenshot: onboarding-refill-exit-confirm
+- tapOn:
+    id: onboarding-confirm-secondary-button
+- assertVisible:
+    id: account-screen

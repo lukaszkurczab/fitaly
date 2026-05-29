@@ -14,6 +14,7 @@
   "step1": {
     "title": "The basics",
     "description": "A few details help us set up your plan with the right targets from the start.",
+    "measurementsLabel": "Your measures",
     "unitsLabel": "Units",
     "sexLabel": "Sex",
     "agePlaceholder": "Enter age",
@@ -22,27 +23,29 @@
     "primaryCta": "Continue"
   },
   "step2": {
-    "title": "Shape your plan",
-    "description": "Pick the preferences and pace that feel realistic for everyday life.",
+    "title": "Tune your plan",
+    "description": "Choose only what should realistically shape your meals and pace.",
     "preferencesLabel": "Dietary preferences",
-    "preferencesHelper": "Choose any that matter to you. Leave it blank if you want to keep things open.",
+    "preferencesHelper": "You can leave this blank. Choose only steady preferences.",
     "activityLabel": "Activity level",
     "goalLabel": "Weight goal",
     "calorieAdjustmentLabel": "Daily calorie adjustment: {{percentage}}%",
-    "calorieDecreaseHelper": "A lighter adjustment is easier to sustain. You can fine-tune this later.",
-    "calorieIncreaseHelper": "A steadier increase keeps the plan easier to follow over time.",
+    "calorieDecreaseHelper": "A lighter adjustment is usually easier to keep day to day.",
+    "calorieIncreaseHelper": "A steadier surplus helps keep the plan consistent.",
     "primaryCta": "Continue"
   },
   "step3": {
-    "title": "Health details",
-    "description": "Share anything we should keep in mind. You can also leave this for later.",
-    "conditionsLabel": "Chronic conditions",
-    "conditionsOtherLabel": "Other condition",
-    "allergiesLabel": "Allergies or intolerances",
-    "allergiesOtherLabel": "Other allergy or intolerance",
-    "notesLabel": "Additional routine or lifestyle notes",
-    "notesPlaceholder": "Anything that would help us keep your plan practical and safe.",
-    "primaryCta": "Save now",
+    "title": "Health context",
+    "description": "Share only what may affect food choices. You can skip this and come back later.",
+    "conditionsLabel": "Health to keep in mind",
+    "conditionsHelper": "Mark only what matters when planning meals.",
+    "conditionsOtherLabel": "What else should be kept in mind?",
+    "allergiesLabel": "Allergies and intolerances",
+    "allergiesHelper": "Mark only what matters for food choices.",
+    "allergiesOtherLabel": "Which other allergy or intolerance?",
+    "notesLabel": "Routine or limits",
+    "notesPlaceholder": "For example shifts, limited time to cook, or foods you avoid.",
+    "primaryCta": "Continue",
     "skipCta": "Skip"
   },
   "step4": {
@@ -99,29 +102,29 @@
       "diabetes": "Diabetes",
       "hypertension": "Hypertension",
       "asthma": "Asthma",
-      "other": "Other",
-      "otherPlaceholder": "Tell us what applies"
+      "other": "Something else",
+      "otherPlaceholder": "Briefly describe what applies"
     },
     "allergy": {
       "peanuts": "Peanuts",
       "gluten": "Gluten",
       "lactose": "Lactose",
-      "other": "Other",
-      "otherPlaceholder": "Tell us what applies"
+      "other": "Something else",
+      "otherPlaceholder": "Briefly describe what applies"
     }
   },
   "ai": {
     "style": {
-      "none": "Default",
-      "concise": "Concise",
-      "friendly": "Friendly",
-      "detailed": "Detailed"
+      "none": "Calm guide",
+      "concise": "Focused guide",
+      "friendly": "Warm companion",
+      "detailed": "Mediterranean warmth"
     },
     "styleDescription": {
-      "none": "Balanced guidance with no extra preference.",
-      "concise": "Short, clear replies that stay focused on the next step.",
-      "friendly": "A warmer tone with a bit more encouragement.",
-      "detailed": "More context when you want to understand the why."
+      "none": "Steady guidance with room for your own pace.",
+      "concise": "Short and clear, with focus on the next step.",
+      "friendly": "More reassurance and human warmth, without pressure.",
+      "detailed": "More context when you want to understand decisions."
     },
     "focus": {
       "none": "Default",
@@ -138,7 +141,7 @@
   },
   "skipStepModal": {
     "title": "Skip this step?",
-    "step3Body": "You can add health details later if you want us to factor them in.",
+    "step3Body": "We will skip this step and not save these details. You can add them later from your profile.",
     "step4Body": "You can personalize assistant tone and focus later from your profile.",
     "primaryCta": "Skip",
     "secondaryCta": "Back"
@@ -146,8 +149,8 @@
   "exitRefillModal": {
     "title": "Save changes before leaving?",
     "body": "You can save what you've updated so far or leave without applying these edits.",
-    "primaryCta": "Save",
-    "secondaryCta": "Discard",
+    "primaryCta": "Save and exit",
+    "secondaryCta": "Exit without saving",
     "closeA11y": "Close onboarding edits"
   },
   "errors": {
