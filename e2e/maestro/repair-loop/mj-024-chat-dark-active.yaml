@@ -1,11 +1,12 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- stopApp
-- openLink: __E2E_EXPO_URL__
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
 - assertVisible:
-    id: tab-home
-- openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free"
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&chat=success"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
 - assertVisible:
     id: e2e-ready-credits-ok
 - assertVisible:
@@ -21,7 +22,6 @@ appId: com.lkurczab.fitaly
     commands:
       - tapOn:
           id: chat-legal-accept
-- takeScreenshot: chat-empty
 - tapOn: "Czy dziś trzymam plan?"
 - assertVisible:
     id: chat-message-user
@@ -29,7 +29,7 @@ appId: com.lkurczab.fitaly
     visible:
       id: chat-message-ai
     timeout: 15000
-- takeScreenshot: chat-starter-tap
+- takeScreenshot: dark-chat-active
 - tapOn:
     id: chat-input
 - inputText: Czy możesz spokojnie podsumować mój dzisiejszy dzień pod kątem białka, kalorii i regularności posiłków? Napisz krótko, co wygląda dobrze, co warto poprawić przy kolacji i jaki jeden prosty krok zrobić teraz.
@@ -37,7 +37,7 @@ appId: com.lkurczab.fitaly
     id: chat-input
 - assertVisible:
     id: chat-send-button
-- takeScreenshot: chat-long-input-keyboard
+- takeScreenshot: dark-chat-long-input-keyboard
 - tapOn:
     id: chat-send-button
 - assertVisible:
@@ -50,38 +50,4 @@ appId: com.lkurczab.fitaly
     id: chat-keyboard-dismiss-zone
 - assertVisible:
     id: chat-send-button
-- takeScreenshot: chat-basic
-
-- runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
-- assertVisible:
-    id: e2e-ready-credits-none
-- assertVisible:
-    id: e2e-ready-billing-free
-- tapOn:
-    id: tab-add-meal
-- assertVisible:
-    id: meal-add-option-text
-- tapOn:
-    id: meal-add-option-text
-- assertVisible:
-    id: add-meal-text-screen
-- tapOn:
-    id: add-meal-text-name-input
-- eraseText
-- inputText: Premium visual bowl
-- tapOn:
-    point: "50%,30%"
-- scrollUntilVisible:
-    element:
-      id: add-meal-text-upgrade-button
-    direction: DOWN
-- tapOn:
-    id: add-meal-text-upgrade-button
-- assertVisible:
-    id: manage-subscription-screen
-- tapOn:
-    id: manage-subscription-primary-button
-- assertVisible:
-    id: paywall-modal
-- takeScreenshot: premium-paywall
+- takeScreenshot: dark-chat-after-send

@@ -334,7 +334,7 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export CI=1
     export E2E=true
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
-    export E2E_MOCK_CHAT_REPLY="E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day."
+    export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
     exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
   ) >"${EXPO_LOG}" 2>&1 &
   EXPO_PID=$!

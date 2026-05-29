@@ -12,6 +12,7 @@ type Props = {
   starters: SuggestedStarter[];
   disabled?: boolean;
   compact?: boolean;
+  accessibilityHint?: string;
   onSelect: (value: string) => void;
 };
 
@@ -20,6 +21,7 @@ export function SuggestedStarterGrid({
   starters,
   disabled = false,
   compact = false,
+  accessibilityHint,
   onSelect,
 }: Props) {
   const theme = useTheme();
@@ -43,6 +45,8 @@ export function SuggestedStarterGrid({
             ]}
             accessibilityRole="button"
             accessibilityLabel={starter.label}
+            accessibilityHint={accessibilityHint}
+            accessibilityState={{ disabled }}
           >
             <Text
               style={[
@@ -63,57 +67,52 @@ export function SuggestedStarterGrid({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     sectionLabel: {
       color: theme.textTertiary,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.semiBold,
-      letterSpacing: 0.6,
+      letterSpacing: 0.2,
     },
     grid: {
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "space-between",
-      rowGap: theme.spacing.md,
+      rowGap: theme.spacing.xs,
     },
     gridCompact: {
       rowGap: theme.spacing.xs,
     },
     chip: {
       width: "48%",
-      minHeight: 66,
-      borderRadius: theme.rounded.xl,
+      minHeight: 50,
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      paddingHorizontal: theme.spacing.md,
+      backgroundColor: theme.isDark ? theme.surfaceAlt : theme.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
       justifyContent: "center",
-      ...theme.depth.raised,
     },
     chipCompact: {
-      minHeight: 52,
-      borderRadius: theme.rounded.lg,
+      minHeight: 48,
       paddingHorizontal: theme.spacing.sm,
-      shadowOpacity: 0.08,
-      elevation: 1,
     },
     chipLabel: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
     },
     chipLabelCompact: {
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
     },
     chipDisabled: {
-      backgroundColor: theme.surfaceAlt,
+      backgroundColor: theme.isDark ? theme.disabled.background : theme.surfaceAlt,
       borderColor: theme.borderSoft,
-      shadowOpacity: 0,
-      elevation: 0,
     },
     chipLabelDisabled: {
       color: theme.textTertiary,

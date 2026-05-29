@@ -20,6 +20,7 @@ const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockRefreshUser = jest.fn<() => Promise<unknown>>();
 const mockAcceptAiHealthDataConsentRemote = jest.fn<(uid: string) => Promise<unknown>>();
 const mockUseChatHistory = jest.fn();
+let mockKeyboardInset = 0;
 const focusEffectCallbacks: Array<() => void | (() => void)> = [];
 const readyReadiness: UserReadiness = {
   status: "ready",
@@ -244,6 +245,10 @@ jest.mock("@/hooks/useProductReadiness", () => ({
   }),
 }));
 
+jest.mock("@/hooks/useKeyboardInset", () => ({
+  useKeyboardInset: () => mockKeyboardInset,
+}));
+
 jest.mock("@/context/AiCreditsContext", () => ({
   useAiCreditsContext: () => ({
     credits: {
@@ -278,11 +283,17 @@ jest.mock("../components/ChatMessageList", () => ({
   ChatMessageList: ({
     messages,
     emptyState,
+    errorText,
+    errorActionLabel,
+    onErrorActionPress,
   }: {
     messages: Array<{ id: string; content: string }>;
     emptyState: ReactNode;
+    errorText?: string;
+    errorActionLabel?: string;
+    onErrorActionPress?: () => void;
   }) => {
-    const { View, Text } =
+    const { Pressable, View, Text } =
       jest.requireActual<typeof import("react-native")>("react-native");
 
     if (messages.length === 0) {
@@ -294,6 +305,19 @@ jest.mock("../components/ChatMessageList", () => ({
         {messages.map((message) => (
           <Text key={message.id}>{message.content}</Text>
         ))}
+        {errorText ? (
+          <View>
+            <Text testID="chat-error-state">{errorText}</Text>
+            {errorActionLabel && onErrorActionPress ? (
+              <Pressable
+                testID="chat-retry-button"
+                onPress={onErrorActionPress}
+              >
+                <Text>{errorActionLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     );
   },
@@ -325,6 +349,7 @@ describe("ChatScreen", () => {
     mockIsProductReady = true;
     mockCanRenderProductStack = true;
     mockAccessCreditsBalance = 18;
+    mockKeyboardInset = 0;
     mockChatHistoryState = {
       messages: [],
       loading: false,
@@ -354,6 +379,26 @@ describe("ChatScreen", () => {
     expect(screen.getByText("empty.subtitle")).toBeTruthy();
     expect(screen.getByText("empty.suggestedLabel")).toBeTruthy();
     expect(screen.getByText("empty.starters.week")).toBeTruthy();
+    expect(await screen.findByPlaceholderText("composer.placeholder")).toBeTruthy();
+  });
+
+  it("submits the selected starter prompt value", async () => {
+    const screen = renderWithTheme(<ChatScreen />);
+
+    fireEvent.press(screen.getByText("empty.starters.week"));
+
+    await waitFor(() => {
+      expect(mockChatHistoryState.send).toHaveBeenCalledWith("empty.values.week");
+    });
+  });
+
+  it("hides starter prompts while the keyboard is open", async () => {
+    mockKeyboardInset = 320;
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(screen.queryByText("empty.title")).toBeNull();
+    expect(screen.queryByText("empty.starters.week")).toBeNull();
     expect(await screen.findByPlaceholderText("composer.placeholder")).toBeTruthy();
   });
 
@@ -486,6 +531,19 @@ describe("ChatScreen", () => {
     expect(mockNavigate).toHaveBeenCalledWith("ManageSubscription");
   });
 
+  it("keeps credits-exhausted composer helper quiet under the lock banner", async () => {
+    mockChatHistoryState.messages = baseMessages;
+    mockChatHistoryState.canSend = false;
+    mockChatHistoryState.sendErrorType = "AI_CREDITS_EXHAUSTED";
+    mockAccessCreditsBalance = 0;
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(screen.getByTestId("chat-credits-banner")).toBeTruthy();
+    expect(screen.queryByTestId("chat-error-state")).toBeNull();
+    expect(await screen.findByPlaceholderText("composer.lockedCredits")).toBeTruthy();
+  });
+
   it("renders no-credits lock state before a conversation starts", async () => {
     mockChatHistoryState.canSend = false;
     mockAccessCreditsBalance = 0;
@@ -494,11 +552,25 @@ describe("ChatScreen", () => {
 
     expect(screen.getByTestId("chat-credits-banner")).toBeTruthy();
     expect(screen.getByTestId("chat-credits-banner-action-button")).toBeTruthy();
+    expect(screen.getByText("empty.lockedSuggestedLabel")).toBeTruthy();
+    expect(screen.queryByText("empty.creditsLeft")).toBeNull();
     expect(await screen.findByPlaceholderText("composer.lockedCredits")).toBeTruthy();
     expect(screen.getByTestId("chat-input").props.editable).toBe(false);
 
     fireEvent.press(screen.getByTestId("chat-credits-banner-action-button"));
     expect(mockNavigate).toHaveBeenCalledWith("ManageSubscription");
+  });
+
+  it("routes starter prompts to subscription while credits are locked", () => {
+    mockChatHistoryState.canSend = false;
+    mockAccessCreditsBalance = 0;
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    fireEvent.press(screen.getByText("empty.starters.week"));
+
+    expect(mockNavigate).toHaveBeenCalledWith("ManageSubscription");
+    expect(mockChatHistoryState.send).not.toHaveBeenCalled();
   });
 
   it("renders offline lock state for existing conversation", async () => {
@@ -520,6 +592,7 @@ describe("ChatScreen", () => {
     const screen = renderWithTheme(<ChatScreen />);
 
     await screen.findByPlaceholderText("composer.placeholder");
+    expect(screen.getByTestId("chat-error-state")).toBeTruthy();
     fireEvent.changeText(screen.getByTestId("chat-input"), "new question");
     fireEvent.press(screen.getByText("retryLast"));
 
@@ -550,7 +623,7 @@ describe("ChatScreen", () => {
     expect(screen.getByTestId("chat-context-unavailable-banner")).toBeTruthy();
     expect(screen.getByText("lock.contextUnavailableTitle")).toBeTruthy();
     expect(screen.getByText("lock.contextUnavailableBody")).toBeTruthy();
-    expect(await screen.findByText("errors.contextUnavailable")).toBeTruthy();
+    expect(await screen.findByText("errors.fetchFailed")).toBeTruthy();
     expect(screen.getByText("retryLast")).toBeTruthy();
   });
 });

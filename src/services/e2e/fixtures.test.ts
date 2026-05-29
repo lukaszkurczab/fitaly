@@ -296,7 +296,7 @@ describe("E2E fixtures", () => {
     });
     expect(resolveE2EChatRun()).toEqual({
       reply:
-        "E2E chat response: keep hydration consistent and plan the next meal.",
+        "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
     });
     expect(resolveE2ENotificationPermission()).toEqual(
       expect.objectContaining({ granted: true, status: "granted" }),

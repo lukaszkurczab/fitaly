@@ -1,9 +1,16 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?credits=ok&chat=success"
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&chat=success"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
 - assertVisible:
     id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-chat-success
 - tapOn:
     id: tab-chat
 - assertVisible:
@@ -15,6 +22,14 @@ appId: com.lkurczab.fitaly
     commands:
       - tapOn:
           id: chat-legal-accept
+- takeScreenshot: dark-chat-empty
+- tapOn: "Czy dziś trzymam plan?"
+- assertVisible:
+    id: chat-message-user
+- extendedWaitUntil:
+    visible:
+      id: chat-message-ai
+    timeout: 15000
 - tapOn:
     id: chat-input
 - inputText: Czy możesz spokojnie podsumować mój dzisiejszy dzień pod kątem białka, kalorii i regularności posiłków? Napisz krótko, co wygląda dobrze, co warto poprawić przy kolacji i jaki jeden prosty krok zrobić teraz.
@@ -22,7 +37,4 @@ appId: com.lkurczab.fitaly
     id: chat-input
 - assertVisible:
     id: chat-send-button
-- tapOn:
-    id: chat-keyboard-dismiss-zone
-- assertVisible:
-    id: chat-send-button
+- takeScreenshot: dark-chat-long-input-keyboard

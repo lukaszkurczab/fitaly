@@ -12,9 +12,12 @@ import { TextInput } from "@/components/TextInput";
 import { useTheme } from "@/theme/useTheme";
 
 const MAX_CHARS = 4000;
-const MIN_COMPOSER_LINES = 2;
-const MAX_COMPOSER_LINES = 6;
+const MIN_COMPOSER_LINES = 1;
+const MAX_COMPOSER_LINES = 4;
 const ESTIMATED_CHARS_PER_LINE = 34;
+const INPUT_PADDING_TOP = 1;
+const INPUT_PADDING_BOTTOM = 5;
+const INPUT_VERTICAL_PADDING = INPUT_PADDING_TOP + INPUT_PADDING_BOTTOM;
 
 type Props = {
   placeholder: string;
@@ -22,9 +25,6 @@ type Props = {
   disabled: boolean;
   onSend: (value: string) => void;
   helperText?: string;
-  helperActionLabel?: string;
-  onHelperActionPress?: () => void;
-  helperActionDisabled?: boolean;
 };
 
 export function ChatComposer({
@@ -33,26 +33,29 @@ export function ChatComposer({
   disabled,
   onSend,
   helperText,
-  helperActionLabel,
-  onHelperActionPress,
-  helperActionDisabled = false,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [value, setValue] = useState("");
   const lineHeight = theme.typography.lineHeight.bodyM;
-  const minInputHeight = lineHeight * MIN_COMPOSER_LINES;
-  const maxInputHeight = lineHeight * MAX_COMPOSER_LINES;
+  const minInputHeight =
+    lineHeight * MIN_COMPOSER_LINES + INPUT_VERTICAL_PADDING;
+  const maxInputHeight =
+    lineHeight * MAX_COMPOSER_LINES + INPUT_VERTICAL_PADDING;
   const [contentHeight, setContentHeight] = useState(minInputHeight);
   const hasHelperText = Boolean(helperText);
 
   const canSend = !disabled && value.trim().length > 0;
   const estimatedInputHeight =
     lineHeight *
-    Math.min(
-      MAX_COMPOSER_LINES,
-      Math.max(MIN_COMPOSER_LINES, Math.ceil(value.length / ESTIMATED_CHARS_PER_LINE)),
-    );
+      Math.min(
+        MAX_COMPOSER_LINES,
+        Math.max(
+          MIN_COMPOSER_LINES,
+          Math.ceil(value.length / ESTIMATED_CHARS_PER_LINE),
+        ),
+      ) +
+    INPUT_VERTICAL_PADDING;
   const resolvedInputHeight = Math.min(
     maxInputHeight,
     Math.max(minInputHeight, contentHeight, estimatedInputHeight),
@@ -80,7 +83,12 @@ export function ChatComposer({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.row}>
+      <View
+        style={[
+          styles.composerSurface,
+          disabled ? styles.composerSurfaceDisabled : null,
+        ]}
+      >
         <TextInput
           testID="chat-input"
           value={value}
@@ -94,6 +102,7 @@ export function ChatComposer({
           fieldStyle={styles.inputField}
           inputStyle={[
             styles.inputText,
+            disabled ? styles.inputTextDisabled : null,
             {
               height: resolvedInputHeight,
               minHeight: minInputHeight,
@@ -102,6 +111,9 @@ export function ChatComposer({
           onContentSizeChange={handleContentSizeChange}
           scrollEnabled={inputScrollEnabled}
           maxLength={MAX_CHARS}
+          autoCapitalize="sentences"
+          autoCorrect
+          spellCheck
           returnKeyType="done"
           blurOnSubmit
           submitBehavior="blurAndSubmit"
@@ -113,6 +125,7 @@ export function ChatComposer({
           disabled={!canSend}
           accessibilityRole="button"
           accessibilityLabel={sendLabel}
+          hitSlop={8}
           style={({ pressed }) => [
             styles.sendButton,
             canSend ? theme.depth.cta : null,
@@ -122,7 +135,7 @@ export function ChatComposer({
         >
           <AppIcon
             name="arrow"
-            size={24}
+            size={22}
             rotation="90deg"
             color={!canSend ? theme.disabled.text : theme.textInverse}
           />
@@ -140,42 +153,13 @@ export function ChatComposer({
         </Text>
       )}
 
-      <View
-        style={[
-          styles.helperRow,
-          helperActionLabel ? styles.helperRowStacked : null,
-        ]}
-      >
-        <Text
-          testID={helperText ? "chat-error-state" : undefined}
-          style={[
-            styles.helperText,
-            helperActionLabel ? styles.helperTextStacked : null,
-            !hasHelperText ? styles.helperTextPlaceholder : null,
-          ]}
-        >
-          {helperText ?? " "}
-        </Text>
-
-        {helperActionLabel && onHelperActionPress ? (
-          <Pressable
-            testID="chat-retry-button"
-            onPress={onHelperActionPress}
-            disabled={helperActionDisabled}
-            accessibilityRole="button"
-            accessibilityLabel={helperActionLabel}
-            style={({ pressed }) => [
-              styles.helperAction,
-              helperActionDisabled ? styles.helperActionDisabled : null,
-              pressed && !helperActionDisabled
-                ? styles.helperActionPressed
-                : null,
-            ]}
-          >
-            <Text style={styles.helperActionLabel}>{helperActionLabel}</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      {hasHelperText ? (
+        <View style={styles.helperRow}>
+          <Text testID="chat-composer-helper" style={styles.helperText}>
+            {helperText}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -185,43 +169,60 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     wrap: {
       backgroundColor: "transparent",
       paddingHorizontal: theme.spacing.md,
-      paddingTop: theme.spacing.sm,
+      paddingTop: theme.spacing.xs,
       paddingBottom: theme.spacing.xs,
       gap: theme.spacing.xs,
     },
-    row: {
+    composerSurface: {
       flexDirection: "row",
-      alignItems: "flex-end",
+      alignItems: "center",
       gap: theme.spacing.xs,
-      backgroundColor: "transparent",
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark ? theme.surfaceElevated : theme.surface,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: theme.spacing.xs,
+      ...(!theme.isDark ? theme.depth.inputFocus : {}),
+    },
+    composerSurfaceDisabled: {
+      borderColor: theme.disabled.border,
+      backgroundColor: theme.isDark ? theme.disabled.background : theme.surfaceAlt,
     },
     inputShell: {
       flex: 1,
       minWidth: 0,
     },
     inputField: {
-      borderRadius: theme.rounded.lg,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
+      borderWidth: 0,
+      borderColor: "transparent",
+      borderRadius: theme.rounded.xl,
+      backgroundColor: "transparent",
+      paddingLeft: theme.spacing.md,
+      paddingRight: theme.spacing.xxs,
+      paddingVertical: 0,
     },
     inputText: {
       fontSize: theme.typography.size.bodyM,
       lineHeight: theme.typography.lineHeight.bodyM,
       marginVertical: 0,
+      paddingTop: INPUT_PADDING_TOP,
+      paddingBottom: INPUT_PADDING_BOTTOM,
+    },
+    inputTextDisabled: {
+      color: theme.disabled.text,
     },
     sendButton: {
-      width: 44,
-      height: 44,
+      width: 38,
+      height: 38,
       borderRadius: theme.rounded.full,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.primary,
+      borderWidth: 0,
       backgroundColor: theme.primary,
     },
     sendButtonDisabled: {
-      borderColor: theme.disabled.border,
-      backgroundColor: theme.disabled.background,
+      backgroundColor: theme.isDark ? theme.disabled.background : theme.surfaceAlt,
     },
     sendButtonPressed: {
       opacity: 0.82,
@@ -231,40 +232,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       gap: theme.spacing.sm,
     },
-    helperRowStacked: {
-      flexDirection: "column",
-      alignItems: "flex-start",
-      gap: theme.spacing.xxs,
-    },
     helperText: {
       flex: 1,
       color: theme.textTertiary,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
-    },
-    helperTextStacked: {
-      flex: 0,
-      alignSelf: "stretch",
-    },
-    helperTextPlaceholder: {
-      opacity: 0,
-    },
-    helperActionLabel: {
-      color: theme.link,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.semiBold,
-      textDecorationLine: "underline",
-    },
-    helperAction: {
-      paddingVertical: 2,
-    },
-    helperActionDisabled: {
-      opacity: 0.42,
-    },
-    helperActionPressed: {
-      opacity: 0.72,
     },
     charCounter: {
       fontSize: theme.typography.size.bodyS,

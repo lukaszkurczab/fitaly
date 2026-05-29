@@ -743,7 +743,7 @@ export function resolveE2EChatRun(): { reply: string } | { error: Error } | null
     case "success":
       return {
         reply:
-          "E2E chat response: keep hydration consistent and plan the next meal.",
+          "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
       };
     case "failure":
       return {

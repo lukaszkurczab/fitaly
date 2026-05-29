@@ -1,6 +1,9 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
 - openLink: "fitaly://e2e/seed?credits=ok&chat=failure&billing=free"
 - assertVisible:
     id: e2e-ready-credits-ok
@@ -32,4 +35,10 @@ appId: com.lkurczab.fitaly
     id: chat-retry-button
 - assertNotVisible:
     id: chat-message-ai
-- takeScreenshot: chat-error-state
+- tapOn:
+    id: chat-keyboard-dismiss-zone
+- assertVisible:
+    id: chat-error-state
+- assertVisible:
+    id: chat-retry-button
+- takeScreenshot: mj026-chat-error-light

@@ -315,7 +315,7 @@ describe("useChatHistory", () => {
 
   it("uses the E2E mock reply without calling the AI backend", async () => {
     mockGetE2EMockChatReply.mockReturnValue(
-      "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+      "Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę.",
     );
     mockUuid
       .mockReturnValueOnce("request-1")
@@ -344,13 +344,14 @@ describe("useChatHistory", () => {
       userUid: "user-1",
       threadId: "thread-created",
       messageId: "ai-msg",
-      content: "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+      content:
+        "Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę.",
       createdAt: expect.any(Number),
     });
     expect(result.current.messages.map((message) => message.content)).toEqual(
       expect.arrayContaining([
         "hello",
-        "E2E_MOCK_CHAT_REPLY: Keep hydration consistent.",
+        "Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę.",
       ]),
     );
     expect(result.current.messages).toHaveLength(2);
@@ -358,7 +359,8 @@ describe("useChatHistory", () => {
 
   it("uses deterministic E2E chat success without calling the AI backend", async () => {
     mockResolveE2EChatRun.mockReturnValue({
-      reply: "E2E chat response: keep hydration consistent and plan the next meal.",
+      reply:
+        "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
     });
     mockUuid
       .mockReturnValueOnce("request-1")
@@ -378,7 +380,7 @@ describe("useChatHistory", () => {
       threadId: "thread-created",
       messageId: "ai-msg",
       content:
-        "E2E chat response: keep hydration consistent and plan the next meal.",
+        "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
       createdAt: expect.any(Number),
     });
   });

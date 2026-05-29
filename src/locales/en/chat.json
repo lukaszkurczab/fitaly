@@ -20,14 +20,14 @@
   },
   "composer": {
     "placeholder": "Ask anything...",
-    "lockedCredits": "Upgrade to send again",
+    "lockedCredits": "Sending locked",
     "lockedOffline": "Back online to send",
     "lockedDisabled": "Chat temporarily unavailable"
   },
   "lock": {
-    "creditsTitle": "Upgrade to keep chatting",
+    "creditsTitle": "No AI Credits left",
     "creditsBody": "Past guidance stays available.",
-    "creditsAction": "Upgrade",
+    "creditsAction": "Unlock",
     "offlineTitle": "You're offline",
     "offlineBody": "You can still read this conversation. Sending returns when you are back online.",
     "disabledTitle": "Chat temporarily unavailable",
@@ -37,7 +37,8 @@
   },
   "limit": {
     "title": "Not enough AI Credits",
-    "body": "You have {{balance}} of {{allocation}} AI Credits available. Next refresh: {{renewalDate}}.",
+    "body": "You have {{balance}} of {{allocation}} AI Credits. Refresh: {{renewalDate}}.",
+    "bodyNoRenewal": "You have {{balance}} of {{allocation}} AI Credits.",
     "button": "Get 800 AI Credits",
     "reached": "Not enough AI Credits",
     "reachedShort": "Upgrade to send again",
@@ -49,7 +50,9 @@
     "title": "How can I help today?",
     "subtitle": "Get help with meals, nutrition, and next steps.",
     "creditsLeft": "{{count}} credits left",
-    "suggestedLabel": "SUGGESTED STARTERS",
+    "suggestedLabel": "Quick start",
+    "lockedSuggestedLabel": "Unlock to send an example",
+    "lockedStarterAccessibilityHint": "Opens subscription management.",
     "starters": {
       "week": "How did I eat this week?",
       "protein": "What's my protein like?",

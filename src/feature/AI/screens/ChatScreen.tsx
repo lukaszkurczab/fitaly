@@ -95,6 +95,8 @@ export default function ChatScreen() {
     isOffline ||
     legalGateActive ||
     !profileReadyForAi;
+  const starterPromptsUnlockSubscription =
+    limitReached && !legalGateActive && !chatDisabled && profileReadyForAi;
 
   useEffect(() => {
     setReadinessStatusOverride(null);
@@ -182,24 +184,29 @@ export default function ChatScreen() {
   const helperText = useMemo(() => {
     if (sending) return t("sending");
     if (sendErrorType === "offline") return t("errors.offline");
-    if (sendErrorType === "AI_CHAT_TIMEOUT") return t("errors.timeout");
     if (sendErrorType === "AI_CHAT_DISABLED") return t("errors.disabled");
-    if (sendErrorType === "AI_CHAT_PROVIDER_UNAVAILABLE")
-      return t("errors.serviceUnavailable");
-    if (sendErrorType === "AI_CHAT_CONTEXT_UNAVAILABLE")
-      return t("errors.contextUnavailable");
-    if (sendErrorType === "AI_CHAT_INTERNAL_ERROR")
-      return t("errors.internal");
     if (sendErrorType === "AI_CHAT_IDEMPOTENCY_CONFLICT")
       return t("errors.idempotencyConflict");
     if (sendErrorType === "AI_CHAT_CONSENT_REQUIRED")
       return t("errors.consentRequired");
-    if (sendErrorType === "AI_CREDITS_EXHAUSTED")
-      return t("errors.creditsExhausted");
+    if (sendErrorType === "AI_CREDITS_EXHAUSTED") return undefined;
     if (sendErrorType === "auth") return t("errors.authRequired");
-    if (sendErrorType === "unknown") return t("errors.fetchFailed");
     return undefined;
   }, [sendErrorType, sending, t]);
+
+  const failedAssistantResponseErrorText = useMemo(() => {
+    if (
+      sendErrorType === "AI_CHAT_TIMEOUT" ||
+      sendErrorType === "AI_CHAT_PROVIDER_UNAVAILABLE" ||
+      sendErrorType === "AI_CHAT_CONTEXT_UNAVAILABLE" ||
+      sendErrorType === "AI_CHAT_INTERNAL_ERROR" ||
+      sendErrorType === "unknown"
+    ) {
+      return t("errors.fetchFailed");
+    }
+
+    return undefined;
+  }, [sendErrorType, t]);
 
   const retryEnabled =
     !sending &&
@@ -213,6 +220,8 @@ export default function ChatScreen() {
       sendErrorType === "AI_CHAT_CONTEXT_UNAVAILABLE" ||
       sendErrorType === "AI_CHAT_INTERNAL_ERROR" ||
       sendErrorType === "unknown");
+  const showConversationRetryState =
+    hasMessages && Boolean(failedAssistantResponseErrorText);
 
   const composerPlaceholder = limitReached
     ? t("composer.lockedCredits")
@@ -223,6 +232,20 @@ export default function ChatScreen() {
       : legalGateActive
         ? t("legal.composerLocked")
         : t("composer.placeholder");
+  const creditLockBody = renewalDateLabel
+    ? t("limit.body", {
+        balance: credits?.balance ?? 0,
+        allocation: credits?.allocation ?? 0,
+        renewalDate: renewalDateLabel,
+      })
+    : t("limit.bodyNoRenewal", {
+        balance: credits?.balance ?? 0,
+        allocation: credits?.allocation ?? 0,
+      });
+
+  const openSubscription = useCallback(() => {
+    navigation.navigate("ManageSubscription");
+  }, [navigation]);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -240,6 +263,18 @@ export default function ChatScreen() {
       }
     },
     [canSend, isOffline, legalGateActive, profileReadyForAi, send, uid],
+  );
+
+  const handleStarterSelect = useCallback(
+    (value: string) => {
+      if (starterPromptsUnlockSubscription) {
+        openSubscription();
+        return;
+      }
+
+      void handleSend(value);
+    },
+    [handleSend, openSubscription, starterPromptsUnlockSubscription],
   );
 
   const handleRetry = useCallback(() => {
@@ -262,7 +297,7 @@ export default function ChatScreen() {
           title={isOffline ? t("offline.title") : t("empty.title")}
           subtitle={isOffline ? t("offline.subtitle") : t("empty.subtitle")}
           creditsText={
-            isOffline
+            isOffline || limitReached
               ? undefined
               : t("empty.creditsLeft", {
                   count: credits?.balance ?? 0,
@@ -271,16 +306,30 @@ export default function ChatScreen() {
         />
       ) : null}
 
-      {!isOffline ? (
-        <SuggestedStarterGrid
-          title={t("empty.suggestedLabel")}
-          starters={starters}
-          disabled={composerDisabled}
-          compact={isKeyboardVisible}
-          onSelect={(value) => {
-            void handleSend(value);
-          }}
-        />
+      {!isOffline && !isKeyboardVisible ? (
+        <View
+          style={[
+            styles.starterDock,
+            isKeyboardVisible ? styles.starterDockCompact : null,
+          ]}
+        >
+          <SuggestedStarterGrid
+            title={
+              starterPromptsUnlockSubscription
+                ? t("empty.lockedSuggestedLabel")
+                : t("empty.suggestedLabel")
+            }
+            starters={starters}
+            disabled={composerDisabled && !starterPromptsUnlockSubscription}
+            compact={isKeyboardVisible}
+            accessibilityHint={
+              starterPromptsUnlockSubscription
+                ? t("empty.lockedStarterAccessibilityHint")
+                : undefined
+            }
+            onSelect={handleStarterSelect}
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -317,15 +366,9 @@ export default function ChatScreen() {
           testID="chat-credits-banner"
           variant="credits"
           title={t("lock.creditsTitle")}
-          body={t("limit.body", {
-            balance: credits?.balance ?? 0,
-            allocation: credits?.allocation ?? 0,
-            renewalDate:
-              renewalDateLabel ??
-              t("credits.renewalUnknown"),
-          })}
+          body={creditLockBody}
           actionLabel={t("lock.creditsAction")}
-          onActionPress={() => navigation.navigate("ManageSubscription")}
+          onActionPress={openSubscription}
         />
       ) : null}
 
@@ -370,6 +413,14 @@ export default function ChatScreen() {
           onLoadMore={loadMore}
           dateLabel={t("conversation.todayLabel")}
           typingLabel={t("typingIndicator")}
+          errorText={
+            showConversationRetryState
+              ? failedAssistantResponseErrorText
+              : undefined
+          }
+          errorActionLabel={retryEnabled ? t("retryLast") : undefined}
+          onErrorActionPress={retryEnabled ? handleRetry : undefined}
+          errorActionDisabled={!retryEnabled}
         />
       </Pressable>
 
@@ -379,9 +430,6 @@ export default function ChatScreen() {
         disabled={composerDisabled}
         onSend={handleSend}
         helperText={helperText}
-        helperActionLabel={retryEnabled ? t("retryLast") : undefined}
-        onHelperActionPress={retryEnabled ? handleRetry : undefined}
-        helperActionDisabled={!retryEnabled}
       />
 
       <ChatHistorySheet
@@ -468,12 +516,22 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     emptyStateWrap: {
       flex: 1,
       paddingTop: theme.spacing.xl,
-      gap: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl + theme.spacing.xs,
+      gap: theme.spacing.display + theme.spacing.xl,
+      justifyContent: "flex-end",
     },
     emptyStateWrapCompact: {
-      paddingTop: theme.spacing.md,
-      gap: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
+      paddingBottom: 0,
+      gap: theme.spacing.sm,
       justifyContent: "flex-end",
+    },
+    starterDock: {
+      paddingTop: 0,
+    },
+    starterDockCompact: {
+      marginTop: 0,
+      paddingTop: 0,
     },
     legalButton: {
       alignSelf: "flex-start",

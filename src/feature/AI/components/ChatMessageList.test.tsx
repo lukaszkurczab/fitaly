@@ -1,3 +1,4 @@
+import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { Text } from "react-native";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -59,5 +60,32 @@ describe("ChatMessageList", () => {
     );
 
     expect(screen.queryByTestId("chat-typing-indicator")).toBeNull();
+  });
+
+  it("renders retryable error state with the conversation instead of the composer", () => {
+    const onRetry = jest.fn();
+    const screen = renderWithTheme(
+      <ChatMessageList
+        messages={messages}
+        typing={false}
+        loading={false}
+        emptyState={<Text>empty</Text>}
+        onLoadMore={() => undefined}
+        dateLabel="Today"
+        typingLabel="AI is preparing a response"
+        errorText="Could not fetch a response. Please try again."
+        errorActionLabel="Retry last message"
+        onErrorActionPress={onRetry}
+      />,
+    );
+
+    expect(screen.getByTestId("chat-error-state")).toBeTruthy();
+    expect(
+      screen.getByText("Could not fetch a response. Please try again."),
+    ).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("chat-retry-button"));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
