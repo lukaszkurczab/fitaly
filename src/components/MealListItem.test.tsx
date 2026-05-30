@@ -138,7 +138,7 @@ describe("MealListItem", () => {
   });
 
   it("renders sync status indicator for failed meals", () => {
-    const { getByLabelText, getByTestId } = renderWithTheme(
+    const { getByLabelText, getByTestId, queryByText } = renderWithTheme(
       <MealListItem
         meal={buildMeal({ syncState: "failed", photoUrl: null })}
         onPress={() => undefined}
@@ -148,12 +148,13 @@ describe("MealListItem", () => {
       />,
     );
 
-    expect(getByLabelText("history.syncFailed")).toBeTruthy();
+    expect(getByLabelText("history.syncStatus.failed.label")).toBeTruthy();
+    expect(queryByText("history.syncStatus.failed.label")).toBeNull();
     expect(getByTestId("meal-list-sync-failed")).toBeTruthy();
   });
 
   it("renders sync status indicator for pending meals", () => {
-    const { getByLabelText, getByTestId } = renderWithTheme(
+    const { getByLabelText, getByTestId, queryByText } = renderWithTheme(
       <MealListItem
         meal={buildMeal({ syncState: "pending", photoUrl: null })}
         onPress={() => undefined}
@@ -163,7 +164,8 @@ describe("MealListItem", () => {
       />,
     );
 
-    expect(getByLabelText("history.syncPending")).toBeTruthy();
+    expect(getByLabelText("history.syncStatus.pending.label")).toBeTruthy();
+    expect(queryByText("history.syncStatus.pending.label")).toBeNull();
     expect(getByTestId("meal-list-sync-pending")).toBeTruthy();
   });
 

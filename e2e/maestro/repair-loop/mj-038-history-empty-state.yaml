@@ -1,0 +1,41 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-empty-state
+    timeout: 10000
+- takeScreenshot: mj038-history-empty-light
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-empty-state
+    timeout: 10000
+- takeScreenshot: mj038-history-empty-dark

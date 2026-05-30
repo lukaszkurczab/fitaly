@@ -1,0 +1,160 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-synced-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-synced-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- extendedWaitUntil:
+    visible:
+      id: history-meal-details-screen
+    timeout: 10000
+- takeScreenshot: mj042-meal-details-light
+- scrollUntilVisible:
+    element:
+      id: history-meal-delete-button
+    direction: DOWN
+- tapOn:
+    id: history-meal-delete-button
+- assertVisible:
+    id: history-meal-delete-modal
+- assertVisible:
+    id: history-meal-delete-cancel-button
+- assertVisible:
+    id: history-meal-delete-confirm-button
+- takeScreenshot: mj042-delete-modal-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-synced-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-synced-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- extendedWaitUntil:
+    visible:
+      id: history-meal-details-screen
+    timeout: 10000
+- takeScreenshot: mj042-meal-details-dark
+- scrollUntilVisible:
+    element:
+      id: history-meal-delete-button
+    direction: DOWN
+- tapOn:
+    id: history-meal-delete-button
+- assertVisible:
+    id: history-meal-delete-modal
+- assertVisible:
+    id: history-meal-delete-cancel-button
+- assertVisible:
+    id: history-meal-delete-confirm-button
+- takeScreenshot: mj042-delete-modal-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light&offline=1"
+- assertVisible:
+    id: e2e-ready-offline
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- extendedWaitUntil:
+    visible:
+      id: history-meal-details-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-details-sync-pending
+- takeScreenshot: mj042-unsynced-details-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark&offline=1"
+- assertVisible:
+    id: e2e-ready-offline
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- extendedWaitUntil:
+    visible:
+      id: history-meal-details-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-details-sync-pending
+- takeScreenshot: mj042-unsynced-details-dark
+- openLink: "fitaly://e2e/connectivity?offline=0"
+- assertVisible:
+    id: e2e-ready-home

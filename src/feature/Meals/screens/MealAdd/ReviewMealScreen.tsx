@@ -17,7 +17,6 @@ import {
   Layout,
   PhotoPreview,
   UnsavedChangesModal,
-  type BackgroundGradientLayer,
 } from "@/components";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -88,71 +87,6 @@ export default function ReviewMealScreen({
 }: MealAddScreenProps<"ReviewMeal">) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const backgroundGradient = useMemo<BackgroundGradientLayer[]>(
-    () =>
-      theme.isDark
-        ? [
-            {
-              colors: [theme.background, "#181D18", theme.backgroundSecondary],
-              locations: [0, 0.5, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(127, 160, 122, 0.10)",
-                "rgba(127, 160, 122, 0.00)",
-                "rgba(199, 126, 97, 0.045)",
-              ],
-              locations: [0, 0.56, 1],
-              start: { x: 1, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(255, 253, 248, 0.035)",
-                "rgba(255, 253, 248, 0.00)",
-              ],
-              locations: [0, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-          ]
-        : [
-            {
-              colors: ["#F8F0E4", theme.background, theme.surfaceAlt],
-              locations: [0, 0.56, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(255, 253, 248, 0.58)",
-                "rgba(255, 253, 248, 0.08)",
-                "rgba(111, 138, 105, 0.075)",
-              ],
-              locations: [0, 0.6, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(199, 126, 97, 0.06)",
-                "rgba(199, 126, 97, 0.00)",
-                "rgba(255, 253, 248, 0.16)",
-              ],
-              locations: [0, 0.48, 1],
-              start: { x: 1, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-          ],
-    [
-      theme.background,
-      theme.backgroundSecondary,
-      theme.isDark,
-      theme.surfaceAlt,
-    ],
-  );
   const insets = useSafeAreaInsets();
   const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const horizontalContentPadding = useMemo(
@@ -495,7 +429,6 @@ export default function ReviewMealScreen({
       showNavigation={false}
       disableScroll
       style={styles.layout}
-      backgroundGradient={backgroundGradient}
     >
       <View style={styles.screen} testID="review-meal-screen">
         <AddMealFlowHeader

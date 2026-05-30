@@ -27,6 +27,7 @@ import type { Ingredient, Meal } from "@/types/meal";
 
 export type E2EFixtureName =
   | "activated-user-empty"
+  | "user-with-synced-meal"
   | "user-with-today-meal"
   | "user-with-photo-meal"
   | "user-with-saved-meals"
@@ -82,6 +83,7 @@ type E2EFixtureState = E2ESeedCommand;
 
 const VALID_FIXTURES = new Set<E2EFixtureName>([
   "activated-user-empty",
+  "user-with-synced-meal",
   "user-with-today-meal",
   "user-with-photo-meal",
   "user-with-saved-meals",
@@ -403,6 +405,51 @@ async function applyNamedFixture(
           }),
         ],
       }),
+    );
+    return;
+  }
+
+  if (fixture === "user-with-synced-meal") {
+    await seedVisibleMeal(
+      uid,
+      {
+        ...meal({
+          uid,
+          id: "e2e-synced-meal",
+          name: "Jogurt z owocami i granolą",
+          inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-synced-greek-yogurt",
+              name: "Jogurt grecki",
+              amount: 200,
+              kcal: 150,
+              protein: 14,
+              carbs: 10,
+              fat: 5,
+            }),
+            ingredient({
+              id: "e2e-synced-blueberries",
+              name: "Borówki",
+              amount: 80,
+              kcal: 45,
+              protein: 1,
+              carbs: 11,
+              fat: 0,
+            }),
+            ingredient({
+              id: "e2e-synced-granola",
+              name: "Granola",
+              amount: 40,
+              kcal: 180,
+              protein: 5,
+              carbs: 28,
+              fat: 7,
+            }),
+          ],
+        }),
+        syncState: "synced",
+      },
     );
     return;
   }

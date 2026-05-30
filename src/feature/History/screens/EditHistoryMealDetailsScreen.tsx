@@ -90,6 +90,9 @@ export default function EditHistoryMealDetailsScreen({
     },
     [mealCloudId, navigation, uid, updateMeal],
   );
+  const handleCancelEdit = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
   const reviewPhotoUri = pickMealPhotoUri(editMeal);
   const draftAdapter = useMemo(
@@ -109,18 +112,21 @@ export default function EditHistoryMealDetailsScreen({
       navigation={navigation}
       flow={flow}
       mode="review"
+      submitIntent="goBack"
+      showAddMealFlowHeader
       onReviewSubmit={handleReviewSubmit}
       reviewSubmitLabel={t("save_changes", {
         ns: "common",
         defaultValue: "Save changes",
       })}
-      reviewFallbackLabel={t("back", {
+      reviewFallbackLabel={t("cancel", {
         ns: "common",
-        defaultValue: "Back",
+        defaultValue: "Cancel",
       })}
-      onReviewFallback={() => {
-        navigation.goBack();
-      }}
+      onReviewFallback={handleCancelEdit}
+      onFlowHeaderBack={handleCancelEdit}
+      onFlowHeaderClose={handleCancelEdit}
+      flowHeaderExitGuardEnabled={false}
       reviewPhotoUri={reviewPhotoUri}
       reviewPhotoActionLabel={t("add_photo", {
         ns: "meals",

@@ -237,6 +237,20 @@
     "syncPending": "Pending",
     "syncFailed": "Failed",
     "syncConflict": "Sync conflict",
+    "syncStatus": {
+      "pending": {
+        "label": "To sync",
+        "description": "This meal is saved locally. We'll sync it when the connection is available."
+      },
+      "failed": {
+        "label": "Could not sync",
+        "description": "This meal is saved locally. Sync needs to be retried."
+      },
+      "conflict": {
+        "label": "Needs review",
+        "description": "This meal is saved locally, but needs review after sync."
+      }
+    },
     "deadLetterTitle": "{{count}} meal changes need retry.",
     "deadLetterSubtitle": "Retry sends them back to sync. Pending meal changes: {{pending}}.",
     "deadLetterSubtitleWithLast": "Retry sends them back to sync. Pending meal changes: {{pending}}. Last failed: {{operation}}.",

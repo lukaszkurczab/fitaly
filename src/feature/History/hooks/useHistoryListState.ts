@@ -196,6 +196,8 @@ export function useHistoryListState(params: {
   const emptyState = useMemo(() => {
     if (dataState === "ready" || dataState === "loading") return null;
 
+    const hasSearchQuery = query.trim().length > 0;
+    const hasActiveFilters = filterCount > 0;
     const errorMessage =
       errorKind === "load"
         ? t("history.loadError", { ns: "meals" })
@@ -208,31 +210,46 @@ export function useHistoryListState(params: {
         ? errorMessage
         : dataState === "offline-empty"
           ? t("history.offlineEmpty", { ns: "meals" })
-          : query
-            ? t("meals:tryDifferentSearch")
-            : t("emptyDescription", {
+          : hasSearchQuery
+            ? t("searchEmptyDescription", {
                 ns: "history",
-              });
+              })
+            : hasActiveFilters
+              ? t("filtersEmptyDescription", {
+                  ns: "history",
+                })
+              : t("emptyDescription", {
+                  ns: "history",
+                });
 
     const title =
       dataState === "error"
         ? t("history.errorTitle", { ns: "meals" })
-        : query
-          ? t("meals:noMealsFound")
-          : t("emptyTitle", {
+        : hasSearchQuery
+          ? t("searchEmptyTitle", {
               ns: "history",
-            });
+            })
+          : hasActiveFilters
+            ? t("filtersEmptyTitle", {
+                ns: "history",
+              })
+            : t("emptyTitle", {
+                ns: "history",
+              });
 
     return { title, description };
-  }, [dataState, errorKind, query, t]);
+  }, [dataState, errorKind, filterCount, query, t]);
 
   const deadLetterBanner = useMemo(() => {
     const failedSyncCount = failedSyncDiagnostics.dead;
     if (failedSyncCount <= 0) return null;
     const lastFailedKind = failedSyncDiagnostics.lastFailedKind
-      ? t(`history.deadLetterOperation.${failedSyncDiagnostics.lastFailedKind}`, {
-          ns: "meals",
-        })
+      ? t(
+          `history.deadLetterOperation.${failedSyncDiagnostics.lastFailedKind}`,
+          {
+            ns: "meals",
+          },
+        )
       : null;
     return {
       title: t("history.deadLetterTitle", {

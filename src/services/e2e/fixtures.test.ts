@@ -162,6 +162,29 @@ describe("E2E fixtures", () => {
     );
   });
 
+  it("seeds a synced visible meal for normal details visual coverage", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-synced-meal" },
+    });
+
+    expect(markers).toEqual(["fixture-user-with-synced-meal"]);
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Jogurt z owocami i granolą",
+        syncState: "synced",
+      }),
+    );
+    expect(mockEmit).toHaveBeenCalledWith(
+      "meal:local:upserted",
+      expect.objectContaining({
+        uid: "user-1",
+        meal: expect.objectContaining({ syncState: "synced" }),
+      }),
+    );
+  });
+
   it("seeds the photo meal with a local sample photo for share visual coverage", async () => {
     const markers = await applyE2ESeedCommand({
       uid: "user-1",

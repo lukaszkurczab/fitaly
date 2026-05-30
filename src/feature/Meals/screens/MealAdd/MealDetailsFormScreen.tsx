@@ -55,6 +55,9 @@ type Props = {
   reviewPhotoActionLabel?: string;
   onReviewPhotoPress?: () => void;
   draftAdapter?: MealDetailsDraftAdapter;
+  onFlowHeaderBack?: () => void;
+  onFlowHeaderClose?: () => void;
+  flowHeaderExitGuardEnabled?: boolean;
 };
 
 export function MealDetailsFormScreen({
@@ -119,6 +122,9 @@ function MealDetailsFormScreenInner({
   reviewPhotoUri,
   reviewPhotoActionLabel,
   onReviewPhotoPress,
+  onFlowHeaderBack,
+  onFlowHeaderClose,
+  flowHeaderExitGuardEnabled = true,
   draftAdapter,
 }: Omit<Props, "draftAdapter"> & { draftAdapter: MealDetailsDraftAdapter }) {
   const theme = useTheme();
@@ -166,11 +172,12 @@ function MealDetailsFormScreenInner({
     onReviewSubmit,
     draftAdapter,
   });
+  const shouldUseExitGuard = showAddMealFlowHeader && flowHeaderExitGuardEnabled;
   const guard = useUnsavedChangesGuard({
     navigation,
     hasUnsavedChanges: Boolean(uid && meal),
-    enabled: showAddMealFlowHeader,
-    interceptHardwareBack: showAddMealFlowHeader,
+    enabled: shouldUseExitGuard,
+    interceptHardwareBack: shouldUseExitGuard,
     onDiscard: () => {
       if (!uid) return;
       void draftAdapter.clearMeal?.(uid);
@@ -198,6 +205,10 @@ function MealDetailsFormScreenInner({
       origin: "mealAddFlow",
     });
   };
+  const handleFlowHeaderBack = onFlowHeaderBack ?? (() => {
+    void handleSubmit();
+  });
+  const handleFlowHeaderClose = onFlowHeaderClose ?? guard.requestExit;
 
   if (!meal || !uid) {
     return (
@@ -253,10 +264,8 @@ function MealDetailsFormScreenInner({
         {showAddMealFlowHeader ? (
           <AddMealFlowHeader
             progress={flow.progress}
-            onBack={() => {
-              void handleSubmit();
-            }}
-            onClose={guard.requestExit}
+            onBack={handleFlowHeaderBack}
+            onClose={handleFlowHeaderClose}
             testID="edit-meal-flow-header"
             backTestID="edit-meal-back"
             closeTestID="edit-meal-close"
@@ -287,9 +296,9 @@ function MealDetailsFormScreenInner({
               })}
             </Text>
             <Text style={styles.headerTitle}>
-              {t("review_meal_edit_screen_title", {
+              {t("review_meal_edit_title", {
                 ns: "meals",
-                defaultValue: "Edit meal details",
+                defaultValue: "Adjust your meal",
               })}
             </Text>
             <Text style={styles.headerSubtitle}>
@@ -374,7 +383,7 @@ function MealDetailsFormScreenInner({
         }}
       />
 
-      {showAddMealFlowHeader ? (
+      {shouldUseExitGuard ? (
         <UnsavedChangesModal
           visible={guard.confirmVisible}
           title={t("confirm_exit_title", { ns: "meals" })}

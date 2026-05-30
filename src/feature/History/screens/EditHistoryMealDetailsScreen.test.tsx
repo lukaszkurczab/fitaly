@@ -8,6 +8,7 @@ const mockUseRoute = jest.fn();
 const mockUseAuthContext = jest.fn();
 const mockUseMeals = jest.fn();
 const mockUseMealDraftContext = jest.fn();
+const mockMealDetailsFormProps = jest.fn();
 const mockSelectLocalMealByCloudId = jest.fn(
   (_uid: string, _cloudId: string): Meal | null => null,
 );
@@ -46,18 +47,27 @@ jest.mock("react-i18next", () => ({
 }));
 
 jest.mock("@/feature/Meals/screens/MealAdd/MealDetailsFormScreen", () => ({
-  MealDetailsFormScreen: ({
-    onReviewSubmit,
-    onReviewPhotoPress,
-    draftAdapter,
-  }: {
+  MealDetailsFormScreen: (props: {
     onReviewSubmit?: (meal: Meal) => Promise<void> | void;
     onReviewPhotoPress?: () => void;
+    showAddMealFlowHeader?: boolean;
+    submitIntent?: string;
+    flowHeaderExitGuardEnabled?: boolean;
+    onFlowHeaderBack?: () => void;
+    onFlowHeaderClose?: () => void;
+    reviewSubmitLabel?: string;
+    reviewFallbackLabel?: string;
     draftAdapter?: {
       meal: Meal | null;
       persistMeal: (meal: Meal) => Promise<void> | void;
     };
   }) => {
+    const {
+      onReviewSubmit,
+      onReviewPhotoPress,
+      draftAdapter,
+    } = props;
+    mockMealDetailsFormProps(props);
     const { createElement } =
       jest.requireActual<typeof import("react")>("react");
     const { Pressable, Text, View } =
@@ -128,6 +138,48 @@ describe("EditHistoryMealDetailsScreen", () => {
       setLastScreen: jest.fn(async () => undefined),
       loadDraft: jest.fn(async () => undefined),
     });
+  });
+
+  it("uses the shared correction header and cancel footer intent for history edits", async () => {
+    const navigation = {
+      goBack: jest.fn<() => void>(),
+      canGoBack: jest.fn<() => boolean>(() => true),
+      navigate: jest.fn<(screen: string, params?: unknown) => void>(),
+      replace: jest.fn<(screen: string, params?: unknown) => void>(),
+    };
+    const updateMeal = jest.fn<(meal: Meal) => Promise<void>>(
+      async (_meal: Meal) => undefined,
+    );
+
+    mockUseMeals.mockReturnValue({ updateMeal });
+
+    renderWithTheme(
+      <EditHistoryMealDetailsScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockMealDetailsFormProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          showAddMealFlowHeader: true,
+          submitIntent: "goBack",
+          flowHeaderExitGuardEnabled: false,
+          reviewSubmitLabel: "Save changes",
+          reviewFallbackLabel: "Cancel",
+        }),
+      );
+    });
+
+    const props = mockMealDetailsFormProps.mock.calls.at(-1)?.[0] as
+      | {
+          onFlowHeaderBack?: () => void;
+          onFlowHeaderClose?: () => void;
+        }
+      | undefined;
+    props?.onFlowHeaderBack?.();
+    props?.onFlowHeaderClose?.();
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(2);
+    expect(updateMeal).not.toHaveBeenCalled();
   });
 
   it("loads the local history snapshot and updates the existing meal on submit", async () => {

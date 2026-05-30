@@ -244,6 +244,20 @@
     "syncPending": "Czeka na synchronizację",
     "syncFailed": "Synchronizacja nieudana",
     "syncConflict": "Konflikt synchronizacji",
+    "syncStatus": {
+      "pending": {
+        "label": "Do synchronizacji",
+        "description": "Posiłek jest zapisany lokalnie. Zsynchronizujemy go, gdy połączenie będzie dostępne."
+      },
+      "failed": {
+        "label": "Nie udało się zsynchronizować",
+        "description": "Posiłek jest zapisany lokalnie. Synchronizacja wymaga ponowienia."
+      },
+      "conflict": {
+        "label": "Do sprawdzenia",
+        "description": "Posiłek jest zapisany lokalnie, ale wymaga sprawdzenia po synchronizacji."
+      }
+    },
     "deadLetterTitle": "{{count}} zmian posiłków wymaga ponowienia.",
     "deadLetterSubtitle": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}.",
     "deadLetterSubtitleWithLast": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}. Ostatnia nieudana operacja: {{operation}}.",

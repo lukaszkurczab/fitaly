@@ -9,12 +9,14 @@ jest.mock("@/components/AppIcon", () => ({
 
 describe("History EmptyState", () => {
   it("renders title and description", () => {
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <EmptyState title="No meals" description="Add your first meal" />,
     );
 
     expect(getByText("No meals")).toBeTruthy();
     expect(getByText("Add your first meal")).toBeTruthy();
+    expect(getByTestId("history-empty-archive-graphic")).toBeTruthy();
+    expect(getByTestId("history-empty-archive-image")).toBeTruthy();
   });
 
   it("hides description when it is not provided", () => {
@@ -24,5 +26,20 @@ describe("History EmptyState", () => {
 
     expect(getByText("No meals")).toBeTruthy();
     expect(queryByText("Add your first meal")).toBeNull();
+  });
+
+  it("uses the compact treatment for no-results states", () => {
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <EmptyState
+        variant="compact"
+        title="Nothing matches"
+        description="Change filters"
+      />,
+    );
+
+    expect(getByText("Nothing matches")).toBeTruthy();
+    expect(getByText("Change filters")).toBeTruthy();
+    expect(getByTestId("history-empty-compact-accent")).toBeTruthy();
+    expect(queryByTestId("history-empty-archive-graphic")).toBeNull();
   });
 });

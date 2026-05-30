@@ -7,11 +7,14 @@ const mockUseAuthContext = jest.fn<() => { uid: string | null }>();
 const mockUsePremiumContext = jest.fn<() => { isPremium: boolean }>();
 const mockUseFilters = jest.fn();
 const mockUseHistorySectionsData = jest.fn();
-const mockGetDeadLetterCount = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockGetDeadLetterCount =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockGetSyncCounts =
   jest.fn<(...args: unknown[]) => Promise<{ dead: number; pending: number }>>();
-const mockGetDeadLetterOps = jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
-const mockRetryDeadLetterOps = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockGetDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
+const mockRetryDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
 const mockOn = jest.fn<(...args: unknown[]) => () => void>();
@@ -189,6 +192,56 @@ describe("useHistoryListState dead-letter meal sync", () => {
     expect(result.current.emptyState).toEqual({
       title: "emptyTitle",
       description: "emptyDescription",
+    });
+  });
+
+  it("uses separate no-results copy for search and filters", () => {
+    mockUseHistorySectionsData.mockReturnValue({
+      loading: false,
+      loadingMore: false,
+      errorKind: null,
+      sections: [],
+      dataState: "empty",
+      onEndReached: jest.fn(),
+      refresh: jest.fn(),
+    });
+
+    mockUseFilters.mockReturnValueOnce({
+      query: "salad",
+      setQuery: jest.fn(),
+      filters: {},
+      showFilters: false,
+      toggleShowFilters: jest.fn(),
+      filterCount: 0,
+    });
+
+    const search = renderHook(() =>
+      useHistoryListState({ navigation: { navigate: jest.fn() } as never }),
+    );
+
+    expect(search.result.current.emptyState).toEqual({
+      title: "searchEmptyTitle",
+      description: "searchEmptyDescription",
+    });
+
+    search.unmount();
+
+    mockUseFilters.mockReturnValueOnce({
+      query: "",
+      setQuery: jest.fn(),
+      filters: { calories: [300, 600] },
+      showFilters: false,
+      toggleShowFilters: jest.fn(),
+      filterCount: 1,
+    });
+
+    const filters = renderHook(() =>
+      useHistoryListState({ navigation: { navigate: jest.fn() } as never }),
+    );
+
+    expect(filters.result.current.emptyState).toEqual({
+      title: "filtersEmptyTitle",
+      description: "filtersEmptyDescription",
     });
   });
 });

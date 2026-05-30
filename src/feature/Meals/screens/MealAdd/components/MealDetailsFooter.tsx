@@ -63,15 +63,17 @@ export default function MealDetailsFooter({
                 ns: "meals",
                 defaultValue: "Go to review",
               })),
-        compactLabel: isReviewEdit
-          ? t("review_meal_edit_done_compact", {
-              ns: "meals",
-              defaultValue: "Done",
-            })
-          : t("review_meal_edit_summary_compact", {
-              ns: "meals",
-              defaultValue: "Summary",
-            }),
+        compactLabel:
+          reviewSubmitLabel ??
+          (isReviewEdit
+            ? t("review_meal_edit_done_compact", {
+                ns: "meals",
+                defaultValue: "Done",
+              })
+            : t("review_meal_edit_summary_compact", {
+                ns: "meals",
+                defaultValue: "Summary",
+              })),
         onPress: onSubmit,
         disabled,
       }}

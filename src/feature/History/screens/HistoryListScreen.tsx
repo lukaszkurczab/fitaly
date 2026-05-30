@@ -12,7 +12,10 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
-import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import {
+  SyncStatusIndicator,
+  getSyncStatusLabelKey,
+} from "@/components/SyncStatusIndicator";
 import { Layout, SearchBox } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import { EmptyState } from "../components/EmptyState";
@@ -78,9 +81,18 @@ type HistoryMealRowProps = {
   onPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
   macroLabels: {
-    protein: string;
-    carbs: string;
-    fat: string;
+    protein: {
+      short: string;
+      full: string;
+    };
+    carbs: {
+      short: string;
+      full: string;
+    };
+    fat: {
+      short: string;
+      full: string;
+    };
   };
   theme: ReturnType<typeof useTheme>;
 };
@@ -98,6 +110,7 @@ const HistoryMealRowComponent = ({
   theme,
 }: HistoryMealRowProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t: tMeals } = useTranslation("meals");
   const typeLabel = mealTypeLabel(meal);
   const timeLabel =
     formatMealTime(
@@ -105,6 +118,10 @@ const HistoryMealRowComponent = ({
       locale,
     ) || null;
   const meta = timeLabel ? `${typeLabel} · ${timeLabel}` : typeLabel;
+  const syncStatusLabelKey = getSyncStatusLabelKey(meal.syncState);
+  const syncStatusLabel = syncStatusLabelKey
+    ? tMeals(syncStatusLabelKey)
+    : null;
   const kcal = getMealKcal(meal);
   const protein = getMealMacroValue(meal, "protein");
   const carbs = getMealMacroValue(meal, "carbs");
@@ -116,7 +133,9 @@ const HistoryMealRowComponent = ({
       testID={`history-meal-row-${index}`}
       onPress={() => onPress(meal)}
       accessibilityRole="button"
-      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${kcal} ${kcalLabel}`}
+      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${kcal} ${kcalLabel}${
+        syncStatusLabel ? `, ${syncStatusLabel}` : ""
+      }`}
       style={({ pressed }) => [
         styles.mealRow,
         pressed ? styles.mealRowPressed : null,
@@ -130,31 +149,54 @@ const HistoryMealRowComponent = ({
           <Text numberOfLines={1} style={styles.mealName}>
             {meal.name || fallbackMealName}
           </Text>
+        </View>
+        <View style={styles.mealMetaRow}>
+          <Text numberOfLines={1} style={styles.mealMeta}>
+            {meta}
+          </Text>
           <SyncStatusIndicator
             syncState={meal.syncState}
             testID={`history-meal-sync-${meal.syncState}-${index}`}
           />
         </View>
-        <Text numberOfLines={1} style={styles.mealMeta}>
-          {meta}
-        </Text>
         {hasMacroDetails ? (
           <View style={styles.macroRow}>
-            <View style={[styles.macroChip, styles.macroChipProtein]}>
-              <Text style={[styles.macroChipText, styles.macroChipProteinText]}>
-                {macroLabels.protein} {protein}
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.protein.full}: ${protein}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipProtein]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipProteinText]}
+              >
+                {macroLabels.protein.short} {protein}
                 {gramLabel}
               </Text>
             </View>
-            <View style={[styles.macroChip, styles.macroChipCarbs]}>
-              <Text style={[styles.macroChipText, styles.macroChipCarbsText]}>
-                {macroLabels.carbs} {carbs}
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.carbs.full}: ${carbs}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipCarbs]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipCarbsText]}
+              >
+                {macroLabels.carbs.short} {carbs}
                 {gramLabel}
               </Text>
             </View>
-            <View style={[styles.macroChip, styles.macroChipFat]}>
-              <Text style={[styles.macroChipText, styles.macroChipFatText]}>
-                {macroLabels.fat} {fat}
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.fat.full}: ${fat}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipFat]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipFatText]}
+              >
+                {macroLabels.fat.short} {fat}
                 {gramLabel}
               </Text>
             </View>
@@ -185,9 +227,18 @@ type HistorySectionCardProps = {
   onMealPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
   macroLabels: {
-    protein: string;
-    carbs: string;
-    fat: string;
+    protein: {
+      short: string;
+      full: string;
+    };
+    carbs: {
+      short: string;
+      full: string;
+    };
+    fat: {
+      short: string;
+      full: string;
+    };
   };
   theme: ReturnType<typeof useTheme>;
 };
@@ -315,9 +366,14 @@ export default function HistoryListScreen({
   const showResultsPill = query.trim().length > 0 && totalResults > 0;
   const showListHeader =
     state.dataState === "ready" ||
+    state.dataState === "empty" ||
     query.trim().length > 0 ||
     state.filterCount > 0 ||
     !!state.deadLetterBanner;
+  const isFirstRunEmpty =
+    state.dataState === "empty" &&
+    query.trim().length === 0 &&
+    state.filterCount === 0;
 
   const mealTypeLabel = useCallback(
     (meal: Meal) =>
@@ -339,9 +395,18 @@ export default function HistoryListScreen({
         onMealPress={state.onMealPress}
         mealTypeLabel={mealTypeLabel}
         macroLabels={{
-          protein: t("macroShort.protein", { ns: "history" }),
-          carbs: t("macroShort.carbs", { ns: "history" }),
-          fat: t("macroShort.fat", { ns: "history" }),
+          protein: {
+            short: t("macroShort.protein", { ns: "history" }),
+            full: t("protein", { ns: "common" }),
+          },
+          carbs: {
+            short: t("macroShort.carbs", { ns: "history" }),
+            full: t("carbs", { ns: "common" }),
+          },
+          fat: {
+            short: t("macroShort.fat", { ns: "history" }),
+            full: t("fat", { ns: "common" }),
+          },
         }}
         theme={theme}
       />
@@ -415,12 +480,21 @@ export default function HistoryListScreen({
 
   const emptyComponent =
     state.dataState !== "loading" && state.dataState !== "ready" ? (
-      <View style={styles.emptyWrap}>
+      <View
+        style={[
+          styles.emptyWrap,
+          isFirstRunEmpty ? styles.emptyWrapArchive : null,
+          showListHeader
+            ? styles.emptyWrapWithHeader
+            : styles.emptyWrapCentered,
+        ]}
+      >
         <EmptyState
           testID="history-list-empty-state"
           actionTestID="history-list-empty-add-meal-button"
+          variant={isFirstRunEmpty ? "archive" : "compact"}
           eyebrow={
-            query.trim().length === 0 && state.dataState === "empty"
+            isFirstRunEmpty
               ? t("emptyEyebrow", {
                   ns: "history",
                 })
@@ -429,17 +503,13 @@ export default function HistoryListScreen({
           title={state.emptyState?.title || ""}
           description={state.emptyState?.description || ""}
           actionLabel={
-            state.dataState === "empty" && query.trim().length === 0
+            isFirstRunEmpty
               ? t("emptyAction", {
                   ns: "history",
                 })
               : undefined
           }
-          onAction={
-            state.dataState === "empty" && query.trim().length === 0
-              ? state.onLogFirstMeal
-              : undefined
-          }
+          onAction={isFirstRunEmpty ? state.onLogFirstMeal : undefined}
         />
       </View>
     ) : null;
@@ -486,7 +556,10 @@ export default function HistoryListScreen({
           }
           onEndReached={state.onEndReached}
           onEndReachedThreshold={0.2}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            isFirstRunEmpty ? styles.listContentArchiveEmpty : null,
+          ]}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={emptyComponent}
           ListFooterComponent={
@@ -519,6 +592,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     listContent: {
       flexGrow: 1,
       paddingBottom: theme.spacing.sectionGapLarge,
+    },
+    listContentArchiveEmpty: {
+      paddingBottom: theme.spacing.xxl,
     },
     listHeader: {
       paddingTop: theme.spacing.sm,
@@ -666,6 +742,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.regular,
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    mealMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+      flexWrap: "wrap",
     },
     macroRow: {
       flexDirection: "row",
@@ -679,13 +763,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingVertical: 2,
     },
     macroChipProtein: {
-      backgroundColor: theme.chart.proteinSoft,
+      backgroundColor: theme.macro.proteinSoft,
     },
     macroChipCarbs: {
-      backgroundColor: theme.chart.carbsSoft,
+      backgroundColor: theme.macro.carbsSoft,
     },
     macroChipFat: {
-      backgroundColor: theme.chart.fatSoft,
+      backgroundColor: theme.macro.fatSoft,
     },
     macroChipText: {
       fontSize: theme.typography.size.overline,
@@ -693,13 +777,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
     macroChipProteinText: {
-      color: theme.chart.protein,
+      color: theme.macro.protein,
     },
     macroChipCarbsText: {
-      color: theme.chart.carbs,
+      color: theme.macro.carbs,
     },
     macroChipFatText: {
-      color: theme.chart.fat,
+      color: theme.macro.fat,
     },
     mealKcalBlock: {
       minWidth: 58,
@@ -729,9 +813,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     emptyWrap: {
       flex: 1,
+      paddingBottom: theme.spacing.xxl,
+    },
+    emptyWrapArchive: {
+      paddingBottom: theme.spacing.lg,
+    },
+    emptyWrapCentered: {
       justifyContent: "center",
       paddingTop: theme.spacing.xl,
-      paddingBottom: theme.spacing.xxl,
+    },
+    emptyWrapWithHeader: {
+      justifyContent: "flex-start",
+      paddingTop: theme.spacing.md,
     },
     deadLetterBanner: {
       borderRadius: theme.rounded.md,
