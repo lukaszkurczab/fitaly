@@ -1,11 +1,14 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=restoreFailure"
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
 - assertVisible:
     id: e2e-ready-credits-none
 - assertVisible:
-    id: e2e-ready-billing-restoreFailure
+    id: e2e-ready-billing-free
 - tapOn:
     id: tab-add-meal
 - assertVisible:
@@ -16,7 +19,8 @@ appId: com.lkurczab.fitaly
     id: add-meal-text-screen
 - tapOn:
     id: add-meal-text-name-input
-- inputText: Paywall layout bowl
+- eraseText
+- inputText: MJ033 purchase evidence bowl
 - tapOn:
     point: "50%,30%"
 - scrollUntilVisible:
@@ -32,21 +36,17 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: paywall-modal
 - assertVisible:
-    id: paywall-subscribe-button
-- scrollUntilVisible:
-    element:
-      id: paywall-open-restore-button
-    direction: DOWN
-- assertVisible:
-    id: paywall-open-restore-button
-- tapOn:
-    id: paywall-open-restore-button
-- assertVisible:
-    id: paywall-restore-state-initial
-- assertVisible:
-    id: paywall-restore-button
-- tapOn:
-    id: paywall-restore-back-button
+    id: paywall-close-button
 - assertVisible:
     id: paywall-subscribe-button
-- takeScreenshot: premium-paywall-open-layout
+- assertVisible:
+    id: paywall-footer-disclosure
+- assertVisible:
+    text: "Opłata przy potwierdzeniu.*zarządzaj.*anuluj.*"
+- assertVisible:
+    text: "Regulamin"
+- assertVisible:
+    text: "Polityka prywatności"
+- assertVisible:
+    id: paywall-open-restore-button
+- takeScreenshot: mj033-purchase-paywall-apple-review-light

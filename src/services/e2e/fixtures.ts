@@ -47,7 +47,10 @@ export type E2EBillingSeed =
   | "free"
   | "premium"
   | "restoreSuccess"
-  | "restoreFailure";
+  | "restorePending"
+  | "restoreFailure"
+  | "restoreSlowFailure"
+  | "restoreError";
 export type E2EChatSeed = "success" | "failure";
 export type E2EShareExportSeed =
   | "success"
@@ -106,7 +109,10 @@ const VALID_BILLING = new Set<E2EBillingSeed>([
   "free",
   "premium",
   "restoreSuccess",
+  "restorePending",
   "restoreFailure",
+  "restoreSlowFailure",
+  "restoreError",
 ]);
 const VALID_CHAT = new Set<E2EChatSeed>(["success", "failure"]);
 const VALID_SHARE_EXPORT = new Set<E2EShareExportSeed>([
@@ -999,6 +1005,7 @@ export function resolveE2EShareExport(
 
 const E2E_TEXT_SLOW_ANALYSIS_DELAY_MS = 4000;
 const E2E_PHOTO_SLOW_ANALYSIS_DELAY_MS = 4000;
+const E2E_BILLING_RESTORE_SLOW_DELAY_MS = 5000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1080,13 +1087,42 @@ export function resolveE2EBarcodeLookup(): BarcodeLookupResult | null {
 
 export function resolveE2EBillingPurchaseResult(
   action: "purchase" | "restore",
-): { status: "success" } | { status: "error"; errorCode: "entitlement_inactive"; message: string } | null {
+):
+  | { status: "success"; delayMs?: number }
+  | {
+      status: "error";
+      errorCode: "entitlement_inactive" | "network";
+      message: string;
+      delayMs?: number;
+    }
+  | null {
   if (!isE2EModeEnabled()) return null;
   const billing = fixtureState.billing;
   if (!billing) return null;
 
   if (billing === "premium" || billing === "restoreSuccess") {
     return { status: "success" };
+  }
+
+  if (billing === "restorePending" && action === "restore") {
+    return { status: "success" };
+  }
+
+  if (billing === "restoreError" && action === "restore") {
+    return {
+      status: "error",
+      errorCode: "network",
+      message: "E2E restore could not contact the store.",
+    };
+  }
+
+  if (billing === "restoreSlowFailure" && action === "restore") {
+    return {
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E delayed restore did not find an active entitlement.",
+      delayMs: E2E_BILLING_RESTORE_SLOW_DELAY_MS,
+    };
   }
 
   if (billing === "restoreFailure" || action === "restore") {

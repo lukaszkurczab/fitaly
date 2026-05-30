@@ -8,6 +8,8 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 import { IconButton } from "@/components/IconButton";
@@ -44,6 +46,14 @@ export type ModalProps = {
   stackActions?: boolean;
   contentPaddingBottom?: number;
   closeOnBackdropPress?: boolean;
+  overlayStyle?: StyleProp<ViewStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
+  footerStyle?: StyleProp<ViewStyle>;
+  closeButtonContainerStyle?: StyleProp<ViewStyle>;
+  closeButtonSize?: number;
+  closeButtonBackgroundColor?: string;
+  closeButtonIconColor?: string;
+  closeButtonTestID?: string;
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -60,6 +70,14 @@ export const Modal: React.FC<ModalProps> = ({
   stackActions = false,
   contentPaddingBottom,
   closeOnBackdropPress = true,
+  overlayStyle,
+  containerStyle,
+  footerStyle,
+  closeButtonContainerStyle,
+  closeButtonSize = 32,
+  closeButtonBackgroundColor,
+  closeButtonIconColor,
+  closeButtonTestID,
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -95,7 +113,10 @@ export const Modal: React.FC<ModalProps> = ({
           ]}
           pointerEvents="box-none"
         >
-          <Pressable style={styles.overlay} onPress={handleBackdropPress} />
+          <Pressable
+            style={[styles.overlay, overlayStyle]}
+            onPress={handleBackdropPress}
+          />
 
           <View
             style={[
@@ -115,21 +136,24 @@ export const Modal: React.FC<ModalProps> = ({
                     : WINDOW_HEIGHT * 0.8,
                 },
                 fullScreen && styles.modalContainerFullScreen,
+                containerStyle,
               ]}
             >
               {onClose ? (
-                <View style={styles.closeButton}>
+                <View style={[styles.closeButton, closeButtonContainerStyle]}>
                   <IconButton
+                    testID={closeButtonTestID}
                     icon={
                       <AppIcon
                         name="close"
                         size={18}
-                        color={theme.textSecondary}
+                        color={closeButtonIconColor ?? theme.textSecondary}
                       />
                     }
                     onPress={onClose}
-                    size={32}
-                    iconColor={theme.textSecondary}
+                    size={closeButtonSize}
+                    backgroundColor={closeButtonBackgroundColor}
+                    iconColor={closeButtonIconColor ?? theme.textSecondary}
                     accessibilityLabel={t("close")}
                   />
                 </View>
@@ -157,7 +181,7 @@ export const Modal: React.FC<ModalProps> = ({
               ) : null}
 
               {footer ? (
-                <View style={styles.footer}>{footer}</View>
+                <View style={[styles.footer, footerStyle]}>{footer}</View>
               ) : primaryAction || secondaryAction ? (
                 actionsSideBySide ? (
                   <GlobalActionButtons
@@ -265,6 +289,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollView: {
       flexGrow: 0,
+      flexShrink: 1,
+      minHeight: 0,
       width: "100%",
     },
     scrollViewWithTitle: {

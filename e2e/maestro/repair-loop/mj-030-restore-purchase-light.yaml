@@ -1,0 +1,93 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Restore purchase bowl
+- tapOn:
+    point: "50%,30%"
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-upgrade-button
+    direction: DOWN
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal
+- tapOn:
+    id: paywall-open-restore-button
+- assertVisible:
+    id: paywall-restore-state-initial
+- takeScreenshot: mj030-restore-initial-light
+- openLink: "fitaly://e2e/seed?billing=restoreSlowFailure"
+- tapOn:
+    id: paywall-restore-button
+- extendedWaitUntil:
+    visible:
+      id: paywall-restore-state-loading
+    timeout: 3000
+- takeScreenshot: mj030-restore-loading-light
+- extendedWaitUntil:
+    visible:
+      id: paywall-restore-state-no-purchase
+    timeout: 15000
+- takeScreenshot: mj030-restore-no-purchase-light
+- tapOn:
+    id: paywall-restore-back-button
+- assertVisible:
+    id: paywall-subscribe-button
+- openLink: "fitaly://e2e/seed?billing=restoreError"
+- tapOn:
+    id: paywall-open-restore-button
+- assertVisible:
+    id: paywall-restore-state-initial
+- tapOn:
+    id: paywall-restore-button
+- extendedWaitUntil:
+    visible:
+      id: paywall-restore-state-error
+    timeout: 15000
+- takeScreenshot: mj030-restore-error-light
+- tapOn:
+    id: paywall-restore-back-button
+- assertVisible:
+    id: paywall-subscribe-button
+- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreSuccess"
+- tapOn:
+    id: paywall-open-restore-button
+- assertVisible:
+    id: paywall-restore-state-initial
+- tapOn:
+    id: paywall-restore-button
+- extendedWaitUntil:
+    visible:
+      id: paywall-restore-state-success
+    timeout: 15000
+- takeScreenshot: mj030-restore-success-light
+- tapOn:
+    id: paywall-restore-done-button
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-status-value-premium_active
+    timeout: 15000

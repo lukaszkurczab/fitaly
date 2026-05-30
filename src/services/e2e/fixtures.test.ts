@@ -83,7 +83,7 @@ describe("E2E fixtures", () => {
         credits: "none",
         ai: "photoSlow",
         barcode: "known",
-        billing: "premium",
+        billing: "restoreSlowFailure",
         chat: "success",
         shareExport: "success",
         notificationPermission: "allowed",
@@ -95,7 +95,7 @@ describe("E2E fixtures", () => {
       credits: "none",
       ai: "photoSlow",
       barcode: "known",
-      billing: "premium",
+      billing: "restoreSlowFailure",
       chat: "success",
       shareExport: "success",
       notificationPermission: "allowed",
@@ -317,6 +317,61 @@ describe("E2E fixtures", () => {
         report: expect.objectContaining({ status: "ready" }),
       }),
     );
+  });
+
+  it("supports restore error billing fixture for restore-state visual evidence", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { billing: "restoreError" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "error",
+      errorCode: "network",
+      message: "E2E restore could not contact the store.",
+    });
+    expect(resolveE2EBillingPurchaseResult("purchase")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E free billing state has no active entitlement.",
+    });
+  });
+
+  it("supports pending restore fixture without granting backend premium access", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { credits: "ok", billing: "restorePending" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "success",
+    });
+    expect(getE2EAccessState("user-1")).toEqual(
+      expect.objectContaining({
+        tier: "free",
+        entitlementStatus: "inactive",
+        credits: expect.objectContaining({ tier: "free" }),
+      }),
+    );
+  });
+
+  it("supports delayed restore failure fixture for loading-state visual evidence", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { billing: "restoreSlowFailure" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E delayed restore did not find an active entitlement.",
+      delayMs: 5000,
+    });
+    expect(resolveE2EBillingPurchaseResult("purchase")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E free billing state has no active entitlement.",
+    });
   });
 
   it("returns deterministic chat failure without a backend call", async () => {

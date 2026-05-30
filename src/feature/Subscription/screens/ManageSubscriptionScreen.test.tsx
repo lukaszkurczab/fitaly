@@ -11,6 +11,7 @@ type PaywallModalProps = {
   onRestore: () => void;
   busy: boolean;
   priceText?: string | null;
+  restoreFeedback?: { title: string } | null;
 };
 
 const mockUsePremiumContext = jest.fn();
@@ -113,15 +114,17 @@ jest.mock("@/components", () => {
     InfoBlock: ({
       title,
       body,
+      testID,
     }: {
       title: string;
       body: string;
       tone?: string;
       icon?: ReactNode;
+      testID?: string;
     }) =>
       createElement(
         View,
-        null,
+        testID ? { testID } : null,
         createElement(Text, null, title),
         createElement(Text, null, body),
       ),
@@ -177,6 +180,7 @@ jest.mock("@/feature/Subscription/components/PaywallModal", () => ({
     onSubscribe,
     onRestore,
     priceText,
+    restoreFeedback,
   }: PaywallModalProps) => {
     const { createElement } =
       jest.requireActual<typeof import("react")>("react");
@@ -187,6 +191,9 @@ jest.mock("@/feature/Subscription/components/PaywallModal", () => ({
           View,
           null,
           createElement(Text, null, `paywall:${priceText ?? ""}`),
+          restoreFeedback
+            ? createElement(Text, null, `paywall-feedback:${restoreFeedback.title}`)
+            : null,
           createElement(
             Pressable,
             { onPress: onSubscribe, accessibilityRole: "button" },
@@ -346,26 +353,23 @@ describe("ManageSubscriptionScreen", () => {
       }),
     );
 
-    const { getByText, queryByText } = renderWithTheme(
+    const { getAllByText, getByText } = renderWithTheme(
       <ManageSubscriptionScreen navigation={navigation as never} />,
     );
 
     expect(getByText("header:profile:manageSubscription.title")).toBeTruthy();
     expect(
-      getByText(
-        "Review your current membership, AI Credits tier, and subscription actions.",
-      ),
+      getByText("Your plan, AI Credits, and store actions in one place."),
     ).toBeTruthy();
-    expect(queryByText("Free plan")).toBeNull();
-    expect(getByText("Current membership")).toBeTruthy();
-    expect(getByText("AI Credits")).toBeTruthy();
-    expect(getByText("Premium benefits")).toBeTruthy();
+    expect(getByText("Free plan")).toBeTruthy();
+    expect(getByText("Current plan")).toBeTruthy();
+    expect(getAllByText("AI Credits").length).toBeGreaterThan(0);
+    expect(getByText("Available now")).toBeTruthy();
     expect(getByText("Subscription actions")).toBeTruthy();
-    expect(getByText("Inactive")).toBeTruthy();
     expect(getByText("profile:manageSubscription.startSubscription")).toBeTruthy();
     expect(getByText("76")).toBeTruthy();
     expect(getByText("800")).toBeTruthy();
-    expect(getByText("14.05.2026, 12:00")).toBeTruthy();
+    expect(getAllByText("14.05.2026, 12:00").length).toBeGreaterThan(0);
     expect(getByText("paywall:$9.99")).toBeTruthy();
 
     fireEvent.press(getByText("profile:manageSubscription.startSubscription"));
@@ -417,23 +421,23 @@ describe("ManageSubscriptionScreen", () => {
     ).toBeNull();
   });
 
-  it("keeps billing unavailable state content for free users without the free-plan summary", () => {
+  it("keeps billing unavailable state content for free users", () => {
     mockUseManageSubscriptionState.mockReturnValue(
       makeManageState({
         billingAvailability: "disabled",
       }),
     );
 
-    const { getByText, queryByText } = renderWithTheme(
+    const { getAllByText, getByText } = renderWithTheme(
       <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
     );
 
-    expect(queryByText("Free plan")).toBeNull();
+    expect(getByText("Free plan")).toBeTruthy();
     expect(getByText("Billing unavailable")).toBeTruthy();
     expect(getByText("Billing is unavailable on this device.")).toBeTruthy();
     expect(getByText("profile:manageSubscription.startSubscription")).toBeTruthy();
-    expect(getByText("Current membership")).toBeTruthy();
-    expect(getByText("AI Credits")).toBeTruthy();
+    expect(getByText("Current plan")).toBeTruthy();
+    expect(getAllByText("AI Credits").length).toBeGreaterThan(0);
   });
 
   it("does not render success action feedback as a duplicate premium status card", () => {
@@ -464,5 +468,58 @@ describe("ManageSubscriptionScreen", () => {
 
     expect(getAllByText("Premium active")).toHaveLength(1);
     expect(queryByText("Purchases restored and premium is active.")).toBeNull();
+  });
+
+  it("passes purchase activation pending feedback into the paywall recovery surface", () => {
+    mockUseManageSubscriptionState.mockReturnValue(
+      makeManageState({
+        paywallVisible: true,
+        actionFeedback: {
+          tone: "info",
+          title: "Subscription activation in progress",
+          message:
+            "The purchase was confirmed. We will refresh access shortly, or you can try restoring purchases.",
+          source: "purchase",
+          feedbackState: "activation-pending",
+          restoreState: "confirmation-pending",
+        },
+      }),
+    );
+
+    const { getByText } = renderWithTheme(
+      <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
+    );
+
+    expect(
+      getByText("paywall-feedback:Subscription activation in progress"),
+    ).toBeTruthy();
+  });
+
+  it("renders no-purchase restore feedback as neutral recovery on the screen", () => {
+    mockUseManageSubscriptionState.mockReturnValue(
+      makeManageState({
+        actionFeedback: {
+          tone: "neutral",
+          title: "No active subscription found",
+          message:
+            "Make sure you are using the same store account. You can try again or return to the Premium offer.",
+          source: "restore",
+          feedbackState: "no-purchase",
+          restoreState: "no-purchase",
+        },
+      }),
+    );
+
+    const { getByText, getByTestId } = renderWithTheme(
+      <ManageSubscriptionScreen navigation={{ setOptions: jest.fn() } as never} />,
+    );
+
+    expect(getByTestId("manage-subscription-action-feedback-no-purchase")).toBeTruthy();
+    expect(getByText("No active subscription found")).toBeTruthy();
+    expect(
+      getByText(
+        "Make sure you are using the same store account. You can try again or return to the Premium offer.",
+      ),
+    ).toBeTruthy();
   });
 });

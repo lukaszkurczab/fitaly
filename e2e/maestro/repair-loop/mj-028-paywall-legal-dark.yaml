@@ -1,0 +1,67 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Paywall legal dark bowl
+- tapOn:
+    point: "50%,30%"
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-upgrade-button
+    direction: DOWN
+- tapOn:
+    id: add-meal-text-upgrade-button
+- assertVisible:
+    id: manage-subscription-screen
+- tapOn:
+    id: manage-subscription-primary-button
+- assertVisible:
+    id: paywall-modal
+- assertVisible:
+    text: "Opłata przy potwierdzeniu.*"
+- assertVisible:
+    text: "Regulamin"
+- assertVisible:
+    text: "Polityka prywatności"
+- assertVisible:
+    id: paywall-subscribe-button
+- takeScreenshot: mj028-paywall-sticky-dark
+- swipe:
+    start: "50%,65%"
+    end: "50%,18%"
+    duration: 700
+- swipe:
+    start: "50%,65%"
+    end: "50%,18%"
+    duration: 700
+- swipe:
+    start: "50%,65%"
+    end: "50%,18%"
+    duration: 700
+- assertVisible:
+    text: "Warunki subskrypcji"
+- assertVisible:
+    text: "Opłata zostanie pobrana.*"
+- assertVisible:
+    id: paywall-terms-button
+- assertVisible:
+    id: paywall-privacy-button
+- takeScreenshot: mj028-paywall-legal-dark

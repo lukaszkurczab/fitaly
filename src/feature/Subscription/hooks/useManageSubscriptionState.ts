@@ -37,10 +37,17 @@ export type SubscriptionBusyAction =
   | null;
 
 export type SubscriptionActionFeedback = {
-  tone: "success" | "warning" | "error";
+  tone: "success" | "info" | "neutral" | "warning" | "error";
   title: string;
   message: string;
   source: Exclude<SubscriptionBusyAction, null>;
+  feedbackState?:
+    | "activation-pending"
+    | "entitlement-refresh-failed"
+    | "generic-error"
+    | "no-purchase"
+    | "restore-failed";
+  restoreState?: "no-purchase" | "confirmation-pending";
 } | null;
 
 type PremiumEntitlementConfirmationResult = {
@@ -179,46 +186,101 @@ export function useManageSubscriptionState(params: {
         case "rc_not_configured":
           return params.t("manageSubscription.reasonRcNotConfigured", {
             defaultValue:
-              "RevenueCat is not configured for this build. Check the production iOS/Android API key.",
+              "Billing is not ready in this build. Try again later or contact support if this keeps happening.",
           });
         case "no_active_entitlement":
           return params.t("manageSubscription.reasonNoActiveEntitlement", {
             defaultValue:
-              "The store account did not return an active Premium entitlement for this user.",
+              "We could not find an active Premium subscription for this store account.",
           });
         case "uid_mismatch":
           return params.t("manageSubscription.reasonUidMismatch", {
             defaultValue:
-              "The store entitlement is attached to a different account ID. Sign in to the original account or restore purchases again.",
+              "This subscription appears to be linked to another Fitaly account. Sign in to the original account or restore purchases again.",
           });
         case "sync_tier_failed":
           return params.t("manageSubscription.reasonSyncTierFailed", {
             defaultValue:
-              "Premium was found in billing, but backend credit synchronization failed.",
+              "Premium was found in billing, but access confirmation did not finish yet.",
           });
         case "access_unknown_degraded":
           return params.t("manageSubscription.reasonAccessDegraded", {
             defaultValue:
-              "Backend access state is unavailable or degraded, so Premium cannot be confirmed yet.",
+              "We could not refresh your account access right now. Please check your connection and try again.",
           });
         case "credits_missing":
           return params.t("manageSubscription.reasonCreditsMissing", {
             defaultValue:
-              "Backend access was returned without an AI Credits balance.",
+              "Premium access could not be matched with an AI Credits balance yet.",
           });
         case "credits_not_premium":
           return params.t("manageSubscription.reasonCreditsNotPremium", {
             defaultValue:
-              "Backend credits are still not on the Premium tier.",
+              "Premium credits are still being activated for this account.",
           });
         default:
           return params.t("manageSubscription.reasonUnknown", {
             defaultValue:
-              "Premium could not be confirmed across billing, backend access, and credits.",
+              "Premium could not be confirmed right now. Please try again shortly.",
           });
       }
     },
     [params],
+  );
+
+  const activationPendingFeedback = useCallback(
+    (source: Exclude<SubscriptionBusyAction, null>): SubscriptionActionFeedback => ({
+      tone: "info",
+      title: params.t("manageSubscription.activationPendingTitle", {
+        defaultValue: "Subscription activation in progress",
+      }),
+      message: params.t("manageSubscription.activationPendingBody", {
+        defaultValue:
+          "The purchase was confirmed. We will refresh access shortly, or you can try restoring purchases.",
+      }),
+      source,
+      feedbackState: "activation-pending",
+      restoreState: "confirmation-pending",
+    }),
+    [params],
+  );
+
+  const noPurchaseFeedback = useCallback(
+    (source: Exclude<SubscriptionBusyAction, null>): SubscriptionActionFeedback => ({
+      tone: "neutral",
+      title: params.t("manageSubscription.restoreNoPurchaseFoundTitle", {
+        defaultValue: "No active subscription found",
+      }),
+      message: params.t("manageSubscription.restoreNoPurchaseFound", {
+        defaultValue:
+          "Make sure you are using the same store account. You can try again or return to the Premium offer.",
+      }),
+      source,
+      feedbackState: "no-purchase",
+      restoreState: "no-purchase",
+    }),
+    [params],
+  );
+
+  const entitlementRefreshFailedFeedback = useCallback(
+    (
+      reason: PremiumEntitlementFailureReason | undefined,
+    ): SubscriptionActionFeedback => ({
+      tone: "warning",
+      title: params.t("manageSubscription.entitlementRefreshFailedTitle", {
+        defaultValue: "Access refresh did not finish",
+      }),
+      message:
+        reason === "uid_mismatch"
+          ? confirmationFailureMessage(reason)
+          : params.t("manageSubscription.entitlementRefreshFailedBody", {
+              defaultValue:
+                "We could not refresh subscription access right now. Check your connection and try again.",
+            }),
+      source: "manage",
+      feedbackState: "entitlement-refresh-failed",
+    }),
+    [confirmationFailureMessage, params],
   );
 
   useEffect(() => {
@@ -240,6 +302,9 @@ export function useManageSubscriptionState(params: {
       source: Exclude<SubscriptionBusyAction, null>,
       message: string,
       title?: string,
+      feedbackState: NonNullable<
+        SubscriptionActionFeedback
+      >["feedbackState"] = "generic-error",
     ) => {
       setActionFeedback({
         tone: "error",
@@ -250,6 +315,7 @@ export function useManageSubscriptionState(params: {
           }),
         message,
         source,
+        feedbackState,
       });
     },
     [params],
@@ -311,20 +377,23 @@ export function useManageSubscriptionState(params: {
           source: "manage_subscription",
           reason,
         });
-        setActionFeedback({
-          tone: "warning",
-          title: params.t("manageSubscription.subscriptionUnknownTitle", {
-            defaultValue: "Cannot confirm premium right now",
-          }),
-          message: confirmationFailureMessage(reason),
-          source: "manage",
-        });
+        setActionFeedback(
+          reason === "no_active_entitlement"
+            ? noPurchaseFeedback("manage")
+            : entitlementRefreshFailedFeedback(reason),
+        );
       }
     } finally {
       setBusy(false);
       setBusyAction(null);
     }
-  }, [confirmationFailureMessage, params, requireAuthOrAlert, showSuccessToast]);
+  }, [
+    entitlementRefreshFailedFeedback,
+    noPurchaseFeedback,
+    params,
+    requireAuthOrAlert,
+    showSuccessToast,
+  ]);
 
   const tryRestore = useCallback(async () => {
     if (!requireAuthOrAlert("restore")) return;
@@ -340,32 +409,38 @@ export function useManageSubscriptionState(params: {
         void trackRestoreSucceeded({ confirmed: confirmation.confirmed });
         if (confirmation.confirmed) {
           void trackEntitlementConfirmed({ source: "restore" });
-          setPaywallVisible(false);
           showSuccessToast(
             params.t("manageSubscription.restoreSuccess", {
               defaultValue: "Purchases restored and premium is active.",
             }),
           );
+          setActionFeedback({
+            tone: "success",
+            title: params.t("manageSubscription.restoreSuccessTitle", {
+              defaultValue: "Purchases restored",
+            }),
+            message: params.t("manageSubscription.restoreSuccess", {
+              defaultValue: "Purchases restored and premium is active.",
+            }),
+            source: "restore",
+          });
         } else {
           void trackEntitlementConfirmationFailed({
             source: "restore",
             reason: confirmation.reason ?? "sync_tier_failed",
           });
-          setActionFeedback({
-            tone: "warning",
-            title: params.t("manageSubscription.confirmationPendingTitle", {
-              defaultValue: "Confirmation pending",
-            }),
-            message: confirmationFailureMessage(confirmation.reason),
-            source: "restore",
-          });
+          setActionFeedback(activationPendingFeedback("restore"));
         }
       } else if (res.status === "cancelled") {
         return;
       } else {
         void trackRestoreFailed({ reason: res.errorCode });
+        if (res.errorCode === "entitlement_inactive") {
+          setActionFeedback(noPurchaseFeedback("restore"));
+          return;
+        }
         const fallback = params.t("manageSubscription.restoreFailed", {
-          defaultValue: "Restore failed. Try again later.",
+          defaultValue: "Check your connection and try again.",
         });
         setFeedbackForError(
           "restore",
@@ -373,6 +448,7 @@ export function useManageSubscriptionState(params: {
           params.t("manageSubscription.restoreFailedTitle", {
             defaultValue: "Restore failed",
           }),
+          "restore-failed",
         );
       }
     } finally {
@@ -381,7 +457,8 @@ export function useManageSubscriptionState(params: {
     }
   }, [
     params,
-    confirmationFailureMessage,
+    activationPendingFeedback,
+    noPurchaseFeedback,
     requireAuthOrAlert,
     setFeedbackForError,
     showSuccessToast,
@@ -412,18 +489,15 @@ export function useManageSubscriptionState(params: {
             source: "purchase",
             reason: confirmation.reason ?? "sync_tier_failed",
           });
-          setActionFeedback({
-            tone: "warning",
-            title: params.t("manageSubscription.confirmationPendingTitle", {
-              defaultValue: "Confirmation pending",
-            }),
-            message: confirmationFailureMessage(confirmation.reason),
-            source: "purchase",
-          });
+          setActionFeedback(activationPendingFeedback("purchase"));
         }
       } else if (res.status === "cancelled") {
         return;
       } else {
+        if (res.errorCode === "entitlement_inactive") {
+          setActionFeedback(activationPendingFeedback("purchase"));
+          return;
+        }
         const fallback = params.t("manageSubscription.purchaseFailed", {
           defaultValue: "Purchase failed.",
         });
@@ -441,7 +515,7 @@ export function useManageSubscriptionState(params: {
     }
   }, [
     params,
-    confirmationFailureMessage,
+    activationPendingFeedback,
     requireAuthOrAlert,
     setFeedbackForError,
     showSuccessToast,

@@ -1,11 +1,11 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreFailure"
+- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreError"
 - assertVisible:
     id: e2e-ready-credits-ok
 - assertVisible:
-    id: e2e-ready-billing-restoreFailure
+    id: e2e-ready-billing-restoreError
 - tapOn:
     id: tab-profile
 - scrollUntilVisible:

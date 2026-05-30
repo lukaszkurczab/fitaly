@@ -36,6 +36,11 @@ function log(...args: unknown[]) {
   if (__DEV__) console.log("[IAP]", ...args);
 }
 
+function waitForE2EDelay(delayMs?: number): Promise<void> {
+  if (!delayMs || delayMs <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 function errToObj(e: unknown): PurchaseErrorMeta {
   if (!e || typeof e !== "object") return {};
   const obj = e as {
@@ -82,7 +87,10 @@ export async function startOrRenewSubscription(
   uid?: string | null,
 ): Promise<PurchaseResult> {
   const e2eResult = resolveE2EBillingPurchaseResult("purchase");
-  if (e2eResult) return e2eResult;
+  if (e2eResult) {
+    await waitForE2EDelay(e2eResult.delayMs);
+    return e2eResult;
+  }
 
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
@@ -172,7 +180,10 @@ export async function restorePurchases(
   uid?: string | null,
 ): Promise<PurchaseResult> {
   const e2eResult = resolveE2EBillingPurchaseResult("restore");
-  if (e2eResult) return e2eResult;
+  if (e2eResult) {
+    await waitForE2EDelay(e2eResult.delayMs);
+    return e2eResult;
+  }
 
   if (isBillingDisabled()) {
     return { status: "unavailable", errorCode: "billing_unavailable" };
