@@ -17,6 +17,8 @@ import CloseIcon from "@assets/icons/close.svg";
 import CopyIcon from "@assets/icons/copy.svg";
 import CropIcon from "@assets/icons/crop.svg";
 import DeleteIcon from "@assets/icons/delete.svg";
+import DocumentIcon from "@assets/icons/document.svg";
+import DownloadIcon from "@assets/icons/download.svg";
 import EditIcon from "@assets/icons/edit.svg";
 import EmailIcon from "@assets/icons/email.svg";
 import EmptyMealsIcon from "@assets/icons/empty-meals.svg";
@@ -76,6 +78,8 @@ const ICONS = {
   copy: CopyIcon,
   crop: CropIcon,
   delete: DeleteIcon,
+  document: DocumentIcon,
+  download: DownloadIcon,
   edit: EditIcon,
   email: EmailIcon,
   "empty-meals": EmptyMealsIcon,

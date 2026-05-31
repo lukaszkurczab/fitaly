@@ -1,4 +1,12 @@
-import { useMemo, useState } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -10,7 +18,6 @@ import {
   Layout,
   Modal,
   SettingsRow,
-  SettingsSection,
 } from "@/components";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import AvatarBadge from "@/components/AvatarBadge";
@@ -87,15 +94,25 @@ export default function UserProfileScreen({
             defaultValue: "Cannot confirm premium",
           })
         : t("manageSubscription.free");
+  const accountRowProps = {
+    style: styles.accountRow,
+    titleStyle: styles.accountRowTitle,
+    subtitleStyle: styles.accountRowSubtitle,
+    chevronSize: 20,
+  };
+
   return (
     <Layout>
       <View style={styles.content} testID="account-screen">
         <View style={styles.hero}>
           <AccountIdentityCard
+            testID="account-identity-card"
             style={styles.identityCard}
+            titleStyle={styles.identityTitle}
+            subtitleStyle={styles.identitySubtitle}
             avatar={
               <AvatarBadge
-                size={72}
+                size={64}
                 uri={state.avatarSrc || undefined}
                 badges={state.safeBadges}
                 overrideColor={state.overrideColor}
@@ -103,7 +120,7 @@ export default function UserProfileScreen({
                 fallbackIcon={
                   <AppIcon
                     name="person"
-                    size={36}
+                    size={32}
                     color={theme.textSecondary}
                   />
                 }
@@ -113,6 +130,14 @@ export default function UserProfileScreen({
             title={state.userData.username}
             subtitle={state.userData.email}
             badge={<Text style={styles.identityBadge}>{planLabel}</Text>}
+            accessory={
+              <AppIcon
+                name="chevron"
+                rotation="180deg"
+                size={20}
+                color={theme.textSecondary}
+              />
+            }
             onPress={() => navigation.navigate("EditUserData")}
           />
 
@@ -159,17 +184,12 @@ export default function UserProfileScreen({
           ) : null}
         </View>
 
-        <SettingsSection
+        <AccountOverviewSection
+          styles={styles}
           title={t("profileSectionTitle")}
-          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
-            leading={renderRowIcon(styles, "person", theme.primaryStrong)}
-            title={t("profileDetailsLabel")}
-            testID="account-profile-details-row"
-            onPress={() => navigation.navigate("EditUserData")}
-          />
-          <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "palette", theme.accentWarmStrong)}
             title={t("updateHealthSurvey")}
             titleNumberOfLines={2}
@@ -178,18 +198,20 @@ export default function UserProfileScreen({
             }
           />
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "star", theme.primaryStrong)}
             title={t("manageSubscription.title")}
             testID="account-manage-subscription-row"
             onPress={() => navigation.navigate("ManageSubscription")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
-        <SettingsSection
+        <AccountOverviewSection
+          styles={styles}
           title={t("legalPrivacySectionTitle")}
-          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "lock", theme.primaryStrong)}
             title={t("legalPrivacyHubRowTitle")}
             subtitle={t("legalPrivacyHubRowSubtitle")}
@@ -198,6 +220,7 @@ export default function UserProfileScreen({
             onPress={() => navigation.navigate("LegalPrivacyHub")}
           />
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "help", theme.accentWarmStrong)}
             title={t("helpFeedbackHubRowTitle")}
             subtitle={t("helpFeedbackHubRowSubtitle")}
@@ -206,19 +229,21 @@ export default function UserProfileScreen({
             onPress={() => navigation.navigate("HelpFeedback")}
           />
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "settings", theme.primaryStrong)}
             title={t("appSettingsHubRowTitle")}
             subtitle={t("appSettingsHubRowSubtitle")}
             testID="account-app-settings-row"
             onPress={() => navigation.navigate("AppSettings")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
-        <SettingsSection
+        <AccountOverviewSection
+          styles={styles}
           title={t("accountActionsSectionTitle")}
-          contentStyle={styles.sectionGroup}
         >
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "arrow", theme.textSecondary)}
             title={t("logOut")}
             subtitle={t("logOutSubtitle")}
@@ -227,13 +252,14 @@ export default function UserProfileScreen({
             showChevron={false}
           />
           <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "delete", theme.error.text)}
             title={t("deleteAccount")}
             subtitle={t("deleteAccountSubtitle")}
             testID="account-delete-account-row"
             onPress={() => navigation.navigate("DeleteAccount")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
         <Text style={styles.version}>{t("appVersion")} 1.0.1</Text>
       </View>
@@ -266,29 +292,109 @@ const renderRowIcon = (
   color: string,
 ) => (
   <View style={styles.rowIcon}>
-    <AppIcon name={name} size={20} color={color} />
+    <AppIcon name={name} size={18} color={color} />
   </View>
 );
+
+const AccountOverviewSection = ({
+  styles,
+  title,
+  children,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  title: string;
+  children: ReactNode;
+}) => {
+  const items = Children.toArray(children).filter(
+    (child) => child !== null && child !== undefined,
+  );
+
+  return (
+    <View style={styles.accountSection}>
+      <Text style={styles.accountSectionTitle} accessibilityRole="header">
+        {title}
+      </Text>
+
+      <View style={styles.sectionGroup}>
+        {items.map((child, index) => {
+          if (!isValidElement(child)) {
+            return child;
+          }
+
+          const element = child as ReactElement<{ showDivider?: boolean }>;
+          if (element.props.showDivider !== undefined) {
+            return cloneElement(element, {
+              key: element.key ?? `account-overview-section-item-${index}`,
+            });
+          }
+
+          return cloneElement(element, {
+            key: element.key ?? `account-overview-section-item-${index}`,
+            showDivider: index < items.length - 1,
+          });
+        })}
+      </View>
+    </View>
+  );
+};
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
-      gap: theme.spacing.sectionGap,
+      gap: theme.spacing.lg,
       paddingBottom: theme.spacing.sectionGap,
     },
     hero: {
-      gap: theme.spacing.lg,
+      gap: theme.spacing.md,
     },
     identityCard: {
+      gap: theme.spacing.sm,
+      padding: theme.spacing.cardPadding,
       ...theme.depth.raised,
+    },
+    identityTitle: {
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
+    },
+    identitySubtitle: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
     },
     sectionGroup: {
       ...theme.depth.raised,
     },
+    accountSection: {
+      gap: theme.spacing.xs,
+    },
+    accountSectionTitle: {
+      color: theme.textTertiary,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      paddingHorizontal: theme.spacing.sm,
+    },
+    accountRow: {
+      minHeight: 54,
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm - 2,
+    },
+    accountRowTitle: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    accountRowSubtitle: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+    },
     rowIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: theme.rounded.md,
+      width: 34,
+      height: 34,
+      borderRadius: theme.rounded.sm,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.surfaceAlt,

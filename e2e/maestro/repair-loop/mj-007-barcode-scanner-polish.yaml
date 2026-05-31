@@ -86,7 +86,7 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: tab-profile
 - assertVisible:
-    id: account-profile-details-row
+    id: account-identity-card
 - swipe:
     direction: UP
     duration: 600

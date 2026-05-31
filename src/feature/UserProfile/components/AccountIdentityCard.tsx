@@ -6,6 +6,7 @@ import {
   View,
   type PressableProps,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import AppIcon from "@/components/AppIcon";
@@ -20,6 +21,8 @@ export type AccountIdentityCardProps = {
   showChevron?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  titleStyle?: StyleProp<TextStyle>;
+  subtitleStyle?: StyleProp<TextStyle>;
 } & Pick<PressableProps, "onPress" | "testID" | "accessibilityLabel">;
 
 export function AccountIdentityCard({
@@ -32,6 +35,8 @@ export function AccountIdentityCard({
   disabled = false,
   onPress,
   style,
+  titleStyle,
+  subtitleStyle,
   testID,
   accessibilityLabel,
 }: AccountIdentityCardProps) {
@@ -54,12 +59,18 @@ export function AccountIdentityCard({
       {avatar ? <View style={styles.avatar}>{avatar}</View> : null}
 
       <View style={styles.copy}>
-        <Text style={[styles.title, disabled ? styles.mutedText : null]}>
+        <Text
+          style={[styles.title, titleStyle, disabled ? styles.mutedText : null]}
+        >
           {title}
         </Text>
         {subtitle ? (
           <Text
-            style={[styles.subtitle, disabled ? styles.mutedText : null]}
+            style={[
+              styles.subtitle,
+              subtitleStyle,
+              disabled ? styles.mutedText : null,
+            ]}
             numberOfLines={2}
           >
             {subtitle}

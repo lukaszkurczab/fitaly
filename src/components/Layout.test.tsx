@@ -1,4 +1,11 @@
-import { Text, Keyboard, Platform, View, StyleSheet } from "react-native";
+import {
+  Text,
+  Keyboard,
+  Platform,
+  View,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { act, fireEvent } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { Layout } from "@/components/Layout";
@@ -231,13 +238,12 @@ describe("Layout", () => {
       </Layout>,
     );
 
-    const getRootPaddingBottom = () => {
-      const rootView = UNSAFE_getAllByType(View).find((node) => {
-        return isSurfaceView(node.props.style);
-      });
+    const getScrollContentPaddingBottom = () => {
+      const scrollView = UNSAFE_getAllByType(ScrollView)[0];
 
-      expect(rootView).toBeTruthy();
-      return StyleSheet.flatten(rootView?.props.style).paddingBottom;
+      expect(scrollView).toBeTruthy();
+      return StyleSheet.flatten(scrollView?.props.contentContainerStyle)
+        .paddingBottom;
     };
 
     const showEventName =
@@ -245,25 +251,47 @@ describe("Layout", () => {
     const hideEventName =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
-    expect(getRootPaddingBottom()).toBe(44);
+    expect(getScrollContentPaddingBottom()).toBe(44);
 
     act(() => {
       listeners.get(showEventName)?.();
     });
-    expect(getRootPaddingBottom()).toBe(0);
+    expect(getScrollContentPaddingBottom()).toBe(0);
 
     act(() => {
       listeners.get(hideEventName)?.();
     });
-    expect(getRootPaddingBottom()).toBe(44);
+    expect(getScrollContentPaddingBottom()).toBe(44);
   });
 
-  it("does not double-count safe-area inset when bottom navigation is visible", () => {
+  it("adds bottom navigation clearance to scroll content without double-counting the safe area", () => {
     mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
     mockInsets.bottom = 34;
 
     const { UNSAFE_getAllByType } = renderWithTheme(
       <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const rootView = UNSAFE_getAllByType(View).find((node) => {
+      return isSurfaceView(node.props.style);
+    });
+    const scrollView = UNSAFE_getAllByType(ScrollView)[0];
+
+    expect(rootView).toBeTruthy();
+    expect(StyleSheet.flatten(rootView?.props.style).paddingBottom).toBe(0);
+    expect(
+      StyleSheet.flatten(scrollView.props.contentContainerStyle).paddingBottom,
+    ).toBe(44);
+  });
+
+  it("keeps bottom navigation clearance on the surface for non-scroll layouts", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    mockInsets.bottom = 34;
+
+    const { UNSAFE_getAllByType } = renderWithTheme(
+      <Layout disableScroll>
         <Text>screen-content</Text>
       </Layout>,
     );

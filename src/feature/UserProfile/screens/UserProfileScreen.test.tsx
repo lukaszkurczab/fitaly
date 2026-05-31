@@ -59,12 +59,14 @@ jest.mock("@/feature/UserProfile/components/AccountIdentityCard", () => {
       title,
       subtitle,
       onPress,
+      testID,
     }: {
       title: string;
       subtitle: string;
       onPress?: () => void;
+      testID?: string;
     }) => (
-      <Pressable onPress={onPress}>
+      <Pressable onPress={onPress} testID={testID}>
         <Text>{title}</Text>
         <Text>{subtitle}</Text>
       </Pressable>
@@ -195,5 +197,18 @@ describe("UserProfileScreen", () => {
 
     expect(screen.queryByText("logOutConfirmTitle")).toBeNull();
     expect(mockHandleLogout).not.toHaveBeenCalled();
+  });
+
+  it("uses the identity card as the single profile details entry", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.queryByTestId("account-profile-details-row")).toBeNull();
+
+    fireEvent.press(screen.getByTestId("account-identity-card"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("EditUserData");
   });
 });

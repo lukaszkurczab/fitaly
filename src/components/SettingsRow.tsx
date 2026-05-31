@@ -7,6 +7,7 @@ import {
   View,
   type PressableProps,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import AppIcon from "@/components/AppIcon";
@@ -25,7 +26,10 @@ export type SettingsRowProps = {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  titleStyle?: StyleProp<TextStyle>;
+  subtitleStyle?: StyleProp<TextStyle>;
   valueTestID?: string;
+  chevronSize?: number;
 } & Pick<
   PressableProps,
   "onPress" | "testID" | "accessibilityLabel" | "accessibilityHint"
@@ -45,8 +49,11 @@ export function SettingsRow({
   disabled = false,
   loading = false,
   style,
+  titleStyle,
+  subtitleStyle,
   testID,
   valueTestID,
+  chevronSize = 24,
   accessibilityLabel,
   accessibilityHint,
 }: SettingsRowProps) {
@@ -72,7 +79,7 @@ export function SettingsRow({
         <AppIcon
           name="chevron"
           rotation="180deg"
-          size={24}
+          size={chevronSize}
           color={isInactive ? theme.textTertiary : theme.textSecondary}
         />
       );
@@ -82,6 +89,7 @@ export function SettingsRow({
   }, [
     isInactive,
     loading,
+    chevronSize,
     shouldShowChevron,
     theme.textSecondary,
     theme.textTertiary,
@@ -94,14 +102,22 @@ export function SettingsRow({
 
       <View style={styles.copy}>
         <Text
-          style={[styles.title, isInactive ? styles.copyDisabled : null]}
+          style={[
+            styles.title,
+            titleStyle,
+            isInactive ? styles.copyDisabled : null,
+          ]}
           numberOfLines={resolvedTitleNumberOfLines}
         >
           {title}
         </Text>
         {subtitle ? (
           <Text
-            style={[styles.subtitle, isInactive ? styles.copyDisabled : null]}
+            style={[
+              styles.subtitle,
+              subtitleStyle,
+              isInactive ? styles.copyDisabled : null,
+            ]}
             numberOfLines={subtitleNumberOfLines}
           >
             {subtitle}

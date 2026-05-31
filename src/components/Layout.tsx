@@ -122,6 +122,8 @@ export const Layout = ({
     : isKeyboardVisible
       ? 0
       : insets.bottom + 8;
+  const surfaceBottomPadding = disableScroll ? bottomPadding : 0;
+  const scrollContentBottomPadding = disableScroll ? 0 : bottomPadding;
   const isOffline = isOfflineNetState(netInfo);
   const shouldShowOffline = showOfflineBanner && isOffline && !offlineDismissed;
 
@@ -168,7 +170,7 @@ export const Layout = ({
               ? "transparent"
               : theme.background,
             paddingTop: insets.top + theme.spacing.md,
-            paddingBottom: bottomPadding,
+            paddingBottom: surfaceBottomPadding,
             paddingLeft: insets.left + theme.spacing.screenPadding,
             paddingRight: insets.right + theme.spacing.screenPadding,
           },
@@ -206,7 +208,10 @@ export const Layout = ({
         ) : (
           <KeyboardAwareScrollView
             style={styles.content}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: scrollContentBottomPadding },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {children}

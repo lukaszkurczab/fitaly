@@ -234,7 +234,7 @@ export default function NotificationsScreen({
         title={t("screen.permissionOnTitle")}
         body={t("screen.permissionOnBody")}
         tone="success"
-        style={styles.statusBlock}
+        style={[styles.statusBlock, styles.enabledStatusBlock]}
         icon={<AppIcon name="check" size={18} color={theme.success.text} />}
       />
     ) : (
@@ -463,7 +463,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.sectionGap,
     },
     statusBlock: {
-      ...theme.depth.raised,
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
+    },
+    enabledStatusBlock: {
+      backgroundColor: theme.surface,
+      borderColor: theme.borderSoft,
     },
     sectionGroup: {
       ...theme.depth.raised,

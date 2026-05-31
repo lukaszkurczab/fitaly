@@ -117,7 +117,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       marginHorizontal: -(theme.spacing.screenPadding + theme.spacing.sm),
       paddingHorizontal: theme.spacing.screenPaddingWide,
       marginBottom: theme.spacing.md,
-      backgroundColor: theme.background,
     },
     iconButton: {
       width: 44,

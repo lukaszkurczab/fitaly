@@ -91,7 +91,7 @@ export default function LegalPrivacyHubScreen({
         <View style={styles.content}>
           <InfoBlock
             title={t("legalPrivacyHubInfoTitle", {
-              defaultValue: "Trust documents",
+              defaultValue: "Privacy & documents",
             })}
             body={t("legalPrivacyHubInfoBody", {
               defaultValue:
@@ -123,7 +123,11 @@ export default function LegalPrivacyHubScreen({
             <SettingsRow
               leading={
                 <View style={styles.rowIcon}>
-                  <AppIcon name="info" size={20} color={theme.primaryStrong} />
+                  <AppIcon
+                    name="document"
+                    size={20}
+                    color={theme.primaryStrong}
+                  />
                 </View>
               }
               title={t("termsOfService")}
@@ -162,11 +166,16 @@ export default function LegalPrivacyHubScreen({
             <SettingsRow
               leading={
                 <View style={styles.rowIcon}>
-                  <AppIcon name="share" size={20} color={theme.primaryStrong} />
+                  <AppIcon
+                    name="download"
+                    size={20}
+                    color={theme.primaryStrong}
+                  />
                 </View>
               }
               title={t("downloadYourData")}
               subtitle={t("downloadYourDataSubtitle")}
+              testID="legal-download-data-row"
               onPress={() => {
                 void handleExportData();
               }}

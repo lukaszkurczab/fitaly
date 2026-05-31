@@ -1,0 +1,207 @@
+appId: com.lkurczab.fitaly
+env:
+  E2E_EMAIL: e2e@example.com
+  E2E_PASSWORD: Test@1234
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: "fitaly://e2e/reset?logout=1&theme=light"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-email-input
+- tapOn:
+    id: login-email-input
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-notificationPermission-allowed
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- assertVisible:
+    id: notifications-smart-reminders-state-on
+- takeScreenshot: mj054-notifications-enabled-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-notificationPermission-allowed
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- assertVisible:
+    id: notifications-smart-reminders-state-on
+- takeScreenshot: mj054-notifications-enabled-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?notificationPermission=denied&reminder=send"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-notificationPermission-denied
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-denied-state
+- assertVisible:
+    id: notifications-open-settings-button
+- takeScreenshot: mj054-notifications-denied-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?notificationPermission=denied&reminder=send"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-notificationPermission-denied
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-denied-state
+- assertVisible:
+    id: notifications-open-settings-button
+- takeScreenshot: mj054-notifications-denied-dark
