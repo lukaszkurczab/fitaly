@@ -13,12 +13,13 @@ import { useStatisticsState } from "@/feature/Statistics/hooks/useStatisticsStat
 import type { RangeKey } from "@/feature/Statistics/types";
 import { StatisticsRangeSwitcher } from "@/feature/Statistics/components/StatisticsRangeSwitcher";
 import { StatisticsCustomRangeControl } from "@/feature/Statistics/components/StatisticsCustomRangeControl";
+import { StatisticsSummaryCard } from "@/feature/Statistics/components/StatisticsSummaryCard";
 import { StatisticsTrendCard } from "@/feature/Statistics/components/StatisticsTrendCard";
-import { StatisticsDailyAveragesSection } from "@/feature/Statistics/components/StatisticsDailyAveragesSection";
 import { StatisticsMacroBreakdownCard } from "@/feature/Statistics/components/StatisticsMacroBreakdownCard";
 import { StatisticsPremiumBanner } from "@/feature/Statistics/components/StatisticsPremiumBanner";
 import { StatisticsEmptyState } from "@/feature/Statistics/components/StatisticsEmptyState";
 import { endOfDay, getAccessWindowStartDate } from "@/utils/accessWindow";
+import { calculateMacroTargets } from "@/utils/calculateMacroTargets";
 
 type StatisticsNavigation = StackNavigationProp<RootStackParamList, "Statistics">;
 type Props = {
@@ -42,10 +43,23 @@ export default function StatisticsScreen({ navigation }: Props) {
   const accessWindowDays = premiumActive ? undefined : FREE_WINDOW_DAYS;
   const minCustomRangeDate = getAccessWindowStartDate(accessWindowDays);
   const maxCustomRangeDate = endOfDay(new Date());
+  const nutritionProfile = userData?.profile?.nutritionProfile;
+  const calorieTarget = nutritionProfile?.calorieTarget ?? null;
+  const macroTargets = useMemo(
+    () =>
+      calorieTarget && calorieTarget > 0
+        ? calculateMacroTargets({
+            calorieTarget,
+            preferences: nutritionProfile?.preferences,
+            goal: nutritionProfile?.goal,
+          })
+        : null,
+    [calorieTarget, nutritionProfile?.goal, nutritionProfile?.preferences],
+  );
 
   const state = useStatisticsState({
     uid,
-    calorieTarget: userData?.profile?.nutritionProfile.calorieTarget ?? null,
+    calorieTarget,
     accessWindowDays,
   });
 
@@ -95,26 +109,31 @@ export default function StatisticsScreen({ navigation }: Props) {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <StatisticsTrendCard
-                metric={state.metric}
-                metricAverage={state.metricAverage}
-                labels={state.labels}
-                series={state.selectedSeries}
-                onChangeMetric={state.setMetric}
+              <StatisticsSummaryCard
+                activeRange={state.active}
+                avgKcal={state.avgKcal}
+                calorieTarget={state.calorieTarget}
+                calorieGoalProgress={state.calorieGoalProgress}
+                loggedDaysCount={state.loggedDaysCount}
+                rangeDaysCount={state.rangeDaysCount}
+                comparison={state.calorieComparison}
               />
 
-              <StatisticsDailyAveragesSection
-                avgKcal={state.avgKcal}
-                avgProtein={state.avgProtein}
-                avgCarbs={state.avgCarbs}
-                avgFat={state.avgFat}
+              <StatisticsTrendCard
+                metric={state.metric}
+                labels={state.labels}
+                series={state.selectedSeries}
+                calorieTarget={state.calorieTarget}
+                macroTargets={macroTargets}
+                onChangeMetric={state.setMetric}
               />
 
               {state.hasTotals ? (
                 <StatisticsMacroBreakdownCard
-                  protein={state.totals.protein}
-                  carbs={state.totals.carbs}
-                  fat={state.totals.fat}
+                  protein={state.avgLoggedProtein}
+                  carbs={state.avgLoggedCarbs}
+                  fat={state.avgLoggedFat}
+                  targets={macroTargets}
                 />
               ) : null}
 
@@ -153,18 +172,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     headerPanel: {
-      borderRadius: theme.rounded.xl,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      padding: theme.spacing.sm,
-      gap: theme.spacing.sm,
-      ...theme.depth.raised,
+      gap: theme.spacing.md,
+      paddingTop: theme.spacing.xs,
     },
     header: {
       gap: theme.spacing.xxs,
-      paddingHorizontal: theme.spacing.xs,
-      paddingTop: theme.spacing.xxs,
     },
     title: {
       color: theme.text,
@@ -175,18 +187,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     subtitle: {
       color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
     },
     content: {
       flex: 1,
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.lg,
     },
     loaderWrap: {
       flex: 1,
     },
     scrollContent: {
       paddingBottom: theme.spacing.display,
-      gap: theme.spacing.md,
+      gap: theme.spacing.lg,
     },
   });

@@ -1,0 +1,117 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- assertVisible:
+    id: statistics-empty-growth-motif
+- takeScreenshot: mj049-statistics-empty-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- assertVisible:
+    id: statistics-summary-card
+- assertVisible:
+    id: statistics-summary-kcal
+- takeScreenshot: mj049-statistics-overview-light
+- scrollUntilVisible:
+    element:
+      id: statistics-macro-breakdown-card
+    direction: DOWN
+- assertVisible:
+    id: statistics-macro-breakdown-card
+- assertVisible:
+    id: statistics-macro-row-protein
+- assertVisible:
+    id: statistics-macro-row-carbs
+- assertVisible:
+    id: statistics-macro-row-fat
+- takeScreenshot: mj049-statistics-lower-sections-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- assertVisible:
+    id: statistics-empty-growth-motif
+- takeScreenshot: mj049-statistics-empty-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- assertVisible:
+    id: statistics-summary-card
+- assertVisible:
+    id: statistics-summary-kcal
+- takeScreenshot: mj049-statistics-overview-dark
+- scrollUntilVisible:
+    element:
+      id: statistics-macro-breakdown-card
+    direction: DOWN
+- assertVisible:
+    id: statistics-macro-breakdown-card
+- assertVisible:
+    id: statistics-macro-row-protein
+- assertVisible:
+    id: statistics-macro-row-carbs
+- assertVisible:
+    id: statistics-macro-row-fat
+- takeScreenshot: mj049-statistics-lower-sections-dark

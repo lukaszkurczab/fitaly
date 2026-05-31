@@ -1,15 +1,21 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
 import type { MetricKey } from "@/feature/Statistics/types";
 import { StatisticsTrendChart } from "@/feature/Statistics/components/StatisticsTrendChart";
 
 type Props = {
   metric: MetricKey;
-  metricAverage: number;
   labels: string[];
   series: number[];
+  calorieTarget: number | null;
+  macroTargets?: {
+    proteinGrams: number;
+    carbsGrams: number;
+    fatGrams: number;
+  } | null;
   onChangeMetric: (next: MetricKey) => void;
 };
 
@@ -17,30 +23,24 @@ const METRICS: MetricKey[] = ["kcal", "protein", "carbs", "fat"];
 
 export function StatisticsTrendCard({
   metric,
-  metricAverage,
   labels,
   series,
+  calorieTarget,
+  macroTargets,
   onChangeMetric,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["statistics", "common"]);
 
-  const metricText = {
-    kcal: t("statistics:tiles.calories"),
-    protein: t("statistics:tiles.protein"),
-    carbs: t("statistics:tiles.carbs"),
-    fat: t("statistics:tiles.fat"),
-  } as const;
   const metricChipText = {
     kcal: t("statistics:chips.calories"),
     protein: t("statistics:chips.protein"),
     carbs: t("statistics:chips.carbs"),
     fat: t("statistics:chips.fat"),
   } as const;
-
   const metricColor = {
-    kcal: theme.chart.calories,
+    kcal: theme.isDark ? theme.primaryStrong : theme.chart.calories,
     protein: theme.chart.protein,
     carbs: theme.chart.carbs,
     fat: theme.chart.fat,
@@ -52,27 +52,46 @@ export function StatisticsTrendCard({
     carbs: theme.chart.carbsSoft,
     fat: theme.chart.fatSoft,
   } as const;
+  const metricIcon = {
+    kcal: "macro-calories-flame",
+    protein: "macro-protein-drumstick",
+    carbs: "macro-carbs-grain",
+    fat: "macro-fat-drop",
+  } as const;
 
-  const metricValue =
-    metric === "kcal"
-      ? `${Math.round(metricAverage)} ${t("common:kcal")}`
-      : `${Math.round(metricAverage)} ${t("common:gram")}`;
+  const activeMetricColor = metricColor[metric];
+  const targetValueByMetric: Record<MetricKey, number | null> = {
+    kcal: calorieTarget,
+    protein: macroTargets?.proteinGrams ?? null,
+    carbs: macroTargets?.carbsGrams ?? null,
+    fat: macroTargets?.fatGrams ?? null,
+  };
+  const targetValue = targetValueByMetric[metric];
+  const showTargetLine = targetValue !== null;
 
   return (
     <View style={styles.card} testID="statistics-trend-card">
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <Text style={styles.title}>{t("statistics:trend.title")}</Text>
-          <View style={styles.metricTag}>
-            <Text style={styles.metricTagLabel}>{metricText[metric]}</Text>
-          </View>
-        </View>
-
-        <View style={styles.valueRow}>
-          <Text testID="statistics-trend-metric-value" style={styles.metricValue}>
-            {metricValue}
+          <Text style={styles.title}>
+            {t(`statistics:trend.chartTitle.${metric}`)}
           </Text>
-          <Text style={styles.metricMeta}>{t("statistics:trend.avgPerDay")}</Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendLine, { backgroundColor: activeMetricColor }]} />
+              <Text style={styles.legendLabel}>
+                {t(`statistics:trend.legend.${metric}`)}
+              </Text>
+            </View>
+            {showTargetLine ? (
+              <View style={styles.legendItem}>
+                <View style={[styles.legendLine, styles.goalLine]} />
+                <Text style={styles.legendLabel}>
+                  {t("statistics:trend.legend.target")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -81,6 +100,7 @@ export function StatisticsTrendCard({
         labels={labels}
         color={metricColor[metric]}
         softColor={metricSoftColor[metric]}
+        targetValue={targetValue}
       />
 
       <View style={styles.metricPillsRow}>
@@ -96,14 +116,32 @@ export function StatisticsTrendCard({
               onPress={() => onChangeMetric(metricKey)}
               style={({ pressed }) => [
                 styles.metricPill,
-                isActive ? styles.metricPillActive : null,
+                isActive
+                  ? [
+                      styles.metricPillActive,
+                      {
+                        borderColor: metricColor[metricKey],
+                        backgroundColor: metricSoftColor[metricKey],
+                      },
+                    ]
+                  : null,
                 pressed ? styles.metricPillPressed : null,
               ]}
             >
+              <AppIcon
+                name={metricIcon[metricKey]}
+                size={13}
+                color={isActive ? metricColor[metricKey] : theme.textTertiary}
+              />
               <Text
                 numberOfLines={1}
                 ellipsizeMode="tail"
-                style={[styles.metricPillLabel, isActive ? styles.metricPillLabelActive : null]}
+                style={[
+                  styles.metricPillLabel,
+                  isActive
+                    ? [styles.metricPillLabelActive, { color: metricColor[metricKey] }]
+                    : null,
+                ]}
               >
                 {metricChipText[metricKey]}
               </Text>
@@ -122,63 +160,57 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: theme.borderSoft,
       borderRadius: theme.rounded.xl,
       backgroundColor: theme.surfaceElevated,
-      padding: theme.spacing.sm,
-      gap: theme.spacing.sm,
-      ...theme.depth.floating,
+      padding: theme.spacing.md,
+      gap: theme.spacing.md,
     },
     header: {
-      gap: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.xs,
-      paddingTop: theme.spacing.xs,
+      gap: theme.spacing.sm,
     },
     headerTopRow: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       gap: theme.spacing.xs,
     },
     title: {
       color: theme.text,
       fontFamily: theme.typography.fontFamily.semiBold,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
+      flex: 1,
+      minWidth: 0,
     },
-    metricTag: {
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceAlt,
-      borderRadius: theme.rounded.full,
-      paddingHorizontal: theme.spacing.xs,
-      paddingVertical: theme.spacing.xxs,
-    },
-    metricTagLabel: {
-      color: theme.textSecondary,
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.size.overline,
-      lineHeight: theme.typography.lineHeight.overline,
-    },
-    valueRow: {
+    legendRow: {
       flexDirection: "row",
-      alignItems: "baseline",
+      alignItems: "center",
       gap: theme.spacing.xs,
+      flexShrink: 0,
     },
-    metricValue: {
-      color: theme.text,
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: theme.typography.size.h2,
-      lineHeight: theme.typography.lineHeight.h2,
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
     },
-    metricMeta: {
+    legendLine: {
+      width: 18,
+      height: 2,
+      borderRadius: theme.rounded.full,
+    },
+    goalLine: {
+      backgroundColor: theme.textTertiary,
+      opacity: 0.72,
+    },
+    legendLabel: {
       color: theme.textTertiary,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.size.labelS,
-      lineHeight: theme.typography.lineHeight.labelS,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
     },
     metricPillsRow: {
       flexDirection: "row",
       alignItems: "center",
       flexWrap: "nowrap",
       gap: theme.spacing.xs,
-      marginTop: theme.spacing.xxs,
     },
     metricPill: {
       flex: 1,
@@ -186,16 +218,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderColor: theme.borderSoft,
       borderRadius: theme.rounded.full,
-      paddingHorizontal: theme.spacing.xs,
-      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.xxs,
+      paddingVertical: theme.spacing.xxs + 1,
       backgroundColor: theme.surface,
       alignItems: "center",
-      minHeight: 40,
+      minHeight: 32,
       justifyContent: "center",
+      flexDirection: "row",
+      gap: 3,
     },
     metricPillActive: {
-      backgroundColor: theme.primary,
-      borderColor: theme.primary,
+      backgroundColor: theme.surfaceAlt,
     },
     metricPillPressed: {
       opacity: 0.9,
@@ -204,10 +237,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       textAlign: "center",
       color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
     },
     metricPillLabelActive: {
-      color: theme.cta.primaryText,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
   });

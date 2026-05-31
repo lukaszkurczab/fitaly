@@ -1,6 +1,6 @@
 {
   "title": "Statistics",
-  "subtitle": "See how your eating changes over time",
+  "subtitle": "A calm view of how recent meals looked",
   "pickRange": "Choose date range",
   "ranges": {
     "7d": "7 days",
@@ -14,17 +14,17 @@
   "offline": "You’re offline. Some stats may be unavailable or outdated.",
   "offlineEmpty": {
     "title": "You're offline",
-    "desc": "No local stats data available. Reconnect to load your history."
+    "desc": "There are no local meals to show yet. Reconnect to load your history."
   },
   "empty": {
-    "title": "No stats yet",
-    "desc": "Log a few meals to reveal calorie and macro trends here.",
-    "foot": "A few logs unlock your first trend."
+    "title": "Trends will appear after a few meals",
+    "desc": "Log a few meals and Statistics will gently show what starts to repeat.",
+    "foot": "Each saved meal helps build the first useful trend."
   },
   "emptyRange": {
-    "title": "No entries in this range",
-    "desc": "Try another range or keep logging to compare later.",
-    "foot": "Switch ranges to restore the trend."
+    "title": "No meals in this range yet",
+    "desc": "Choose another period or keep logging, and the comparison will appear naturally.",
+    "foot": "Trends return when this range includes saved meals."
   },
   "limitedRange": {
     "title": "This range is outside your current history window",
@@ -33,12 +33,51 @@
     "cta": "Manage plan"
   },
   "trend": {
-    "title": "Trend",
-    "avgPerDay": "avg/day"
+    "title": "Selected range at a glance",
+    "avgPerDay": "average per day",
+    "description": "The main rhythm from logged meals",
+    "chartTitle": {
+      "kcal": "Calorie trend",
+      "protein": "Protein trend",
+      "carbs": "Carb trend",
+      "fat": "Fat trend"
+    },
+    "legend": {
+      "kcal": "Average kcal",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "target": "Goal"
+    }
   },
-  "dailyAveragesTitle": "Daily averages",
-  "dailyAveragesSuffix": "avg / day",
-  "macroBreakdownTitle": "Macro breakdown",
+  "summary": {
+    "title": {
+      "7d": "This week",
+      "30d": "Last 30 days",
+      "custom": "Selected range"
+    },
+    "average": "Daily average",
+    "progressValue": "{{percent}}% of goal",
+    "targetValue": "Goal {{value}} {{unit}}",
+    "goalLabel": "goal",
+    "noTarget": "Goal not set",
+    "noTargetDescription": "Complete profile",
+    "loggedDays": "{{logged}}/{{total}} days with meals",
+    "daysLabel": "Days with meals",
+    "daysValue": "{{logged}} of {{total}}",
+    "comparison": {
+      "7d": "Previous week",
+      "30d": "Previous 30 days",
+      "custom": "Previous range"
+    },
+    "comparisonUnavailable": "No data"
+  },
+  "macroBreakdownTitle": "Macronutrients",
+  "macroBreakdownDescription": "Average from days with meals against your target.",
+  "macro": {
+    "target": "Goal: {{value}} {{unit}}",
+    "share": "{{percent}}% share"
+  },
   "tiles": {
     "calories": "Calories",
     "protein": "Protein",

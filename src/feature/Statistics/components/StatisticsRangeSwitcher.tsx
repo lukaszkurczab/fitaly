@@ -66,7 +66,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     tabActive: {
       backgroundColor: theme.primary,
-      ...theme.depth.cta,
     },
     tabLabel: {
       fontFamily: theme.typography.fontFamily.medium,
