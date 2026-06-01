@@ -74,9 +74,9 @@
   "share_photo_unavailable": "Zdjęcie niedostępne",
   "share_deselect_layer": "Odznacz element",
   "share_note_placeholder": "Dodaj notatkę",
-  "share_macro_protein": "białko",
-  "share_macro_carbs": "węgle",
-  "share_macro_fat": "tłuszcz",
+  "share_macro_protein": "Białko",
+  "share_macro_carbs": "Węgle",
+  "share_macro_fat": "Tłuszcz",
   "dock": {
     "presets": "Szablony",
     "active_layer": "Aktywny element",

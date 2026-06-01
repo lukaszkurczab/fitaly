@@ -74,9 +74,9 @@
   "share_photo_unavailable": "Photo unavailable",
   "share_deselect_layer": "Deselect element",
   "share_note_placeholder": "Add note",
-  "share_macro_protein": "protein",
-  "share_macro_carbs": "carbs",
-  "share_macro_fat": "fat",
+  "share_macro_protein": "Protein",
+  "share_macro_carbs": "Carbs",
+  "share_macro_fat": "Fat",
   "dock": {
     "presets": "Presets",
     "active_layer": "Active element",

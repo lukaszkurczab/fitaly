@@ -102,15 +102,15 @@ export default function MealShareScreen() {
     () => ({
       protein: t("share_macro_protein", {
         ns: "share",
-        defaultValue: "protein",
+        defaultValue: "Protein",
       }),
       carbs: t("share_macro_carbs", {
         ns: "share",
-        defaultValue: "carbs",
+        defaultValue: "Carbs",
       }),
       fat: t("share_macro_fat", {
         ns: "share",
-        defaultValue: "fat",
+        defaultValue: "Fat",
       }),
     }),
     [t],
@@ -1081,7 +1081,6 @@ export default function MealShareScreen() {
             composition={composition}
             mealPhotoUri={mealPhotoUri}
             nutrition={nutrition}
-            macroLabels={shareMacroLabels}
             exportState={exportState}
             onPresetSelect={handlePresetSelect}
             onSaveToGallery={handleSaveToGallery}

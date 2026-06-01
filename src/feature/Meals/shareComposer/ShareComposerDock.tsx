@@ -34,11 +34,6 @@ type ShareComposerDockProps = {
   composition: ShareCompositionState;
   mealPhotoUri: string;
   nutrition: ShareNutrition;
-  macroLabels: {
-    protein: string;
-    carbs: string;
-    fat: string;
-  };
   exportState: ShareExportState;
   onPresetSelect: (presetId: SharePresetId) => void;
   onSaveToGallery: () => void;
@@ -61,7 +56,7 @@ const DOCK_LAYOUT = {
   footerHeight: 132,
   contentHeight: 76,
   quickContentHeight: 84,
-  quickPhotoOverlap: 72,
+  quickPhotoOverlap: 12,
   selectedContentHeight: 76,
   compactContentHeight: 66,
   idleContentHeight: 0,
@@ -129,7 +124,6 @@ export default function ShareComposerDock({
   composition,
   mealPhotoUri,
   nutrition,
-  macroLabels,
   exportState,
   onPresetSelect,
   onSaveToGallery,
@@ -344,8 +338,6 @@ export default function ShareComposerDock({
             selectedPreset={selectedPreset}
             mealPhotoUri={mealPhotoUri}
             nutrition={nutrition}
-            macroLabels={macroLabels}
-            presetsLabel={t("dock.presets")}
             presetAccessibilityLabels={{
               quickClassic: t("dock.preset_photo_first"),
               quickSidebar: t("dock.preset_balanced_glass"),
@@ -508,6 +500,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       overflow: "hidden",
     },
     quickContentSlot: {
+      justifyContent: "flex-end",
       overflow: "visible",
       zIndex: 20,
     },

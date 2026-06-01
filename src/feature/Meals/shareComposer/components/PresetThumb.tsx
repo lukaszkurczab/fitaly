@@ -2,7 +2,6 @@ import {
   Image,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -17,11 +16,6 @@ type PresetThumbProps = {
   presetId: SharePresetId;
   mealPhotoUri: string;
   nutrition: ShareNutrition;
-  macroLabels: {
-    protein: string;
-    carbs: string;
-    fat: string;
-  };
   accessibilityLabel: string;
   active: boolean;
   onPress: () => void;
@@ -31,17 +25,10 @@ function normalizeMetric(value: number) {
   return Math.max(0, Math.round(value));
 }
 
-function compactMacroLabel(label: string) {
-  const trimmed = label.trim();
-  if (!trimmed) return "";
-  return (trimmed.length <= 2 ? trimmed : trimmed[0]).toLocaleUpperCase();
-}
-
 export default function PresetThumb({
   presetId,
   mealPhotoUri,
   nutrition,
-  macroLabels,
   accessibilityLabel,
   active,
   onPress,
@@ -50,25 +37,26 @@ export default function PresetThumb({
   const macroSegments = [
     {
       key: "protein",
-      label: compactMacroLabel(macroLabels.protein),
       color: theme.macro.protein,
       grams: normalizeMetric(nutrition.protein),
     },
     {
       key: "carbs",
-      label: compactMacroLabel(macroLabels.carbs),
       color: theme.macro.carbs,
       grams: normalizeMetric(nutrition.carbs),
     },
     {
       key: "fat",
-      label: compactMacroLabel(macroLabels.fat),
       color: theme.macro.fat,
       grams: normalizeMetric(nutrition.fat),
     },
   ];
+  const totalMacroGrams = macroSegments.reduce(
+    (sum, segment) => sum + segment.grams,
+    0,
+  );
 
-  const renderMacroChips = (
+  const renderMacroLines = (
     tone: "dark" | "light",
     style: StyleProp<ViewStyle>,
   ) => (
@@ -77,28 +65,14 @@ export default function PresetThumb({
         <View
           key={segment.key}
           style={[
-            styles.presetMiniMacroChip,
-            tone === "dark"
-              ? styles.presetMiniMacroChipDark
-              : styles.presetMiniMacroChipLight,
-            { borderColor: segment.color },
+            styles.presetMiniMacroLine,
+            {
+              backgroundColor: segment.color,
+              flex: totalMacroGrams > 0 ? Math.max(segment.grams, 0) : 1,
+              opacity: tone === "dark" ? 0.96 : 0.9,
+            },
           ]}
-        >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-            style={[
-              styles.presetMiniMacroText,
-              {
-                color: tone === "dark" ? "#FFFDF8" : "#393128",
-                fontFamily: theme.typography.fontFamily.semiBold,
-              },
-            ]}
-          >
-            {segment.label} {segment.grams}
-          </Text>
-        </View>
+        />
       ))}
     </View>
   );
@@ -136,21 +110,21 @@ export default function PresetThumb({
           <View style={styles.presetPreviewGlassPanel} />
           <View style={[styles.presetHeadline, styles.presetHeadlineGlass]} />
           <View style={styles.presetKcalPillGlass} />
-          {renderMacroChips("dark", styles.presetMiniMacroRowGlass)}
+          {renderMacroLines("dark", styles.presetMiniMacroRowGlass)}
         </>
       ) : presetId === "quickFooter" ? (
         <>
           <View style={[styles.presetPreviewCard, styles.presetPreviewCardClean]} />
           <View style={[styles.presetHeadline, styles.presetHeadlineClean]} />
           <View style={styles.presetKcalLineClean} />
-          {renderMacroChips("light", styles.presetMiniMacroRowClean)}
+          {renderMacroLines("light", styles.presetMiniMacroRowClean)}
         </>
       ) : (
         <>
           <View style={styles.presetPreviewTopScrim} />
           <View style={[styles.presetHeadline, styles.presetHeadlinePhoto]} />
           <View style={styles.presetKcalPill} />
-          {renderMacroChips("dark", styles.presetMiniMacroRowPhoto)}
+          {renderMacroLines("dark", styles.presetMiniMacroRowPhoto)}
         </>
       )}
     </Pressable>
@@ -258,41 +232,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+    height: 4,
   },
   presetMiniMacroRowPhoto: {
     left: 8,
     right: 8,
-    bottom: 7,
+    bottom: 8,
   },
   presetMiniMacroRowGlass: {
-    left: 11,
-    right: 11,
-    bottom: 7,
+    left: 13,
+    right: 13,
+    bottom: 9,
   },
   presetMiniMacroRowClean: {
     left: 11,
     width: 57,
-    bottom: 9,
+    bottom: 10,
   },
-  presetMiniMacroChip: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  presetMiniMacroChipDark: {
-    backgroundColor: "rgba(255,253,248,0.18)",
-  },
-  presetMiniMacroChipLight: {
-    backgroundColor: "rgba(255,253,248,0.72)",
-  },
-  presetMiniMacroText: {
-    fontSize: 7.7,
-    lineHeight: 9,
-    textAlign: "center",
+  presetMiniMacroLine: {
+    height: 4,
+    minWidth: 8,
+    borderRadius: 3,
   },
 });

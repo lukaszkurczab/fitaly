@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
+import FitalyMarkIcon from "@assets/icons/fitaly-mark.svg";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import CardOverlay from "@/feature/Meals/components/CardOverlay";
 import ChartOverlay from "@/feature/Meals/components/ChartOverlay";
@@ -61,14 +62,12 @@ type QuickMacroMetric = {
   value: string;
   label: string;
   color: string;
+  softColor: string;
   grams: number;
   icon: AppIconName;
 };
 
-function resolveMacroIconSize(
-  key: QuickMacroMetric["key"],
-  baseSize: number,
-) {
+function resolveMacroIconSize(key: QuickMacroMetric["key"], baseSize: number) {
   return key === "protein" ? baseSize : baseSize * 1.14;
 }
 
@@ -79,7 +78,10 @@ function mapChartVariantForOverlay(variant: ShareChartLayerState["variant"]) {
   return variant;
 }
 
-function buildTextStyle(textLayer: ShareTextLayerState, theme: ReturnType<typeof useTheme>) {
+function buildTextStyle(
+  textLayer: ShareTextLayerState,
+  theme: ReturnType<typeof useTheme>,
+) {
   return {
     color: textLayer.color,
     fontFamily: textLayer.italic
@@ -96,7 +98,9 @@ function buildTextStyle(textLayer: ShareTextLayerState, theme: ReturnType<typeof
   };
 }
 
-function parseHexTextColor(input: string): { r: number; g: number; b: number } | null {
+function parseHexTextColor(
+  input: string,
+): { r: number; g: number; b: number } | null {
   const normalized = input.trim();
 
   if (/^#[0-9a-fA-F]{3}$/.test(normalized)) {
@@ -122,8 +126,7 @@ function resolveTextReadabilityBackplate(color: string): ViewStyle | null {
   const rgb = parseHexTextColor(color);
   if (!rgb) return null;
 
-  const luminance =
-    (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
 
   if (luminance > 0.58) return null;
 
@@ -135,7 +138,9 @@ function resolveTextReadabilityBackplate(color: string): ViewStyle | null {
 }
 
 function resolveQuickTitle(composition: ShareCompositionState) {
-  const titleLayer = composition.textLayers.find((layer) => layer.id === "text:title");
+  const titleLayer = composition.textLayers.find(
+    (layer) => layer.id === "text:title",
+  );
   if (titleLayer?.text.trim()) {
     return titleLayer.text.trim();
   }
@@ -173,6 +178,7 @@ function buildMacroMetrics({
       value: `${protein}g`,
       label: macroLabels.protein,
       color: theme.macro.protein,
+      softColor: theme.macro.proteinSoft,
       grams: protein,
       icon: "macro-protein-drumstick",
     },
@@ -181,6 +187,7 @@ function buildMacroMetrics({
       value: `${carbs}g`,
       label: macroLabels.carbs,
       color: theme.macro.carbs,
+      softColor: theme.macro.carbsSoft,
       grams: carbs,
       icon: "macro-carbs-grain",
     },
@@ -189,10 +196,47 @@ function buildMacroMetrics({
       value: `${fat}g`,
       label: macroLabels.fat,
       color: theme.macro.fat,
+      softColor: theme.macro.fatSoft,
       grams: fat,
       icon: "macro-fat-drop",
     },
   ];
+}
+
+function resolveQuickMacroTileSurface(
+  key: QuickMacroMetric["key"],
+  dark: boolean,
+) {
+  if (key === "protein") {
+    return {
+      backgroundColor: dark
+        ? "rgba(74,144,226,0.18)"
+        : "rgba(220,235,251,0.46)",
+      borderColor: dark
+        ? "rgba(74,144,226,0.34)"
+        : "rgba(74,144,226,0.26)",
+    };
+  }
+
+  if (key === "carbs") {
+    return {
+      backgroundColor: dark
+        ? "rgba(102,169,107,0.18)"
+        : "rgba(228,241,226,0.46)",
+      borderColor: dark
+        ? "rgba(102,169,107,0.34)"
+        : "rgba(102,169,107,0.26)",
+    };
+  }
+
+  return {
+    backgroundColor: dark
+      ? "rgba(201,162,39,0.18)"
+      : "rgba(245,235,194,0.5)",
+    borderColor: dark
+      ? "rgba(201,162,39,0.36)"
+      : "rgba(201,162,39,0.28)",
+  };
 }
 
 function QuickMacroTile({
@@ -200,6 +244,7 @@ function QuickMacroTile({
   value,
   label,
   color,
+  softColor,
   icon,
   width,
   dark = false,
@@ -210,67 +255,81 @@ function QuickMacroTile({
   value: string;
   label: string;
   color: string;
+  softColor: string;
   icon: AppIconName;
   width: number;
   dark?: boolean;
   scale: (value: number) => number;
   stylesWithTheme: ReturnType<typeof makeStyles>;
 }) {
+  const surface = resolveQuickMacroTileSurface(metricKey, dark);
+  const iconWrapSize = scale(23);
+
   return (
     <View
       style={[
         stylesWithTheme.quickMacroTile,
         {
           width,
-          paddingVertical: scale(7),
-          paddingHorizontal: scale(7),
-          backgroundColor: dark
-            ? "rgba(255,253,248,0.16)"
-            : "rgba(255,253,248,0.82)",
-          borderColor: dark
-            ? "rgba(255,253,248,0.26)"
-            : "rgba(57,49,40,0.12)",
+          minHeight: scale(42),
+          paddingVertical: scale(6),
+          paddingHorizontal: scale(6),
+          gap: scale(5),
+          backgroundColor: surface.backgroundColor,
+          borderColor: surface.borderColor,
         },
       ]}
     >
-      <View style={[stylesWithTheme.quickMacroValueRow, { gap: scale(4) }]}>
+      <View
+        style={[
+          stylesWithTheme.quickMacroIconWrap,
+          {
+            width: iconWrapSize,
+            height: iconWrapSize,
+            borderRadius: iconWrapSize / 2,
+            backgroundColor: softColor,
+          },
+        ]}
+      >
         <AppIcon
           name={icon}
-          size={scale(resolveMacroIconSize(metricKey, 14))}
+          size={scale(resolveMacroIconSize(metricKey, 12.5))}
           color={color}
           style={stylesWithTheme.quickMacroIcon}
         />
+      </View>
+      <View style={stylesWithTheme.quickMacroCopy}>
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
-          minimumFontScale={0.78}
+          minimumFontScale={0.58}
+          style={[
+            stylesWithTheme.quickMacroName,
+            {
+              color: dark ? QUICK_TEXT_INVERSE_MUTED : QUICK_TEXT_MUTED,
+              fontSize: scale(8.2),
+              lineHeight: scale(9.6),
+            },
+          ]}
+        >
+          {label}
+        </Text>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
           style={[
             stylesWithTheme.quickMacroValue,
             {
               color: dark ? QUICK_TEXT_INVERSE : QUICK_TEXT_COLOR,
-              fontSize: scale(13),
-              lineHeight: scale(15),
+              fontSize: scale(12.2),
+              lineHeight: scale(14.2),
             },
           ]}
         >
           {value}
         </Text>
       </View>
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.72}
-        style={[
-          stylesWithTheme.quickMacroName,
-          {
-            color: dark ? QUICK_TEXT_INVERSE_MUTED : QUICK_TEXT_MUTED,
-            fontSize: scale(9.4),
-            lineHeight: scale(11),
-          },
-        ]}
-      >
-        {label}
-      </Text>
     </View>
   );
 }
@@ -284,6 +343,8 @@ function QuickBrandMark({
   scale: (value: number) => number;
   stylesWithTheme: ReturnType<typeof makeStyles>;
 }) {
+  const markSize = scale(28);
+
   return (
     <View
       style={[
@@ -291,30 +352,13 @@ function QuickBrandMark({
         {
           right: scale(20),
           top: scale(26),
-          borderRadius: scale(14),
-          paddingHorizontal: scale(9),
-          paddingVertical: scale(4),
-          backgroundColor: dark
-            ? "rgba(45,37,30,0.54)"
-            : "rgba(251,248,242,0.84)",
-          borderColor: dark
-            ? "rgba(255,253,248,0.24)"
-            : "rgba(57,49,40,0.12)",
+          width: markSize,
+          height: markSize,
+          opacity: dark ? 0.42 : 0.5,
         },
       ]}
     >
-      <Text
-        style={[
-          stylesWithTheme.quickBrandText,
-          {
-            color: dark ? QUICK_TEXT_INVERSE : QUICK_TEXT_COLOR,
-            fontSize: scale(9.4),
-            lineHeight: scale(11),
-          },
-        ]}
-      >
-        Fitaly
-      </Text>
+      <FitalyMarkIcon width={markSize} height={markSize} />
     </View>
   );
 }
@@ -422,37 +466,38 @@ function QuickPresetOverlay({
         </View>
         <View
           style={[
-              stylesWithTheme.quickPhotoDataBar,
-              {
-                left: s(20),
-                right: s(20),
-                bottom: s(100),
-                borderRadius: 0,
-                paddingHorizontal: 0,
-                paddingVertical: 0,
-                gap: s(8),
-                backgroundColor: "transparent",
-                borderWidth: 0,
-                justifyContent: "center",
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                elevation: 0,
-              },
-            ]}
-          >
-            {macroMetrics.map((metric) => (
-              <QuickMacroTile
-                key={metric.key}
-                metricKey={metric.key}
-                value={metric.value}
-                label={metric.label}
-                color={metric.color}
-                icon={metric.icon}
-                width={s(metric.key === "carbs" ? 90 : 76)}
-                dark
-                scale={s}
-                stylesWithTheme={stylesWithTheme}
-              />
+            stylesWithTheme.quickPhotoDataBar,
+            {
+              left: s(20),
+              right: s(20),
+              bottom: s(100),
+              borderRadius: 0,
+              paddingHorizontal: 0,
+              paddingVertical: 0,
+              gap: s(8),
+              backgroundColor: "transparent",
+              borderWidth: 0,
+              justifyContent: "center",
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              elevation: 0,
+            },
+          ]}
+        >
+          {macroMetrics.map((metric) => (
+            <QuickMacroTile
+              key={metric.key}
+              metricKey={metric.key}
+              value={metric.value}
+              label={metric.label}
+              color={metric.color}
+              softColor={metric.softColor}
+              icon={metric.icon}
+              width={s(metric.key === "carbs" ? 96 : 86)}
+              dark
+              scale={s}
+              stylesWithTheme={stylesWithTheme}
+            />
           ))}
         </View>
         <QuickBrandMark dark scale={s} stylesWithTheme={stylesWithTheme} />
@@ -507,7 +552,12 @@ function QuickPresetOverlay({
               {kcal} kcal
             </Text>
           </View>
-          <View style={[stylesWithTheme.quickGlassMacroGrid, { gap: s(8), marginTop: s(14) }]}>
+          <View
+            style={[
+              stylesWithTheme.quickGlassMacroGrid,
+              { gap: s(8), marginTop: s(14) },
+            ]}
+          >
             {macroMetrics.map((metric) => (
               <QuickMacroTile
                 key={metric.key}
@@ -515,8 +565,9 @@ function QuickPresetOverlay({
                 value={metric.value}
                 label={metric.label}
                 color={metric.color}
+                softColor={metric.softColor}
                 icon={metric.icon}
-                width={s(metric.key === "carbs" ? 88 : 72)}
+                width={s(metric.key === "carbs" ? 90 : 78)}
                 dark
                 scale={s}
                 stylesWithTheme={stylesWithTheme}
@@ -539,7 +590,7 @@ function QuickPresetOverlay({
           {
             left: s(20),
             top: summaryCardTop,
-            width: s(216),
+            width: s(252),
             borderRadius: s(22),
             paddingTop: s(14),
             paddingHorizontal: s(14),
@@ -561,7 +612,9 @@ function QuickPresetOverlay({
         >
           {titleText}
         </Text>
-        <View style={[stylesWithTheme.quickClassicSummaryRow, { marginTop: s(8) }]}>
+        <View
+          style={[stylesWithTheme.quickClassicSummaryRow, { marginTop: s(8) }]}
+        >
           <Text
             style={[
               stylesWithTheme.quickKcal,
@@ -590,10 +643,7 @@ function QuickPresetOverlay({
                 style={[
                   stylesWithTheme.quickClassicAccentSegment,
                   {
-                    flex:
-                      totalMacroGrams > 0
-                        ? Math.max(metric.grams, 0)
-                        : 1,
+                    flex: totalMacroGrams > 0 ? Math.max(metric.grams, 0) : 1,
                     backgroundColor: metric.color,
                   },
                 ]}
@@ -617,8 +667,9 @@ function QuickPresetOverlay({
               value={metric.value}
               label={metric.label}
               color={metric.color}
+              softColor={metric.softColor}
               icon={metric.icon}
-              width={s(metric.key === "carbs" ? 75 : 61)}
+              width={s(metric.key === "carbs" ? 78 : 68)}
               scale={s}
               stylesWithTheme={stylesWithTheme}
             />
@@ -660,7 +711,9 @@ export default function ShareComposerCanvas({
 }: ShareComposerCanvasProps) {
   const theme = useTheme();
   const [photoError, setPhotoError] = useState(false);
-  const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(null);
+  const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(
+    null,
+  );
   const interactive = mode === "customize";
   const showEditorChrome = interactive && editorChromeVisible;
   const stylesWithTheme = useMemo(() => makeStyles(theme), [theme]);
@@ -830,7 +883,9 @@ export default function ShareComposerCanvas({
                   showKcalLabel
                   showLegend
                   textColor={chartLayer.textColor ?? SHARE_OVERLAY_TEXT}
-                  backgroundColor={chartLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE}
+                  backgroundColor={
+                    chartLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE
+                  }
                   fontFamily={theme.typography.fontFamily.semiBold}
                 />
                 {selectedLayerId === "chartWidget" && showEditorChrome ? (
@@ -888,7 +943,9 @@ export default function ShareComposerCanvas({
                   source={{ uri: additionalPhotoLayer.uri }}
                   style={stylesWithTheme.additionalPhoto}
                   resizeMode="cover"
-                  blurRadius={additionalPhotoLayer.treatment === "plain" ? 0 : 0.3}
+                  blurRadius={
+                    additionalPhotoLayer.treatment === "plain" ? 0 : 0.3
+                  }
                 />
                 {selectedLayerId === "additionalPhoto" && showEditorChrome ? (
                   <SelectedOutline />
@@ -898,7 +955,8 @@ export default function ShareComposerCanvas({
           ) : null}
 
           {textLayers.map((textLayer) => {
-            const isEditing = editingTextLayerId === textLayer.id && showEditorChrome;
+            const isEditing =
+              editingTextLayerId === textLayer.id && showEditorChrome;
             return (
               <DraggableItem
                 key={textLayer.id}
@@ -943,7 +1001,9 @@ export default function ShareComposerCanvas({
                     <TextInput
                       autoFocus
                       value={textLayer.text}
-                      onChangeText={(value) => onTextChange(textLayer.id, value)}
+                      onChangeText={(value) =>
+                        onTextChange(textLayer.id, value)
+                      }
                       onBlur={() => setEditingTextLayerId(null)}
                       onSubmitEditing={() => setEditingTextLayerId(null)}
                       blurOnSubmit
@@ -958,7 +1018,12 @@ export default function ShareComposerCanvas({
                       ]}
                     />
                   ) : (
-                    <Text style={[stylesWithTheme.textLayer, buildTextStyle(textLayer, theme)]}>
+                    <Text
+                      style={[
+                        stylesWithTheme.textLayer,
+                        buildTextStyle(textLayer, theme),
+                      ]}
+                    >
                       {textLayer.text}
                     </Text>
                   )}
@@ -1010,7 +1075,9 @@ export default function ShareComposerCanvas({
                   kcal={nutrition.kcal}
                   variant={cardLayer.variant}
                   color={cardLayer.textColor ?? SHARE_OVERLAY_TEXT}
-                  backgroundColor={cardLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE}
+                  backgroundColor={
+                    cardLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE
+                  }
                   fontFamily={theme.typography.fontFamily.semiBold}
                   fontWeight="500"
                   macroColorsOverride={{
@@ -1234,22 +1301,31 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     quickMacroTile: {
       borderRadius: 12,
       borderWidth: 1,
-      alignItems: "flex-start",
-      justifyContent: "center",
-    },
-    quickMacroValueRow: {
       flexDirection: "row",
       alignItems: "center",
-      minWidth: 0,
+      justifyContent: "flex-start",
+    },
+    quickMacroIconWrap: {
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
     },
     quickMacroIcon: {
       flexShrink: 0,
     },
+    quickMacroCopy: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "flex-start",
+      justifyContent: "center",
+      gap: 1,
+    },
     quickMacroValue: {
       fontFamily: theme.typography.fontFamily.semiBold,
+      textAlign: "left",
     },
     quickMacroName: {
-      fontFamily: theme.typography.fontFamily.medium,
+      fontFamily: theme.typography.fontFamily.semiBold,
       textAlign: "left",
     },
     quickGlassMacroGrid: {
@@ -1264,10 +1340,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     quickBrandMark: {
       position: "absolute",
-      borderWidth: 1,
-    },
-    quickBrandText: {
-      fontFamily: theme.typography.fontFamily.semiBold,
-      letterSpacing: 0,
+      alignItems: "center",
+      justifyContent: "center",
     },
   });
