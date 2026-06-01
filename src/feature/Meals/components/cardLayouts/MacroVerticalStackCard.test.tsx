@@ -1,7 +1,23 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import MacroVerticalStackCard from "@/feature/Meals/components/cardLayouts/MacroVerticalStackCard";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import type { MacroCardProps } from "@/feature/Meals/components/CardOverlay";
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: { defaultValue?: string }) =>
+      (
+        {
+          "meals:meal": "Meal",
+          "meals:protein": "Protein",
+          "meals:carbs": "Carbs",
+          "meals:fat": "Fat",
+        } as Record<string, string>
+      )[key] ??
+      options?.defaultValue ??
+      key,
+  }),
+}));
 
 const baseProps: MacroCardProps = {
   protein: 30,

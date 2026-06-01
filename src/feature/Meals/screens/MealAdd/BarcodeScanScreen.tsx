@@ -23,6 +23,7 @@ import {
   Layout,
   TextInput,
 } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { useTheme } from "@/theme/useTheme";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
 import { useAuthContext } from "@/context/AuthContext";
@@ -44,7 +45,6 @@ import { buildBarcodeDraft } from "@/feature/Meals/utils/buildBarcodeDraft";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 
 const BARCODE_PREVIEW_COMPACT_HEIGHT = 240;
 const BARCODE_PREVIEW_MAX_HEIGHT = 356;
@@ -498,7 +498,7 @@ export default function BarcodeScanScreen({
                   )
                 : null}
 
-              <AddMealBottomActionBar
+              <BottomActionBar
                 placement="inline"
                 horizontalPadding={0}
                 primaryAction={
@@ -626,7 +626,7 @@ export default function BarcodeScanScreen({
                 ) : null}
 
               </ScrollView>
-                <AddMealBottomActionBar
+                <BottomActionBar
                   placement="inline"
                   horizontalPadding={0}
                 primaryAction={{

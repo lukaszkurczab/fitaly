@@ -29,58 +29,81 @@ export default function DockColorPickerModal({
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={styles.colorPickerModalRoot}>
+      <View style={styles.colorPickerModalRoot} testID="share-color-picker-modal">
         <Pressable
-          style={styles.colorPickerBackdrop}
+          style={[
+            styles.colorPickerBackdrop,
+            {
+              backgroundColor: theme.isDark
+                ? "rgba(15,18,15,0.20)"
+                : "rgba(57,49,40,0.10)",
+            },
+          ]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={closeLabel}
         />
-        <View style={[styles.colorPickerSheet, { borderColor: theme.border }]}> 
+        <View
+          style={[
+            styles.colorPickerSheet,
+            {
+              borderColor: theme.border,
+              backgroundColor: theme.surfaceElevated,
+            },
+          ]}
+        >
           <View style={styles.colorPickerHeader}>
-            <Text
-              style={[
-                styles.colorPickerTitle,
-                { fontFamily: theme.typography.fontFamily.semiBold },
-              ]}
-            >
-              {title}
-            </Text>
+            <View style={styles.colorPickerTitleGroup}>
+              <View
+                accessible
+                accessibilityLabel={normalizedColorValue}
+                style={[
+                  styles.colorPreviewSwatch,
+                  {
+                    borderColor: theme.borderSoft,
+                    backgroundColor: colorValue,
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.colorPickerTitle,
+                  {
+                    color: theme.text,
+                    fontFamily: theme.typography.fontFamily.semiBold,
+                  },
+                ]}
+              >
+                {title}
+              </Text>
+            </View>
             <Pressable
+              testID="share-color-picker-done-button"
               onPress={onClose}
-              style={[styles.colorPickerDone, { borderColor: theme.border }]}
+              style={[
+                styles.colorPickerDone,
+                {
+                  borderColor: theme.isDark
+                    ? "rgba(214, 229, 209, 0.78)"
+                    : theme.primary,
+                  backgroundColor: theme.isDark ? theme.primaryStrong : theme.primary,
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel={doneLabel}
             >
               <Text
                 style={[
                   styles.colorPickerDoneLabel,
-                  { fontFamily: theme.typography.fontFamily.medium },
+                  {
+                    color: theme.isDark ? theme.textInverse : theme.cta.primaryText,
+                    fontFamily: theme.typography.fontFamily.semiBold,
+                  },
                 ]}
               >
                 {doneLabel}
               </Text>
             </Pressable>
-          </View>
-
-          <View style={styles.colorPreviewRow}>
-            <View
-              style={[
-                styles.colorPreviewSwatch,
-                {
-                  borderColor: theme.borderSoft,
-                  backgroundColor: colorValue,
-                },
-              ]}
-            />
-            <Text
-              style={[
-                styles.colorPreviewValue,
-                { fontFamily: theme.typography.fontFamily.medium },
-              ]}
-            >
-              {normalizedColorValue}
-            </Text>
           </View>
 
           <ColorPicker
@@ -105,75 +128,69 @@ const styles = StyleSheet.create({
   },
   colorPickerBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(57,49,40,0.34)",
   },
   colorPickerSheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    backgroundColor: "#FBF8F2",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 10,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    alignSelf: "center",
+    width: "82%",
+    maxWidth: 300,
+    borderRadius: 16,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingTop: 9,
+    paddingBottom: 10,
+    gap: 5,
+    borderWidth: 1,
   },
   colorPickerHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 10,
+  },
+  colorPickerTitleGroup: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   colorPickerTitle: {
-    color: "#393128",
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 17,
+    flexShrink: 1,
   },
   colorPickerDone: {
-    minHeight: 28,
-    minWidth: 68,
-    borderRadius: 14,
+    minHeight: 24,
+    minWidth: 72,
+    borderRadius: 13,
     borderWidth: 1,
-    backgroundColor: "#F7F2EA",
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   colorPickerDoneLabel: {
-    color: "#393128",
-    fontSize: 12,
-    lineHeight: 14,
-  },
-  colorPreviewRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    fontSize: 11.5,
+    lineHeight: 13,
   },
   colorPreviewSwatch: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 1,
   },
-  colorPreviewValue: {
-    color: "#393128",
-    fontSize: 12,
-    lineHeight: 14,
-    letterSpacing: 0.2,
-  },
   colorPicker: {
-    gap: 10,
+    gap: 5,
   },
   colorPickerPanel: {
-    borderRadius: 14,
-    height: 150,
+    borderRadius: 11,
+    height: 72,
   },
   colorPickerHue: {
-    borderRadius: 8,
-    height: 22,
+    borderRadius: 7,
+    height: 12,
   },
   colorPickerOpacity: {
-    borderRadius: 8,
-    height: 22,
+    borderRadius: 7,
+    height: 12,
   },
 });

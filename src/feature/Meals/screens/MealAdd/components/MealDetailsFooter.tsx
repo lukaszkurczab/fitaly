@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { MealAddEditSubmitIntent } from "@/feature/Meals/feature/MapMealAddScreens";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { useTheme } from "@/theme/useTheme";
 
 type MealDetailsFooterProps = {
@@ -27,7 +27,7 @@ export default function MealDetailsFooter({
   const isReviewEdit = submitIntent === "goBack";
 
   return (
-    <AddMealBottomActionBar
+    <BottomActionBar
       bottomInset={footerBottomInset}
       keyboardInset={keyboardInset}
       compact={keyboardInset > 0}

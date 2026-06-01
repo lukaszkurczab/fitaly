@@ -1,4 +1,5 @@
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
 import type { MacroCardProps } from "../CardOverlay";
 import {
@@ -21,26 +22,27 @@ export default function MacroTagStripCard({
   fontWeight,
 }: MacroCardProps) {
   const theme = useTheme();
+  const { t } = useTranslation(["meals"]);
   const effectiveFontFamily = fontFamily ?? undefined;
   const baseWeight = fontWeight ?? "500";
   const items = [
     {
       key: "protein",
-      label: "P",
+      label: t("meals:protein_short"),
       value: protein,
       color: macroColors.protein,
       softColor: macroSoftColors?.protein ?? macroColors.protein,
     },
     {
       key: "carbs",
-      label: "C",
+      label: t("meals:carbs_short"),
       value: carbs,
       color: macroColors.carbs,
       softColor: macroSoftColors?.carbs ?? macroColors.carbs,
     },
     {
       key: "fat",
-      label: "F",
+      label: t("meals:fat_short"),
       value: fat,
       color: macroColors.fat,
       softColor: macroSoftColors?.fat ?? macroColors.fat,
@@ -122,16 +124,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 5,
+    gap: 4,
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 3,
-    paddingLeft: 7,
-    paddingRight: 6,
+    paddingLeft: 5,
+    paddingRight: 5,
     marginLeft: 1,
   },
   badge: {
     flex: 1,
+    minWidth: 40,
     minHeight: 26,
     borderRadius: 999,
   },

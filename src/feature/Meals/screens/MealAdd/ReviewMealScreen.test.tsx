@@ -563,7 +563,7 @@ describe("ReviewMealScreen", () => {
     );
 
     expect(getByTestId("review-meal-empty-draft-state")).toBeTruthy();
-    expect(getByTestId("review-meal-save-button").props.accessibilityState).toEqual({
+    expect(getByTestId("review-meal-save-button").props.accessibilityState).toMatchObject({
       disabled: true,
     });
 

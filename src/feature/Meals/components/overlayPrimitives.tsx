@@ -212,7 +212,16 @@ export function OverlayKcalBlock({
         {Math.round(kcal)}
         {showUnit ? <Text style={unitStyle}> kcal</Text> : null}
       </Text>
-      {subtitle ? <Text style={subtitleStyle}>{subtitle}</Text> : null}
+      {subtitle ? (
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.76}
+          style={subtitleStyle}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -284,8 +293,20 @@ export function OverlayMacroLegendItem({
           ]}
         />
       ) : null}
-      <Text style={labelStyle}>{label}</Text>
-      <Text style={valueStyle}>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.68}
+        style={labelStyle}
+      >
+        {label}
+      </Text>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.76}
+        style={valueStyle}
+      >
         {Math.round(value)}
         {valueSuffix}
       </Text>
@@ -429,6 +450,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       includeFontPadding: false,
+      minWidth: 0,
+      flexShrink: 1,
     },
     legendLabelCompact: {
       fontSize: theme.typography.size.overline,
@@ -438,6 +461,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       includeFontPadding: false,
+      flexShrink: 0,
     },
     legendValueCompact: {
       fontSize: theme.typography.size.caption,
@@ -453,6 +477,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     macroChipCompact: {
       minHeight: 28,
-      paddingHorizontal: theme.spacing.xs + 1,
+      paddingHorizontal: 4,
     },
   });

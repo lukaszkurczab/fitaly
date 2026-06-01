@@ -10,6 +10,7 @@ type PieDatum = {
   value: number;
   color: string;
   label: string;
+  shortLabel?: string;
 };
 
 type Props = {
@@ -179,7 +180,7 @@ export default function MacroPolarAreaChart({
                   },
                 ]}
               >
-                {String(item.label).charAt(0).toUpperCase()}
+                {item.shortLabel ?? String(item.label).charAt(0).toUpperCase()}
               </Text>
               <Text
                 style={[

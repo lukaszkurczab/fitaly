@@ -70,6 +70,9 @@ export default function MacroSplitCard({
         )}
         {!showKcal ? (
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.76}
             style={[
               styles.label,
               {
@@ -84,6 +87,9 @@ export default function MacroSplitCard({
         ) : null}
         {showKcal ? (
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.76}
             style={[
               styles.hint,
               {
@@ -122,6 +128,9 @@ export default function MacroSplitCard({
       )}
       {!showMacros ? (
         <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.76}
           style={[
             styles.sideHint,
             {

@@ -21,26 +21,26 @@ type PresetTemplate = {
 const PRESET_TEMPLATES: Record<SharePresetId, PresetTemplate> = {
   quickClassic: {
     id: "quickClassic",
-    textTransform: { xRatio: 0.36, yRatio: 0.18, scale: 0.72, rotation: 0 },
+    textTransform: { xRatio: 0.34, yRatio: 0.18, scale: 0.62, rotation: 0 },
     textColor: "#FFFDF8",
-    cardVariant: "macroSummaryCard",
-    cardTransform: { xRatio: 0.66, yRatio: 0.32, scale: 0.76, rotation: 0 },
+    cardVariant: "macroTagStripCard",
+    cardTransform: { xRatio: 0.5, yRatio: 0.38, scale: 0.72, rotation: 0 },
     overlayPreset: "none",
   },
   quickSidebar: {
     id: "quickSidebar",
-    textTransform: { xRatio: 0.38, yRatio: 0.18, scale: 0.7, rotation: 0 },
+    textTransform: { xRatio: 0.37, yRatio: 0.2, scale: 0.72, rotation: 0 },
     textColor: "#FFFDF8",
-    cardVariant: "macroVerticalStackCard",
-    cardTransform: { xRatio: 0.25, yRatio: 0.42, scale: 0.92, rotation: 0 },
+    cardVariant: "macroTagStripCard",
+    cardTransform: { xRatio: 0.5, yRatio: 0.68, scale: 0.7, rotation: 0 },
     overlayPreset: "none",
   },
   quickFooter: {
     id: "quickFooter",
-    textTransform: { xRatio: 0.34, yRatio: 0.66, scale: 0.7, rotation: 0 },
+    textTransform: { xRatio: 0.32, yRatio: 0.78, scale: 0.66, rotation: 0 },
     textColor: "#FFFDF8",
     cardVariant: "macroSplitCard",
-    cardTransform: { xRatio: 0.58, yRatio: 0.82, scale: 0.84, rotation: 0 },
+    cardTransform: { xRatio: 0.5, yRatio: 0.66, scale: 0.78, rotation: 0 },
     overlayPreset: "none",
   },
 };
@@ -60,17 +60,17 @@ const DEFAULT_MEAL_PHOTO_TRANSFORM: TransformState = {
 };
 
 const DEFAULT_CHART_TRANSFORM: TransformState = {
-  xRatio: 0.27,
-  yRatio: 0.4,
-  scale: 0.72,
+  xRatio: 0.32,
+  yRatio: 0.38,
+  scale: 0.56,
   rotation: 0,
 };
 
 const DEFAULT_ADDITIONAL_PHOTO_TRANSFORM: TransformState = {
-  xRatio: 0.82,
-  yRatio: 0.17,
+  xRatio: 0.68,
+  yRatio: 0.22,
   scale: 1,
-  rotation: 0.08,
+  rotation: 0.06,
 };
 
 function buildTitleTextLayer(params: {
@@ -134,7 +134,7 @@ export function createDefaultAdditionalPhotoLayer(uri: string) {
     id: "additionalPhoto" as const,
     uri,
     transform: { ...DEFAULT_ADDITIONAL_PHOTO_TRANSFORM },
-    treatment: "pill" as const,
+    treatment: "plain" as const,
   };
 }
 
@@ -150,9 +150,9 @@ export function createAdditionalTextLayer(text = "Add note"): ShareTextLayerStat
     italic: false,
     underline: false,
     transform: {
-      xRatio: 0.35,
-      yRatio: 0.68,
-      scale: 0.72,
+      xRatio: 0.46,
+      yRatio: 0.46,
+      scale: 0.68,
       rotation: 0,
     },
     removable: true,

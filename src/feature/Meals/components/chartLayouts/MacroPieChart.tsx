@@ -7,7 +7,12 @@ import {
   withAlpha,
 } from "../overlayPrimitives";
 
-type PieDatum = { value: number; color: string; label: string };
+type PieDatum = {
+  value: number;
+  color: string;
+  label: string;
+  shortLabel?: string;
+};
 
 type Props = {
   data: PieDatum[];
@@ -129,7 +134,7 @@ export default function MacroPieChart({
           {safeData.map((item) => (
             <OverlayMacroLegendItem
               key={item.label}
-              label={String(item.label).charAt(0).toUpperCase()}
+              label={item.shortLabel ?? String(item.label).charAt(0).toUpperCase()}
               value={total > 0 ? (item.value / total) * 100 : 0}
               valueSuffix="%"
               color={item.color}

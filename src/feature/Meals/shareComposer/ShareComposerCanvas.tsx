@@ -6,7 +6,10 @@ import {
   Text,
   TextInput,
   View,
+  type ViewStyle,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import CardOverlay from "@/feature/Meals/components/CardOverlay";
 import ChartOverlay from "@/feature/Meals/components/ChartOverlay";
 import DraggableItem from "@/feature/Meals/share/DraggableItem";
@@ -39,12 +42,35 @@ type ShareComposerCanvasProps = {
   onTextChange: (id: string, text: string) => void;
   onTransformChange: (layerId: ShareLayerId, next: TransformState) => void;
   onBackgroundPress: () => void;
+  editorChromeVisible: boolean;
 };
 
 const ADDITIONAL_PHOTO_SIZE = { width: 52, height: 76 };
 const DESIGN_CANVAS_WIDTH = 333;
-const QUICK_CARD_SURFACE = "rgba(251,248,242,0.9)";
+const QUICK_CARD_SURFACE_STRONG = "rgba(251,248,242,0.94)";
+const QUICK_DARK_SURFACE_STRONG = "rgba(63,52,42,0.68)";
 const QUICK_TEXT_COLOR = "#393128";
+const QUICK_TEXT_INVERSE = "#FFFDF8";
+const QUICK_TEXT_MUTED = "rgba(57,49,40,0.82)";
+const QUICK_TEXT_INVERSE_MUTED = "rgba(255,253,248,0.86)";
+const SHARE_OVERLAY_SURFACE = "rgba(251,248,242,0.94)";
+const SHARE_OVERLAY_TEXT = "#393128";
+
+type QuickMacroMetric = {
+  key: "protein" | "carbs" | "fat";
+  value: string;
+  label: string;
+  color: string;
+  grams: number;
+  icon: AppIconName;
+};
+
+function resolveMacroIconSize(
+  key: QuickMacroMetric["key"],
+  baseSize: number,
+) {
+  return key === "protein" ? baseSize : baseSize * 1.14;
+}
 
 function mapChartVariantForOverlay(variant: ShareChartLayerState["variant"]) {
   if (variant === "macroPie") {
@@ -56,13 +82,55 @@ function mapChartVariantForOverlay(variant: ShareChartLayerState["variant"]) {
 function buildTextStyle(textLayer: ShareTextLayerState, theme: ReturnType<typeof useTheme>) {
   return {
     color: textLayer.color,
-    fontFamily: textLayer.bold
-      ? theme.typography.fontFamily.bold
-      : theme.typography.fontFamily.medium,
+    fontFamily: textLayer.italic
+      ? undefined
+      : textLayer.bold
+        ? theme.typography.fontFamily.bold
+        : theme.typography.fontFamily.medium,
+    fontWeight: textLayer.bold ? ("700" as const) : ("500" as const),
     fontStyle: textLayer.italic ? ("italic" as const) : ("normal" as const),
     textDecorationLine: textLayer.underline
       ? ("underline" as const)
       : ("none" as const),
+    transform: textLayer.italic ? [{ skewX: "-9deg" as const }] : undefined,
+  };
+}
+
+function parseHexTextColor(input: string): { r: number; g: number; b: number } | null {
+  const normalized = input.trim();
+
+  if (/^#[0-9a-fA-F]{3}$/.test(normalized)) {
+    return {
+      r: Number.parseInt(`${normalized[1]}${normalized[1]}`, 16),
+      g: Number.parseInt(`${normalized[2]}${normalized[2]}`, 16),
+      b: Number.parseInt(`${normalized[3]}${normalized[3]}`, 16),
+    };
+  }
+
+  if (/^#[0-9a-fA-F]{6}$/.test(normalized)) {
+    return {
+      r: Number.parseInt(normalized.slice(1, 3), 16),
+      g: Number.parseInt(normalized.slice(3, 5), 16),
+      b: Number.parseInt(normalized.slice(5, 7), 16),
+    };
+  }
+
+  return null;
+}
+
+function resolveTextReadabilityBackplate(color: string): ViewStyle | null {
+  const rgb = parseHexTextColor(color);
+  if (!rgb) return null;
+
+  const luminance =
+    (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+
+  if (luminance > 0.58) return null;
+
+  return {
+    backgroundColor: "rgba(251,248,242,0.78)",
+    borderColor: "rgba(57,49,40,0.14)",
+    borderWidth: 1,
   };
 }
 
@@ -82,9 +150,177 @@ function normalizeMetric(value: number) {
   return Math.max(0, Math.round(value));
 }
 
+function buildMacroMetrics({
+  protein,
+  carbs,
+  fat,
+  macroLabels,
+  theme,
+}: {
+  protein: number;
+  carbs: number;
+  fat: number;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
+  theme: ReturnType<typeof useTheme>;
+}): QuickMacroMetric[] {
+  return [
+    {
+      key: "protein",
+      value: `${protein}g`,
+      label: macroLabels.protein,
+      color: theme.macro.protein,
+      grams: protein,
+      icon: "macro-protein-drumstick",
+    },
+    {
+      key: "carbs",
+      value: `${carbs}g`,
+      label: macroLabels.carbs,
+      color: theme.macro.carbs,
+      grams: carbs,
+      icon: "macro-carbs-grain",
+    },
+    {
+      key: "fat",
+      value: `${fat}g`,
+      label: macroLabels.fat,
+      color: theme.macro.fat,
+      grams: fat,
+      icon: "macro-fat-drop",
+    },
+  ];
+}
+
+function QuickMacroTile({
+  metricKey,
+  value,
+  label,
+  color,
+  icon,
+  width,
+  dark = false,
+  scale,
+  stylesWithTheme,
+}: {
+  metricKey: QuickMacroMetric["key"];
+  value: string;
+  label: string;
+  color: string;
+  icon: AppIconName;
+  width: number;
+  dark?: boolean;
+  scale: (value: number) => number;
+  stylesWithTheme: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View
+      style={[
+        stylesWithTheme.quickMacroTile,
+        {
+          width,
+          paddingVertical: scale(7),
+          paddingHorizontal: scale(7),
+          backgroundColor: dark
+            ? "rgba(255,253,248,0.16)"
+            : "rgba(255,253,248,0.82)",
+          borderColor: dark
+            ? "rgba(255,253,248,0.26)"
+            : "rgba(57,49,40,0.12)",
+        },
+      ]}
+    >
+      <View style={[stylesWithTheme.quickMacroValueRow, { gap: scale(4) }]}>
+        <AppIcon
+          name={icon}
+          size={scale(resolveMacroIconSize(metricKey, 14))}
+          color={color}
+          style={stylesWithTheme.quickMacroIcon}
+        />
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
+          style={[
+            stylesWithTheme.quickMacroValue,
+            {
+              color: dark ? QUICK_TEXT_INVERSE : QUICK_TEXT_COLOR,
+              fontSize: scale(13),
+              lineHeight: scale(15),
+            },
+          ]}
+        >
+          {value}
+        </Text>
+      </View>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+        style={[
+          stylesWithTheme.quickMacroName,
+          {
+            color: dark ? QUICK_TEXT_INVERSE_MUTED : QUICK_TEXT_MUTED,
+            fontSize: scale(9.4),
+            lineHeight: scale(11),
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function QuickBrandMark({
+  dark,
+  scale,
+  stylesWithTheme,
+}: {
+  dark: boolean;
+  scale: (value: number) => number;
+  stylesWithTheme: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View
+      style={[
+        stylesWithTheme.quickBrandMark,
+        {
+          right: scale(20),
+          top: scale(26),
+          borderRadius: scale(14),
+          paddingHorizontal: scale(9),
+          paddingVertical: scale(4),
+          backgroundColor: dark
+            ? "rgba(45,37,30,0.54)"
+            : "rgba(251,248,242,0.84)",
+          borderColor: dark
+            ? "rgba(255,253,248,0.24)"
+            : "rgba(57,49,40,0.12)",
+        },
+      ]}
+    >
+      <Text
+        style={[
+          stylesWithTheme.quickBrandText,
+          {
+            color: dark ? QUICK_TEXT_INVERSE : QUICK_TEXT_COLOR,
+            fontSize: scale(9.4),
+            lineHeight: scale(11),
+          },
+        ]}
+      >
+        Fitaly
+      </Text>
+    </View>
+  );
+}
+
 function QuickPresetOverlay({
   width,
-  height,
   presetId,
   titleText,
   nutrition,
@@ -93,7 +329,6 @@ function QuickPresetOverlay({
   stylesWithTheme,
 }: {
   width: number;
-  height: number;
   presetId: ShareCompositionState["presetId"];
   titleText: string;
   nutrition: ShareNutrition;
@@ -113,325 +348,284 @@ function QuickPresetOverlay({
   const carbs = normalizeMetric(nutrition.carbs);
   const fat = normalizeMetric(nutrition.fat);
 
-  const proteinLabel = `${protein}g ${macroLabels.protein}`;
-  const carbsLabel = `${carbs}g ${macroLabels.carbs}`;
-  const fatLabel = `${fat}g ${macroLabels.fat}`;
+  const macroMetrics = buildMacroMetrics({
+    protein,
+    carbs,
+    fat,
+    macroLabels,
+    theme,
+  });
+  const totalMacroGrams = macroMetrics.reduce(
+    (sum, metric) => sum + metric.grams,
+    0,
+  );
 
-  if (presetId === "quickSidebar") {
+  if (presetId === "quickClassic") {
     return (
-      <View
-        pointerEvents="none"
-        style={[
-          stylesWithTheme.quickSidebarCard,
-          {
-            width: s(130),
-            height,
-            borderTopRightRadius: s(28),
-            borderBottomRightRadius: s(28),
-            paddingTop: s(49),
-            paddingHorizontal: s(8),
-          },
-        ]}
-      >
-        <Text
-          numberOfLines={4}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            "rgba(45,37,30,0.68)",
+            "rgba(45,37,30,0.32)",
+            "rgba(46,38,30,0)",
+          ]}
+          locations={[0, 0.58, 1]}
           style={[
-            stylesWithTheme.quickTitle,
+            stylesWithTheme.quickPhotoTopScrim,
             {
-              color: QUICK_TEXT_COLOR,
-              fontSize: s(22),
-              lineHeight: s(30),
-              width: s(114),
+              height: s(164),
+            },
+          ]}
+        />
+        <Text
+          numberOfLines={2}
+          style={[
+            stylesWithTheme.quickPhotoTitle,
+            {
+              left: s(20),
+              top: s(26),
+              width: s(218),
+              color: QUICK_TEXT_INVERSE,
+              fontSize: s(25.5),
+              lineHeight: s(31),
               textAlign: "left",
             },
           ]}
         >
           {titleText}
         </Text>
-        <Text
+        <View
           style={[
-            stylesWithTheme.quickKcal,
+            stylesWithTheme.quickFloatingKcal,
             {
-              color: QUICK_TEXT_COLOR,
-              fontSize: s(16),
-              lineHeight: s(20),
-              marginTop: s(6),
+              left: s(20),
+              top: s(96),
+              borderRadius: s(18),
+              paddingHorizontal: s(12),
+              paddingVertical: s(5),
             },
           ]}
         >
-          {kcal} kcal
-        </Text>
-        <View style={{ marginTop: s(28), gap: s(12), width: s(114) }}>
           <Text
             style={[
-              stylesWithTheme.quickMacroLabel,
+              stylesWithTheme.quickKcal,
               {
-                color: theme.macro.protein,
-                fontSize: s(12),
-                lineHeight: s(12),
+                color: QUICK_TEXT_INVERSE,
+                fontSize: s(15),
+                lineHeight: s(18),
               },
             ]}
           >
-            {proteinLabel}
-          </Text>
-          <Text
-            style={[
-              stylesWithTheme.quickMacroLabel,
-              {
-                color: theme.macro.carbs,
-                fontSize: s(12),
-                lineHeight: s(12),
-              },
-            ]}
-          >
-            {carbsLabel}
-          </Text>
-          <Text
-            style={[
-              stylesWithTheme.quickMacroLabel,
-              {
-                color: theme.macro.fat,
-                fontSize: s(12),
-                lineHeight: s(12),
-              },
-            ]}
-          >
-            {fatLabel}
+            {kcal} kcal
           </Text>
         </View>
+        <View
+          style={[
+              stylesWithTheme.quickPhotoDataBar,
+              {
+                left: s(20),
+                right: s(20),
+                bottom: s(100),
+                borderRadius: 0,
+                paddingHorizontal: 0,
+                paddingVertical: 0,
+                gap: s(8),
+                backgroundColor: "transparent",
+                borderWidth: 0,
+                justifyContent: "center",
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
+              },
+            ]}
+          >
+            {macroMetrics.map((metric) => (
+              <QuickMacroTile
+                key={metric.key}
+                metricKey={metric.key}
+                value={metric.value}
+                label={metric.label}
+                color={metric.color}
+                icon={metric.icon}
+                width={s(metric.key === "carbs" ? 90 : 76)}
+                dark
+                scale={s}
+                stylesWithTheme={stylesWithTheme}
+              />
+          ))}
+        </View>
+        <QuickBrandMark dark scale={s} stylesWithTheme={stylesWithTheme} />
       </View>
     );
   }
 
-  if (presetId === "quickFooter") {
-    const footerTop = s(381);
-
+  if (presetId === "quickSidebar") {
     return (
-      <View
-        pointerEvents="none"
-        style={[
-          stylesWithTheme.quickFooterCard,
-          {
-            left: 0,
-            right: 0,
-            top: footerTop,
-            minHeight: Math.max(0, height - footerTop),
-            borderBottomLeftRadius: s(6),
-            borderBottomRightRadius: s(6),
-            paddingTop: s(20),
-            paddingHorizontal: s(24),
-            paddingBottom: s(20),
-          },
-        ]}
-      >
-        <View style={stylesWithTheme.quickFooterRow}>
-          <View style={{ width: s(152), gap: s(6) }}>
-            <Text
-              numberOfLines={2}
-              style={[
-                stylesWithTheme.quickTitle,
-                {
-                  color: QUICK_TEXT_COLOR,
-                  fontSize: s(22),
-                  lineHeight: s(30),
-                  textAlign: "left",
-                },
-              ]}
-            >
-              {titleText}
-            </Text>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View
+          style={[
+            stylesWithTheme.quickGlassPanel,
+            {
+              left: s(18),
+              right: s(18),
+              top: s(246),
+              borderRadius: s(24),
+              paddingTop: s(17),
+              paddingHorizontal: s(17),
+              paddingBottom: s(16),
+            },
+          ]}
+        >
+          <View style={[stylesWithTheme.quickGlassHeader, { gap: s(10) }]}>
+            <View style={{ flex: 1 }}>
+              <Text
+                numberOfLines={2}
+                style={[
+                  stylesWithTheme.quickTitle,
+                  {
+                    color: QUICK_TEXT_INVERSE,
+                    fontSize: s(20),
+                    lineHeight: s(24),
+                    textAlign: "left",
+                  },
+                ]}
+              >
+                {titleText}
+              </Text>
+            </View>
             <Text
               style={[
                 stylesWithTheme.quickKcal,
                 {
-                  color: QUICK_TEXT_COLOR,
-                  fontSize: s(16),
-                  lineHeight: s(20),
+                  color: QUICK_TEXT_INVERSE,
+                  fontSize: s(18),
+                  lineHeight: s(21),
                 },
               ]}
             >
               {kcal} kcal
             </Text>
           </View>
-          <View style={{ width: s(70), gap: s(12), marginTop: s(13) }}>
-            <Text
-              style={[
-                stylesWithTheme.quickMacroLabel,
-                {
-                  color: theme.macro.protein,
-                  fontSize: s(12),
-                  lineHeight: s(12),
-                },
-              ]}
-            >
-              {proteinLabel}
-            </Text>
-            <Text
-              style={[
-                stylesWithTheme.quickMacroLabel,
-                {
-                  color: theme.macro.carbs,
-                  fontSize: s(12),
-                  lineHeight: s(12),
-                },
-              ]}
-            >
-              {carbsLabel}
-            </Text>
-            <Text
-              style={[
-                stylesWithTheme.quickMacroLabel,
-                {
-                  color: theme.macro.fat,
-                  fontSize: s(12),
-                  lineHeight: s(12),
-                },
-              ]}
-            >
-              {fatLabel}
-            </Text>
+          <View style={[stylesWithTheme.quickGlassMacroGrid, { gap: s(8), marginTop: s(14) }]}>
+            {macroMetrics.map((metric) => (
+              <QuickMacroTile
+                key={metric.key}
+                metricKey={metric.key}
+                value={metric.value}
+                label={metric.label}
+                color={metric.color}
+                icon={metric.icon}
+                width={s(metric.key === "carbs" ? 88 : 72)}
+                dark
+                scale={s}
+                stylesWithTheme={stylesWithTheme}
+              />
+            ))}
           </View>
         </View>
+        <QuickBrandMark dark scale={s} stylesWithTheme={stylesWithTheme} />
       </View>
     );
   }
 
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        stylesWithTheme.quickClassicCard,
-        {
-          left: s(20),
-          top: s(10),
-          width: s(293),
-          minHeight: s(125),
-          borderRadius: s(28),
-          paddingTop: s(20),
-          paddingHorizontal: s(18),
-          paddingBottom: s(12),
-        },
-      ]}
-    >
-      <Text
-        numberOfLines={2}
-        style={[
-          stylesWithTheme.quickTitle,
-          {
-            color: QUICK_TEXT_COLOR,
-            fontSize: s(22),
-            lineHeight: s(30),
-            width: s(257),
-          },
-        ]}
-      >
-        {titleText}
-      </Text>
-      <Text
-        style={[
-          stylesWithTheme.quickKcal,
-          {
-            color: QUICK_TEXT_COLOR,
-            fontSize: s(16),
-            lineHeight: s(20),
-            marginTop: s(6),
-          },
-        ]}
-      >
-        {kcal} kcal
-      </Text>
+  const summaryCardTop = s(28);
 
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View
         style={[
-          stylesWithTheme.quickClassicTrack,
+          stylesWithTheme.quickClassicCard,
           {
-            marginTop: s(12),
-            width: s(257),
-            height: s(4),
-            borderRadius: s(2),
+            left: s(20),
+            top: summaryCardTop,
+            width: s(216),
+            borderRadius: s(22),
+            paddingTop: s(14),
+            paddingHorizontal: s(14),
+            paddingBottom: s(12),
           },
         ]}
       >
-        <View style={[stylesWithTheme.quickClassicFillRow, { gap: s(3) }]}>
-          <View
+        <Text
+          numberOfLines={2}
+          style={[
+            stylesWithTheme.quickTitle,
+            {
+              color: QUICK_TEXT_COLOR,
+              fontSize: s(19),
+              lineHeight: s(23),
+              textAlign: "left",
+            },
+          ]}
+        >
+          {titleText}
+        </Text>
+        <View style={[stylesWithTheme.quickClassicSummaryRow, { marginTop: s(8) }]}>
+          <Text
             style={[
-              stylesWithTheme.quickClassicFill,
+              stylesWithTheme.quickKcal,
               {
-                width: s(132),
-                borderRadius: s(2),
-                backgroundColor: theme.macro.protein,
+                color: QUICK_TEXT_COLOR,
+                fontSize: s(17),
+                lineHeight: s(20),
               },
             ]}
-          />
+          >
+            {kcal} kcal
+          </Text>
           <View
             style={[
-              stylesWithTheme.quickClassicFill,
+              stylesWithTheme.quickClassicAccentLine,
               {
-                width: s(81),
+                height: s(3),
                 borderRadius: s(2),
-                backgroundColor: theme.macro.carbs,
+                marginLeft: s(8),
               },
             ]}
-          />
-          <View
-            style={[
-              stylesWithTheme.quickClassicFill,
-              {
-                width: s(38),
-                borderRadius: s(2),
-                backgroundColor: theme.macro.fat,
-              },
-            ]}
-          />
+          >
+            {macroMetrics.map((metric) => (
+              <View
+                key={metric.key}
+                style={[
+                  stylesWithTheme.quickClassicAccentSegment,
+                  {
+                    flex:
+                      totalMacroGrams > 0
+                        ? Math.max(metric.grams, 0)
+                        : 1,
+                    backgroundColor: metric.color,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+        <View
+          style={[
+            stylesWithTheme.quickClassicMacroRow,
+            {
+              marginTop: s(10),
+              gap: s(5),
+            },
+          ]}
+        >
+          {macroMetrics.map((metric) => (
+            <QuickMacroTile
+              key={metric.key}
+              metricKey={metric.key}
+              value={metric.value}
+              label={metric.label}
+              color={metric.color}
+              icon={metric.icon}
+              width={s(metric.key === "carbs" ? 75 : 61)}
+              scale={s}
+              stylesWithTheme={stylesWithTheme}
+            />
+          ))}
         </View>
       </View>
-
-      <View
-        style={[
-          stylesWithTheme.quickClassicMacroRow,
-          {
-            marginTop: s(10),
-            width: s(257),
-          },
-        ]}
-      >
-        <Text
-          style={[
-            stylesWithTheme.quickMacroLabel,
-            {
-              color: theme.macro.protein,
-              fontSize: s(12),
-              lineHeight: s(12),
-            },
-          ]}
-        >
-          {proteinLabel}
-        </Text>
-        <Text
-          style={[
-            stylesWithTheme.quickMacroLabel,
-            {
-              color: theme.macro.carbs,
-              fontSize: s(12),
-              lineHeight: s(12),
-            },
-          ]}
-        >
-          {carbsLabel}
-        </Text>
-        <Text
-          style={[
-            stylesWithTheme.quickMacroLabel,
-            {
-              color: theme.macro.fat,
-              fontSize: s(12),
-              lineHeight: s(12),
-            },
-          ]}
-        >
-          {fatLabel}
-        </Text>
-      </View>
+      <QuickBrandMark dark scale={s} stylesWithTheme={stylesWithTheme} />
     </View>
   );
 }
@@ -462,11 +656,13 @@ export default function ShareComposerCanvas({
   onTextChange,
   onTransformChange,
   onBackgroundPress,
+  editorChromeVisible,
 }: ShareComposerCanvasProps) {
   const theme = useTheme();
   const [photoError, setPhotoError] = useState(false);
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(null);
   const interactive = mode === "customize";
+  const showEditorChrome = interactive && editorChromeVisible;
   const stylesWithTheme = useMemo(() => makeStyles(theme), [theme]);
 
   useEffect(() => {
@@ -526,9 +722,9 @@ export default function ShareComposerCanvas({
           selected={false}
           layerZIndex={0}
           onTap={onBackgroundPress}
-          enablePan={interactive}
-          enablePinch={interactive}
-          enableRotate={interactive}
+          enablePan={false}
+          enablePinch={false}
+          enableRotate={false}
           onUpdate={(xRatio, yRatio, scale, rotation) =>
             onTransformChange("mealPhoto", {
               xRatio,
@@ -554,7 +750,7 @@ export default function ShareComposerCanvas({
               onError={() => setPhotoError(true)}
               blurRadius={0}
             />
-            {selectedLayerId === "mealPhoto" && interactive ? (
+            {selectedLayerId === "mealPhoto" && showEditorChrome ? (
               <View
                 pointerEvents="none"
                 style={stylesWithTheme.mealPhotoSelectedBorder}
@@ -573,7 +769,6 @@ export default function ShareComposerCanvas({
       {mode === "quick" ? (
         <QuickPresetOverlay
           width={width}
-          height={height}
           presetId={composition.presetId}
           titleText={quickTitle}
           nutrition={nutrition}
@@ -634,11 +829,11 @@ export default function ShareComposerCanvas({
                   }}
                   showKcalLabel
                   showLegend
-                  textColor={chartLayer.textColor ?? theme.text}
-                  backgroundColor={chartLayer.backgroundColor}
+                  textColor={chartLayer.textColor ?? SHARE_OVERLAY_TEXT}
+                  backgroundColor={chartLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE}
                   fontFamily={theme.typography.fontFamily.semiBold}
                 />
-                {selectedLayerId === "chartWidget" && interactive ? (
+                {selectedLayerId === "chartWidget" && showEditorChrome ? (
                   <SelectedOutline />
                 ) : null}
               </View>
@@ -695,7 +890,7 @@ export default function ShareComposerCanvas({
                   resizeMode="cover"
                   blurRadius={additionalPhotoLayer.treatment === "plain" ? 0 : 0.3}
                 />
-                {selectedLayerId === "additionalPhoto" && interactive ? (
+                {selectedLayerId === "additionalPhoto" && showEditorChrome ? (
                   <SelectedOutline />
                 ) : null}
               </View>
@@ -703,7 +898,7 @@ export default function ShareComposerCanvas({
           ) : null}
 
           {textLayers.map((textLayer) => {
-            const isEditing = editingTextLayerId === textLayer.id && interactive;
+            const isEditing = editingTextLayerId === textLayer.id && showEditorChrome;
             return (
               <DraggableItem
                 key={textLayer.id}
@@ -738,7 +933,12 @@ export default function ShareComposerCanvas({
                   })
                 }
               >
-                <View style={stylesWithTheme.textWrap}>
+                <View
+                  style={[
+                    stylesWithTheme.textWrap,
+                    resolveTextReadabilityBackplate(textLayer.color),
+                  ]}
+                >
                   {isEditing ? (
                     <TextInput
                       autoFocus
@@ -762,7 +962,7 @@ export default function ShareComposerCanvas({
                       {textLayer.text}
                     </Text>
                   )}
-                  {selectedLayerId === textLayer.id && interactive ? (
+                  {selectedLayerId === textLayer.id && showEditorChrome ? (
                     <SelectedOutline />
                   ) : null}
                 </View>
@@ -809,8 +1009,8 @@ export default function ShareComposerCanvas({
                   fat={nutrition.fat}
                   kcal={nutrition.kcal}
                   variant={cardLayer.variant}
-                  color={cardLayer.textColor ?? theme.text}
-                  backgroundColor={cardLayer.backgroundColor}
+                  color={cardLayer.textColor ?? SHARE_OVERLAY_TEXT}
+                  backgroundColor={cardLayer.backgroundColor ?? SHARE_OVERLAY_SURFACE}
                   fontFamily={theme.typography.fontFamily.semiBold}
                   fontWeight="500"
                   macroColorsOverride={{
@@ -819,7 +1019,7 @@ export default function ShareComposerCanvas({
                     fat: theme.macro.fat,
                   }}
                 />
-                {selectedLayerId === "cardWidget" && interactive ? (
+                {selectedLayerId === "cardWidget" && showEditorChrome ? (
                   <SelectedOutline />
                 ) : null}
               </View>
@@ -952,37 +1152,59 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     quickClassicCard: {
       position: "absolute",
-      backgroundColor: QUICK_CARD_SURFACE,
-      alignItems: "center",
+      backgroundColor: QUICK_CARD_SURFACE_STRONG,
+      alignItems: "stretch",
       shadowColor: QUICK_TEXT_COLOR,
-      shadowOpacity: 0.12,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: 0.1,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
       elevation: 6,
     },
-    quickSidebarCard: {
+    quickPhotoTitle: {
       position: "absolute",
-      left: 0,
+      fontFamily: theme.typography.fontFamily.bold,
+      textShadowColor: "rgba(18,21,18,0.38)",
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 8,
+    },
+    quickPhotoTopScrim: {
+      position: "absolute",
       top: 0,
-      backgroundColor: QUICK_CARD_SURFACE,
-      borderTopLeftRadius: 30,
-      borderBottomLeftRadius: 30,
-      shadowColor: QUICK_TEXT_COLOR,
-      shadowOpacity: 0.12,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 14 },
-      elevation: 6,
+      left: 0,
+      right: 0,
     },
-    quickFooterCard: {
+    quickFloatingKcal: {
       position: "absolute",
-      backgroundColor: QUICK_CARD_SURFACE,
+      backgroundColor: "rgba(45,37,30,0.56)",
+      borderWidth: 1,
+      borderColor: "rgba(255,253,248,0.26)",
+    },
+    quickPhotoDataBar: {
+      position: "absolute",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: "rgba(35,30,25,0.78)",
+      borderWidth: 1,
+      borderColor: "rgba(255,253,248,0.28)",
       shadowColor: QUICK_TEXT_COLOR,
       shadowOpacity: 0.12,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 14 },
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 4,
+    },
+    quickGlassPanel: {
+      position: "absolute",
+      backgroundColor: QUICK_DARK_SURFACE_STRONG,
+      borderWidth: 1,
+      borderColor: "rgba(255,253,248,0.26)",
+      shadowColor: QUICK_TEXT_COLOR,
+      shadowOpacity: 0.14,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
       elevation: 6,
     },
-    quickFooterRow: {
+    quickGlassHeader: {
       flexDirection: "row",
       alignItems: "flex-start",
       justifyContent: "space-between",
@@ -996,25 +1218,56 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: QUICK_TEXT_COLOR,
       fontFamily: theme.typography.fontFamily.medium,
     },
-    quickMacroLabel: {
+    quickClassicSummaryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    quickClassicAccentLine: {
+      flex: 1,
+      flexDirection: "row",
+      overflow: "hidden",
+      backgroundColor: "rgba(57,49,40,0.12)",
+    },
+    quickClassicAccentSegment: {
+      height: "100%",
+    },
+    quickMacroTile: {
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: "flex-start",
+      justifyContent: "center",
+    },
+    quickMacroValueRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      minWidth: 0,
+    },
+    quickMacroIcon: {
+      flexShrink: 0,
+    },
+    quickMacroValue: {
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    quickMacroName: {
       fontFamily: theme.typography.fontFamily.medium,
       textAlign: "left",
     },
-    quickClassicTrack: {
-      backgroundColor: theme.border,
-      overflow: "hidden",
-      justifyContent: "center",
-    },
-    quickClassicFillRow: {
-      ...StyleSheet.absoluteFillObject,
+    quickGlassMacroGrid: {
       flexDirection: "row",
-    },
-    quickClassicFill: {
-      height: "100%",
+      alignItems: "center",
+      justifyContent: "space-between",
     },
     quickClassicMacroRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+    },
+    quickBrandMark: {
+      position: "absolute",
+      borderWidth: 1,
+    },
+    quickBrandText: {
+      fontFamily: theme.typography.fontFamily.semiBold,
+      letterSpacing: 0,
     },
   });

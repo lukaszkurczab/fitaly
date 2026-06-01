@@ -18,6 +18,7 @@ import {
   TextInput,
   UnsavedChangesModal,
 } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAuthContext } from "@/context/AuthContext";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
@@ -27,7 +28,6 @@ import {
   setTextDetailsExpandedPreference,
 } from "@/feature/Meals/services/textDetailsPreference";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useTheme } from "@/theme/useTheme";
@@ -231,7 +231,7 @@ export default function DescribeMealScreen({
   });
 
   const renderActions = () => (
-    <AddMealBottomActionBar
+    <BottomActionBar
       bottomInset={isKeyboardVisible ? theme.spacing.xs : footerBottomInset}
       keyboardInset={keyboardInset}
       compact={isKeyboardVisible}

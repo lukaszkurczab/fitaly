@@ -309,7 +309,7 @@ describe("EditMealDetailsScreen", () => {
     );
 
     expect(getByText("Go to review")).toBeTruthy();
-    expect(getByTestId("meal-details-form-submit-button").props.accessibilityState).toEqual({
+    expect(getByTestId("meal-details-form-submit-button").props.accessibilityState).toMatchObject({
       disabled: true,
     });
   });

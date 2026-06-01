@@ -74,15 +74,15 @@ const CARD_SHELL_STYLES: Record<CardVariant, ViewStyle> = {
     maxWidth: 276,
   },
   macroTagStripCard: {
-    minWidth: 246,
-    maxWidth: 292,
+    minWidth: 276,
+    maxWidth: 332,
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 18,
   },
   macroVerticalStackCard: {
-    minWidth: 152,
-    maxWidth: 184,
+    minWidth: 190,
+    maxWidth: 232,
   },
 };
 

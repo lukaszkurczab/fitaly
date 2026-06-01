@@ -15,6 +15,7 @@ import { CameraView } from "expo-camera";
 import * as Device from "expo-device";
 import { useTranslation } from "react-i18next";
 import { Layout, PhotoPreview } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { Modal } from "@/components/Modal";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import type {
@@ -33,7 +34,6 @@ import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
 import { setPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
@@ -528,7 +528,7 @@ export default function MealCameraScreen({
           }
         />
         {!showFullscreenCamera ? (
-          <AddMealBottomActionBar
+          <BottomActionBar
             bottomInset={footerBottomInset}
             helperText={footerNote}
             helperTone={isLowCredits ? "warning" : "default"}

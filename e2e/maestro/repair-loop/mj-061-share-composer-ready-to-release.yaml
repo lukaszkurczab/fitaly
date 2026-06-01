@@ -1,0 +1,319 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- takeScreenshot: mj061-rtr-quick-ready-light
+- tapOn:
+    id: share-preset-quickClassic
+- takeScreenshot: mj061-rtr-quick-preset-photo-first-light
+- tapOn:
+    id: share-preset-quickSidebar
+- takeScreenshot: mj061-rtr-quick-preset-balanced-glass-light
+- tapOn:
+    id: share-preset-quickFooter
+- takeScreenshot: mj061-rtr-quick-preset-clean-summary-light
+- tapOn:
+    id: share-mode-customize-button
+- assertVisible:
+    id: share-customize-tool-rail
+- assertVisible:
+    id: share-utility-row
+- takeScreenshot: mj061-rtr-customize-ready-light
+- tapOn:
+    id: share-add-text-button
+- assertVisible:
+    id: share-selected-layer-tray
+- assertVisible:
+    id: share-text-style-tray
+- takeScreenshot: mj061-rtr-text-added-selected-light
+- tapOn:
+    id: share-text-italic-chip
+- tapOn:
+    id: share-text-underline-chip
+- takeScreenshot: mj061-rtr-text-bold-italic-underline-light
+- tapOn:
+    id: share-text-color-button
+- assertVisible:
+    id: share-text-color-tray
+- takeScreenshot: mj061-rtr-text-color-tray-light
+- tapOn:
+    id: share-text-color-393128
+- takeScreenshot: mj061-rtr-text-color-preset-light
+- tapOn:
+    id: share-text-color-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-text-custom-color-picker-light
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-remove-layer-button
+- assertVisible:
+    id: share-customize-tool-rail
+- takeScreenshot: mj061-rtr-text-removed-light
+- tapOn:
+    id: share-add-chart-button
+- assertVisible:
+    id: share-chart-tray
+- takeScreenshot: mj061-rtr-chart-added-selected-light
+- tapOn:
+    id: share-chart-type-button
+- assertVisible:
+    id: share-chart-type-tray
+- takeScreenshot: mj061-rtr-chart-type-tray-light
+- tapOn:
+    id: share-chart-type-polar
+- takeScreenshot: mj061-rtr-chart-type-polar-light
+- tapOn:
+    id: share-chart-type-pie
+- takeScreenshot: mj061-rtr-chart-type-pie-light
+- tapOn:
+    id: share-chart-type-donut
+- takeScreenshot: mj061-rtr-chart-type-donut-light
+- assertVisible:
+    id: share-chart-type-bar
+- tapOn:
+    id: share-chart-type-gauge
+- takeScreenshot: mj061-rtr-chart-type-gauge-light
+- tapOn:
+    id: share-chart-type-bar
+- takeScreenshot: mj061-rtr-chart-type-bar-light
+- assertVisible:
+    id: share-chart-done-button
+- tapOn:
+    id: share-chart-done-button
+- tapOn:
+    id: share-chart-text-button
+- assertVisible:
+    id: share-chart-text-color-tray
+- takeScreenshot: mj061-rtr-chart-text-color-tray-light
+- tapOn:
+    id: share-chart-text-color-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-chart-text-custom-color-picker-light
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-chart-done-button
+- tapOn:
+    id: share-chart-background-button
+- assertVisible:
+    id: share-chart-background-tray
+- takeScreenshot: mj061-rtr-chart-background-tray-light
+- tapOn:
+    id: share-chart-background-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-chart-background-custom-opacity-light
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-remove-layer-button
+- takeScreenshot: mj061-rtr-chart-removed-light
+- tapOn:
+    id: share-add-card-button
+- assertVisible:
+    id: share-card-tray
+- takeScreenshot: mj061-rtr-card-added-selected-light
+- tapOn:
+    id: share-card-type-button
+- assertVisible:
+    id: share-card-type-tray
+- takeScreenshot: mj061-rtr-card-type-tray-light
+- tapOn:
+    id: share-card-type-split
+- takeScreenshot: mj061-rtr-card-type-split-light
+- tapOn:
+    id: share-card-type-summary
+- takeScreenshot: mj061-rtr-card-type-summary-light
+- tapOn:
+    id: share-card-type-strip
+- takeScreenshot: mj061-rtr-card-type-strip-light
+- assertVisible:
+    id: share-card-type-vertical
+- tapOn:
+    id: share-card-type-vertical
+- takeScreenshot: mj061-rtr-card-type-vertical-polish-light
+- assertVisible:
+    id: share-card-done-button
+- tapOn:
+    id: share-card-done-button
+- tapOn:
+    id: share-card-text-button
+- assertVisible:
+    id: share-card-text-color-tray
+- takeScreenshot: mj061-rtr-card-text-color-tray-light
+- tapOn:
+    id: share-card-text-color-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-card-text-custom-color-picker-light
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-card-done-button
+- tapOn:
+    id: share-card-background-button
+- assertVisible:
+    id: share-card-background-tray
+- takeScreenshot: mj061-rtr-card-background-tray-light
+- tapOn:
+    id: share-card-background-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-card-background-custom-opacity-light
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-remove-layer-button
+- takeScreenshot: mj061-rtr-card-removed-light
+- tapOn:
+    id: share-add-photo-button
+- assertVisible:
+    id: share-photo-treatment-tray
+- takeScreenshot: mj061-rtr-photo-added-selected-light
+- tapOn:
+    id: share-photo-replace-button
+- assertVisible:
+    id: share-photo-treatment-tray
+- takeScreenshot: mj061-rtr-photo-replaced-light
+- tapOn:
+    id: share-remove-layer-button
+- tapOn:
+    id: share-reset-button
+- takeScreenshot: mj061-rtr-customize-reset-light
+- tapOn:
+    id: share-add-card-button
+- assertVisible:
+    id: share-selected-layer-tray
+- tapOn:
+    id: share-system-share-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-success
+    timeout: 10000
+- assertVisible:
+    id: share-e2e-export-preview
+- takeScreenshot: mj061-rtr-customize-export-success-no-editor-chrome-light
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- tapOn:
+    id: share-mode-customize-button
+- assertVisible:
+    id: share-customize-tool-rail
+- takeScreenshot: mj061-rtr-customize-ready-dark
+- tapOn:
+    id: share-add-card-button
+- assertVisible:
+    id: share-selected-layer-tray
+- takeScreenshot: mj061-rtr-selected-widget-dark
+- tapOn:
+    id: share-card-background-button
+- tapOn:
+    id: share-card-background-custom-button
+- assertVisible:
+    id: share-color-picker-modal
+- takeScreenshot: mj061-rtr-color-picker-dark
+- tapOn:
+    id: share-color-picker-done-button
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=failure"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-failure
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- tapOn:
+    id: share-mode-customize-button
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- takeScreenshot: mj061-rtr-customize-save-error-dark
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=permissionDenied"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-permissionDenied
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- assertVisible: "Brak dostępu do galerii. Sprawdź uprawnienia i spróbuj ponownie."
+- takeScreenshot: mj061-rtr-permission-error-light

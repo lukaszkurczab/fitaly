@@ -6,7 +6,12 @@ import {
   withAlpha,
 } from "../overlayPrimitives";
 
-type Datum = { value: number; color: string; label: string };
+type Datum = {
+  value: number;
+  color: string;
+  label: string;
+  shortLabel?: string;
+};
 
 type Props = {
   data: Datum[];
@@ -80,6 +85,7 @@ export default function GaugeMacroChart({
     end: number;
     color: string;
     label: string;
+    shortLabel?: string;
   }> = [];
 
   let angleCursor = ARC_START_ANGLE;
@@ -96,6 +102,7 @@ export default function GaugeMacroChart({
       end,
       color: item.color,
       label: item.label,
+      shortLabel: item.shortLabel,
     });
     angleCursor = end + SEGMENT_GAP;
   });
@@ -202,7 +209,7 @@ export default function GaugeMacroChart({
                   },
                 ]}
               >
-                {String(item.label).charAt(0).toUpperCase()}
+                {item.shortLabel ?? String(item.label).charAt(0).toUpperCase()}
               </Text>
               <Text
                 style={[

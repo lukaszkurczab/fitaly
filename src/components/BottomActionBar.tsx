@@ -7,15 +7,11 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import {
-  Button,
-  TextButton,
-  type ButtonProps,
-  type ButtonVariant,
-} from "@/components";
+import { Button, type ButtonProps, type ButtonVariant } from "@/components/Button";
+import { TextButton } from "@/components/TextButton";
 import { useTheme } from "@/theme/useTheme";
 
-type AddMealAction = {
+export type BottomActionBarAction = {
   label: string;
   compactLabel?: string;
   onPress?: () => void;
@@ -27,7 +23,7 @@ type AddMealAction = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-type AddMealLinkAction = {
+export type BottomActionBarLinkAction = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
@@ -35,11 +31,11 @@ type AddMealLinkAction = {
   accessibilityLabel?: string;
 };
 
-type Props = {
-  primaryAction?: AddMealAction;
-  secondaryAction?: AddMealAction;
-  linkAction?: AddMealLinkAction;
-  linkActions?: AddMealLinkAction[];
+type BottomActionBarProps = {
+  primaryAction?: BottomActionBarAction;
+  secondaryAction?: BottomActionBarAction;
+  linkAction?: BottomActionBarLinkAction;
+  linkActions?: BottomActionBarLinkAction[];
   helperText?: string;
   helperTone?: "default" | "warning";
   placement?: "fixed" | "inline";
@@ -52,7 +48,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-export default function AddMealBottomActionBar({
+export function BottomActionBar({
   primaryAction,
   secondaryAction,
   linkAction,
@@ -67,12 +63,12 @@ export default function AddMealBottomActionBar({
   compact = false,
   testID,
   style,
-}: Props) {
+}: BottomActionBarProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const renderAction = (
-    action: AddMealAction | undefined,
+    action: BottomActionBarAction | undefined,
     defaultVariant: ButtonVariant,
   ) => {
     if (!action) return null;

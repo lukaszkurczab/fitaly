@@ -10,6 +10,7 @@ type PieDatum = {
   value: number;
   color: string;
   label: string;
+  shortLabel?: string;
 };
 
 type Props = {
@@ -196,7 +197,7 @@ export default function DonutMacroChart({
           {safeData.map((d, index) => (
             <View key={d.label} style={styles.legendItem}>
               <OverlayMacroLegendItem
-                label={String(d.label).charAt(0).toUpperCase()}
+                label={d.shortLabel ?? String(d.label).charAt(0).toUpperCase()}
                 value={d.value}
                 color={d.color}
                 textColor={textColor || theme.text}

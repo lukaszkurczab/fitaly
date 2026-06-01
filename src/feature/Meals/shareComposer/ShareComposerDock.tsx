@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { useTheme } from "@/theme/useTheme";
 import DockQuickPanel from "@/feature/Meals/shareComposer/components/DockQuickPanel";
 import DockActiveLayerHeader from "@/feature/Meals/shareComposer/components/DockActiveLayerHeader";
 import DockEditorOptions from "@/feature/Meals/shareComposer/components/DockEditorOptions";
-import DockUtilityRow from "@/feature/Meals/shareComposer/components/DockUtilityRow";
-import FlowActionButton from "@/feature/Meals/shareComposer/components/FlowActionButton";
 import DockColorPickerModal from "@/feature/Meals/shareComposer/components/DockColorPickerModal";
 import type {
   ActiveLayerEditorKind,
@@ -15,6 +15,7 @@ import type {
   ShareCompositionState,
   ShareExportState,
   ShareLayerId,
+  ShareNutrition,
   SharePresetId,
   ShareTextLayerState,
 } from "@/feature/Meals/shareComposer/types";
@@ -25,18 +26,24 @@ import type {
 
 type ShareComposerDockProps = {
   width?: number;
+  contentWidth?: number;
   mode: "quick" | "customize";
   selectedPreset: SharePresetId;
   activeEditorKind: ActiveLayerEditorKind;
   selectedLayerId: ShareLayerId | null;
   composition: ShareCompositionState;
   mealPhotoUri: string;
+  nutrition: ShareNutrition;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
   exportState: ShareExportState;
   onPresetSelect: (presetId: SharePresetId) => void;
   onSaveToGallery: () => void;
   onShare: () => void;
   onRemoveSelectedLayer: () => void;
-  onResetComposition: () => void;
   onTextStyleChange: (
     id: string,
     patch: Partial<Pick<ShareTextLayerState, "bold" | "italic" | "underline" | "color">>,
@@ -45,22 +52,25 @@ type ShareComposerDockProps = {
   onChartStyleChange: (patch: { textColor?: string; backgroundColor?: string }) => void;
   onCardVariantChange: (variant: ShareCardVariant) => void;
   onCardStyleChange: (patch: { textColor?: string; backgroundColor?: string }) => void;
-  onAdditionalPhotoTreatmentChange: (
-    treatment: NonNullable<ShareCompositionState["additionalPhoto"]>["treatment"],
-  ) => void;
-  onAddTextLayer: () => void;
-  onEnsureChartLayer: () => void;
-  onEnsureCardLayer: () => void;
-  onAddOrReplaceAdditionalPhoto: () => void;
+  onAdditionalPhotoReplace: () => void;
 };
 
 const DOCK_LAYOUT = {
-  fixedHeight: 188,
-  contentHeight: 78,
-  errorHeight: 18,
-  borderRadius: 28,
-  grabberWidth: 37,
-  grabberHeight: 4,
+  paddingTop: 8,
+  itemGap: 4,
+  footerHeight: 132,
+  contentHeight: 76,
+  quickContentHeight: 84,
+  quickPhotoOverlap: 72,
+  selectedContentHeight: 76,
+  compactContentHeight: 66,
+  idleContentHeight: 0,
+  errorHeight: 32,
+  emptyErrorHeight: 6,
+  basePaddingBottom: 12,
+  borderRadius: 24,
+  grabberWidth: 34,
+  grabberHeight: 3,
 };
 
 const FALLBACK_TEXT_COLOR = "#393128";
@@ -98,6 +108,10 @@ function editorTitle(kind: ActiveLayerEditorKind, t: (key: string) => string) {
   }
 }
 
+function editorMetaLabel(kind: ActiveLayerEditorKind, t: (key: string) => string) {
+  return kind === "none" ? t("dock.add_mode") : null;
+}
+
 function isLayerRemovable(layerId: ShareLayerId | null) {
   if (!layerId) return false;
   if (layerId === "mealPhoto") return false;
@@ -107,32 +121,35 @@ function isLayerRemovable(layerId: ShareLayerId | null) {
 
 export default function ShareComposerDock({
   width,
+  contentWidth,
   mode,
   selectedPreset,
   activeEditorKind,
   selectedLayerId,
   composition,
   mealPhotoUri,
+  nutrition,
+  macroLabels,
   exportState,
   onPresetSelect,
   onSaveToGallery,
   onShare,
   onRemoveSelectedLayer,
-  onResetComposition,
   onTextStyleChange,
   onChartVariantChange,
   onChartStyleChange,
   onCardVariantChange,
   onCardStyleChange,
-  onAdditionalPhotoTreatmentChange,
-  onAddTextLayer,
-  onEnsureChartLayer,
-  onEnsureCardLayer,
-  onAddOrReplaceAdditionalPhoto,
+  onAdditionalPhotoReplace,
 }: ShareComposerDockProps) {
   const theme = useTheme();
   const { t } = useTranslation("share");
+  const insets = useSafeAreaInsets();
   const stylesWithTheme = useMemo(() => makeStyles(theme), [theme]);
+  const bottomSafeAreaPadding = Math.max(
+    DOCK_LAYOUT.basePaddingBottom,
+    insets.bottom + theme.spacing.xs,
+  );
   const hasEditorOptions = activeEditorKind !== "none";
   const [isTextColorPanelOpen, setIsTextColorPanelOpen] = useState(false);
   const [chartEditorMode, setChartEditorMode] = useState<WidgetEditorMode | null>(null);
@@ -147,16 +164,39 @@ export default function ShareComposerDock({
   const selectedCardLayer = composition.widgets.card;
   const textColorOptions = useMemo(
     () => [
-      { label: "Cream", value: "#FFFDF8" },
-      { label: "Ink", value: "#393128" },
-      { label: "Olive", value: theme.primary },
+      { label: t("dock.color_light"), value: "#FFFDF8" },
+      { label: t("dock.color_dark"), value: "#393128" },
+      { label: t("dock.color_olive"), value: theme.primary },
     ],
-    [theme.primary],
+    [t, theme.primary],
   );
 
   const showRemove = isLayerRemovable(selectedLayerId);
   const isSaving = exportState.action === "save_to_gallery";
   const isSharing = exportState.action === "share";
+  const hasExportError = Boolean(exportState.error);
+  const failedExportAction = exportState.failedAction ?? null;
+  const isQuickMode = mode === "quick";
+  const contentSlotHeight =
+    isQuickMode
+      ? DOCK_LAYOUT.quickContentHeight
+      : hasEditorOptions
+        ? DOCK_LAYOUT.selectedContentHeight
+        : DOCK_LAYOUT.idleContentHeight;
+  const errorSlotHeight = hasExportError
+    ? DOCK_LAYOUT.errorHeight
+    : DOCK_LAYOUT.emptyErrorHeight;
+  const dockHeight =
+    DOCK_LAYOUT.paddingTop +
+    DOCK_LAYOUT.grabberHeight +
+    DOCK_LAYOUT.itemGap +
+    contentSlotHeight +
+    DOCK_LAYOUT.itemGap +
+    errorSlotHeight +
+    DOCK_LAYOUT.itemGap +
+    DOCK_LAYOUT.footerHeight +
+    bottomSafeAreaPadding +
+    (isQuickMode ? DOCK_LAYOUT.quickPhotoOverlap : 0);
   const selectedTextColor = selectedTextLayer?.color ?? FALLBACK_TEXT_COLOR;
   const selectedChartTextColor = selectedChartLayer?.textColor ?? FALLBACK_TEXT_COLOR;
   const selectedChartBackgroundColor =
@@ -277,16 +317,40 @@ export default function ShareComposerDock({
 
   return (
     <View
-      style={[stylesWithTheme.dock, typeof width === "number" ? { width } : null]}
+      style={[
+        stylesWithTheme.dock,
+        isQuickMode ? stylesWithTheme.quickDock : null,
+        { height: dockHeight, paddingBottom: 0 },
+        typeof width === "number" ? { width } : null,
+      ]}
       testID="share-composer-dock"
     >
-      <View style={stylesWithTheme.grabber} />
-      <View style={stylesWithTheme.contentSlot}>
+      <View
+        style={isQuickMode ? stylesWithTheme.quickGrabber : stylesWithTheme.grabber}
+      />
+      <View
+        style={[
+          stylesWithTheme.contentSlot,
+          isQuickMode ? stylesWithTheme.quickContentSlot : null,
+          {
+            minHeight: contentSlotHeight,
+            maxHeight: contentSlotHeight,
+          },
+          typeof contentWidth === "number" ? { width: contentWidth } : null,
+        ]}
+      >
         {mode === "quick" ? (
           <DockQuickPanel
             selectedPreset={selectedPreset}
             mealPhotoUri={mealPhotoUri}
+            nutrition={nutrition}
+            macroLabels={macroLabels}
             presetsLabel={t("dock.presets")}
+            presetAccessibilityLabels={{
+              quickClassic: t("dock.preset_photo_first"),
+              quickSidebar: t("dock.preset_balanced_glass"),
+              quickFooter: t("dock.preset_clean_summary"),
+            }}
             onPresetSelect={onPresetSelect}
           />
         ) : (
@@ -295,98 +359,95 @@ export default function ShareComposerDock({
               stylesWithTheme.customizePanel,
               !hasEditorOptions ? stylesWithTheme.customizePanelCompact : null,
             ]}
+            testID={hasEditorOptions ? "share-selected-layer-tray" : "share-customize-idle-tray"}
           >
-            <DockActiveLayerHeader
-              metaLabel={t("dock.active_layer")}
-              title={editorTitle(activeEditorKind, t)}
-              showRemove={showRemove}
-              removeLabel={t("dock.remove")}
-              onRemove={onRemoveSelectedLayer}
-            />
-
             {hasEditorOptions ? (
-              <DockEditorOptions
-                activeEditorKind={activeEditorKind}
-                selectedTextLayer={selectedTextLayer}
-                composition={composition}
-                textColorOptions={textColorOptions}
-                normalizedSelectedTextColor={normalizedSelectedTextColor}
-                normalizedSelectedChartTextColor={normalizedSelectedChartTextColor}
-                normalizedSelectedChartBackgroundColor={normalizedSelectedChartBackgroundColor}
-                normalizedSelectedCardTextColor={normalizedSelectedCardTextColor}
-                normalizedSelectedCardBackgroundColor={normalizedSelectedCardBackgroundColor}
-                usesPresetTextColor={usesPresetTextColor}
-                usesPresetChartTextColor={usesPresetChartTextColor}
-                usesPresetChartBackgroundColor={usesPresetChartBackgroundColor}
-                usesPresetCardTextColor={usesPresetCardTextColor}
-                usesPresetCardBackgroundColor={usesPresetCardBackgroundColor}
-                isTextColorPanelOpen={isTextColorPanelOpen}
-                chartEditorMode={chartEditorMode}
-                cardEditorMode={cardEditorMode}
-                setIsTextColorPanelOpen={setIsTextColorPanelOpen}
-                setChartEditorMode={setChartEditorMode}
-                setCardEditorMode={setCardEditorMode}
-                setCustomColorTarget={setCustomColorTarget}
-                applyTextColor={applyTextColor}
-                applyChartTextColor={applyChartTextColor}
-                applyChartBackgroundColor={applyChartBackgroundColor}
-                applyCardTextColor={applyCardTextColor}
-                applyCardBackgroundColor={applyCardBackgroundColor}
-                normalizeHexColor={normalizeHexColor}
-                onTextStyleChange={onTextStyleChange}
-                onChartVariantChange={onChartVariantChange}
-                onCardVariantChange={onCardVariantChange}
-                onAdditionalPhotoTreatmentChange={onAdditionalPhotoTreatmentChange}
-                t={t}
-              />
-            ) : null}
-
-            {activeEditorKind === "none" ? (
-              <DockUtilityRow
-                textLabel={t("dock.utility_text")}
-                chartLabel={t("dock.utility_chart")}
-                cardLabel={t("dock.utility_card")}
-                photoLabel={t("dock.utility_photo")}
-                resetLabel={t("dock.utility_reset")}
-                onAddTextLayer={onAddTextLayer}
-                onEnsureChartLayer={onEnsureChartLayer}
-                onEnsureCardLayer={onEnsureCardLayer}
-                onAddOrReplaceAdditionalPhoto={onAddOrReplaceAdditionalPhoto}
-                onResetComposition={onResetComposition}
-              />
+              <>
+                <DockActiveLayerHeader
+                  metaLabel={editorMetaLabel(activeEditorKind, t)}
+                  title={editorTitle(activeEditorKind, t)}
+                  showRemove={showRemove}
+                  removeLabel={t("dock.remove")}
+                  onRemove={onRemoveSelectedLayer}
+                />
+                <DockEditorOptions
+                  activeEditorKind={activeEditorKind}
+                  selectedTextLayer={selectedTextLayer}
+                  composition={composition}
+                  textColorOptions={textColorOptions}
+                  normalizedSelectedTextColor={normalizedSelectedTextColor}
+                  normalizedSelectedChartTextColor={normalizedSelectedChartTextColor}
+                  normalizedSelectedChartBackgroundColor={normalizedSelectedChartBackgroundColor}
+                  normalizedSelectedCardTextColor={normalizedSelectedCardTextColor}
+                  normalizedSelectedCardBackgroundColor={normalizedSelectedCardBackgroundColor}
+                  usesPresetTextColor={usesPresetTextColor}
+                  usesPresetChartTextColor={usesPresetChartTextColor}
+                  usesPresetChartBackgroundColor={usesPresetChartBackgroundColor}
+                  usesPresetCardTextColor={usesPresetCardTextColor}
+                  usesPresetCardBackgroundColor={usesPresetCardBackgroundColor}
+                  isTextColorPanelOpen={isTextColorPanelOpen}
+                  chartEditorMode={chartEditorMode}
+                  cardEditorMode={cardEditorMode}
+                  setIsTextColorPanelOpen={setIsTextColorPanelOpen}
+                  setChartEditorMode={setChartEditorMode}
+                  setCardEditorMode={setCardEditorMode}
+                  setCustomColorTarget={setCustomColorTarget}
+                  applyTextColor={applyTextColor}
+                  applyChartTextColor={applyChartTextColor}
+                  applyChartBackgroundColor={applyChartBackgroundColor}
+                  applyCardTextColor={applyCardTextColor}
+                  applyCardBackgroundColor={applyCardBackgroundColor}
+                  normalizeHexColor={normalizeHexColor}
+                  onTextStyleChange={onTextStyleChange}
+                  onChartVariantChange={onChartVariantChange}
+                  onCardVariantChange={onCardVariantChange}
+                  onAdditionalPhotoReplace={onAdditionalPhotoReplace}
+                  t={t}
+                />
+              </>
             ) : null}
           </View>
         )}
       </View>
 
-      <View style={stylesWithTheme.errorSlot}>
+      <View
+        style={[
+          stylesWithTheme.errorSlot,
+          hasExportError ? stylesWithTheme.errorSlotVisible : null,
+          typeof contentWidth === "number" ? { width: contentWidth } : null,
+        ]}
+      >
         {exportState.error ? (
-          <Text
-            testID="share-export-error"
-            numberOfLines={1}
-            style={stylesWithTheme.errorText}
+          <View
+            style={[
+              stylesWithTheme.errorCard,
+              failedExportAction === "share" ? stylesWithTheme.errorCardShare : null,
+            ]}
           >
-            {exportState.error}
-          </Text>
+            <View style={stylesWithTheme.errorAccent} />
+            <Text testID="share-export-error" style={stylesWithTheme.errorText}>
+              {exportState.error}
+            </Text>
+          </View>
         ) : null}
       </View>
 
-      <View style={stylesWithTheme.flowFooter}>
-        <FlowActionButton
-          testID="share-save-gallery-button"
-          label={t("dock.save_to_gallery")}
-          primary={false}
-          loading={isSaving}
-          onPress={onSaveToGallery}
-        />
-        <FlowActionButton
-          testID="share-system-share-button"
-          label={t("share")}
-          primary
-          loading={isSharing}
-          onPress={onShare}
-        />
-      </View>
+      <BottomActionBar
+        testID="share-composer-actions"
+        bottomInset={bottomSafeAreaPadding}
+        primaryAction={{
+          testID: "share-system-share-button",
+          label: t("share"),
+          onPress: onShare,
+          loading: isSharing,
+        }}
+        secondaryAction={{
+          testID: "share-save-gallery-button",
+          label: t("dock.save_to_gallery"),
+          onPress: onSaveToGallery,
+          loading: isSaving,
+        }}
+      />
 
       <DockColorPickerModal
         visible={customColorTarget !== null}
@@ -408,22 +469,47 @@ export default function ShareComposerDock({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     dock: {
+      position: "absolute",
+      bottom: 0,
+      alignSelf: "center",
+      zIndex: 10,
       backgroundColor: theme.surfaceElevated,
       borderRadius: DOCK_LAYOUT.borderRadius,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      height: DOCK_LAYOUT.fixedHeight,
+      borderColor: theme.isDark
+        ? "rgba(166,189,160,0.22)"
+        : "rgba(79,104,75,0.14)",
       overflow: "hidden",
-      paddingTop: 10,
-      paddingHorizontal: 12,
-      paddingBottom: 10,
-      ...theme.depth.modal,
-      gap: 8,
+      paddingTop: DOCK_LAYOUT.paddingTop,
+      paddingHorizontal: 10,
+      paddingBottom: DOCK_LAYOUT.basePaddingBottom,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.5 : 0.12,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+      gap: DOCK_LAYOUT.itemGap,
+    },
+    quickDock: {
+      backgroundColor: "transparent",
+      borderWidth: 0,
+      borderColor: "transparent",
+      borderRadius: 0,
+      overflow: "visible",
+      paddingHorizontal: 0,
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
     },
     contentSlot: {
-      minHeight: DOCK_LAYOUT.contentHeight,
-      maxHeight: DOCK_LAYOUT.contentHeight,
-      justifyContent: "center",
+      alignSelf: "center",
+      justifyContent: "space-between",
+      overflow: "hidden",
+    },
+    quickContentSlot: {
+      overflow: "visible",
+      zIndex: 20,
     },
     grabber: {
       alignSelf: "center",
@@ -432,29 +518,59 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: 2,
       backgroundColor: theme.border,
     },
+    quickGrabber: {
+      alignSelf: "center",
+      width: DOCK_LAYOUT.grabberWidth,
+      height: DOCK_LAYOUT.grabberHeight,
+      opacity: 0,
+    },
     customizePanel: {
-      gap: 8,
+      gap: 4,
     },
     customizePanelCompact: {
       gap: 0,
     },
+    errorCard: {
+      minHeight: DOCK_LAYOUT.errorHeight,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.isDark
+        ? "rgba(200,93,76,0.28)"
+        : "rgba(194,78,61,0.18)",
+      backgroundColor: theme.isDark
+        ? "rgba(200,93,76,0.06)"
+        : "rgba(194,78,61,0.045)",
+      paddingVertical: 3,
+      paddingLeft: 11,
+      paddingRight: 8,
+      justifyContent: "center",
+      position: "relative",
+    },
+    errorCardShare: {
+      borderRightColor: theme.error.main,
+    },
+    errorAccent: {
+      position: "absolute",
+      left: 0,
+      top: 10,
+      bottom: 10,
+      width: 2,
+      borderTopRightRadius: 2,
+      borderBottomRightRadius: 2,
+      backgroundColor: theme.error.main,
+    },
     errorText: {
-      color: theme.error.main,
+      color: theme.error.text,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      paddingHorizontal: 10,
+      fontSize: 10.5,
+      lineHeight: 13,
     },
     errorSlot: {
-      minHeight: DOCK_LAYOUT.errorHeight,
+      alignSelf: "center",
+      minHeight: DOCK_LAYOUT.emptyErrorHeight,
       justifyContent: "center",
     },
-    flowFooter: {
-      flexDirection: "row",
-      gap: 9,
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 4,
-      paddingTop: 0,
+    errorSlotVisible: {
+      minHeight: DOCK_LAYOUT.errorHeight,
     },
   });

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Image, StyleSheet, View } from "react-native";
 import * as Device from "expo-device";
 import { Layout } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { useTranslation } from "react-i18next";
 import { useAiCreditsContext } from "@/context/AiCreditsContext";
 import { useAccessContext } from "@/context/AccessContext";
@@ -21,7 +22,6 @@ import {
   MealAddStatusBanner,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 
 type PreparingReviewUiState =
   | "preparing"
@@ -453,7 +453,7 @@ export default function PreparingReviewPhotoScreen({
               />
             </View>
           ) : (
-            <AddMealBottomActionBar
+            <BottomActionBar
               placement="inline"
               horizontalPadding={0}
               secondaryAction={{

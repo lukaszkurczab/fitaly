@@ -18,7 +18,7 @@ import { useTheme } from "@/theme/useTheme";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import type { Ingredient } from "@/types/meal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
+import { BottomActionBar } from "@/components/BottomActionBar";
 
 type IngredientEditorModalProps = {
   visible: boolean;
@@ -179,7 +179,7 @@ export default function IngredientEditorModal({
                   onDelete={onDelete}
                 />
               </KeyboardAwareScrollView>
-              <AddMealBottomActionBar
+              <BottomActionBar
                 placement="inline"
                 horizontalPadding={0}
                 bottomInset={0}

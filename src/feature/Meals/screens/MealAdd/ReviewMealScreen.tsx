@@ -18,6 +18,7 @@ import {
   PhotoPreview,
   UnsavedChangesModal,
 } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
@@ -36,7 +37,6 @@ import {
   formatMealDayKey,
 } from "@/services/meals/mealMetadata";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
-import AddMealBottomActionBar from "@/feature/Meals/screens/MealAdd/components/AddMealBottomActionBar";
 import { hasReviewableMealContent } from "@/feature/Meals/utils/reviewMealDraft";
 
 const IMAGE_HEIGHT = 164;
@@ -798,7 +798,7 @@ export default function ReviewMealScreen({
           ) : null}
         </KeyboardAwareScrollView>
 
-        <AddMealBottomActionBar
+        <BottomActionBar
           bottomInset={footerBottomInset}
           primaryAction={{
             testID: "review-meal-save-button",

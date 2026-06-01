@@ -46,11 +46,38 @@ type DockEditorOptionsProps = {
   ) => void;
   onChartVariantChange: (variant: ShareChartVariant) => void;
   onCardVariantChange: (variant: ShareCardVariant) => void;
-  onAdditionalPhotoTreatmentChange: (
-    treatment: NonNullable<ShareCompositionState["additionalPhoto"]>["treatment"],
-  ) => void;
+  onAdditionalPhotoReplace: () => void;
   t: (key: string) => string;
 };
+
+function resolveTrayTestID(
+  activeEditorKind: ActiveLayerEditorKind,
+  isTextColorPanelOpen: boolean,
+  chartEditorMode: WidgetEditorMode | null,
+  cardEditorMode: WidgetEditorMode | null,
+) {
+  if (activeEditorKind === "text") {
+    return isTextColorPanelOpen
+      ? "share-text-color-tray"
+      : "share-text-style-tray";
+  }
+  if (activeEditorKind === "chart") {
+    if (chartEditorMode === "type") return "share-chart-type-tray";
+    if (chartEditorMode === "text") return "share-chart-text-color-tray";
+    if (chartEditorMode === "background") return "share-chart-background-tray";
+    return "share-chart-tray";
+  }
+  if (activeEditorKind === "card") {
+    if (cardEditorMode === "type") return "share-card-type-tray";
+    if (cardEditorMode === "text") return "share-card-text-color-tray";
+    if (cardEditorMode === "background") return "share-card-background-tray";
+    return "share-card-tray";
+  }
+  if (activeEditorKind === "additionalPhoto") {
+    return "share-photo-treatment-tray";
+  }
+  return "share-selected-layer-options-tray";
+}
 
 export default function DockEditorOptions({
   activeEditorKind,
@@ -83,11 +110,17 @@ export default function DockEditorOptions({
   onTextStyleChange,
   onChartVariantChange,
   onCardVariantChange,
-  onAdditionalPhotoTreatmentChange,
+  onAdditionalPhotoReplace,
   t,
 }: DockEditorOptionsProps) {
   return (
     <ScrollView
+      testID={resolveTrayTestID(
+        activeEditorKind,
+        isTextColorPanelOpen,
+        chartEditorMode,
+        cardEditorMode,
+      )}
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.optionScroller}
@@ -98,8 +131,11 @@ export default function DockEditorOptions({
           {!isTextColorPanelOpen ? (
             <>
               <DockChip
-                label={t("dock.bold")}
+                testID="share-text-bold-chip"
+                label="B"
+                accessibilityLabel={t("dock.bold")}
                 active={selectedTextLayer.bold}
+                labelVariant="bold"
                 onPress={() =>
                   onTextStyleChange(selectedTextLayer.id, {
                     bold: !selectedTextLayer.bold,
@@ -107,8 +143,11 @@ export default function DockEditorOptions({
                 }
               />
               <DockChip
-                label={t("dock.italic")}
+                testID="share-text-italic-chip"
+                label="I"
+                accessibilityLabel={t("dock.italic")}
                 active={selectedTextLayer.italic}
+                labelVariant="italic"
                 onPress={() =>
                   onTextStyleChange(selectedTextLayer.id, {
                     italic: !selectedTextLayer.italic,
@@ -116,8 +155,11 @@ export default function DockEditorOptions({
                 }
               />
               <DockChip
-                label={t("dock.underline")}
+                testID="share-text-underline-chip"
+                label="U"
+                accessibilityLabel={t("dock.underline")}
                 active={selectedTextLayer.underline}
+                labelVariant="underline"
                 onPress={() =>
                   onTextStyleChange(selectedTextLayer.id, {
                     underline: !selectedTextLayer.underline,
@@ -128,7 +170,9 @@ export default function DockEditorOptions({
           ) : null}
           {!isTextColorPanelOpen ? (
             <DockChip
-              label={t("dock.text_color")}
+              testID="share-text-color-button"
+              label={t("dock.text_color_short")}
+              accessibilityLabel={t("dock.text_color")}
               active={false}
               onPress={() => {
                 setIsTextColorPanelOpen(true);
@@ -137,26 +181,30 @@ export default function DockEditorOptions({
             />
           ) : (
             <>
-              <DockChip
-                label={t("dock.done")}
-                active={false}
-                onPress={() => {
-                  setIsTextColorPanelOpen(false);
-                  setCustomColorTarget(null);
-                }}
-              />
               {textColorOptions.map((option) => (
                 <DockChip
                   key={option.label}
+                  testID={`share-text-color-${normalizeHexColor(option.value).replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                   label={option.label}
                   active={normalizeHexColor(option.value) === normalizedSelectedTextColor}
                   onPress={() => applyTextColor(option.value)}
                 />
               ))}
               <DockChip
+                testID="share-text-color-custom-button"
                 label={t("dock.custom")}
                 active={!usesPresetTextColor}
                 onPress={() => setCustomColorTarget("text")}
+              />
+              <DockChip
+                testID="share-text-color-done-button"
+                label={t("dock.done")}
+                active={false}
+                tone="primary"
+                onPress={() => {
+                  setIsTextColorPanelOpen(false);
+                  setCustomColorTarget(null);
+                }}
               />
             </>
           )}
@@ -168,6 +216,7 @@ export default function DockEditorOptions({
           {!chartEditorMode ? (
             <>
               <DockChip
+                testID="share-chart-type-button"
                 label={t("dock.type")}
                 active={false}
                 onPress={() => {
@@ -176,6 +225,7 @@ export default function DockEditorOptions({
                 }}
               />
               <DockChip
+                testID="share-chart-text-button"
                 label={t("dock.text")}
                 active={false}
                 onPress={() => {
@@ -184,6 +234,7 @@ export default function DockEditorOptions({
                 }}
               />
               <DockChip
+                testID="share-chart-background-button"
                 label={t("dock.background")}
                 active={false}
                 onPress={() => {
@@ -194,42 +245,46 @@ export default function DockEditorOptions({
             </>
           ) : null}
 
-          {chartEditorMode ? (
-            <DockChip
-              label={t("dock.done")}
-              active={false}
-              onPress={() => {
-                setChartEditorMode(null);
-                setCustomColorTarget(null);
-              }}
-            />
-          ) : null}
-
           {chartEditorMode === "type" ? (
             <>
               <DockChip
-                label={t("dock.chart_polar")}
+                testID="share-chart-type-polar"
+                label={t("dock.chart_polar_short")}
+                accessibilityLabel={t("dock.chart_polar")}
                 active={composition.widgets.chart?.variant === "macroPolarArea"}
+                compact
                 onPress={() => onChartVariantChange("macroPolarArea")}
               />
               <DockChip
-                label={t("dock.chart_pie")}
+                testID="share-chart-type-pie"
+                label={t("dock.chart_pie_short")}
+                accessibilityLabel={t("dock.chart_pie")}
                 active={composition.widgets.chart?.variant === "macroPie"}
+                compact
                 onPress={() => onChartVariantChange("macroPie")}
               />
               <DockChip
-                label={t("dock.chart_donut")}
+                testID="share-chart-type-donut"
+                label={t("dock.chart_donut_short")}
+                accessibilityLabel={t("dock.chart_donut")}
                 active={composition.widgets.chart?.variant === "macroDonut"}
+                compact
                 onPress={() => onChartVariantChange("macroDonut")}
               />
               <DockChip
-                label={t("dock.chart_gauge")}
+                testID="share-chart-type-gauge"
+                label={t("dock.chart_gauge_short")}
+                accessibilityLabel={t("dock.chart_gauge")}
                 active={composition.widgets.chart?.variant === "macroGauge"}
+                compact
                 onPress={() => onChartVariantChange("macroGauge")}
               />
               <DockChip
-                label={t("dock.chart_bar")}
+                testID="share-chart-type-bar"
+                label={t("dock.chart_bar_short")}
+                accessibilityLabel={t("dock.chart_bar")}
                 active={composition.widgets.chart?.variant === "macroBarMini"}
+                compact
                 onPress={() => onChartVariantChange("macroBarMini")}
               />
             </>
@@ -240,12 +295,14 @@ export default function DockEditorOptions({
               {textColorOptions.map((option) => (
                 <DockChip
                   key={`chart-text-${option.label}`}
+                  testID={`share-chart-text-color-${normalizeHexColor(option.value).replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                   label={option.label}
                   active={normalizeHexColor(option.value) === normalizedSelectedChartTextColor}
                   onPress={() => applyChartTextColor(option.value)}
                 />
               ))}
               <DockChip
+                testID="share-chart-text-color-custom-button"
                 label={t("dock.custom")}
                 active={!usesPresetChartTextColor}
                 onPress={() => setCustomColorTarget("chartText")}
@@ -258,6 +315,7 @@ export default function DockEditorOptions({
               {textColorOptions.map((option) => (
                 <DockChip
                   key={`chart-bg-${option.label}`}
+                  testID={`share-chart-background-${normalizeHexColor(option.value).replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                   label={option.label}
                   active={
                     normalizeHexColor(option.value) === normalizedSelectedChartBackgroundColor
@@ -266,11 +324,26 @@ export default function DockEditorOptions({
                 />
               ))}
               <DockChip
+                testID="share-chart-background-custom-button"
                 label={t("dock.custom")}
                 active={!usesPresetChartBackgroundColor}
                 onPress={() => setCustomColorTarget("chartBackground")}
               />
             </>
+          ) : null}
+
+          {chartEditorMode ? (
+            <DockChip
+              testID="share-chart-done-button"
+              label={t("dock.done")}
+              active={false}
+              tone="primary"
+              compact
+              onPress={() => {
+                setChartEditorMode(null);
+                setCustomColorTarget(null);
+              }}
+            />
           ) : null}
         </>
       ) : null}
@@ -280,6 +353,7 @@ export default function DockEditorOptions({
           {!cardEditorMode ? (
             <>
               <DockChip
+                testID="share-card-type-button"
                 label={t("dock.type")}
                 active={false}
                 onPress={() => {
@@ -288,6 +362,7 @@ export default function DockEditorOptions({
                 }}
               />
               <DockChip
+                testID="share-card-text-button"
                 label={t("dock.text")}
                 active={false}
                 onPress={() => {
@@ -296,6 +371,7 @@ export default function DockEditorOptions({
                 }}
               />
               <DockChip
+                testID="share-card-background-button"
                 label={t("dock.background")}
                 active={false}
                 onPress={() => {
@@ -306,37 +382,38 @@ export default function DockEditorOptions({
             </>
           ) : null}
 
-          {cardEditorMode ? (
-            <DockChip
-              label={t("dock.done")}
-              active={false}
-              onPress={() => {
-                setCardEditorMode(null);
-                setCustomColorTarget(null);
-              }}
-            />
-          ) : null}
-
           {cardEditorMode === "type" ? (
             <>
               <DockChip
-                label={t("dock.card_split")}
+                testID="share-card-type-split"
+                label={t("dock.card_split_short")}
+                accessibilityLabel={t("dock.card_split")}
                 active={composition.widgets.card?.variant === "macroSplitCard"}
+                compact
                 onPress={() => onCardVariantChange("macroSplitCard")}
               />
               <DockChip
-                label={t("dock.card_summary")}
+                testID="share-card-type-summary"
+                label={t("dock.card_summary_short")}
+                accessibilityLabel={t("dock.card_summary")}
                 active={composition.widgets.card?.variant === "macroSummaryCard"}
+                compact
                 onPress={() => onCardVariantChange("macroSummaryCard")}
               />
               <DockChip
-                label={t("dock.card_strip")}
+                testID="share-card-type-strip"
+                label={t("dock.card_strip_short")}
+                accessibilityLabel={t("dock.card_strip")}
                 active={composition.widgets.card?.variant === "macroTagStripCard"}
+                compact
                 onPress={() => onCardVariantChange("macroTagStripCard")}
               />
               <DockChip
-                label={t("dock.card_vertical")}
+                testID="share-card-type-vertical"
+                label={t("dock.card_vertical_short")}
+                accessibilityLabel={t("dock.card_vertical")}
                 active={composition.widgets.card?.variant === "macroVerticalStackCard"}
+                compact
                 onPress={() => onCardVariantChange("macroVerticalStackCard")}
               />
             </>
@@ -347,12 +424,14 @@ export default function DockEditorOptions({
               {textColorOptions.map((option) => (
                 <DockChip
                   key={`card-text-${option.label}`}
+                  testID={`share-card-text-color-${normalizeHexColor(option.value).replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                   label={option.label}
                   active={normalizeHexColor(option.value) === normalizedSelectedCardTextColor}
                   onPress={() => applyCardTextColor(option.value)}
                 />
               ))}
               <DockChip
+                testID="share-card-text-color-custom-button"
                 label={t("dock.custom")}
                 active={!usesPresetCardTextColor}
                 onPress={() => setCustomColorTarget("cardText")}
@@ -365,6 +444,7 @@ export default function DockEditorOptions({
               {textColorOptions.map((option) => (
                 <DockChip
                   key={`card-bg-${option.label}`}
+                  testID={`share-card-background-${normalizeHexColor(option.value).replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                   label={option.label}
                   active={
                     normalizeHexColor(option.value) === normalizedSelectedCardBackgroundColor
@@ -373,11 +453,26 @@ export default function DockEditorOptions({
                 />
               ))}
               <DockChip
+                testID="share-card-background-custom-button"
                 label={t("dock.custom")}
                 active={!usesPresetCardBackgroundColor}
                 onPress={() => setCustomColorTarget("cardBackground")}
               />
             </>
+          ) : null}
+
+          {cardEditorMode ? (
+            <DockChip
+              testID="share-card-done-button"
+              label={t("dock.done")}
+              active={false}
+              tone="primary"
+              compact
+              onPress={() => {
+                setCardEditorMode(null);
+                setCustomColorTarget(null);
+              }}
+            />
           ) : null}
         </>
       ) : null}
@@ -385,24 +480,11 @@ export default function DockEditorOptions({
       {activeEditorKind === "additionalPhoto" ? (
         <>
           <DockChip
-            label={t("dock.photo_plain")}
-            active={composition.additionalPhoto?.treatment === "plain"}
-            onPress={() => onAdditionalPhotoTreatmentChange("plain")}
-          />
-          <DockChip
-            label={t("dock.photo_shadow")}
-            active={composition.additionalPhoto?.treatment === "shadow"}
-            onPress={() => onAdditionalPhotoTreatmentChange("shadow")}
-          />
-          <DockChip
-            label={t("dock.photo_frame")}
-            active={composition.additionalPhoto?.treatment === "frame"}
-            onPress={() => onAdditionalPhotoTreatmentChange("frame")}
-          />
-          <DockChip
-            label={t("dock.photo_pill")}
-            active={composition.additionalPhoto?.treatment === "pill"}
-            onPress={() => onAdditionalPhotoTreatmentChange("pill")}
+            testID="share-photo-replace-button"
+            label={t("dock.photo_replace")}
+            active={false}
+            tone="primary"
+            onPress={onAdditionalPhotoReplace}
           />
         </>
       ) : null}
@@ -412,12 +494,12 @@ export default function DockEditorOptions({
 
 const styles = StyleSheet.create({
   optionRow: {
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingBottom: 2,
+    gap: 5,
+    paddingHorizontal: 7,
+    paddingBottom: 1,
     alignItems: "center",
   },
   optionScroller: {
-    maxHeight: 40,
+    maxHeight: 34,
   },
 });
