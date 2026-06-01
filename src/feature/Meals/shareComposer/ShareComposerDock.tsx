@@ -171,12 +171,15 @@ export default function ShareComposerDock({
   const hasExportError = Boolean(exportState.error);
   const failedExportAction = exportState.failedAction ?? null;
   const isQuickMode = mode === "quick";
+  const isSelectedLayerEditor = mode === "customize" && hasEditorOptions;
+  const usesFloatingDockChrome = isQuickMode || !isSelectedLayerEditor;
   const contentSlotHeight =
     isQuickMode
       ? DOCK_LAYOUT.quickContentHeight
-      : hasEditorOptions
+      : isSelectedLayerEditor
         ? DOCK_LAYOUT.selectedContentHeight
         : DOCK_LAYOUT.idleContentHeight;
+  const footerSlotHeight = isSelectedLayerEditor ? 0 : DOCK_LAYOUT.footerHeight;
   const errorSlotHeight = hasExportError
     ? DOCK_LAYOUT.errorHeight
     : DOCK_LAYOUT.emptyErrorHeight;
@@ -188,7 +191,7 @@ export default function ShareComposerDock({
     DOCK_LAYOUT.itemGap +
     errorSlotHeight +
     DOCK_LAYOUT.itemGap +
-    DOCK_LAYOUT.footerHeight +
+    footerSlotHeight +
     bottomSafeAreaPadding +
     (isQuickMode ? DOCK_LAYOUT.quickPhotoOverlap : 0);
   const selectedTextColor = selectedTextLayer?.color ?? FALLBACK_TEXT_COLOR;
@@ -313,14 +316,18 @@ export default function ShareComposerDock({
     <View
       style={[
         stylesWithTheme.dock,
-        isQuickMode ? stylesWithTheme.quickDock : null,
+        usesFloatingDockChrome ? stylesWithTheme.quickDock : null,
         { height: dockHeight, paddingBottom: 0 },
         typeof width === "number" ? { width } : null,
       ]}
       testID="share-composer-dock"
     >
       <View
-        style={isQuickMode ? stylesWithTheme.quickGrabber : stylesWithTheme.grabber}
+        style={
+          usesFloatingDockChrome
+            ? stylesWithTheme.quickGrabber
+            : stylesWithTheme.grabber
+        }
       />
       <View
         style={[
@@ -424,22 +431,24 @@ export default function ShareComposerDock({
         ) : null}
       </View>
 
-      <BottomActionBar
-        testID="share-composer-actions"
-        bottomInset={bottomSafeAreaPadding}
-        primaryAction={{
-          testID: "share-system-share-button",
-          label: t("share"),
-          onPress: onShare,
-          loading: isSharing,
-        }}
-        secondaryAction={{
-          testID: "share-save-gallery-button",
-          label: t("dock.save_to_gallery"),
-          onPress: onSaveToGallery,
-          loading: isSaving,
-        }}
-      />
+      {!isSelectedLayerEditor ? (
+        <BottomActionBar
+          testID="share-composer-actions"
+          bottomInset={bottomSafeAreaPadding}
+          primaryAction={{
+            testID: "share-system-share-button",
+            label: t("share"),
+            onPress: onShare,
+            loading: isSharing,
+          }}
+          secondaryAction={{
+            testID: "share-save-gallery-button",
+            label: t("dock.save_to_gallery"),
+            onPress: onSaveToGallery,
+            loading: isSaving,
+          }}
+        />
+      ) : null}
 
       <DockColorPickerModal
         visible={customColorTarget !== null}

@@ -206,6 +206,12 @@ appId: com.lkurczab.fitaly
     id: share-add-card-button
 - assertVisible:
     id: share-selected-layer-tray
+- assertNotVisible:
+    id: share-system-share-button
+- tapOn:
+    point: "15%,34%"
+- assertVisible:
+    id: share-system-share-button
 - tapOn:
     id: share-system-share-button
 - extendedWaitUntil:
