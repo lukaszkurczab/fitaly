@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   StatusBar,
   View,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@/theme/useTheme";
+import type { BackgroundGradientLayer } from "@/theme/themes";
 import {
   BottomTabBar,
   BOTTOM_TAB_BAR_BASE_HEIGHT,
@@ -22,6 +23,8 @@ import { useE2ENetInfo } from "@/services/e2e/connectivity";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 
+export type { BackgroundGradientLayer } from "@/theme/themes";
+
 type LayoutProps = {
   children: ReactNode;
   showNavigation?: boolean;
@@ -31,55 +34,6 @@ type LayoutProps = {
   keyboardAvoiding?: boolean;
   backgroundGradient?: BackgroundGradientLayer | BackgroundGradientLayer[];
 };
-
-export type BackgroundGradientLayer = {
-  colors: [string, string, ...string[]];
-  locations?: number[];
-  start?: { x: number; y: number };
-  end?: { x: number; y: number };
-};
-
-function buildDefaultMaterialBackground(
-  theme: ReturnType<typeof useTheme>,
-): BackgroundGradientLayer[] {
-  return theme.isDark
-    ? [
-        {
-          colors: [theme.background, "#181D18", theme.backgroundSecondary],
-          locations: [0, 0.52, 1],
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-        {
-          colors: [
-            "rgba(127, 160, 122, 0.10)",
-            "rgba(127, 160, 122, 0.00)",
-            "rgba(199, 126, 97, 0.045)",
-          ],
-          locations: [0, 0.56, 1],
-          start: { x: 1, y: 0 },
-          end: { x: 0, y: 1 },
-        },
-      ]
-    : [
-        {
-          colors: ["#F8F0E4", theme.background, theme.surfaceAlt],
-          locations: [0, 0.56, 1],
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-        {
-          colors: [
-            "rgba(255, 253, 248, 0.56)",
-            "rgba(255, 253, 248, 0.08)",
-            "rgba(111, 138, 105, 0.075)",
-          ],
-          locations: [0, 0.6, 1],
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-      ];
-}
 
 export const Layout = ({
   children,
@@ -133,13 +87,9 @@ export const Layout = ({
     }
   }, [isOffline]);
 
-  const defaultMaterialBackground = useMemo(
-    () => buildDefaultMaterialBackground(theme),
-    [theme],
-  );
   const resolvedBackgroundGradient =
     backgroundGradient === undefined
-      ? defaultMaterialBackground
+      ? theme.material.backgroundGradient
       : backgroundGradient;
   const backgroundGradientLayers = Array.isArray(resolvedBackgroundGradient)
     ? resolvedBackgroundGradient

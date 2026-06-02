@@ -13,6 +13,13 @@ export type DepthToken = {
   elevation: number;
 };
 
+export type BackgroundGradientLayer = {
+  colors: [string, string, ...string[]];
+  locations?: number[];
+  start?: { x: number; y: number };
+  end?: { x: number; y: number };
+};
+
 export type ThemeDefinition = {
   mode: ThemeMode;
   isDark: boolean;
@@ -43,6 +50,10 @@ export type ThemeDefinition = {
   link: string;
   overlay: string;
   shadow: string;
+
+  material: {
+    backgroundGradient: BackgroundGradientLayer[];
+  };
 
   depth: {
     raised: DepthToken;
@@ -219,6 +230,27 @@ const lightTheme: ThemeDefinition = {
   link: baseColors.olive500,
   overlay: baseColors.overlayLight,
   shadow: baseColors.shadowLight,
+
+  material: {
+    backgroundGradient: [
+      {
+        colors: ["#F8F0E4", baseColors.cream50, baseColors.sand100],
+        locations: [0, 0.56, 1],
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 },
+      },
+      {
+        colors: [
+          "rgba(255, 253, 248, 0.56)",
+          "rgba(255, 253, 248, 0.08)",
+          "rgba(111, 138, 105, 0.075)",
+        ],
+        locations: [0, 0.6, 1],
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 },
+      },
+    ],
+  },
 
   depth: {
     raised: {
@@ -431,6 +463,31 @@ const darkTheme: ThemeDefinition = {
   link: "#9BB896",
   overlay: baseColors.overlayDark,
   shadow: baseColors.shadowDark,
+
+  material: {
+    backgroundGradient: [
+      {
+        colors: [
+          baseColors.darkBackground,
+          "#181D18",
+          baseColors.darkSurface,
+        ],
+        locations: [0, 0.52, 1],
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 },
+      },
+      {
+        colors: [
+          "rgba(127, 160, 122, 0.10)",
+          "rgba(127, 160, 122, 0.00)",
+          "rgba(199, 126, 97, 0.045)",
+        ],
+        locations: [0, 0.56, 1],
+        start: { x: 1, y: 0 },
+        end: { x: 0, y: 1 },
+      },
+    ],
+  },
 
   depth: {
     raised: {

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Layout, Modal, type BackgroundGradientLayer } from "@/components";
+import { Layout, Modal } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import { useUserProfileContext } from "@/context/UserProfileContext";
@@ -78,66 +78,6 @@ function getHomeAddMethodPresentation(
 export default function HomeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const backgroundGradient = useMemo<BackgroundGradientLayer[]>(
-    () =>
-      theme.isDark
-        ? [
-            {
-              colors: ["#151914", theme.background, theme.backgroundSecondary],
-              locations: [0, 0.5, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(127, 160, 122, 0.10)",
-                "rgba(127, 160, 122, 0.00)",
-                "rgba(199, 126, 97, 0.06)",
-              ],
-              locations: [0, 0.46, 1],
-              start: { x: 1, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(255, 253, 248, 0.04)",
-                "rgba(255, 253, 248, 0.00)",
-              ],
-              locations: [0, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-          ]
-        : [
-            {
-              colors: ["#F8F0E4", theme.background, "#F1E7DA"],
-              locations: [0, 0.5, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(255, 253, 248, 0.48)",
-                "rgba(255, 253, 248, 0.08)",
-                "rgba(111, 138, 105, 0.08)",
-              ],
-              locations: [0, 0.58, 1],
-              start: { x: 0, y: 0 },
-              end: { x: 1, y: 1 },
-            },
-            {
-              colors: [
-                "rgba(199, 126, 97, 0.08)",
-                "rgba(199, 126, 97, 0.00)",
-                "rgba(255, 253, 248, 0.14)",
-              ],
-              locations: [0, 0.45, 1],
-              start: { x: 1, y: 0 },
-              end: { x: 0, y: 1 },
-            },
-          ],
-    [theme.background, theme.backgroundSecondary, theme.isDark],
-  );
   const { t, i18n } = useTranslation(["home", "common", "meals"]);
   const { userData } = useUserProfileContext();
   const { uid } = useAuthContext();
@@ -328,7 +268,7 @@ export default function HomeScreen({ navigation }: Props) {
   }, [navigation]);
 
   return (
-    <Layout backgroundGradient={backgroundGradient}>
+    <Layout>
       <View style={[styles.screen, styles.screenGap]} testID="home-screen">
         <WeekStrip
           days={last7Days}

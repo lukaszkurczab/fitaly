@@ -10,6 +10,7 @@ import { act, fireEvent } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { Layout } from "@/components/Layout";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import { themes } from "@/theme/themes";
 
 const mockUseE2ENetInfo = jest.fn<
   () => { isConnected: boolean | null; isInternetReachable?: boolean | null }
@@ -76,6 +77,11 @@ describe("Layout", () => {
     );
   };
 
+  const getGradientViews = (nodes: ReturnType<typeof renderWithTheme>) =>
+    nodes.UNSAFE_getAllByType(View).filter((node) =>
+      Array.isArray(node.props.colors),
+    );
+
   afterEach(() => {
     jest.restoreAllMocks();
     mockUseE2ENetInfo.mockReset();
@@ -96,6 +102,44 @@ describe("Layout", () => {
     expect(getByText("screen-content")).toBeTruthy();
     expect(getByText("bottom-tab-bar")).toBeTruthy();
     expect(queryByText("offline-banner")).toBeNull();
+  });
+
+  it("uses the canonical theme material background by default", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    const rendered = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const gradients = getGradientViews(rendered);
+
+    expect(gradients).toHaveLength(
+      themes.light.material.backgroundGradient.length,
+    );
+    expect(gradients[0]?.props.colors).toBe(
+      themes.light.material.backgroundGradient[0]?.colors,
+    );
+  });
+
+  it("keeps explicit background gradient overrides", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    const customGradient = [
+      {
+        colors: ["#111111", "#222222"] as [string, string],
+        locations: [0, 1],
+      },
+    ];
+    const rendered = renderWithTheme(
+      <Layout backgroundGradient={customGradient}>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const gradients = getGradientViews(rendered);
+
+    expect(gradients).toHaveLength(1);
+    expect(gradients[0]?.props.colors).toBe(customGradient[0]?.colors);
   });
 
   it("hides bottom tab when navigation is disabled", () => {

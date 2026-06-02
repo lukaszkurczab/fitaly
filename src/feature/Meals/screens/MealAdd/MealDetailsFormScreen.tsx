@@ -233,32 +233,6 @@ function MealDetailsFormScreenInner({
       disableScroll
       keyboardAvoiding={false}
       style={styles.layout}
-      backgroundGradient={[
-        {
-          colors: theme.isDark
-            ? [theme.background, theme.backgroundSecondary, theme.background]
-            : [theme.background, theme.surfaceAlt, theme.background],
-          locations: [0, 0.58, 1],
-          start: { x: 0, y: 0 },
-          end: { x: 0, y: 1 },
-        },
-        {
-          colors: theme.isDark
-            ? [
-                "rgba(126, 153, 120, 0.10)",
-                "rgba(255, 255, 255, 0.015)",
-                "rgba(0, 0, 0, 0)",
-              ]
-            : [
-                "rgba(255, 255, 255, 0.58)",
-                "rgba(126, 153, 120, 0.12)",
-                "rgba(210, 145, 112, 0.06)",
-              ],
-          locations: [0, 0.5, 1],
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-      ]}
     >
       <View style={styles.screen} testID="meal-details-form-screen">
         {showAddMealFlowHeader ? (

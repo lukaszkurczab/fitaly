@@ -56,4 +56,24 @@ describe("themes", () => {
       }),
     );
   });
+
+  it("defines canonical material background gradients for light and dark", () => {
+    expect(themes.light.material.backgroundGradient).toEqual([
+      expect.objectContaining({
+        colors: ["#F8F0E4", "#F7F2EA", "#EFE7DA"],
+      }),
+      expect.objectContaining({
+        colors: expect.arrayContaining(["rgba(111, 138, 105, 0.075)"]),
+      }),
+    ]);
+
+    expect(themes.dark.material.backgroundGradient).toEqual([
+      expect.objectContaining({
+        colors: ["#171A17", "#181D18", "#1E221E"],
+      }),
+      expect.objectContaining({
+        colors: expect.arrayContaining(["rgba(199, 126, 97, 0.045)"]),
+      }),
+    ]);
+  });
 });
