@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Pressable as mockPressable,
+  StyleSheet,
   Text as mockText,
   View as mockView,
 } from "react-native";
@@ -260,9 +261,13 @@ jest.mock("../components/WeeklyReportCard", () => ({
   __esModule: true,
   default: ({
     loading,
+    report,
+    action,
     onPress,
   }: {
     loading: boolean;
+    report: { status: string };
+    action: "open" | "retry";
     onPress: () => void;
   }) =>
     mockReact.createElement(
@@ -271,7 +276,7 @@ jest.mock("../components/WeeklyReportCard", () => ({
       mockReact.createElement(
         mockText,
         null,
-        loading ? "weekly-report-card:loading" : "weekly-report-card:ready",
+        `weekly-report-card:${loading ? "loading" : action}:${report.status}`,
       ),
     ),
 }));
@@ -469,7 +474,7 @@ describe("HomeScreen", () => {
     expect(getByText("cta-icon:camera")).toBeTruthy();
     expect(getByText("Choose how to add")).toBeTruthy();
     expect(getByText("Small steps each day lead to bigger changes.")).toBeTruthy();
-    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    expect(queryByText(/^weekly-report-card:/)).toBeNull();
     expect(queryByText(/^meals:1:/)).toBeNull();
 
     fireEvent.press(getByText("Take meal photo"));
@@ -659,8 +664,7 @@ describe("HomeScreen", () => {
       uid: "user-1",
       active: false,
     });
-    expect(queryByText("weekly-report-card:ready")).toBeNull();
-    expect(queryByText("weekly-report-card:loading")).toBeNull();
+    expect(queryByText(/^weekly-report-card:/)).toBeNull();
   });
 
   it("renders ready weekly report as the only retention card when the day has signal", () => {
@@ -688,11 +692,132 @@ describe("HomeScreen", () => {
       uid: "user-1",
       active: true,
     });
-    expect(getByText("weekly-report-card:ready")).toBeTruthy();
+    expect(getByText("weekly-report-card:open:ready")).toBeTruthy();
     expect(queryByText(/^coach-insight-card:/)).toBeNull();
 
-    fireEvent.press(getByText("weekly-report-card:ready"));
+    fireEvent.press(getByText("weekly-report-card:open:ready"));
     expect(navigation.navigate).toHaveBeenCalledWith("WeeklyReport");
+  });
+
+  it("does not keep bottom safe-area clearance between history link and weekly report", () => {
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    const historyLinkStyleProp = getByTestId("home-view-history-button").props
+      .style;
+    const historyLinkStyle = StyleSheet.flatten(
+      typeof historyLinkStyleProp === "function"
+        ? historyLinkStyleProp({ pressed: false })
+        : historyLinkStyleProp,
+    );
+
+    expect(getByText("weekly-report-card:open:ready")).toBeTruthy();
+    expect(historyLinkStyle.marginBottom).toBe(0);
+  });
+
+  it("refreshes an unavailable weekly report card instead of navigating", async () => {
+    const refresh = jest.fn(async () => ({
+      status: "not_available",
+      period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+      summary: null,
+      insights: [],
+      priorities: [],
+    }));
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
+    mockUseWeeklyReport.mockReturnValue({
+      report: {
+        status: "not_available",
+        period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+        summary: null,
+        insights: [],
+        priorities: [],
+      },
+      loading: false,
+      enabled: true,
+      source: "fallback",
+      status: "service_unavailable",
+      error: new Error("unavailable"),
+      refresh,
+    });
+
+    const navigation = createNavigation();
+    const { getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(getByText("weekly-report-card:retry:not_available")).toBeTruthy();
+
+    fireEvent.press(getByText("weekly-report-card:retry:not_available"));
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("WeeklyReport");
+  });
+
+  it("keeps the unavailable weekly report card visible while retry is pending", async () => {
+    let resolveRefresh: () => void = () => undefined;
+    const refresh = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = () =>
+            resolve({
+              status: "not_available",
+              period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+              summary: null,
+              insights: [],
+              priorities: [],
+            });
+        }),
+    );
+    mockUseMeals.mockReturnValue({
+      meals: [createMeal()],
+      getMeals: jest.fn(),
+    });
+    mockUseWeeklyReport.mockReturnValue({
+      report: {
+        status: "not_available",
+        period: { startDay: "2026-03-09", endDay: "2026-03-15" },
+        summary: null,
+        insights: [],
+        priorities: [],
+      },
+      loading: false,
+      enabled: true,
+      source: "fallback",
+      status: "service_unavailable",
+      error: new Error("unavailable"),
+      refresh,
+    });
+
+    const navigation = createNavigation();
+    const { getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(getByText("weekly-report-card:retry:not_available"));
+
+    await waitFor(() => {
+      expect(getByText("weekly-report-card:loading:not_available")).toBeTruthy();
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(navigation.navigate).not.toHaveBeenCalledWith("WeeklyReport");
+
+    resolveRefresh();
+
+    await waitFor(() => {
+      expect(getByText("weekly-report-card:retry:not_available")).toBeTruthy();
+    });
   });
 
   it("renders coach insight when weekly report is not ready and coach has a non-competing action", () => {
@@ -731,7 +856,7 @@ describe("HomeScreen", () => {
       <HomeScreen navigation={navigation as never} />,
     );
 
-    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    expect(queryByText(/^weekly-report-card:/)).toBeNull();
     fireEvent.press(getByText("coach-insight-card:Ask coach about today:open_chat"));
     expect(navigation.navigate).toHaveBeenCalledWith("Chat");
   });
@@ -748,7 +873,7 @@ describe("HomeScreen", () => {
     expect(getByText("You missed a meal log")).toBeTruthy();
     expect(getByText("You can still fill in what was missing.")).toBeTruthy();
     expect(queryByText(/^coach-insight-card:/)).toBeNull();
-    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    expect(queryByText(/^weekly-report-card:/)).toBeNull();
   });
 
   it("does not show today retention surfaces for a selected past day", () => {
@@ -781,7 +906,7 @@ describe("HomeScreen", () => {
     fireEvent.press(getByText("pick-2026-03-17"));
 
     expect(queryByText(/^coach-insight-card:/)).toBeNull();
-    expect(queryByText("weekly-report-card:ready")).toBeNull();
+    expect(queryByText(/^weekly-report-card:/)).toBeNull();
     expect(mockUseCoach).toHaveBeenLastCalledWith({
       uid: "user-1",
       dayKey: "2026-03-17",

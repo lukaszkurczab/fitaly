@@ -174,6 +174,9 @@ export default function HomeScreen({ navigation }: Props) {
     uid,
     active: weeklyReportActive,
   });
+  const [weeklyReportRetrying, setWeeklyReportRetrying] = useState(false);
+  const weeklyReportStatus = weeklyReport.report.status;
+  const refreshWeeklyReport = weeklyReport.refresh;
   const coachActive = shouldRequestHomeCoach({
     uid,
     dayState: homeDay,
@@ -297,6 +300,27 @@ export default function HomeScreen({ navigation }: Props) {
     }
   }, [mealAddEntry, navigation, retentionSurface]);
 
+  const handleWeeklyReportPress = useCallback(() => {
+    if (weeklyReportStatus === "ready") {
+      navigation.navigate("WeeklyReport");
+      return;
+    }
+
+    if (weeklyReportRetrying) {
+      return;
+    }
+
+    setWeeklyReportRetrying(true);
+    void refreshWeeklyReport().finally(() => {
+      setWeeklyReportRetrying(false);
+    });
+  }, [
+    navigation,
+    refreshWeeklyReport,
+    weeklyReportRetrying,
+    weeklyReportStatus,
+  ]);
+
   const openHomeMethodChooser = useCallback(() => {
     navigation.navigate("MealAddMethod", {
       selectionMode: "persistDefault",
@@ -359,6 +383,9 @@ export default function HomeScreen({ navigation }: Props) {
               accessibilityLabel={t("home:viewHistory")}
               style={({ pressed }) => [
                 styles.historyLink,
+                retentionSurface.type === "weekly_report"
+                  ? styles.historyLinkBeforeReport
+                  : null,
                 pressed && styles.historyLinkPressed,
               ]}
             >
@@ -370,11 +397,16 @@ export default function HomeScreen({ navigation }: Props) {
         ) : null}
 
         {retentionSurface.type === "weekly_report" ? (
-          <WeeklyReportCard
-            loading={false}
-            report={weeklyReport.report}
-            onPress={() => navigation.navigate("WeeklyReport")}
-          />
+          <View
+            style={mealCount > 0 ? styles.retentionBottomClearance : null}
+          >
+            <WeeklyReportCard
+              loading={weeklyReportRetrying}
+              report={weeklyReport.report}
+              action={weeklyReportStatus === "ready" ? "open" : "retry"}
+              onPress={handleWeeklyReportPress}
+            />
+          </View>
         ) : retentionSurface.type === "coach_insight" ? (
           <CoachInsightCard
             insight={retentionSurface.insight}
@@ -436,6 +468,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     screenGap: {
       gap: theme.spacing.lg,
     },
+    retentionBottomClearance: {
+      marginBottom: theme.spacing.nav + theme.spacing.md,
+    },
     historyLink: {
       alignSelf: "center",
       alignItems: "center",
@@ -448,6 +483,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       backgroundColor: "transparent",
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.xxs,
+    },
+    historyLinkBeforeReport: {
+      marginBottom: 0,
     },
     historyLinkPressed: {
       opacity: 0.6,
