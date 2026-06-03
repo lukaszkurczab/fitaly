@@ -8,7 +8,8 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { GlobalActionButtons } from "@/components/GlobalActionButtons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { useTheme } from "@/theme/useTheme";
 import {
   AI_PERSONA_OPTIONS,
@@ -34,7 +35,9 @@ export default function Step4AIAssistantPreferences({
 }: Props) {
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const selectedPersona = form.aiPersona ?? "calm_guide";
   const toneOptions = useMemo(
     () =>
@@ -116,22 +119,25 @@ export default function Step4AIAssistantPreferences({
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <GlobalActionButtons
-          primaryTestID="onboarding-step-4-submit-button"
-          label={t("step4.primaryCta")}
-          onPress={onContinue}
-          loading={submitting}
-          secondaryLabel={t("common:back")}
-          secondaryOnPress={onBack}
-          secondaryTestID="onboarding-step-4-back-button"
-          layout="row"
-          rowOrder="secondary-primary"
-          containerStyle={styles.footerActions}
-          primaryStyle={styles.primaryCta}
-          secondaryStyle={styles.secondaryCta}
-        />
-      </View>
+      <BottomActionBar
+        placement="docked"
+        bottomInset={footerBottomInset}
+        horizontalPadding={theme.spacing.screenPadding}
+        horizontalBleed={theme.spacing.screenPadding}
+        actionsLayout="row"
+        secondaryAction={{
+          testID: "onboarding-step-4-back-button",
+          label: t("common:back"),
+          onPress: onBack,
+          variant: "secondary",
+        }}
+        primaryAction={{
+          testID: "onboarding-step-4-submit-button",
+          label: t("step4.primaryCta"),
+          onPress: onContinue,
+          loading: submitting,
+        }}
+      />
     </View>
   );
 }
@@ -236,19 +242,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) => {
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
-    },
-    footer: {
-      ...material.footer,
-      paddingTop: theme.spacing.sm,
-      backgroundColor: theme.isDark
-        ? "rgba(27, 31, 27, 0.94)"
-        : "rgba(255, 253, 248, 0.78)",
-    },
-    primaryCta: {
-      minHeight: 56,
-    },
-    secondaryCta: {
-      minHeight: 56,
     },
   });
 };

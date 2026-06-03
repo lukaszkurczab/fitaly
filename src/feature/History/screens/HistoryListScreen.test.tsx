@@ -1,9 +1,14 @@
 import { fireEvent } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 import HistoryListScreen from "@/feature/History/screens/HistoryListScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
 const mockUseHistoryListState = jest.fn();
+
+const flattenViewStyle = (style: StyleProp<ViewStyle>) =>
+  StyleSheet.flatten(style) ?? {};
 
 jest.mock("@/feature/History/hooks/useHistoryListState", () => ({
   useHistoryListState: (params: unknown) => mockUseHistoryListState(params),
@@ -321,6 +326,48 @@ describe("HistoryListScreen", () => {
     expect(retryFailedSyncOps).toHaveBeenCalledTimes(1);
     expect(onEndReached).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("keeps raised History rows inside a local FlatList shadow gutter", () => {
+    mockUseHistoryListState.mockReturnValue({
+      dataState: "ready",
+      showFilters: false,
+      query: "",
+      setQuery: jest.fn(),
+      filterCount: 0,
+      toggleShowFilters: jest.fn(),
+      sections: [],
+      loading: false,
+      loadingMore: false,
+      refresh: jest.fn(),
+      onEndReached: jest.fn(),
+      onMealPress: jest.fn(),
+      kcalLabel: "kcal",
+      isPremium: true,
+    });
+
+    const screen = renderWithTheme(
+      <HistoryListScreen navigation={{} as never} />,
+    );
+    const list = screen.getByTestId("history-list-screen");
+    const frameStyle = flattenViewStyle(
+      list.props.style as StyleProp<ViewStyle>,
+    );
+    const contentStyle = flattenViewStyle(
+      list.props.contentContainerStyle as StyleProp<ViewStyle>,
+    );
+    const frameMarginHorizontal = Number(frameStyle.marginHorizontal);
+    const frameMarginTop = Number(frameStyle.marginTop);
+    const contentPaddingHorizontal = Number(contentStyle.paddingHorizontal);
+    const contentPaddingTop = Number(contentStyle.paddingTop);
+    const contentPaddingBottom = Number(contentStyle.paddingBottom);
+
+    expect(list.props.removeClippedSubviews).toBe(false);
+    expect(frameMarginHorizontal).toBeLessThan(0);
+    expect(contentPaddingHorizontal).toBe(Math.abs(frameMarginHorizontal));
+    expect(frameMarginTop).toBeLessThan(0);
+    expect(contentPaddingTop).toBe(Math.abs(frameMarginTop));
+    expect(contentPaddingBottom).toBeGreaterThan(contentPaddingHorizontal);
   });
 
   it("renders compact macro labels with full accessibility names", () => {

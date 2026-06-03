@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  BottomActionBar,
   CheckboxDropdown,
   Dropdown,
-  GlobalActionButtons,
   RowPicker,
   Slider,
 } from "@/components";
@@ -45,7 +46,9 @@ export default function Step2Preferences({
 }: Props) {
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
@@ -227,17 +230,24 @@ export default function Step2Preferences({
         </View>
       </ScrollView>
 
-      <GlobalActionButtons
-        primaryTestID="onboarding-step-2-next-button"
-        label={t("step2.primaryCta")}
-        onPress={onContinue}
-        loading={submitting}
-        secondaryLabel={t("common:back")}
-        secondaryOnPress={onBack}
-        secondaryTestID="onboarding-step-2-back-button"
-        layout="row"
-        rowOrder="secondary-primary"
-        containerStyle={styles.footer}
+      <BottomActionBar
+        placement="docked"
+        bottomInset={footerBottomInset}
+        horizontalPadding={theme.spacing.screenPadding}
+        horizontalBleed={theme.spacing.screenPadding}
+        actionsLayout="row"
+        secondaryAction={{
+          testID: "onboarding-step-2-back-button",
+          label: t("common:back"),
+          onPress: onBack,
+          variant: "secondary",
+        }}
+        primaryAction={{
+          testID: "onboarding-step-2-next-button",
+          label: t("step2.primaryCta"),
+          onPress: onContinue,
+          loading: submitting,
+        }}
       />
     </View>
   );
@@ -336,9 +346,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) => {
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.medium,
-    },
-    footer: {
-      ...material.footer,
     },
   });
 };

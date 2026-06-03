@@ -46,13 +46,18 @@ export const EmptyState: React.FC<Props> = ({
           style={styles.archiveGraphicFrame}
           testID="history-empty-archive-graphic"
         >
-          <Image
-            source={require("../../../../assets/images/image.png")}
-            resizeMode="cover"
-            style={styles.archiveGraphicImage}
-            testID="history-empty-archive-image"
-          />
-          <View style={styles.archiveGraphicWash} />
+          <View
+            style={styles.archiveGraphicClip}
+            testID="history-empty-archive-clip"
+          >
+            <Image
+              source={require("../../../../assets/images/image.png")}
+              resizeMode="cover"
+              style={styles.archiveGraphicImage}
+              testID="history-empty-archive-image"
+            />
+            <View style={styles.archiveGraphicWash} />
+          </View>
         </View>
       )}
 
@@ -107,11 +112,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
       elevation: theme.isDark ? 0 : 1,
-      overflow: "hidden",
+      overflow: "visible",
     },
     archiveGraphicFrame: {
       width: "100%",
       height: 266,
+      borderRadius: theme.rounded.xxl,
+      overflow: "visible",
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.22 : 0.08,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: theme.isDark ? 0 : 2,
+    },
+    archiveGraphicClip: {
+      flex: 1,
       borderRadius: theme.rounded.xxl,
       backgroundColor: theme.isDark
         ? "rgba(255, 253, 248, 0.04)"
@@ -119,11 +134,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderColor: theme.borderSoft,
       overflow: "hidden",
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.22 : 0.08,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: theme.isDark ? 0 : 2,
     },
     archiveGraphicImage: {
       width: "100%",

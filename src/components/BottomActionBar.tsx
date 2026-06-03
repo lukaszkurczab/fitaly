@@ -38,11 +38,13 @@ type BottomActionBarProps = {
   linkActions?: BottomActionBarLinkAction[];
   helperText?: string;
   helperTone?: "default" | "warning";
-  placement?: "fixed" | "inline";
+  placement?: "fixed" | "docked" | "inline";
   bottomInset?: number;
   keyboardInset?: number;
   horizontalPadding?: number;
   horizontalBleed?: number;
+  actionsLayout?: "stack" | "row";
+  actionsRowOrder?: "primary-secondary" | "secondary-primary";
   compact?: boolean;
   testID?: string;
   style?: StyleProp<ViewStyle>;
@@ -60,6 +62,8 @@ export function BottomActionBar({
   keyboardInset = 0,
   horizontalPadding,
   horizontalBleed = 0,
+  actionsLayout = "stack",
+  actionsRowOrder = "secondary-primary",
   compact = false,
   testID,
   style,
@@ -120,11 +124,22 @@ export function BottomActionBar({
   const secondary = renderAction(secondaryAction, "secondary");
   const hasActionRow = Boolean(primary || secondary);
   const isFixed = placement === "fixed";
+  const isDocked = placement === "docked";
   const isKeyboardCompact = compact && keyboardInset > 0;
+  const shouldUseActionRow = compact || actionsLayout === "row";
+  const actionContainerStyle = compact
+    ? styles.actionRowCompact
+    : actionsLayout === "row"
+      ? styles.actionRow
+      : styles.actionStack;
   const resolvedLinkActions = compact
     ? []
     : linkActions ?? (linkAction ? [linkAction] : []);
-  const orderedActions = compact ? [secondary, primary] : [primary, secondary];
+  const orderedActions = shouldUseActionRow
+    ? actionsRowOrder === "primary-secondary"
+      ? [primary, secondary]
+      : [secondary, primary]
+    : [primary, secondary];
   const fixedKeyboardOverlap = theme.spacing.md;
   const resolvedBottomPadding =
     isKeyboardCompact && isFixed
@@ -145,13 +160,19 @@ export function BottomActionBar({
       testID={testID}
       style={[
         styles.root,
-        placement === "fixed" ? styles.fixed : styles.inline,
+        isFixed ? styles.fixed : isDocked ? styles.docked : styles.inline,
         compact ? styles.compact : null,
-        placement === "fixed"
+        isFixed
           ? {
               bottom: resolvedKeyboardBottom,
               left: -horizontalBleed,
               right: -horizontalBleed,
+            }
+          : null,
+        isDocked
+          ? {
+              marginLeft: -horizontalBleed,
+              marginRight: -horizontalBleed,
             }
           : null,
         {
@@ -173,12 +194,12 @@ export function BottomActionBar({
       ) : null}
 
       {hasActionRow ? (
-        <View style={compact ? styles.actionRowCompact : styles.actionStack}>
+        <View style={actionContainerStyle}>
           {orderedActions.map((action, index) =>
             action ? (
               <View
                 key={`action-${index}`}
-                style={compact ? styles.actionItemCompact : styles.actionItem}
+                style={shouldUseActionRow ? styles.actionItemRow : styles.actionItem}
               >
                 {action}
               </View>
@@ -223,6 +244,14 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       shadowOffset: { width: 0, height: -8 },
       elevation: 10,
     },
+    docked: {
+      paddingTop: theme.spacing.md,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.3 : 0.08,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: -8 },
+      elevation: 10,
+    },
     inline: {
       paddingTop: theme.spacing.sm,
       shadowOpacity: 0,
@@ -249,6 +278,11 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     actionStack: {
       gap: theme.spacing.sm,
     },
+    actionRow: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: theme.spacing.sm,
+    },
     actionRowCompact: {
       flexDirection: "row",
       alignItems: "stretch",
@@ -257,7 +291,7 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     actionItem: {
       alignSelf: "stretch",
     },
-    actionItemCompact: {
+    actionItemRow: {
       flex: 1,
       minWidth: 0,
     },

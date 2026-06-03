@@ -8,9 +8,9 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Button,
-  GlobalActionButtons,
+  BottomActionBar,
   TextInput,
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
@@ -129,7 +129,9 @@ export default function Step3Health({
 }: Props) {
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
@@ -306,38 +308,38 @@ export default function Step3Health({
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        {hasHealthInput ? (
-          <View style={styles.skipRow}>
-            <Button
-              testID="onboarding-step-3-skip-button"
-              label={t("step3.skipCta")}
-              variant="ghost"
-              onPress={onSkip}
-              disabled={submitting}
-              fullWidth={false}
-              style={styles.skipButton}
-              textStyle={styles.skipButtonText}
-            />
-          </View>
-        ) : null}
-        <GlobalActionButtons
-          primaryTestID={
+      <BottomActionBar
+        placement="docked"
+        bottomInset={footerBottomInset}
+        horizontalPadding={theme.spacing.screenPadding}
+        horizontalBleed={theme.spacing.screenPadding}
+        actionsLayout="row"
+        linkAction={
+          hasHealthInput
+            ? {
+                testID: "onboarding-step-3-skip-button",
+                label: t("step3.skipCta"),
+                onPress: onSkip,
+                disabled: submitting,
+              }
+            : undefined
+        }
+        secondaryAction={{
+          testID: "onboarding-step-3-back-button",
+          label: t("common:back"),
+          onPress: onBack,
+          variant: "secondary",
+        }}
+        primaryAction={{
+          testID:
             hasHealthInput
               ? "onboarding-step-3-next-button"
-              : "onboarding-step-3-skip-button"
-          }
-          label={hasHealthInput ? t("step3.primaryCta") : t("step3.skipCta")}
-          onPress={hasHealthInput ? onContinue : onSkip}
-          loading={submitting}
-          secondaryLabel={t("common:back")}
-          secondaryOnPress={onBack}
-          secondaryTestID="onboarding-step-3-back-button"
-          layout="row"
-          rowOrder="secondary-primary"
-          containerStyle={styles.footerActions}
-        />
-      </View>
+              : "onboarding-step-3-skip-button",
+          label: hasHealthInput ? t("step3.primaryCta") : t("step3.skipCta"),
+          onPress: hasHealthInput ? onContinue : onSkip,
+          loading: submitting,
+        }}
+      />
     </View>
   );
 }
@@ -382,24 +384,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) => {
       ...material.panel,
       padding: theme.spacing.md,
       gap: theme.spacing.md,
-    },
-    footer: {
-      ...material.footer,
-    },
-    skipRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
-      marginBottom: -theme.spacing.xs,
-    },
-    skipButton: {
-      minHeight: 40,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.rounded.full,
-    },
-    skipButtonText: {
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
     },
     notesInput: {
       minHeight: 58,

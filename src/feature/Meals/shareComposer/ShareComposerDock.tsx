@@ -437,6 +437,8 @@ export default function ShareComposerDock({
           testID="share-composer-actions"
           placement="inline"
           bottomInset={bottomSafeAreaPadding}
+          actionsLayout="row"
+          actionsRowOrder="secondary-primary"
           primaryAction={{
             testID: "share-system-share-button",
             label: t("share"),

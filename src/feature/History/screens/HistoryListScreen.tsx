@@ -543,6 +543,7 @@ export default function HistoryListScreen({
           data={state.dataState === "ready" ? sections : []}
           keyExtractor={keyExtractor}
           renderItem={renderSection}
+          style={styles.listFrame}
           keyboardDismissMode={keyboardDismissMode}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -566,7 +567,7 @@ export default function HistoryListScreen({
             state.loadingMore ? <LoadingSkeleton height={88} /> : null
           }
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           windowSize={7}
           initialNumToRender={8}
           maxToRenderPerBatch={6}
@@ -578,8 +579,10 @@ export default function HistoryListScreen({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const listShadowGutter = theme.spacing.xl;
+
+  return StyleSheet.create({
     loadingState: {
       flex: 1,
       justifyContent: "center",
@@ -589,12 +592,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     fullHeight: {
       flex: 1,
     },
+    listFrame: {
+      flex: 1,
+      marginHorizontal: -listShadowGutter,
+      marginTop: -listShadowGutter,
+    },
     listContent: {
       flexGrow: 1,
-      paddingBottom: theme.spacing.sectionGapLarge,
+      paddingTop: listShadowGutter,
+      paddingHorizontal: listShadowGutter,
+      paddingBottom: theme.spacing.sectionGapLarge + listShadowGutter,
     },
     listContentArchiveEmpty: {
-      paddingBottom: theme.spacing.xxl,
+      paddingBottom: theme.spacing.xxl + listShadowGutter,
     },
     listHeader: {
       paddingTop: theme.spacing.sm,
@@ -885,3 +895,4 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
   });
+};

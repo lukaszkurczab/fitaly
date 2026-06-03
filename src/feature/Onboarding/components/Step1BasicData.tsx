@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { GlobalActionButtons, NumberInput, RowPicker } from "@/components";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomActionBar, NumberInput, RowPicker } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { cmToFtIn, ftInToCm, kgToLbs, lbsToKg } from "@/utils/units";
 import type { OnboardingFormData } from "@/feature/Onboarding/types";
@@ -39,7 +40,9 @@ export default function Step1BasicData({
 }: Props) {
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
@@ -263,16 +266,27 @@ export default function Step1BasicData({
         </View>
       </ScrollView>
 
-      <GlobalActionButtons
-        primaryTestID="onboarding-step-1-next-button"
-        label={t("step1.primaryCta")}
-        onPress={onContinue}
-        loading={submitting}
-        secondaryLabel={showSecondaryAction ? t("common:cancel") : undefined}
-        secondaryOnPress={onSecondaryAction}
-        secondaryTestID="onboarding-step-1-cancel-button"
-        secondaryTone="secondary"
-        containerStyle={styles.footer}
+      <BottomActionBar
+        placement="docked"
+        bottomInset={footerBottomInset}
+        horizontalPadding={theme.spacing.screenPadding}
+        horizontalBleed={theme.spacing.screenPadding}
+        primaryAction={{
+          testID: "onboarding-step-1-next-button",
+          label: t("step1.primaryCta"),
+          onPress: onContinue,
+          loading: submitting,
+        }}
+        secondaryAction={
+          showSecondaryAction
+            ? {
+                testID: "onboarding-step-1-cancel-button",
+                label: t("common:cancel"),
+                onPress: onSecondaryAction,
+                variant: "secondary",
+              }
+            : undefined
+        }
       />
     </View>
   );
@@ -340,9 +354,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) => {
     },
     rowItem: {
       flex: 1,
-    },
-    footer: {
-      ...material.footer,
     },
   });
 };

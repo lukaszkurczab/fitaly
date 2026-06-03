@@ -22,29 +22,6 @@ export function createOnboardingMaterialStyles(theme: Theme) {
     elevation: 0,
   };
 
-  const footer: ViewStyle = {
-    marginHorizontal: -theme.spacing.screenPadding,
-    paddingHorizontal: theme.spacing.screenPadding,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xxs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.isDark
-      ? "rgba(255, 253, 248, 0.08)"
-      : "rgba(207, 197, 184, 0.36)",
-    backgroundColor: theme.isDark
-      ? "rgba(27, 31, 27, 0.96)"
-      : "rgba(255, 253, 248, 0.84)",
-    shadowColor: theme.isDark ? "#000000" : "#2F312B",
-    shadowOpacity: theme.isDark ? 0.34 : 0.09,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: -10 },
-    elevation: 10,
-  };
-
-  const footerActions: ViewStyle = {
-    paddingTop: 0,
-  };
-
   const inputField: ViewStyle = {
     borderRadius: theme.rounded.md,
   };
@@ -72,8 +49,6 @@ export function createOnboardingMaterialStyles(theme: Theme) {
 
   return {
     panel,
-    footer,
-    footerActions,
     inputField,
     optionalBadge,
     optionalBadgeText,

@@ -64,7 +64,7 @@ describe("ShareComposerDock visual chrome", () => {
   });
 
   it("keeps Share bottom actions inline instead of adding a raised panel", () => {
-    const { getByTestId } = renderWithTheme(
+    const { getAllByRole, getByTestId } = renderWithTheme(
       <ShareComposerDock
         {...baseProps}
         activeEditorKind="none"
@@ -80,6 +80,18 @@ describe("ShareComposerDock visual chrome", () => {
     expect(actionsStyle.shadowOpacity).toBe(0);
     expect(actionsStyle.elevation).toBe(0);
     expect(actionsStyle.position).toBeUndefined();
+
+    const actionButtonOrder = getAllByRole("button")
+      .map((button) => button.props.testID)
+      .filter((testID) =>
+        testID === "share-save-gallery-button" ||
+        testID === "share-system-share-button",
+      );
+
+    expect(actionButtonOrder).toEqual([
+      "share-save-gallery-button",
+      "share-system-share-button",
+    ]);
   });
 
   it("keeps export errors readable over the canvas without adding depth", () => {
