@@ -6,6 +6,8 @@ const REQUIRED_NON_PROD_BUILD_PROFILES = [
   "e2e-test",
 ];
 const PRODUCTION_BUILD_PROFILE = "production";
+const MIN_ANDROID_TARGET_SDK = 35;
+const EXPO_BUILD_PROPERTIES_PLUGIN = "expo-build-properties";
 const EXPECTED_DEV_API_BASE_URL =
   "https://fitaly-backend-smoke.up.railway.app";
 const EXPECTED_PRODUCTION_API_BASE_URL =
@@ -173,9 +175,67 @@ function validateEasRuntimeContractProfiles(easConfig) {
   return errors;
 }
 
+function getExpoConfigPlugins(expoConfig) {
+  const plugins = expoConfig?.plugins ?? expoConfig?.expo?.plugins;
+  return Array.isArray(plugins) ? plugins : [];
+}
+
+function getExpoBuildPropertiesPluginConfig(expoConfig) {
+  for (const plugin of getExpoConfigPlugins(expoConfig)) {
+    if (plugin === EXPO_BUILD_PROPERTIES_PLUGIN) {
+      return {};
+    }
+
+    if (
+      Array.isArray(plugin) &&
+      plugin[0] === EXPO_BUILD_PROPERTIES_PLUGIN &&
+      plugin[1] &&
+      typeof plugin[1] === "object" &&
+      !Array.isArray(plugin[1])
+    ) {
+      return plugin[1];
+    }
+  }
+
+  return null;
+}
+
+function validateAndroidTargetSdkConfig(
+  expoConfig,
+  minTargetSdkVersion = MIN_ANDROID_TARGET_SDK,
+) {
+  const errors = [];
+  const buildPropertiesConfig = getExpoBuildPropertiesPluginConfig(expoConfig);
+  const targetSdkVersion = buildPropertiesConfig?.android?.targetSdkVersion;
+
+  if (targetSdkVersion == null) {
+    errors.push(
+      `expo-build-properties android.targetSdkVersion must be set for managed Android release readiness (minimum ${minTargetSdkVersion}).`,
+    );
+    return errors;
+  }
+
+  if (
+    typeof targetSdkVersion !== "number" ||
+    !Number.isInteger(targetSdkVersion)
+  ) {
+    errors.push("Android targetSdkVersion is not a valid integer.");
+    return errors;
+  }
+
+  if (targetSdkVersion < minTargetSdkVersion) {
+    errors.push(
+      `Android targetSdkVersion must be >= ${minTargetSdkVersion} (got: ${targetSdkVersion}).`,
+    );
+  }
+
+  return errors;
+}
+
 module.exports = {
   REQUIRED_NON_PROD_BUILD_PROFILES,
   PRODUCTION_BUILD_PROFILE,
+  MIN_ANDROID_TARGET_SDK,
   EXPECTED_DEV_API_BASE_URL,
   EXPECTED_PRODUCTION_API_BASE_URL,
   isHttpsUrl,
@@ -183,4 +243,6 @@ module.exports = {
   getApiBaseUrlForProfile,
   validateEasApiBaseUrlProfiles,
   validateEasRuntimeContractProfiles,
+  getExpoBuildPropertiesPluginConfig,
+  validateAndroidTargetSdkConfig,
 };

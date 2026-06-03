@@ -280,10 +280,8 @@ E2E runner backend selection is intentionally isolated from local app config:
 - [Runtime Config](../docs/runbooks/runtime-config.md) — prod/smoke/dev mobile-backend matrix
 - [E2E/testing runbook](../docs/runbooks/e2e-testing.md) — Maestro suites, fixture/deep link contract, selector rules
 - [Missing Jobs](../docs/missing-jobs/README.md) — active follow-up index after release-hardening archive removal
-- [Canonical Notifications Release Hardening](./docs/notifications-canonical-release-hardening.md) — environment matrix, diagnostics panel, real-device smoke plan, interpretation checklist
 - Backend Ops Monitoring Runbook: `../fitaly-backend/docs/ops-monitoring-runbook.md` — production health/latency thresholds and incident triage
 - Backend Compliance Ops Runbook: `../fitaly-backend/docs/compliance-ops-runbook.md` — data export/delete flow, retention cadence and privacy incident process
-- [Coach Insights v1 Semantics](./docs/coach-insights-v1.md) — mobile contract handling, empty-state modes, telemetry rules
 
 ## License
 

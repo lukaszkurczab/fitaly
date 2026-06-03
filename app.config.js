@@ -90,7 +90,10 @@ export default {
       ],
       [
         "expo-build-properties",
-        { ios: { useFrameworks: "static", deploymentTarget: "15.5" } },
+        {
+          android: { targetSdkVersion: 35 },
+          ios: { useFrameworks: "static", deploymentTarget: "15.5" },
+        },
       ],
       "expo-font",
       "expo-asset",
