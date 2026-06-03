@@ -127,6 +127,10 @@ export const TextInput = forwardRef<RNTextInput, Props>(
     const focusInputIntoView = useKeyboardAwareInputFocus();
     const [isFocused, setIsFocused] = useState(false);
     const innerRef = useRef<RNTextInput | null>(null);
+    const flattenedInputStyle = useMemo(
+      () => StyleSheet.flatten(inputStyle),
+      [inputStyle],
+    );
 
     const setInputRef = useCallback(
       (instance: RNTextInput | null) => {
@@ -187,6 +191,10 @@ export const TextInput = forwardRef<RNTextInput, Props>(
         : isEditable
           ? theme.textSecondary
           : theme.textTertiary;
+    const singleLineInputHeight =
+      typeof flattenedInputStyle?.lineHeight === "number"
+        ? flattenedInputStyle.lineHeight
+        : theme.typography.lineHeight.bodyL;
 
     return (
       <View style={[styles.container, style]}>
@@ -262,7 +270,15 @@ export const TextInput = forwardRef<RNTextInput, Props>(
                 maxHeight: multiline ? inputMaxHeight : undefined,
               },
               inputStyle,
-              multiline && styles.multilineInputAlignment,
+              multiline
+                ? styles.multilineInputAlignment
+                : [
+                    styles.singleLineInputAlignment,
+                    {
+                      height: singleLineInputHeight,
+                      lineHeight: singleLineInputHeight,
+                    },
+                  ],
             ]}
             selectionColor={theme.primary}
             underlineColorAndroid="transparent"
@@ -315,7 +331,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.sm,
     },
     singleLineInputWrapper: {
-      paddingVertical: theme.spacing.xs,
+      minHeight: 52,
+      paddingVertical: 0,
     },
     multilineInputWrapper: {
       paddingVertical: theme.spacing.xxs,
@@ -328,6 +345,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     singleLineInput: {
+      marginVertical: 0,
+    },
+    singleLineInputAlignment: {
+      textAlignVertical: "center",
+      includeFontPadding: false,
+      paddingVertical: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
       marginVertical: 0,
     },
     multilineInput: {

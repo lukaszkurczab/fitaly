@@ -10,6 +10,7 @@ import type { UserData } from "@/types";
 import {
   changeUsernameService,
   changeEmailService,
+  changePasswordService,
   deleteAccountService,
   exportUserData,
   fetchUserFromCloud,
@@ -36,6 +37,7 @@ const mockEmailCredential = jest.fn<(...args: unknown[]) => unknown>();
 const mockReauthenticateWithCredential = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
+const mockUpdatePassword = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetAuth = jest.fn<(...args: unknown[]) => { currentUser: unknown }>();
 const mockCurrentUserDelete = jest.fn<() => Promise<void>>();
 
@@ -70,7 +72,7 @@ jest.mock("@react-native-firebase/auth", () => ({
   reauthenticateWithCredential: (...args: unknown[]) =>
     mockReauthenticateWithCredential(...args),
   verifyBeforeUpdateEmail: jest.fn(),
-  updatePassword: jest.fn(),
+  updatePassword: (...args: unknown[]) => mockUpdatePassword(...args),
 }));
 
 jest.mock("@/services/core/fileSystem", () => ({
@@ -110,6 +112,7 @@ describe("user/profile", () => {
     mockResetUserRuntime.mockResolvedValue(undefined);
     mockEmailCredential.mockReturnValue({ providerId: "password" });
     mockReauthenticateWithCredential.mockResolvedValue(undefined);
+    mockUpdatePassword.mockResolvedValue(undefined);
     mockGetAuth.mockReturnValue({
       currentUser: {
         email: "u1@example.com",
@@ -148,6 +151,15 @@ describe("user/profile", () => {
     expect(mockFetchUserProfileRemote).toHaveBeenCalledTimes(2);
     expect(mockFetchUserProfileRemote).toHaveBeenNthCalledWith(1);
     expect(mockFetchUserProfileRemote).toHaveBeenNthCalledWith(2);
+  });
+
+  it("returns null when profile repository has no local or cloud data", async () => {
+    mockFetchUserProfileRemote.mockResolvedValue(null);
+
+    await expect(getUserLocal()).resolves.toBeNull();
+    await expect(fetchUserFromCloud()).resolves.toBeNull();
+
+    expect(mockFetchUserProfileRemote).toHaveBeenCalledTimes(2);
   });
 
   it("delegates profile writes to repository helpers", async () => {
@@ -209,6 +221,14 @@ describe("user/profile", () => {
     });
   });
 
+  it("skips language update when the profile payload is missing", async () => {
+    mockFetchUserProfileRemote.mockResolvedValue({ uid: "u1" });
+
+    await updateUserLanguageInFirestore("pl");
+
+    expect(mockMergeUserProfileRemote).not.toHaveBeenCalled();
+  });
+
   it("uploads avatar via repository and persists synced metadata", async () => {
     const result = await uploadAndSaveAvatar({
       localUri: "file:///avatar.jpg",
@@ -251,6 +271,44 @@ describe("user/profile", () => {
     expect(mockClaimUsername).toHaveBeenCalledWith("Morpheus", "u1");
   });
 
+  it("rejects account credential changes when auth has no current user", async () => {
+    mockGetAuth.mockReturnValue({ currentUser: null });
+
+    await expect(
+      changePasswordService({
+        currentPassword: "OldStrong1!",
+        newPassword: "NewStrong1!",
+      }),
+    ).rejects.toMatchObject({
+      code: "auth/not-logged-in",
+      source: "UserProfileService",
+      retryable: false,
+    });
+
+    expect(mockEmailCredential).not.toHaveBeenCalled();
+    expect(mockReauthenticateWithCredential).not.toHaveBeenCalled();
+  });
+
+  it("reauthenticates and updates the current user's password", async () => {
+    await changePasswordService({
+      currentPassword: "OldStrong1!",
+      newPassword: "NewStrong1!",
+    });
+
+    expect(mockEmailCredential).toHaveBeenCalledWith(
+      "u1@example.com",
+      "OldStrong1!",
+    );
+    expect(mockReauthenticateWithCredential).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "u1@example.com" }),
+      { providerId: "password" },
+    );
+    expect(mockUpdatePassword).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "u1@example.com" }),
+      "NewStrong1!",
+    );
+  });
+
   it("persists emailPending through backend after verify-before-update flow", async () => {
     await changeEmailService({
       newEmail: "new@example.com",
@@ -287,10 +345,20 @@ describe("user/profile", () => {
       " neo ",
       "pl-PL",
     );
+    await initializeUserOnboardingProfile(" trinity ", "en-US");
+    await initializeUserOnboardingProfile(" smith ");
 
-    expect(mockInitializeUserOnboardingRemote).toHaveBeenCalledWith({
+    expect(mockInitializeUserOnboardingRemote).toHaveBeenNthCalledWith(1, {
       username: "neo",
       language: "pl",
+    });
+    expect(mockInitializeUserOnboardingRemote).toHaveBeenNthCalledWith(2, {
+      username: "trinity",
+      language: "en",
+    });
+    expect(mockInitializeUserOnboardingRemote).toHaveBeenNthCalledWith(3, {
+      username: "smith",
+      language: "en",
     });
     expect(mockMergeUserProfileRemote).not.toHaveBeenCalled();
   });

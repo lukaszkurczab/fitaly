@@ -15,6 +15,7 @@ const componentCoverageFiles = [
   "src/components/SecondaryButton.tsx",
   "src/components/StreakBadge.tsx",
   "src/components/TargetProgressBar.tsx",
+  "src/components/TextInput.tsx",
   "src/components/TimePartInput.tsx",
   "src/components/UserIcon.tsx",
   "src/components/WeekStrip.tsx",
