@@ -120,6 +120,7 @@ export function LanguagePickerSheet({
                     void handleSelect(option.code);
                   }}
                   loading={saving}
+                  showChevron={false}
                   trailing={
                     selected && !saving ? (
                       <AppIcon

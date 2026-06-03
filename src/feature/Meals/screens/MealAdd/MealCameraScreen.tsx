@@ -461,11 +461,6 @@ export default function MealCameraScreen({
                         pressed ? styles.pressed : null,
                       ]}
                     >
-                      <AppIcon
-                        name="menu"
-                        size={17}
-                        color={fullscreenControlColor}
-                      />
                       <Text
                         numberOfLines={1}
                         adjustsFontSizeToFit
@@ -476,6 +471,12 @@ export default function MealCameraScreen({
                           defaultValue: "Change method",
                         })}
                       </Text>
+                      <AppIcon
+                        name="chevron"
+                        rotation="180deg"
+                        size={16}
+                        color={fullscreenControlColor}
+                      />
                     </Pressable>
                   ) : null}
 
@@ -668,6 +669,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.semiBold,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
+      flexShrink: 1,
     },
     fullCameraCaptureButton: {
       width: 74,

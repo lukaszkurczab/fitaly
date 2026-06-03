@@ -625,6 +625,7 @@ export default function ManageSubscriptionScreen({
                 onPress={() => {
                   void tryRestore();
                 }}
+                showChevron={false}
                 styles={styles}
                 theme={theme}
               />
@@ -928,6 +929,7 @@ type ActionRowProps = {
   theme: ReturnType<typeof useTheme>;
   testID?: string;
   loading?: boolean;
+  showChevron?: boolean;
 };
 
 function ActionRow({
@@ -939,6 +941,7 @@ function ActionRow({
   theme,
   testID,
   loading = false,
+  showChevron = true,
 }: ActionRowProps) {
   return (
     <Pressable
@@ -966,14 +969,14 @@ function ActionRow({
       <View style={styles.actionAccessory}>
         {loading ? (
           <ActivityIndicator size="small" color={theme.textSecondary} />
-        ) : (
+        ) : showChevron ? (
           <AppIcon
             name="chevron"
             rotation="180deg"
             size={22}
             color={theme.textSecondary}
           />
-        )}
+        ) : null}
       </View>
     </Pressable>
   );

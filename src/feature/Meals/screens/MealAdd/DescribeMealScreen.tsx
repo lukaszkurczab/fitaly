@@ -400,7 +400,7 @@ export default function DescribeMealScreen({
                     </Text>
                     <AppIcon
                       name="chevron"
-                      rotation={detailsExpanded ? "270deg" : "180deg"}
+                      rotation={detailsExpanded ? "90deg" : "-90deg"}
                       size={18}
                       color={theme.primaryStrong}
                     />
