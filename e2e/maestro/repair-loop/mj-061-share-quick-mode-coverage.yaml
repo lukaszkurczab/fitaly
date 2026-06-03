@@ -1,0 +1,189 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-mode-quick-button
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- takeScreenshot: mj061-share-quick-ready-light
+- tapOn:
+    id: share-preset-quickClassic
+- takeScreenshot: mj061-share-quick-preset-1-light
+- tapOn:
+    id: share-preset-quickSidebar
+- takeScreenshot: mj061-share-quick-preset-2-light
+- tapOn:
+    id: share-preset-quickFooter
+- takeScreenshot: mj061-share-quick-preset-3-light
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-mode-quick-button
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- takeScreenshot: mj061-share-quick-ready-dark
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=failure"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-failure
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-save-gallery-button
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- waitForAnimationToEnd
+- takeScreenshot: mj061-share-save-error-light
+- tapOn:
+    id: share-system-share-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- waitForAnimationToEnd
+- takeScreenshot: mj061-share-share-error-light
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=failure"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-failure
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-save-gallery-button
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- waitForAnimationToEnd
+- takeScreenshot: mj061-share-save-error-dark
+- tapOn:
+    id: share-close-button
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=permissionDenied"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-permissionDenied
+- scrollUntilVisible:
+    element:
+      id: home-today-meal-row-0
+    direction: DOWN
+- tapOn:
+    id: home-today-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-save-gallery-button
+- tapOn:
+    id: share-save-gallery-button
+- extendedWaitUntil:
+    visible:
+      id: share-export-error
+    timeout: 10000
+- assertVisible: "Brak dostępu do galerii. Sprawdź uprawnienia i spróbuj ponownie."
+- assertVisible:
+    id: share-save-gallery-button
+- assertVisible:
+    id: share-system-share-button
+- waitForAnimationToEnd
+- takeScreenshot: mj061-share-permission-error-light

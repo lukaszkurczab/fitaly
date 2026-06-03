@@ -19,12 +19,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Credits blocked bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado and tahini
-- hideKeyboard
-- tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:

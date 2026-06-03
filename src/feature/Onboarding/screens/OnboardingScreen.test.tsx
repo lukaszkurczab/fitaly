@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import OnboardingScreen from "@/feature/Onboarding/screens/OnboardingScreen";
 
@@ -8,6 +8,9 @@ const mockReact = React;
 const mockText = Text;
 const mockView = View;
 const mockUseOnboardingFlow = jest.fn();
+const mockModal = jest.fn();
+type MockLayoutProps = { children: unknown; backgroundGradient?: unknown };
+const mockLayout = jest.fn<(_props: MockLayoutProps) => void>();
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -15,28 +18,54 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 
+const spacing = {
+  xxs: 4,
+  xs: 8,
+  sm: 8,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
+  screenPadding: 20,
+};
+
 jest.mock("@/theme/useTheme", () => ({
   useTheme: () => ({
+    isDark: false,
+    background: "#F7F2EA",
+    backgroundSecondary: "#EFE7DA",
     primary: "#111111",
+    surfaceElevated: "#FFFFFF",
+    borderSoft: "#E2D7C7",
+    shadow: "#000000",
+    text: "#222222",
     textSecondary: "#666666",
-    spacing: { sm: 8, xl: 24 },
+    spacing,
+    rounded: { full: 9999, md: 16, lg: 20, xl: 24 },
     typography: {
-      size: { bodyS: 14 },
-      lineHeight: { bodyS: 20 },
-      fontFamily: { regular: "System" },
+      size: { bodyS: 14, caption: 12 },
+      lineHeight: { bodyS: 20, caption: 16 },
+      fontFamily: { regular: "System", medium: "System" },
     },
   }),
 }));
 
 jest.mock("@/components", () => ({
-  Layout: ({ children }: { children: unknown }) => {
+  Layout: (props: MockLayoutProps) => {
+    mockLayout(props);
     return mockReact.createElement(
       mockView,
       null,
-      children as React.ReactNode,
+      props.children as React.ReactNode,
     );
   },
-  Modal: () => null,
+  Modal: (props: Record<string, unknown>) => {
+    mockModal(props);
+    return null;
+  },
+  AppIcon: ({ name }: { name: string }) => {
+    return mockReact.createElement(mockText, null, name);
+  },
 }));
 
 jest.mock("@/feature/Onboarding/components/ProgressDots", () => ({
@@ -78,7 +107,7 @@ jest.mock("@/feature/Onboarding/hooks/useOnboardingFlow", () => ({
   useOnboardingFlow: (...args: unknown[]) => mockUseOnboardingFlow(...args),
 }));
 
-function buildOnboardingState() {
+function buildOnboardingState(overrides: Record<string, unknown> = {}) {
   return {
     errors: {},
     form: {},
@@ -101,6 +130,7 @@ function buildOnboardingState() {
     step: 1,
     submitting: false,
     totalSteps: 4,
+    ...overrides,
   };
 }
 
@@ -115,7 +145,23 @@ function buildNavigation() {
 
 describe("OnboardingScreen navigation ownership", () => {
   beforeEach(() => {
+    mockLayout.mockReset();
+    mockModal.mockReset();
     mockUseOnboardingFlow.mockReset().mockReturnValue(buildOnboardingState());
+  });
+
+  it("uses the global Layout material instead of a local onboarding background gradient", () => {
+    const navigation = buildNavigation();
+
+    render(
+      <OnboardingScreen
+        navigation={navigation as never}
+        route={{ params: { mode: "first" } } as never}
+      />,
+    );
+
+    expect(mockLayout).toHaveBeenCalled();
+    expect(mockLayout.mock.calls[0]?.[0]?.backgroundGradient).toBeUndefined();
   });
 
   it("does not imperatively replace to Home from the onboarding gate", async () => {
@@ -139,5 +185,75 @@ describe("OnboardingScreen navigation ownership", () => {
       navigation,
     });
     expect(navigation.replace).not.toHaveBeenCalledWith("Home");
+  });
+
+  it("keeps skip confirmation return semantics on the Wróć action instead of a duplicate close button", () => {
+    const handleModalClose = jest.fn();
+    const handleSkipConfirm = jest.fn();
+    const navigation = buildNavigation();
+
+    mockUseOnboardingFlow.mockReturnValue(
+      buildOnboardingState({
+        handleModalClose,
+        handleSkipConfirm,
+        modalState: { type: "skip_step", step: 3 },
+      }),
+    );
+
+    render(
+      <OnboardingScreen
+        navigation={navigation as never}
+        route={{ params: { mode: "first" } } as never}
+      />,
+    );
+
+    const modalProps = mockModal.mock.calls[
+      mockModal.mock.calls.length - 1
+    ]?.[0] as {
+      closeOnBackdropPress?: boolean;
+      onClose?: () => void;
+      primaryAction?: { label: string; onPress?: () => void };
+      secondaryAction?: { label: string; onPress?: () => void };
+    };
+
+    expect(modalProps.onClose).toBeUndefined();
+    expect(modalProps.closeOnBackdropPress).toBe(false);
+    expect(modalProps.primaryAction).toMatchObject({
+      label: "skipStepModal.primaryCta",
+      onPress: handleSkipConfirm,
+    });
+    expect(modalProps.secondaryAction).toMatchObject({
+      label: "skipStepModal.secondaryCta",
+      onPress: handleModalClose,
+    });
+  });
+
+  it("exposes a refill-only close action without adding an exit path to first onboarding", () => {
+    const handleCloseRefill = jest.fn();
+    const navigation = buildNavigation();
+
+    mockUseOnboardingFlow.mockReturnValue(
+      buildOnboardingState({ handleCloseRefill }),
+    );
+
+    const { queryByTestId, rerender, getByTestId } = render(
+      <OnboardingScreen
+        navigation={navigation as never}
+        route={{ params: { mode: "first" } } as never}
+      />,
+    );
+
+    expect(queryByTestId("onboarding-refill-close-button")).toBeNull();
+
+    rerender(
+      <OnboardingScreen
+        navigation={navigation as never}
+        route={{ params: { mode: "refill" } } as never}
+      />,
+    );
+
+    fireEvent.press(getByTestId("onboarding-refill-close-button"));
+
+    expect(handleCloseRefill).toHaveBeenCalledTimes(1);
   });
 });

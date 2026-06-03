@@ -94,7 +94,12 @@ export function ChatMessageBubble({ role, text }: Props) {
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
-      <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+      <View
+        style={[
+          styles.bubble,
+          isUser ? styles.userBubble : styles.aiBubble,
+        ]}
+      >
         {renderContent()}
       </View>
     </View>
@@ -105,7 +110,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     row: {
       width: "100%",
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.spacing.xs,
       flexDirection: "row",
     },
     rowUser: {
@@ -115,9 +120,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "flex-start",
     },
     bubble: {
-      maxWidth: "82%",
-      paddingHorizontal: theme.spacing.sm,
+      maxWidth: "84%",
+      paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.xxs,
     },
     userBubble: {
       borderTopLeftRadius: theme.rounded.lg,
@@ -125,19 +131,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderBottomLeftRadius: theme.rounded.lg,
       borderBottomRightRadius: theme.rounded.xs,
       backgroundColor: theme.primary,
+      maxWidth: "78%",
     },
     aiBubble: {
       borderTopLeftRadius: theme.rounded.lg,
       borderTopRightRadius: theme.rounded.lg,
       borderBottomLeftRadius: theme.rounded.xs,
       borderBottomRightRadius: theme.rounded.lg,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark ? theme.surfaceElevated : theme.surface,
       borderWidth: 1,
       borderColor: theme.borderSoft,
+      ...(!theme.isDark ? theme.depth.inputFocus : {}),
     },
     messageText: {
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.regular,
     },
     userMessageText: {

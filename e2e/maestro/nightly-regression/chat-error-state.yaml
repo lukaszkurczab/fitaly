@@ -19,7 +19,7 @@ appId: com.lkurczab.fitaly
           id: chat-legal-accept
 - tapOn:
     id: chat-input
-- inputText: Trigger deterministic chat failure
+- inputText: Sprawdź proszę, czy mogę dziś jeszcze poprawić kolację.
 - tapOn:
     id: chat-send-button
 - assertVisible:

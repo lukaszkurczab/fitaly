@@ -12,8 +12,12 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/useTheme";
-import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import {
+  SyncStatusIndicator,
+  getSyncStatusLabelKey,
+} from "@/components/SyncStatusIndicator";
 import { Layout, SearchBox } from "@/components";
+import AppIcon from "@/components/AppIcon";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { FilterBadgeButton } from "../components/FilterBadgeButton";
@@ -32,6 +36,22 @@ function getMealKcal(meal: Meal): number {
   return Math.round(
     (meal.ingredients || []).reduce(
       (sum, ingredient) => sum + (Number(ingredient?.kcal) || 0),
+      0,
+    ),
+  );
+}
+
+function getMealMacroValue(
+  meal: Meal,
+  key: "protein" | "carbs" | "fat",
+): number {
+  if (typeof meal.totals?.[key] === "number") {
+    return Math.round(meal.totals[key] || 0);
+  }
+
+  return Math.round(
+    (meal.ingredients || []).reduce(
+      (sum, ingredient) => sum + (Number(ingredient?.[key]) || 0),
       0,
     ),
   );
@@ -56,9 +76,24 @@ type HistoryMealRowProps = {
   index: number;
   locale?: string;
   kcalLabel: string;
+  gramLabel: string;
   fallbackMealName: string;
   onPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
+  macroLabels: {
+    protein: {
+      short: string;
+      full: string;
+    };
+    carbs: {
+      short: string;
+      full: string;
+    };
+    fat: {
+      short: string;
+      full: string;
+    };
+  };
   theme: ReturnType<typeof useTheme>;
 };
 
@@ -67,49 +102,115 @@ const HistoryMealRowComponent = ({
   index,
   locale,
   kcalLabel,
+  gramLabel,
   fallbackMealName,
   onPress,
   mealTypeLabel,
+  macroLabels,
   theme,
 }: HistoryMealRowProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t: tMeals } = useTranslation("meals");
+  const typeLabel = mealTypeLabel(meal);
   const timeLabel =
     formatMealTime(
       meal.timestamp || meal.updatedAt || meal.createdAt,
       locale,
     ) || null;
-  const meta = timeLabel
-    ? `${mealTypeLabel(meal)} · ${timeLabel}`
-    : mealTypeLabel(meal);
+  const meta = timeLabel ? `${typeLabel} · ${timeLabel}` : typeLabel;
+  const syncStatusLabelKey = getSyncStatusLabelKey(meal.syncState);
+  const syncStatusLabel = syncStatusLabelKey
+    ? tMeals(syncStatusLabelKey)
+    : null;
+  const kcal = getMealKcal(meal);
+  const protein = getMealMacroValue(meal, "protein");
+  const carbs = getMealMacroValue(meal, "carbs");
+  const fat = getMealMacroValue(meal, "fat");
+  const hasMacroDetails = protein + carbs + fat > 0;
 
   return (
     <Pressable
       testID={`history-meal-row-${index}`}
       onPress={() => onPress(meal)}
       accessibilityRole="button"
-      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${getMealKcal(meal)} ${kcalLabel}`}
+      accessibilityLabel={`${meal.name || fallbackMealName}, ${meta}, ${kcal} ${kcalLabel}${
+        syncStatusLabel ? `, ${syncStatusLabel}` : ""
+      }`}
       style={({ pressed }) => [
         styles.mealRow,
         pressed ? styles.mealRowPressed : null,
       ]}
     >
+      <View style={styles.mealGlyph}>
+        <AppIcon name="empty-meals" size={22} color={theme.primaryStrong} />
+      </View>
       <View style={styles.mealInfo}>
         <View style={styles.mealTitleRow}>
           <Text numberOfLines={1} style={styles.mealName}>
             {meal.name || fallbackMealName}
+          </Text>
+        </View>
+        <View style={styles.mealMetaRow}>
+          <Text numberOfLines={1} style={styles.mealMeta}>
+            {meta}
           </Text>
           <SyncStatusIndicator
             syncState={meal.syncState}
             testID={`history-meal-sync-${meal.syncState}-${index}`}
           />
         </View>
-        <Text numberOfLines={1} style={styles.mealMeta}>
-          {meta}
+        {hasMacroDetails ? (
+          <View style={styles.macroRow}>
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.protein.full}: ${protein}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipProtein]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipProteinText]}
+              >
+                {macroLabels.protein.short} {protein}
+                {gramLabel}
+              </Text>
+            </View>
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.carbs.full}: ${carbs}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipCarbs]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipCarbsText]}
+              >
+                {macroLabels.carbs.short} {carbs}
+                {gramLabel}
+              </Text>
+            </View>
+            <View
+              accessible
+              accessibilityLabel={`${macroLabels.fat.full}: ${fat}${gramLabel}`}
+              style={[styles.macroChip, styles.macroChipFat]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.macroChipText, styles.macroChipFatText]}
+              >
+                {macroLabels.fat.short} {fat}
+                {gramLabel}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.mealKcalBlock}>
+        <Text numberOfLines={1} style={styles.mealKcalValue}>
+          {kcal}
+        </Text>
+        <Text numberOfLines={1} style={styles.mealKcalLabel}>
+          {kcalLabel}
         </Text>
       </View>
-      <Text numberOfLines={1} style={styles.mealKcal}>
-        {getMealKcal(meal)} {kcalLabel}
-      </Text>
     </Pressable>
   );
 };
@@ -121,9 +222,24 @@ type HistorySectionCardProps = {
   section: DaySection;
   locale?: string;
   kcalLabel: string;
+  gramLabel: string;
   fallbackMealName: string;
   onMealPress: (meal: Meal) => void;
   mealTypeLabel: (meal: Meal) => string;
+  macroLabels: {
+    protein: {
+      short: string;
+      full: string;
+    };
+    carbs: {
+      short: string;
+      full: string;
+    };
+    fat: {
+      short: string;
+      full: string;
+    };
+  };
   theme: ReturnType<typeof useTheme>;
 };
 
@@ -131,9 +247,11 @@ const HistorySectionCardComponent = ({
   section,
   locale,
   kcalLabel,
+  gramLabel,
   fallbackMealName,
   onMealPress,
   mealTypeLabel,
+  macroLabels,
   theme,
 }: HistorySectionCardProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -151,21 +269,19 @@ const HistorySectionCardComponent = ({
 
       <View style={styles.sectionCard}>
         {section.data.map((meal, index) => (
-          <View key={meal.cloudId || meal.mealId}>
-            <HistoryMealRow
-              meal={meal}
-              index={index}
-              locale={locale}
-              kcalLabel={kcalLabel}
-              fallbackMealName={fallbackMealName}
-              onPress={onMealPress}
-              mealTypeLabel={mealTypeLabel}
-              theme={theme}
-            />
-            {index < section.data.length - 1 ? (
-              <View style={styles.rowDivider} />
-            ) : null}
-          </View>
+          <HistoryMealRow
+            key={meal.cloudId || meal.mealId}
+            meal={meal}
+            index={index}
+            locale={locale}
+            kcalLabel={kcalLabel}
+            gramLabel={gramLabel}
+            fallbackMealName={fallbackMealName}
+            onPress={onMealPress}
+            mealTypeLabel={mealTypeLabel}
+            macroLabels={macroLabels}
+            theme={theme}
+          />
         ))}
       </View>
     </View>
@@ -250,9 +366,14 @@ export default function HistoryListScreen({
   const showResultsPill = query.trim().length > 0 && totalResults > 0;
   const showListHeader =
     state.dataState === "ready" ||
+    state.dataState === "empty" ||
     query.trim().length > 0 ||
     state.filterCount > 0 ||
     !!state.deadLetterBanner;
+  const isFirstRunEmpty =
+    state.dataState === "empty" &&
+    query.trim().length === 0 &&
+    state.filterCount === 0;
 
   const mealTypeLabel = useCallback(
     (meal: Meal) =>
@@ -269,9 +390,24 @@ export default function HistoryListScreen({
         section={item}
         locale={i18n?.language}
         kcalLabel={state.kcalLabel}
+        gramLabel={t("gram", { ns: "common" })}
         fallbackMealName={t("meal", { ns: "home" })}
         onMealPress={state.onMealPress}
         mealTypeLabel={mealTypeLabel}
+        macroLabels={{
+          protein: {
+            short: t("macroShort.protein", { ns: "history" }),
+            full: t("protein", { ns: "common" }),
+          },
+          carbs: {
+            short: t("macroShort.carbs", { ns: "history" }),
+            full: t("carbs", { ns: "common" }),
+          },
+          fat: {
+            short: t("macroShort.fat", { ns: "history" }),
+            full: t("fat", { ns: "common" }),
+          },
+        }}
         theme={theme}
       />
     ),
@@ -300,28 +436,33 @@ export default function HistoryListScreen({
         />
       ) : null}
 
-      <View style={styles.heroBlock}>
-        <Text style={styles.heroTitle}>
-          {t("screenTitle", { ns: "history" })}
-        </Text>
-        <Text style={styles.heroSubtitle}>
-          {t("screenSubtitle", { ns: "history" })}
-        </Text>
-      </View>
+      <View style={styles.heroPanel}>
+        <View style={styles.heroBlock}>
+          <Text style={styles.heroTitle}>
+            {t("screenTitle", { ns: "history" })}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            {t("screenSubtitle", { ns: "history" })}
+          </Text>
+        </View>
 
-      <View style={styles.searchRow}>
-        <SearchBox
-          value={query}
-          onChange={state.setQuery}
-          placeholder={t("searchPlaceholder", {
-            ns: "history",
-          })}
-          style={styles.searchBox}
-        />
-        <FilterBadgeButton
-          activeCount={state.filterCount}
-          onPress={state.toggleShowFilters}
-        />
+        <View style={styles.searchRow}>
+          <SearchBox
+            value={query}
+            onChange={state.setQuery}
+            placeholder={t("searchPlaceholder", {
+              ns: "history",
+            })}
+            style={styles.searchBox}
+            fieldStyle={styles.searchField}
+            inputStyle={styles.searchInput}
+            iconSize={18}
+          />
+          <FilterBadgeButton
+            activeCount={state.filterCount}
+            onPress={state.toggleShowFilters}
+          />
+        </View>
       </View>
 
       {showResultsPill ? (
@@ -339,12 +480,21 @@ export default function HistoryListScreen({
 
   const emptyComponent =
     state.dataState !== "loading" && state.dataState !== "ready" ? (
-      <View style={styles.emptyWrap}>
+      <View
+        style={[
+          styles.emptyWrap,
+          isFirstRunEmpty ? styles.emptyWrapArchive : null,
+          showListHeader
+            ? styles.emptyWrapWithHeader
+            : styles.emptyWrapCentered,
+        ]}
+      >
         <EmptyState
           testID="history-list-empty-state"
           actionTestID="history-list-empty-add-meal-button"
+          variant={isFirstRunEmpty ? "archive" : "compact"}
           eyebrow={
-            query.trim().length === 0 && state.dataState === "empty"
+            isFirstRunEmpty
               ? t("emptyEyebrow", {
                   ns: "history",
                 })
@@ -353,17 +503,13 @@ export default function HistoryListScreen({
           title={state.emptyState?.title || ""}
           description={state.emptyState?.description || ""}
           actionLabel={
-            state.dataState === "empty" && query.trim().length === 0
+            isFirstRunEmpty
               ? t("emptyAction", {
                   ns: "history",
                 })
               : undefined
           }
-          onAction={
-            state.dataState === "empty" && query.trim().length === 0
-              ? state.onLogFirstMeal
-              : undefined
-          }
+          onAction={isFirstRunEmpty ? state.onLogFirstMeal : undefined}
         />
       </View>
     ) : null;
@@ -397,6 +543,7 @@ export default function HistoryListScreen({
           data={state.dataState === "ready" ? sections : []}
           keyExtractor={keyExtractor}
           renderItem={renderSection}
+          style={styles.listFrame}
           keyboardDismissMode={keyboardDismissMode}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -410,14 +557,17 @@ export default function HistoryListScreen({
           }
           onEndReached={state.onEndReached}
           onEndReachedThreshold={0.2}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            isFirstRunEmpty ? styles.listContentArchiveEmpty : null,
+          ]}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={emptyComponent}
           ListFooterComponent={
             state.loadingMore ? <LoadingSkeleton height={88} /> : null
           }
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           windowSize={7}
           initialNumToRender={8}
           maxToRenderPerBatch={6}
@@ -429,8 +579,10 @@ export default function HistoryListScreen({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const listShadowGutter = theme.spacing.xl;
+
+  return StyleSheet.create({
     loadingState: {
       flex: 1,
       justifyContent: "center",
@@ -440,13 +592,23 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     fullHeight: {
       flex: 1,
     },
+    listFrame: {
+      flex: 1,
+      marginHorizontal: -listShadowGutter,
+      marginTop: -listShadowGutter,
+    },
     listContent: {
       flexGrow: 1,
-      paddingBottom: theme.spacing.sectionGapLarge,
+      paddingTop: listShadowGutter,
+      paddingHorizontal: listShadowGutter,
+      paddingBottom: theme.spacing.sectionGapLarge + listShadowGutter,
+    },
+    listContentArchiveEmpty: {
+      paddingBottom: theme.spacing.xxl + listShadowGutter,
     },
     listHeader: {
       paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.lg,
+      paddingBottom: theme.spacing.md,
       gap: theme.spacing.md,
     },
     heroBlock: {
@@ -465,6 +627,15 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    heroPanel: {
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.md,
+      gap: theme.spacing.md,
+      ...theme.depth.floating,
+    },
     searchRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -473,6 +644,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     searchBox: {
       flex: 1,
+    },
+    searchField: {
+      minHeight: 48,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.surface,
+      paddingVertical: 0,
+      borderColor: theme.borderSoft,
+    },
+    searchInput: {
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      marginVertical: 6,
     },
     resultsPill: {
       alignSelf: "center",
@@ -519,28 +702,34 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
     sectionCard: {
-      borderRadius: theme.rounded.lg,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      padding: 6,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.05,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: theme.isDark ? 0 : 1,
+      gap: theme.spacing.sm,
     },
     mealRow: {
-      borderRadius: theme.rounded.sm,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.lg,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surface,
+      padding: theme.spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
+      minHeight: 86,
+      ...theme.depth.floating,
     },
     mealRowPressed: {
-      backgroundColor: theme.background,
+      opacity: 0.92,
+      transform: [{ scale: 0.995 }],
+    },
+    mealGlyph: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.isDark
+        ? "rgba(122, 153, 115, 0.20)"
+        : theme.success.surface,
+      alignItems: "center",
+      justifyContent: "center",
     },
     mealInfo: {
       flex: 1,
@@ -563,11 +752,66 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.regular,
+      flexShrink: 1,
+      minWidth: 0,
     },
-    mealKcal: {
+    mealMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+      flexWrap: "wrap",
+    },
+    macroRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xxs,
+      flexWrap: "wrap",
+    },
+    macroChip: {
+      borderRadius: theme.rounded.full,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: 2,
+    },
+    macroChipProtein: {
+      backgroundColor: theme.macro.proteinSoft,
+    },
+    macroChipCarbs: {
+      backgroundColor: theme.macro.carbsSoft,
+    },
+    macroChipFat: {
+      backgroundColor: theme.macro.fatSoft,
+    },
+    macroChipText: {
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    macroChipProteinText: {
+      color: theme.macro.protein,
+    },
+    macroChipCarbsText: {
+      color: theme.macro.carbs,
+    },
+    macroChipFatText: {
+      color: theme.macro.fat,
+    },
+    mealKcalBlock: {
+      minWidth: 58,
+      alignItems: "flex-end",
+      justifyContent: "center",
+      gap: 1,
+    },
+    mealKcalValue: {
       color: theme.text,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
+      fontFamily: theme.typography.fontFamily.bold,
+      textAlign: "right",
+    },
+    mealKcalLabel: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
       textAlign: "right",
       flexShrink: 0,
@@ -579,9 +823,18 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     emptyWrap: {
       flex: 1,
+      paddingBottom: theme.spacing.xxl,
+    },
+    emptyWrapArchive: {
+      paddingBottom: theme.spacing.lg,
+    },
+    emptyWrapCentered: {
       justifyContent: "center",
       paddingTop: theme.spacing.xl,
-      paddingBottom: theme.spacing.xxl,
+    },
+    emptyWrapWithHeader: {
+      justifyContent: "flex-start",
+      paddingTop: theme.spacing.md,
     },
     deadLetterBanner: {
       borderRadius: theme.rounded.md,
@@ -642,3 +895,4 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
   });
+};

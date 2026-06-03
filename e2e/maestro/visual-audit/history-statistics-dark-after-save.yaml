@@ -1,0 +1,118 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- takeScreenshot: dark-pass8-app-settings
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Kurczak z ryżem
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: dark-history-after-save
+- tapOn:
+    id: history-filter-button
+- assertVisible:
+    id: history-filter-panel
+- tapOn:
+    id: history-filter-date-today
+- tapOn:
+    id: history-filter-calories-300-600
+- takeScreenshot: dark-history-filters-enabled
+- tapOn:
+    id: history-filter-show-results-button
+- assertVisible:
+    id: history-list-screen
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- takeScreenshot: dark-history-details-screen
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- takeScreenshot: dark-statistics-overview
+- scrollUntilVisible:
+    element:
+      id: statistics-macro-breakdown-card
+    direction: DOWN
+- takeScreenshot: dark-statistics-lower-sections

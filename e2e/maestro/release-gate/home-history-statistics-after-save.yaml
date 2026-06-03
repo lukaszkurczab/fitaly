@@ -21,12 +21,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: E2E Stats Bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce.
-- hideKeyboard
-- tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - assertVisible:
     id: add-meal-text-analyze-button
@@ -79,12 +74,14 @@ appId: com.lkurczab.fitaly
       id: statistics-trend-card
     timeout: 10000
 - assertVisible:
-    id: statistics-trend-metric-value
+    id: statistics-summary-card
+- assertVisible:
+    id: statistics-summary-kcal
 - scrollUntilVisible:
     element:
-      id: statistics-daily-averages-section
+      id: statistics-macro-breakdown-card
     direction: DOWN
 - assertVisible:
-    id: statistics-average-kcal
+    id: statistics-macro-row-protein
 - assertVisible:
-    id: statistics-average-protein
+    id: statistics-macro-row-carbs

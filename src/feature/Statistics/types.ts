@@ -18,6 +18,14 @@ export type StatisticsRangeAverages = {
   loggedDaysCount: number;
 };
 
+export type StatisticsRangeComparison = {
+  previousRange: DayKeyRange | null;
+  previousAverages: StatisticsRangeAverages | null;
+  kcalAverageDelta: number | null;
+  kcalAverageDeltaPercent: number | null;
+  hasPreviousEntries: boolean;
+};
+
 export type StatisticsRangeState = {
   activeRange: RangeKey;
   requestedRange: DayKeyRange;
@@ -28,6 +36,7 @@ export type StatisticsRangeState = {
   seriesByMetric: Record<MetricKey, number[]>;
   totals: Nutrients;
   averages: StatisticsRangeAverages;
+  comparison: StatisticsRangeComparison;
 };
 
 export type StatisticsEmptyKind =

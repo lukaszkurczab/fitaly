@@ -314,4 +314,152 @@ describe("TextAnalyzingScreen", () => {
       expect(mockExtractIngredientsFromText).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("uses the meal name as analysis context when optional details are empty", async () => {
+    const applyCreditsFromResponse = jest.fn((value: unknown) => value);
+    const saveDraft = jest.fn(async (_uid: string, _meal?: Meal | null) => undefined);
+    const setLastScreen = jest.fn(async (_uid: string, _screen: string) => undefined);
+    const setMeal = jest.fn();
+    const props = {
+      navigation: { navigate: jest.fn() } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"TextAnalyzing">["flow"],
+      params: {
+        analysisRequestId: "req-name-only",
+        name: "Kawa z mlekiem",
+        quickDescription: "",
+        retries: 0,
+      },
+    } as MealAddScreenProps<"TextAnalyzing">;
+
+    mockUseAiCreditsContext.mockReturnValue({
+      applyCreditsFromResponse,
+      refreshCredits: jest.fn(async () => creditsSnapshot),
+    });
+    mockUseMealDraftContext.mockReturnValue({
+      meal: null,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+    });
+    mockExtractIngredientsFromText.mockResolvedValue({
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Kawa z mlekiem",
+          amount: 300,
+          unit: "ml",
+          protein: 4,
+          fat: 3,
+          carbs: 8,
+          kcal: 80,
+        },
+      ],
+      credits: creditsSnapshot,
+    });
+
+    renderWithTheme(<TextAnalyzingScreen {...props} />);
+
+    await waitFor(() => {
+      expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    });
+
+    expect(mockExtractIngredientsFromText).toHaveBeenCalledWith(
+      "user-1",
+      {
+        name: "Kawa z mlekiem",
+        ingredients: "Kawa z mlekiem",
+        amount_g: null,
+        notes: null,
+      },
+      { lang: "en" },
+    );
+    expect(saveDraft).toHaveBeenLastCalledWith(
+      "user-1",
+      expect.objectContaining({
+        name: "Kawa z mlekiem",
+        notes: null,
+      }),
+    );
+  });
+
+  it("maps optional text details into the existing text-meal AI payload", async () => {
+    const applyCreditsFromResponse = jest.fn((value: unknown) => value);
+    const saveDraft = jest.fn(async (_uid: string, _meal?: Meal | null) => undefined);
+    const setLastScreen = jest.fn(async (_uid: string, _screen: string) => undefined);
+    const setMeal = jest.fn();
+    const props = {
+      navigation: { navigate: jest.fn() } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"TextAnalyzing">["flow"],
+      params: {
+        analysisRequestId: "req-structured-details",
+        name: "Lunch bowl",
+        quickDescription: "with tahini sauce",
+        textIngredients: [
+          { id: "ingredient-1", name: "Rice", amount: "120" },
+          { id: "ingredient-2", name: "Chicken", amount: "150" },
+        ],
+        servingAmount: "450",
+        retries: 0,
+      },
+    } as MealAddScreenProps<"TextAnalyzing">;
+
+    mockUseAiCreditsContext.mockReturnValue({
+      applyCreditsFromResponse,
+      refreshCredits: jest.fn(async () => creditsSnapshot),
+    });
+    mockUseMealDraftContext.mockReturnValue({
+      meal: null,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+    });
+    mockExtractIngredientsFromText.mockResolvedValue({
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Lunch bowl",
+          amount: 450,
+          protein: 35,
+          fat: 14,
+          carbs: 56,
+          kcal: 490,
+        },
+      ],
+      credits: creditsSnapshot,
+    });
+
+    renderWithTheme(<TextAnalyzingScreen {...props} />);
+
+    await waitFor(() => {
+      expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    });
+
+    expect(mockExtractIngredientsFromText).toHaveBeenCalledWith(
+      "user-1",
+      {
+        name: "Lunch bowl",
+        ingredients: "Rice 120 g, Chicken 150 g",
+        amount_g: 450,
+        notes: "with tahini sauce",
+      },
+      { lang: "en" },
+    );
+    expect(saveDraft).toHaveBeenLastCalledWith(
+      "user-1",
+      expect.objectContaining({
+        name: "Lunch bowl",
+        notes: "with tahini sauce",
+      }),
+    );
+  });
 });

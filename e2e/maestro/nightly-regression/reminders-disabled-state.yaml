@@ -6,12 +6,42 @@ appId: com.lkurczab.fitaly
     id: e2e-ready-reminder-disabled
 - tapOn:
     id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
 - scrollUntilVisible:
     element:
       id: account-app-settings-row
     direction: DOWN
 - tapOn:
     id: account-app-settings-row
+- runFlow:
+    when:
+      visible:
+        id: meal-add-option-text
+    commands:
+      - tapOn:
+          point: "10%,25%"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: tab-profile
+      - swipe:
+          direction: UP
+          duration: 600
+      - swipe:
+          direction: UP
+          duration: 600
+      - scrollUntilVisible:
+          element:
+            id: account-app-settings-row
+          direction: DOWN
+      - tapOn:
+          id: account-app-settings-row
 - assertVisible:
     id: app-settings-screen
 - tapOn:

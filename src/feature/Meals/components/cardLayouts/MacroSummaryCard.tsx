@@ -64,6 +64,9 @@ export default function MacroSummaryCard({
       )}
       {!showMacros && showKcal ? (
         <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.76}
           style={[
             styles.subtitle,
             {

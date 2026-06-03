@@ -1,0 +1,31 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
+- assertVisible:
+    id: e2e-ready-reminder-send
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- takeScreenshot: notifications-preferences

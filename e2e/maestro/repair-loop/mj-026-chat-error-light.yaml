@@ -1,0 +1,44 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?credits=ok&chat=failure&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-chat-failure
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-screen
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
+- tapOn:
+    id: chat-input
+- inputText: Sprawdź proszę, czy mogę dziś jeszcze poprawić kolację.
+- tapOn:
+    id: chat-send-button
+- assertVisible:
+    id: chat-message-user
+- extendedWaitUntil:
+    visible:
+      id: chat-error-state
+    timeout: 15000
+- assertVisible:
+    id: chat-retry-button
+- assertNotVisible:
+    id: chat-message-ai
+- tapOn:
+    id: chat-keyboard-dismiss-zone
+- assertVisible:
+    id: chat-error-state
+- assertVisible:
+    id: chat-retry-button
+- takeScreenshot: mj026-chat-error-light

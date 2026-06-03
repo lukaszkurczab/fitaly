@@ -8,11 +8,15 @@ type EasConfig = {
 const {
   EXPECTED_PRODUCTION_API_BASE_URL,
   EXPECTED_DEV_API_BASE_URL,
+  getExpoBuildPropertiesPluginConfig,
+  validateAndroidTargetSdkConfig,
   validateEasApiBaseUrlProfiles,
   validateEasRuntimeContractProfiles,
 } = readinessLib as {
   EXPECTED_PRODUCTION_API_BASE_URL: string;
   EXPECTED_DEV_API_BASE_URL: string;
+  getExpoBuildPropertiesPluginConfig: (config: unknown) => unknown;
+  validateAndroidTargetSdkConfig: (config: unknown) => string[];
   validateEasApiBaseUrlProfiles: (config: EasConfig) => string[];
   validateEasRuntimeContractProfiles: (config: EasConfig) => string[];
 };
@@ -150,5 +154,48 @@ describe("check-launch-readiness eas runtime contract", () => {
     expect(errors.join("\n")).toContain(
       "build.production.env.DISABLE_BILLING must be",
     );
+  });
+});
+
+describe("check-launch-readiness managed android target SDK", () => {
+  it("passes when expo-build-properties declares a launch-safe target SDK", () => {
+    const config = {
+      plugins: [
+        [
+          "expo-build-properties",
+          {
+            android: { targetSdkVersion: 35 },
+          },
+        ],
+      ],
+    };
+
+    expect(getExpoBuildPropertiesPluginConfig(config)).toEqual({
+      android: { targetSdkVersion: 35 },
+    });
+    expect(validateAndroidTargetSdkConfig(config)).toHaveLength(0);
+  });
+
+  it("fails when managed Android target SDK is implicit", () => {
+    const errors = validateAndroidTargetSdkConfig({
+      plugins: ["expo-build-properties"],
+    });
+
+    expect(errors.join("\n")).toContain("android.targetSdkVersion must be set");
+  });
+
+  it("fails when managed Android target SDK is below the launch floor", () => {
+    const errors = validateAndroidTargetSdkConfig({
+      plugins: [
+        [
+          "expo-build-properties",
+          {
+            android: { targetSdkVersion: 34 },
+          },
+        ],
+      ],
+    });
+
+    expect(errors.join("\n")).toContain("must be >= 35");
   });
 });

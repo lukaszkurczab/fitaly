@@ -1,0 +1,38 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-none
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-screen
+- runFlow:
+    when:
+      visible:
+        id: chat-legal-accept
+    commands:
+      - tapOn:
+          id: chat-legal-accept
+- openLink: "fitaly://e2e/seed?credits=none&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-none
+- extendedWaitUntil:
+    visible:
+      id: chat-credits-banner
+    timeout: 10000
+- assertVisible:
+    id: chat-credits-banner-action-button
+- assertVisible:
+    id: chat-input
+- assertVisible:
+    id: chat-send-button
+- takeScreenshot: mj025-chat-no-credits-dark

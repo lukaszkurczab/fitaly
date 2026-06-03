@@ -21,7 +21,7 @@ export function MealAddBarcodePreview({
       {children}
 
       <View pointerEvents="none" style={styles.overlay}>
-        <View style={styles.badge}>
+        <View testID="barcode-preview-status-badge" style={styles.badge}>
           <View
             style={[
               styles.badgeContent,
@@ -31,7 +31,12 @@ export function MealAddBarcodePreview({
             {detectedCode ? (
               <>
                 <Text style={styles.badgeLabelDetected}>{label}</Text>
-                <Text style={styles.badgeValue}>{detectedCode}</Text>
+                <Text
+                  testID="barcode-preview-detected-code"
+                  style={styles.badgeValue}
+                >
+                  {detectedCode}
+                </Text>
               </>
             ) : (
               <Text style={styles.badgeLabelReady}>{label}</Text>
@@ -40,6 +45,21 @@ export function MealAddBarcodePreview({
         </View>
 
         <View style={styles.frame}>
+          <View
+            style={[
+              styles.barcodeGuide,
+              detectedCode ? styles.barcodeGuideDetected : null,
+            ]}
+          >
+            {[8, 18, 10, 24, 14, 28, 10, 20, 16, 26, 8, 18].map(
+              (height, index) => (
+                <View
+                  key={`${height}-${index}`}
+                  style={[styles.barcodeGuideBar, { height }]}
+                />
+              ),
+            )}
+          </View>
           <View style={[styles.cornerH, styles.cornerTopLeftH]} />
           <View style={[styles.cornerV, styles.cornerTopLeftV]} />
           <View style={[styles.cornerH, styles.cornerTopRightH]} />
@@ -98,10 +118,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     overlay: {
       ...StyleSheet.absoluteFillObject,
       alignItems: "center",
+      justifyContent: "center",
     },
     badge: {
       position: "absolute",
-      top: 44,
+      top: 38,
       width: 253,
       minHeight: 40,
       borderRadius: 14,
@@ -140,13 +161,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: 14,
       lineHeight: 20,
       fontFamily: theme.typography.fontFamily.semiBold,
-      letterSpacing: 0.2,
+      fontVariant: ["tabular-nums"],
+      letterSpacing: 0,
       flexShrink: 1,
       textAlign: "right",
     },
     frame: {
-      position: "absolute",
-      top: 122,
+      marginTop: 64,
       width: 286,
       height: 132,
       borderRadius: 22,
@@ -154,6 +175,21 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderColor: "rgba(165, 185, 157, 0.72)",
       alignItems: "center",
       justifyContent: "center",
+    },
+    barcodeGuide: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      opacity: 0.58,
+    },
+    barcodeGuideDetected: {
+      opacity: 0.32,
+    },
+    barcodeGuideBar: {
+      width: 4,
+      borderRadius: 2,
+      backgroundColor: "#FFF7EB",
     },
     bars: {
       flexDirection: "row",

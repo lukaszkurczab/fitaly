@@ -20,12 +20,12 @@
   },
   "composer": {
     "placeholder": "Zapytaj o cokolwiek...",
-    "lockedCredits": "Odblokuj wysyłanie",
+    "lockedCredits": "Wysyłanie zablokowane",
     "lockedOffline": "Wróć online, aby wysyłać",
     "lockedDisabled": "Czat chwilowo niedostępny"
   },
   "lock": {
-    "creditsTitle": "Odblokuj dalszą rozmowę",
+    "creditsTitle": "Brak kredytów AI",
     "creditsBody": "Dotychczasowe wskazówki pozostają dostępne.",
     "creditsAction": "Odblokuj",
     "offlineTitle": "Jesteś offline",
@@ -37,7 +37,8 @@
   },
   "limit": {
     "title": "Za mało AI Credits",
-    "body": "Masz {{balance}} z {{allocation}} AI Credits. Następne odnowienie: {{renewalDate}}.",
+    "body": "Masz {{balance}} z {{allocation}} kredytów AI. Odnowienie: {{renewalDate}}.",
+    "bodyNoRenewal": "Masz {{balance}} z {{allocation}} kredytów AI.",
     "button": "Odblokuj 800 AI Credits",
     "reached": "Za mało AI Credits",
     "reachedShort": "Odblokuj wysyłanie",
@@ -49,7 +50,9 @@
     "title": "W czym mogę pomóc?",
     "subtitle": "Otrzymasz wsparcie dotyczące posiłków, żywienia i kolejnych kroków.",
     "creditsLeft": "Pozostało {{count}} kredytów AI",
-    "suggestedLabel": "PODPOWIEDZI STARTOWE",
+    "suggestedLabel": "Szybki start",
+    "lockedSuggestedLabel": "Odblokuj, aby wysłać przykład",
+    "lockedStarterAccessibilityHint": "Otwiera ekran zarządzania subskrypcją.",
     "starters": {
       "week": "Jak jadłem w tym tygodniu?",
       "protein": "Jak wygląda moje białko?",

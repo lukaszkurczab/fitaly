@@ -21,12 +21,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Release Text Bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken and avocado
-- hideKeyboard
-- tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - assertVisible:
     id: add-meal-text-analyze-button

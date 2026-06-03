@@ -1,6 +1,6 @@
 {
   "title": "Statystyki",
-  "subtitle": "Sprawdź, jak zmieniają się Twoje nawyki żywieniowe",
+  "subtitle": "Spokojny obraz tego, jak wyglądały ostatnie posiłki",
   "pickRange": "Wybierz zakres dat",
   "ranges": {
     "7d": "7 dni",
@@ -14,17 +14,17 @@
   "offline": "Brak połączenia z internetem. Niektóre statystyki mogą być niedostępne lub nieaktualne.",
   "offlineEmpty": {
     "title": "Jesteś offline",
-    "desc": "Brak lokalnych danych statystyk. Połącz się z internetem, aby wczytać historię."
+    "desc": "Nie ma jeszcze lokalnych posiłków do pokazania. Po połączeniu wczytamy historię."
   },
   "empty": {
-    "title": "Brak statystyk",
-    "desc": "Zapisz kilka posiłków, aby zobaczyć tutaj trendy kalorii i makro.",
-    "foot": "Kilka wpisów odblokuje pierwszy trend."
+    "title": "Trendy pojawią się po kilku posiłkach",
+    "desc": "Zapisz kilka posiłków, a Statystyki spokojnie pokażą, co zaczyna się powtarzać.",
+    "foot": "Każdy kolejny zapis pomaga zbudować pierwszy trend."
   },
   "emptyRange": {
-    "title": "Brak wpisów w tym zakresie",
-    "desc": "Wybierz inny zakres albo dodawaj dalej, by porównać później.",
-    "foot": "Zmień zakres, aby przywrócić trend."
+    "title": "W tym zakresie nie ma jeszcze posiłków",
+    "desc": "Wybierz inny czas albo zapisuj dalej, a porównanie pojawi się naturalnie.",
+    "foot": "Trendy wrócą, gdy zakres obejmie zapisane posiłki."
   },
   "limitedRange": {
     "title": "Ten zakres jest poza bieżącym oknem historii",
@@ -33,12 +33,51 @@
     "cta": "Zarządzaj planem"
   },
   "trend": {
-    "title": "Trend",
-    "avgPerDay": "śr./dzień"
+    "title": "Wybrany okres w skrócie",
+    "avgPerDay": "średnio dziennie",
+    "description": "Najważniejszy rytm z zapisanych posiłków",
+    "chartTitle": {
+      "kcal": "Trend kalorii",
+      "protein": "Trend białka",
+      "carbs": "Trend węgli",
+      "fat": "Trend tłuszczu"
+    },
+    "legend": {
+      "kcal": "Średnia kcal",
+      "protein": "Białko",
+      "carbs": "Węgle",
+      "fat": "Tłuszcz",
+      "target": "Cel"
+    }
   },
-  "dailyAveragesTitle": "Średnie dzienne",
-  "dailyAveragesSuffix": "śr. / dzień",
-  "macroBreakdownTitle": "Rozkład makro",
+  "summary": {
+    "title": {
+      "7d": "Ten tydzień",
+      "30d": "Ostatnie 30 dni",
+      "custom": "Wybrany zakres"
+    },
+    "average": "Średnio dziennie",
+    "progressValue": "{{percent}}% celu",
+    "targetValue": "Cel {{value}} {{unit}}",
+    "goalLabel": "celu",
+    "noTarget": "Cel nieustawiony",
+    "noTargetDescription": "Uzupełnij profil",
+    "loggedDays": "{{logged}}/{{total}} dni z posiłkami",
+    "daysLabel": "Dni z posiłkami",
+    "daysValue": "{{logged}} z {{total}}",
+    "comparison": {
+      "7d": "Poprzedni tydzień",
+      "30d": "Poprzednie 30 dni",
+      "custom": "Poprzedni zakres"
+    },
+    "comparisonUnavailable": "Brak danych"
+  },
+  "macroBreakdownTitle": "Makroskładniki",
+  "macroBreakdownDescription": "Średnia z dni z posiłkami względem celu.",
+  "macro": {
+    "target": "Cel: {{value}} {{unit}}",
+    "share": "{{percent}}% udziału"
+  },
   "tiles": {
     "calories": "Kalorie",
     "protein": "Białko",

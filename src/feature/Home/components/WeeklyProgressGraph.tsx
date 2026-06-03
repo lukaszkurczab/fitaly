@@ -17,17 +17,18 @@ export const WeeklyProgressGraph = ({
 
   return (
     <View
+      testID="weekly-progress-graph"
       style={[
         styles.container,
         {
-          backgroundColor: theme.surfaceElevated,
+          backgroundColor: theme.isDark
+            ? "rgba(255,253,248,0.04)"
+            : "rgba(255,253,248,0.52)",
           paddingTop: theme.spacing.md,
           paddingRight: theme.spacing.md,
           borderRadius: theme.rounded.md,
-          shadowColor: theme.shadow,
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          elevation: 2,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.borderSoft,
         },
       ]}
     >

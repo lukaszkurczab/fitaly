@@ -31,9 +31,10 @@ export function SavedMealActionCard({
     <View style={styles.card}>
       <MealThumbnail
         meal={meal}
-        size={56}
+        size={62}
         borderRadius={14}
         placeholderLabel={t("saved_list_no_photo", "No\nphoto")}
+        showPlaceholderIcon
       />
 
       <View style={styles.copyWrap}>
@@ -77,13 +78,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     card: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      minHeight: 100,
+      gap: 12,
+      minHeight: 92,
       padding: 12,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceElevated,
+      ...theme.depth.raised,
     },
     copyWrap: {
       flex: 1,
@@ -93,11 +95,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     name: {
       color: theme.text,
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 17,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 21,
     },
     primaryMeta: {
-      color: theme.primarySoft,
+      color: theme.primary,
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 13,
       lineHeight: 18,
@@ -109,20 +111,22 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: 18,
     },
     addButton: {
-      minWidth: 76,
-      minHeight: 44,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      backgroundColor: theme.primary,
+      minWidth: 64,
+      minHeight: 38,
+      paddingHorizontal: 13,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.success.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.primary,
       alignItems: "center",
       justifyContent: "center",
       opacity: 0.96,
     },
     addButtonPressed: {
-      backgroundColor: theme.primaryStrong,
+      opacity: 0.78,
     },
     addButtonLabel: {
-      color: theme.textInverse,
+      color: theme.primaryStrong,
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 14,
       lineHeight: 18,

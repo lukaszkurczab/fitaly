@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import * as FileSystem from "@/services/core/fileSystem";
-import { useTheme } from "@/theme/useTheme";
 import type { Meal } from "@/types/meal";
 import { FallbackImage } from "@/feature/History/components/FallbackImage";
 import { ensureLocalMealPhoto } from "@/services/meals/mealService.images";
@@ -11,17 +9,16 @@ type MealThumbnailProps = {
   size: number;
   borderRadius: number;
   placeholderLabel?: string;
+  showPlaceholderIcon?: boolean;
 };
 
 export function MealThumbnail({
   meal,
   size,
   borderRadius,
-  placeholderLabel,
 }: MealThumbnailProps) {
-  const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [localUri, setLocalUri] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   const mealId = meal.cloudId || meal.mealId || "";
 
@@ -85,50 +82,21 @@ export function MealThumbnail({
     meal.photoUrl ||
     null;
 
-  if (imageUri) {
+  useEffect(() => {
+    setImageError(false);
+  }, [imageUri]);
+
+  if (imageUri && !imageError) {
     return (
       <FallbackImage
         uri={imageUri}
         width={size}
         height={size}
         borderRadius={borderRadius}
+        onError={() => setImageError(true)}
       />
     );
   }
 
-  return (
-    <View
-      style={[
-        styles.placeholder,
-        {
-          width: size,
-          height: size,
-          borderRadius,
-        },
-      ]}
-    >
-      <Text style={styles.placeholderText}>
-        {placeholderLabel ?? "No\nphoto"}
-      </Text>
-    </View>
-  );
+  return null;
 }
-
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
-    placeholder: {
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.surfaceElevated,
-      borderWidth: 1,
-      borderColor: "rgba(207, 197, 184, 0.35)",
-      overflow: "hidden",
-    },
-    placeholderText: {
-      color: "rgba(122, 127, 116, 0.78)",
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 10,
-      lineHeight: 11,
-      textAlign: "center",
-    },
-  });

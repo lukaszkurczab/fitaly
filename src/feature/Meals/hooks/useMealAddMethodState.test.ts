@@ -161,6 +161,126 @@ describe("useMealAddMethodState", () => {
     expect(result.current.resumeDraftMeal).toBeNull();
   });
 
+  it("starts the preferred photo method at the instructional entry by default", async () => {
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+    });
+  });
+
+  it("starts the preferred photo method in fullscreen camera mode when stored", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") return "true";
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+      fullscreenPreferred: true,
+    });
+  });
+
+  it("falls back to the instructional photo entry for invalid fullscreen preference values", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") return "fullscreen";
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+    });
+  });
+
+  it("falls back to the instructional photo entry when fullscreen preference storage fails", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "meal-add:photo-fullscreen:user-1") {
+        throw new Error("storage unavailable");
+      }
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleDirectStart();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("AddMeal", {
+      start: "CameraDefault",
+      attempt: 1,
+    });
+  });
+
   it("resets the stack when starting a new method from inside the meal add flow", async () => {
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
 
@@ -227,6 +347,7 @@ describe("useMealAddMethodState", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
       start: "EditMealDetails",
+      submitIntent: "replaceReview",
     });
     expect(mockSaveDraft).toHaveBeenCalledWith(
       "user-1",
@@ -234,5 +355,39 @@ describe("useMealAddMethodState", () => {
         inputMethod: "manual",
       }),
     );
+  });
+
+  it("starts saved-meal reuse inside the AddMeal stack without priming an empty draft", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+      }),
+    );
+
+    const savedOption = result.current.options.find(
+      (option) => option.key === "saved",
+    );
+
+    expect(savedOption).toBeTruthy();
+
+    await act(async () => {
+      await result.current.handleOptionPress(savedOption!);
+    });
+
+    expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
+      start: "SelectSavedMeal",
+    });
+    expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(mockSetLastScreen).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,63 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
+- assertVisible:
+    id: e2e-ready-notificationPermission-allowed
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- takeScreenshot: account-settings-dark-app-settings
+
+- tapOn:
+    id: app-settings-notifications-row
+- assertVisible:
+    id: notifications-screen
+- assertVisible:
+    id: notifications-permission-allowed-state
+- takeScreenshot: account-settings-dark-notifications
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: back-title-header-back
+
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-identity-card
+    direction: UP
+- takeScreenshot: account-settings-dark-account-overview
+
+- scrollUntilVisible:
+    element:
+      id: account-legal-privacy-row
+    direction: DOWN
+- tapOn:
+    id: account-legal-privacy-row
+- assertVisible:
+    id: legal-privacy-screen
+- takeScreenshot: account-settings-dark-legal-privacy
+- tapOn:
+    id: legal-data-ai-row
+- assertVisible:
+    id: data-ai-clarity-screen
+- takeScreenshot: account-settings-dark-data-ai-clarity

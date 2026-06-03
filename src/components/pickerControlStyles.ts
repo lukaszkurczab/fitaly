@@ -1,10 +1,18 @@
+import { StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 
 export const PICKER_MENU_MAX_HEIGHT = 256;
 export const PICKER_MENU_BOTTOM_OFFSET = 24;
 export const PICKER_FIELD_MIN_HEIGHT = 56;
 
-export function getPickerControlStyleParts(theme: ReturnType<typeof useTheme>) {
+export type PickerControlSurfaceTone = "default" | "soft";
+
+export function getPickerControlStyleParts(
+  theme: ReturnType<typeof useTheme>,
+  options: { surfaceTone?: PickerControlSurfaceTone } = {},
+) {
+  const isSoft = options.surfaceTone === "soft";
+
   return {
     label: {
       color: theme.textSecondary,
@@ -17,12 +25,20 @@ export function getPickerControlStyleParts(theme: ReturnType<typeof useTheme>) {
       flexDirection: "row" as const,
       alignItems: "center" as const,
       paddingHorizontal: theme.spacing.md,
-      paddingVertical: 14,
-      minHeight: PICKER_FIELD_MIN_HEIGHT,
+      paddingVertical: isSoft ? theme.spacing.sm : 14,
+      minHeight: isSoft ? 52 : PICKER_FIELD_MIN_HEIGHT,
       borderRadius: theme.rounded.md,
-      borderWidth: 1,
-      borderColor: theme.input.border,
-      backgroundColor: theme.input.background,
+      borderWidth: isSoft ? StyleSheet.hairlineWidth : 1,
+      borderColor: isSoft
+        ? theme.isDark
+          ? "rgba(255, 253, 248, 0.10)"
+          : "rgba(207, 197, 184, 0.52)"
+        : theme.input.border,
+      backgroundColor: isSoft
+        ? theme.isDark
+          ? "rgba(30, 35, 30, 0.72)"
+          : "rgba(239, 231, 218, 0.34)"
+        : theme.input.background,
     },
     fieldOpen: {
       borderColor: theme.input.borderFocused,
@@ -42,14 +58,24 @@ export function getPickerControlStyleParts(theme: ReturnType<typeof useTheme>) {
     },
     valueText: {
       color: theme.input.text,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: isSoft
+        ? theme.typography.size.bodyM
+        : theme.typography.size.bodyL,
+      lineHeight: isSoft
+        ? theme.typography.lineHeight.bodyM
+        : theme.typography.lineHeight.bodyL,
+      fontFamily: isSoft
+        ? theme.typography.fontFamily.medium
+        : theme.typography.fontFamily.regular,
     },
     placeholderText: {
       color: theme.input.placeholder,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: isSoft
+        ? theme.typography.size.bodyM
+        : theme.typography.size.bodyL,
+      lineHeight: isSoft
+        ? theme.typography.lineHeight.bodyM
+        : theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.regular,
     },
     fieldIcon: {

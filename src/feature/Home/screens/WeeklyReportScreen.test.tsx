@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import WeeklyReportScreen from "@/feature/Home/screens/WeeklyReportScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
@@ -42,12 +44,25 @@ jest.mock("react-i18next", () => ({
     const translations: Record<string, string> = {
       "weeklyReport.screenTitle": "Weekly report",
       "weeklyReport.closedWeekPill": "Closed week",
+      "weeklyReport.readyDetailPill": "Your week",
       "weeklyReport.temporarilyUnavailablePill": "Temporarily unavailable",
       "weeklyReport.reflectionReadyFallback": "Your weekly reflection is ready.",
-      "weeklyReport.signalsBehindIt": "Signals behind it",
-      "weeklyReport.carryForwardTitle": "Carry into next week",
+      "weeklyReport.detailInsightTitle.consistency":
+        "Your weekly rhythm was the most helpful signal.",
+      "weeklyReport.detailInsightTitle.loggingCoverage":
+        "A fuller log will make the week easier to read.",
+      "weeklyReport.detailInsightTitle.startOfDayPattern":
+        "The start of the day is the rhythm to steady.",
+      "weeklyReport.detailInsightTitle.dayCompletionPattern":
+        "Closing days can make the week feel lighter.",
+      "weeklyReport.detailInsightTitle.weekendDrift":
+        "The weekend needs one gentle anchor point.",
+      "weeklyReport.detailInsightTitle.improvingTrend":
+        "This week shows quiet movement in the right direction.",
+      "weeklyReport.signalsBehindIt": "What stood out",
+      "weeklyReport.carryForwardTitle": "Small step for next week",
       "weeklyReport.carryForwardBody":
-        "Keep it light. Guard the first weekend meal and let the weekday rhythm hold.",
+        "Start with one calm adjustment. The rest can stay in the background.",
       "weeklyReport.loadingTitle": "Composing your weekly reflection",
       "weeklyReport.loadingBody":
         "Reading the closed week first, then shaping one carry-forward for next week.",
@@ -62,11 +77,8 @@ jest.mock("react-i18next", () => ({
         "That can happen when only part of the week is captured. Once the closed week has a fuller shape, this summary usually unlocks on its own.",
       "weeklyReport.insufficientFootnote": "This is normal. Nothing is failing here.",
       "weeklyReport.backToHome": "Back to Home",
-      "weeklyReport.unavailableTitle": "Your weekly reflection isn't ready right now",
-      "weeklyReport.unavailableBody":
-        "The closed week is there, but this summary is taking a little longer to finish.",
-      "weeklyReport.unavailableFootnote":
-        "The rest of Home stays available while this catches up.",
+      "weeklyReport.unavailableTitle": "The report is still preparing",
+      "weeklyReport.unavailableBody": "Try again in a moment.",
       "weeklyReport.tryAgain": "Try again",
       "weeklyReport.back": "Back",
       "weeklyReport.accessibilityRefresh": "Refresh weekly report",
@@ -108,14 +120,16 @@ jest.mock("@/components", () => {
       label,
       onPress,
       children,
+      testID,
     }: {
       label?: string;
       onPress?: () => void;
       children?: ReactNode;
+      testID?: string;
     }) =>
       createElement(
         Pressable,
-        { onPress },
+        { onPress, testID },
         createElement(Text, null, label ?? children),
       ),
     AppIcon: ({ name }: { name: string }) =>
@@ -162,8 +176,14 @@ describe("WeeklyReportScreen", () => {
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
+    );
+    const loadingHeroStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-loading-hero").props.style,
+    );
+    const loadingSupportStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-loading-support-card").props.style,
     );
 
     expect(getByText("Weekly report")).toBeTruthy();
@@ -173,6 +193,10 @@ describe("WeeklyReportScreen", () => {
         "Reading the closed week first, then shaping one carry-forward for next week.",
       ),
     ).toBeTruthy();
+    expect(loadingHeroStyle.elevation).toBeUndefined();
+    expect(loadingHeroStyle.shadowOpacity).toBeUndefined();
+    expect(loadingSupportStyle.elevation).toBeUndefined();
+    expect(loadingSupportStyle.shadowOpacity).toBeUndefined();
   });
 
   it("keeps weekly report request inactive while premium state is unknown", () => {
@@ -242,8 +266,11 @@ describe("WeeklyReportScreen", () => {
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
+    );
+    const lockedCardStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-state-card").props.style,
     );
 
     expect(mockUseWeeklyReport).toHaveBeenCalledWith({
@@ -252,6 +279,9 @@ describe("WeeklyReportScreen", () => {
     });
     expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
     expect(getByText("Manage subscription")).toBeTruthy();
+    expect(lockedCardStyle.elevation).toBeUndefined();
+    expect(lockedCardStyle.shadowOpacity).toBeUndefined();
+    expect(lockedCardStyle.shadowRadius).toBeUndefined();
     expect(mockTrackWeeklyReportLockedViewed).toHaveBeenCalledWith({
       source: "disabled",
       accessState: "locked",
@@ -291,7 +321,7 @@ describe("WeeklyReportScreen", () => {
 
     expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
     expect(getByText("Manage subscription")).toBeTruthy();
-    expect(queryByText("Your weekly reflection isn't ready right now")).toBeNull();
+    expect(queryByText("The report is still preparing")).toBeNull();
     expect(mockTrackWeeklyReportLockedViewed).toHaveBeenCalledWith({
       source: "fallback",
       accessState: "locked",
@@ -331,7 +361,7 @@ describe("WeeklyReportScreen", () => {
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByText, queryByText } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
     );
 
@@ -340,7 +370,15 @@ describe("WeeklyReportScreen", () => {
       active: false,
     });
     expect(getByText("Weekly Report access needs attention")).toBeTruthy();
+    expect(
+      getByText(
+        "Restore or review your Premium subscription before requesting this report again.",
+      ),
+    ).toBeTruthy();
     expect(getByText("Retry access check")).toBeTruthy();
+    expect(queryByText("The report is still preparing")).toBeNull();
+    expect(queryByText("Try again in a moment.")).toBeNull();
+    expect(queryByText("Temporarily unavailable")).toBeNull();
     expect(mockTrackWeeklyReportAccessBlocked).toHaveBeenCalledWith({
       source: "disabled",
       accessState: "degraded",
@@ -349,6 +387,7 @@ describe("WeeklyReportScreen", () => {
   });
 
   it("renders ready state with synthesis hierarchy", () => {
+    const refresh = jest.fn();
     mockUseWeeklyReport.mockReturnValue({
       report: {
         status: "ready",
@@ -377,18 +416,24 @@ describe("WeeklyReportScreen", () => {
       source: "remote",
       status: "live_success",
       error: null,
-      refresh: jest.fn(),
+      refresh,
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
     );
 
-    expect(getByText("Closed week")).toBeTruthy();
-    expect(getByText("Weekday rhythm carried most of the week.")).toBeTruthy();
-    expect(getByText("Signals behind it")).toBeTruthy();
-    expect(getByText("Carry into next week")).toBeTruthy();
+    expect(queryByTestId("weekly-report-refresh-button")).toBeNull();
+    fireEvent.press(getByTestId("weekly-report-back-button"));
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(getByText("Your week")).toBeTruthy();
+    expect(
+      getByText("Your weekly rhythm was the most helpful signal."),
+    ).toBeTruthy();
+    expect(getByText("What stood out")).toBeTruthy();
+    expect(getByText("Small step for next week")).toBeTruthy();
     expect(mockTrackWeeklyReportOpened).toHaveBeenCalledWith({
       reportStatus: "ready",
       insightCount: 1,
@@ -436,7 +481,8 @@ describe("WeeklyReportScreen", () => {
     });
   });
 
-  it("renders unavailable state", () => {
+  it("renders unavailable state with body retry recovery and back navigation", async () => {
+    const refresh = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
     mockUseWeeklyReport.mockReturnValue({
       report: {
         status: "not_available",
@@ -450,18 +496,56 @@ describe("WeeklyReportScreen", () => {
       source: "fallback",
       status: "service_unavailable",
       error: new Error("backend down"),
-      refresh: jest.fn(),
+      refresh,
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
-      <WeeklyReportScreen navigation={navigation as never} />,
-    );
+    const { getByTestId, getByText, queryByTestId, queryByText } =
+      renderWithTheme(<WeeklyReportScreen navigation={navigation as never} />);
 
+    expect(queryByTestId("weekly-report-refresh-button")).toBeNull();
+    const unavailableCardStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-unavailable-card").props.style,
+    );
     expect(
-      getByText("Your weekly reflection isn't ready right now"),
+      unavailableCardStyle,
+    ).toEqual(expect.objectContaining({
+      borderWidth: 1,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 15,
+      gap: 9,
+    }));
+    expect(unavailableCardStyle.elevation).toBeUndefined();
+    expect(unavailableCardStyle.shadowOpacity).toBeUndefined();
+    expect(unavailableCardStyle.shadowRadius).toBeUndefined();
+    expect(getByText("icon:refresh")).toBeTruthy();
+    expect(getByText("Temporarily unavailable")).toBeTruthy();
+    expect(
+      getByText("The report is still preparing"),
     ).toBeTruthy();
+    expect(getByText("Try again in a moment.")).toBeTruthy();
     expect(getByText("Try again")).toBeTruthy();
     expect(getByText("Back")).toBeTruthy();
+    expect(queryByText("weeklyReport.unavailableFootnote")).toBeNull();
+    expect(
+      queryByText("Your weekly reflection isn't ready right now"),
+    ).toBeNull();
+    expect(
+      queryByText(
+        "The closed week is there, but this summary is taking a little longer to finish.",
+      ),
+    ).toBeNull();
+    expect(
+      queryByText("The rest of Home stays available while this catches up."),
+    ).toBeNull();
+
+    fireEvent.press(getByTestId("weekly-report-retry-button"));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(getByTestId("weekly-report-back-button"));
+    fireEvent.press(getByTestId("weekly-report-unavailable-back-button"));
+    expect(navigation.goBack).toHaveBeenCalledTimes(2);
+    expect(navigation.navigate).not.toHaveBeenCalled();
   });
 });

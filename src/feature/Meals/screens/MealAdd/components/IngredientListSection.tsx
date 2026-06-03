@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -14,6 +15,11 @@ function formatIngredientAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function formatMacroValue(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export default function IngredientListSection({
   ingredients,
   onOpenIngredientEditor,
@@ -24,6 +30,26 @@ export default function IngredientListSection({
 
   return (
     <View style={styles.sectionBlock} testID="ingredient-list-section">
+      <LinearGradient
+        pointerEvents="none"
+        colors={
+          theme.isDark
+            ? [
+                "rgba(255, 255, 255, 0.035)",
+                "rgba(126, 153, 120, 0.055)",
+                "rgba(0, 0, 0, 0)",
+              ]
+            : [
+                "rgba(255, 255, 255, 0.94)",
+                "rgba(250, 247, 240, 0.8)",
+                "rgba(126, 153, 120, 0.075)",
+              ]
+        }
+        locations={[0, 0.58, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardGradient}
+      />
       <View style={styles.ingredientsHeader}>
         <Text style={styles.ingredientsTitle}>
           {t("review_meal_ingredients_title", {
@@ -53,10 +79,33 @@ export default function IngredientListSection({
                 pressed ? styles.selectionFieldPressed : null,
               ]}
             >
-              <Text style={styles.ingredientName}>{ingredient.name}</Text>
+              <View style={styles.ingredientCopy}>
+                <Text style={styles.ingredientName} numberOfLines={1}>
+                  {ingredient.name}
+                </Text>
+                {Number(ingredient.kcal) > 0 ? (
+                  <Text style={styles.ingredientNutrition} numberOfLines={1}>
+                    {`${formatMacroValue(ingredient.kcal)} ${t("kcal", {
+                      defaultValue: "kcal",
+                    })} | ${t("protein_short", {
+                      defaultValue: "P",
+                    })} ${formatMacroValue(ingredient.protein)} g | ${t(
+                      "carbs_short",
+                      {
+                        defaultValue: "C",
+                      },
+                    )} ${formatMacroValue(ingredient.carbs)} g | ${t(
+                      "fat_short",
+                      {
+                        defaultValue: "F",
+                      },
+                    )} ${formatMacroValue(ingredient.fat)} g`}
+                  </Text>
+                ) : null}
+              </View>
               <View style={styles.ingredientMeta}>
                 <Text style={styles.ingredientAmount}>
-                  {`${formatIngredientAmount(ingredient.amount)}${ingredient.unit ?? "g"}`}
+                  {`${formatIngredientAmount(ingredient.amount)} ${ingredient.unit ?? "g"}`}
                 </Text>
                 <AppIcon
                   name="chevron"
@@ -125,7 +174,19 @@ export default function IngredientListSection({
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     sectionBlock: {
+      position: "relative",
+      overflow: "hidden",
       gap: theme.spacing.sm,
+      borderRadius: theme.rounded.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      padding: theme.spacing.md,
+      ...theme.depth.raised,
+    },
+    cardGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: theme.rounded.xl,
     },
     ingredientsHeader: {
       gap: 3,
@@ -146,13 +207,13 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.xs,
     },
     ingredientRow: {
-      minHeight: 42,
-      borderRadius: 14,
+      minHeight: 58,
+      borderRadius: theme.rounded.md,
       borderWidth: 1,
-      borderColor: theme.input.border,
+      borderColor: theme.borderSoft,
       backgroundColor: theme.input.background,
       paddingHorizontal: theme.spacing.sm + 2,
-      paddingVertical: theme.spacing.sm - 1,
+      paddingVertical: theme.spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -161,12 +222,21 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
     selectionFieldPressed: {
       opacity: 0.72,
     },
-    ingredientName: {
+    ingredientCopy: {
       flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    ingredientName: {
       color: theme.text,
       fontSize: 15,
       lineHeight: 20,
       fontFamily: theme.typography.fontFamily.medium,
+    },
+    ingredientNutrition: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
     },
     ingredientMeta: {
       flexDirection: "row",

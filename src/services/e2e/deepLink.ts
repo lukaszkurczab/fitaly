@@ -2,7 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp } from "@react-native-firebase/app";
 import { getAuth, signOut } from "@react-native-firebase/auth";
 import { resetNavigation } from "@/navigation/navigate";
-import { stopSyncLoop } from "@/services/offline/sync.engine";
+import {
+  runReconnectReconcile,
+  stopSyncLoop,
+} from "@/services/offline/sync.engine";
 import { resetOfflineStorage } from "@/services/offline/db";
 import { setE2EForcedOffline } from "@/services/e2e/connectivity";
 import { isE2EModeEnabled } from "@/services/e2e/config";
@@ -17,10 +20,13 @@ import {
   parseE2ESeedCommand,
   resetE2EFixtureState,
 } from "@/services/e2e/fixtures";
+import { setE2EThemeMode } from "@/theme/ThemeProvider";
+import type { ThemeMode } from "@/theme/themes";
 
 type ResetOptions = {
   forceOffline: boolean;
   logout: boolean;
+  themeMode: ThemeMode | null;
 };
 
 const RESET_PATH = "fitaly://e2e/reset";
@@ -37,6 +43,14 @@ function parseBoolFlag(value: string | undefined, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function parseThemeMode(value: string | undefined): ThemeMode | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "light" || normalized === "dark") {
+    return normalized;
+  }
+  return null;
 }
 
 function parseQueryParams(url: string): Record<string, string> {
@@ -106,6 +120,10 @@ async function runReset(options: ResetOptions) {
     // Async storage reset is best-effort for E2E runs.
   }
 
+  if (options.themeMode) {
+    setE2EThemeMode(options.themeMode);
+  }
+
   try {
     await resetE2EFixtureState();
   } catch {
@@ -132,8 +150,9 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
     const params = parseQueryParams(url);
     const forceOffline = parseBoolFlag(params.offline, false);
     const logout = parseBoolFlag(params.logout, true);
+    const themeMode = parseThemeMode(params.theme);
 
-    await runReset({ forceOffline, logout });
+    await runReset({ forceOffline, logout, themeMode });
     return true;
   }
 
@@ -152,8 +171,16 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
   if (isConnectivityDeepLink(url)) {
     const params = parseQueryParams(url);
     const forceOffline = parseBoolFlag(params.offline, false);
+    const auth = getAuth(getApp());
     setE2EForcedOffline(forceOffline);
     const navigationTarget = resolveNavigationTarget(false);
+    if (!forceOffline && auth.currentUser?.uid) {
+      try {
+        await runReconnectReconcile(auth.currentUser.uid);
+      } catch {
+        // E2E readiness should still update so assertions can expose stale pending UI.
+      }
+    }
     markE2EResetReady(toReadyTarget(navigationTarget, forceOffline));
     return true;
   }

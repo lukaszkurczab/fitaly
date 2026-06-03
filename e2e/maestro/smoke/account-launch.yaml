@@ -4,11 +4,11 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: tab-profile
 - assertVisible:
-    id: account-profile-details-row
+    id: account-identity-card
 - takeScreenshot: account-overview
 
 - tapOn:
-    id: account-profile-details-row
+    id: account-identity-card
 - assertVisible:
     id: profile-details-screen
 
@@ -90,6 +90,14 @@ appId: com.lkurczab.fitaly
       - tapOn: "Zamknij"
 - tapOn:
     id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
 - scrollUntilVisible:
     element:
       id: account-app-settings-row

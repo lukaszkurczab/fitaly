@@ -35,17 +35,12 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: add-meal-text-name-input
 - eraseText
-- inputText: Visual Audit Bowl
-- tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado beans tomato salsa and yogurt sauce.
+- inputText: Kurczak z ryżem
 - assertVisible:
-    id: add-meal-text-description-input
+    id: add-meal-text-name-input
 - takeScreenshot: add-meal-text-keyboard
-- hideKeyboard
 - tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - takeScreenshot: add-meal-text-filled
 - assertVisible:
@@ -91,6 +86,19 @@ appId: com.lkurczab.fitaly
       id: history-meal-row-0
     timeout: 10000
 - takeScreenshot: history-after-save
+- tapOn:
+    id: history-filter-button
+- assertVisible:
+    id: history-filter-panel
+- tapOn:
+    id: history-filter-date-today
+- tapOn:
+    id: history-filter-calories-300-600
+- takeScreenshot: history-filters-enabled
+- tapOn:
+    id: history-filter-show-results-button
+- assertVisible:
+    id: history-list-screen
 - tapOn:
     id: tab-statistics
 - assertVisible:

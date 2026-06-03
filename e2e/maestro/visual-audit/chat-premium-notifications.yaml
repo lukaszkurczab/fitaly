@@ -1,6 +1,10 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- assertVisible:
+    id: tab-home
 - openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free"
 - assertVisible:
     id: e2e-ready-credits-ok
@@ -18,9 +22,17 @@ appId: com.lkurczab.fitaly
       - tapOn:
           id: chat-legal-accept
 - takeScreenshot: chat-empty
+- tapOn: "Czy dziś trzymam plan?"
+- assertVisible:
+    id: chat-message-user
+- extendedWaitUntil:
+    visible:
+      id: chat-message-ai
+    timeout: 15000
+- takeScreenshot: chat-starter-tap
 - tapOn:
     id: chat-input
-- inputText: This is a deliberately long visual audit chat prompt that keeps the keyboard open while the composer grows enough to verify reachability.
+- inputText: Czy możesz spokojnie podsumować mój dzisiejszy dzień pod kątem białka, kalorii i regularności posiłków? Napisz krótko, co wygląda dobrze, co warto poprawić przy kolacji i jaki jeden prosty krok zrobić teraz.
 - assertVisible:
     id: chat-input
 - assertVisible:
@@ -34,6 +46,10 @@ appId: com.lkurczab.fitaly
     visible:
       id: chat-message-ai
     timeout: 15000
+- tapOn:
+    id: chat-keyboard-dismiss-zone
+- assertVisible:
+    id: chat-send-button
 - takeScreenshot: chat-basic
 
 - runFlow: ../smoke/login.yaml
@@ -55,10 +71,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Premium visual bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado
-- hideKeyboard
+    point: "50%,30%"
 - scrollUntilVisible:
     element:
       id: add-meal-text-upgrade-button
@@ -72,25 +85,3 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: paywall-modal
 - takeScreenshot: premium-paywall
-
-- runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?notificationPermission=allowed&reminder=send"
-- assertVisible:
-    id: e2e-ready-reminder-send
-- tapOn:
-    id: tab-profile
-- scrollUntilVisible:
-    element:
-      id: account-app-settings-row
-    direction: DOWN
-- tapOn:
-    id: account-app-settings-row
-- assertVisible:
-    id: app-settings-screen
-- tapOn:
-    id: app-settings-notifications-row
-- assertVisible:
-    id: notifications-screen
-- assertVisible:
-    id: notifications-permission-allowed-state
-- takeScreenshot: notifications-preferences

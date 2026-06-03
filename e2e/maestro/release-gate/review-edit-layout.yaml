@@ -72,10 +72,10 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-amount-input
 - scrollUntilVisible:
     element:
-      id: ingredient-editor-submit-button
+      id: ingredient-editor-kcal-input
     direction: DOWN
 - assertVisible:
-    id: ingredient-editor-submit-button
+    id: ingredient-editor-kcal-input
 - tapOn:
     id: ingredient-editor-kcal-input
 - assertVisible:
@@ -90,6 +90,8 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-protein-input
 - assertVisible:
     id: ingredient-editor-protein-input
+- eraseText
+- inputText: 10
 - scrollUntilVisible:
     element:
       id: ingredient-editor-submit-button
@@ -100,6 +102,8 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-carbs-input
 - assertVisible:
     id: ingredient-editor-carbs-input
+- eraseText
+- inputText: 14
 - scrollUntilVisible:
     element:
       id: ingredient-editor-submit-button
@@ -110,6 +114,8 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-fat-input
 - assertVisible:
     id: ingredient-editor-fat-input
+- eraseText
+- inputText: 4
 - scrollUntilVisible:
     element:
       id: ingredient-editor-submit-button

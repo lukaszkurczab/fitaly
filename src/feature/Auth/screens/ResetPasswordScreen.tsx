@@ -117,6 +117,9 @@ export default function ResetPasswordScreen({ navigation }: Props) {
       brand={t("common:app_title")}
       title={t("title")}
       description={t("description")}
+      compactOnKeyboardVisible
+      formStyle={styles.authFormSpacing}
+      compactFormStyle={styles.authFormSpacingCompact}
       banner={
         bannerError ? (
           <ErrorBox
@@ -180,6 +183,12 @@ export default function ResetPasswordScreen({ navigation }: Props) {
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
+    authFormSpacing: {
+      paddingTop: theme.spacing.lg,
+    },
+    authFormSpacingCompact: {
+      paddingTop: theme.spacing.sm,
+    },
     formBlock: {
       width: "100%",
     },

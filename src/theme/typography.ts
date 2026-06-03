@@ -20,6 +20,7 @@ export const typography = {
     h1: 24,
     displayM: 28,
     displayL: 32,
+    numericS: 18,
     numericM: 20,
     numericXL: 28,
   },

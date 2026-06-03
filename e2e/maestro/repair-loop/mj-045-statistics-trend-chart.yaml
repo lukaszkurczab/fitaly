@@ -1,0 +1,87 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- takeScreenshot: mj045-statistics-trend-calories-light
+- tapOn:
+    id: statistics-metric-protein-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-protein-light
+- tapOn:
+    id: statistics-metric-carbs-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-carbs-light
+- tapOn:
+    id: statistics-metric-fat-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-fat-light
+- swipe:
+    start: "50%,78%"
+    end: "50%,62%"
+    duration: 400
+- assertVisible:
+    id: statistics-macro-breakdown-card
+- takeScreenshot: mj045-statistics-lower-sections-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- assertVisible:
+    id: statistics-range-switcher
+- extendedWaitUntil:
+    visible:
+      id: statistics-trend-card
+    timeout: 10000
+- takeScreenshot: mj045-statistics-trend-calories-dark
+- tapOn:
+    id: statistics-metric-protein-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-protein-dark
+- tapOn:
+    id: statistics-metric-carbs-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-carbs-dark
+- tapOn:
+    id: statistics-metric-fat-button
+- assertVisible:
+    id: statistics-trend-card
+- takeScreenshot: mj045-statistics-trend-fat-dark
+- swipe:
+    start: "50%,78%"
+    end: "50%,62%"
+    duration: 400
+- assertVisible:
+    id: statistics-macro-breakdown-card
+- takeScreenshot: mj045-statistics-lower-sections-dark

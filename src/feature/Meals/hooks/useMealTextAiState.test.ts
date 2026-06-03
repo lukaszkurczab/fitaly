@@ -108,9 +108,6 @@ describe("useMealTextAiState", () => {
     act(() => {
       result.current.onNameChange("Chicken and rice");
     });
-    act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
-    });
     await act(async () => {
       await result.current.onAnalyze();
     });
@@ -119,7 +116,7 @@ describe("useMealTextAiState", () => {
     expect(flow.goTo).not.toHaveBeenCalled();
   });
 
-  it("routes valid text input to the analyzing step", async () => {
+  it("routes meal-name-only input to the analyzing step", async () => {
     const flow = { goTo: jest.fn() };
 
     const { result } = renderHook(() =>
@@ -133,9 +130,6 @@ describe("useMealTextAiState", () => {
     act(() => {
       result.current.onNameChange("Chicken and rice");
     });
-    act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
-    });
     await act(async () => {
       await result.current.onAnalyze();
     });
@@ -145,8 +139,59 @@ describe("useMealTextAiState", () => {
       expect.objectContaining({
         analysisRequestId: expect.any(String),
         name: "Chicken and rice",
-        quickDescription: "Chicken and rice with cucumber",
+        quickDescription: "",
+        textIngredients: [],
+        servingAmount: "",
         retries: 0,
+      }),
+    );
+  });
+
+  it("routes optional description, ingredients, and serving to the analyzing step", async () => {
+    const flow = { goTo: jest.fn() };
+
+    const { result } = renderHook(() =>
+      useMealTextAiState({
+        t: (key: string) => key,
+        language: "en",
+        flow,
+      }),
+    );
+
+    act(() => {
+      result.current.onNameChange("Lunch bowl");
+      result.current.onQuickDescriptionChange("with tahini sauce");
+      result.current.onServingAmountChange("450");
+      result.current.onAddTextIngredient();
+    });
+    const ingredientId = result.current.textIngredients[0]?.id ?? "";
+    expect(ingredientId).toEqual(expect.any(String));
+
+    act(() => {
+      result.current.onUpdateTextIngredient(ingredientId, {
+        name: "Rice",
+      });
+      result.current.onUpdateTextIngredient(ingredientId, {
+        amount: "120",
+      });
+    });
+    await act(async () => {
+      await result.current.onAnalyze();
+    });
+
+    expect(flow.goTo).toHaveBeenCalledWith(
+      "TextAnalyzing",
+      expect.objectContaining({
+        name: "Lunch bowl",
+        quickDescription: "with tahini sauce",
+        textIngredients: [
+          expect.objectContaining({
+            id: ingredientId,
+            name: "Rice",
+            amount: "120",
+          }),
+        ],
+        servingAmount: "450",
       }),
     );
   });
@@ -173,24 +218,34 @@ describe("useMealTextAiState", () => {
     );
 
     act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+      result.current.onNameChange("Chicken and rice");
     });
 
     expect(result.current.analysisState).toBe("credits_unverified");
     expect(result.current.analyzeDisabled).toBe(true);
   });
 
-  it("disables analyze when description is missing", () => {
+  it("disables analyze when meal name is missing even if optional details are present", async () => {
+    const flow = { goTo: jest.fn() };
     const { result } = renderHook(() =>
       useMealTextAiState({
         t: (key: string) => key,
         language: "en",
-        flow: { goTo: jest.fn() },
+        flow,
       }),
     );
 
-    expect(result.current.analysisState).toBe("missing_description");
+    act(() => {
+      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+    });
+    await act(async () => {
+      await result.current.onAnalyze();
+    });
+
+    expect(result.current.analysisState).toBe("missing_name");
     expect(result.current.analyzeDisabled).toBe(true);
+    expect(result.current.nameError).toBe("text_ai_require_meal_name");
+    expect(flow.goTo).not.toHaveBeenCalled();
   });
 
   it("disables analyze when current credits are already insufficient", () => {
@@ -233,14 +288,14 @@ describe("useMealTextAiState", () => {
     );
 
     act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+      result.current.onNameChange("Chicken and rice");
     });
 
     expect(result.current.analysisState).toBe("insufficient_credits");
     expect(result.current.analyzeDisabled).toBe(true);
   });
 
-  it("enables analyze when description and credits are ready", () => {
+  it("enables analyze when name and credits are ready", () => {
     const { result } = renderHook(() =>
       useMealTextAiState({
         t: (key: string) => key,
@@ -250,7 +305,7 @@ describe("useMealTextAiState", () => {
     );
 
     act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+      result.current.onNameChange("Chicken and rice");
     });
 
     expect(result.current.analysisState).toBe("ready");
@@ -276,7 +331,7 @@ describe("useMealTextAiState", () => {
     );
 
     act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
+      result.current.onNameChange("Chicken and rice");
     });
     await act(async () => {
       await result.current.onAnalyze();
@@ -345,9 +400,6 @@ describe("useMealTextAiState", () => {
     act(() => {
       result.current.onNameChange("Chicken and rice");
     });
-    act(() => {
-      result.current.onQuickDescriptionChange("Chicken and rice with cucumber");
-    });
     await act(async () => {
       await result.current.onAnalyze();
     });
@@ -359,7 +411,9 @@ describe("useMealTextAiState", () => {
       expect.objectContaining({
         analysisRequestId: expect.any(String),
         name: "Chicken and rice",
-        quickDescription: "Chicken and rice with cucumber",
+        quickDescription: "",
+        textIngredients: [],
+        servingAmount: "",
         retries: 0,
       }),
     );

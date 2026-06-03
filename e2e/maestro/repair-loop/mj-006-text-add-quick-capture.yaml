@@ -1,0 +1,179 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- assertVisible:
+    id: e2e-booted
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: home-screen
+
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- extendedWaitUntil:
+    notVisible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- takeScreenshot: mj006-text-empty-light-collapsed
+
+- tapOn:
+    id: add-meal-text-details-toggle
+- extendedWaitUntil:
+    visible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- assertVisible:
+    id: add-meal-text-serving-input
+- assertVisible:
+    id: add-meal-text-ingredients-add-button
+- takeScreenshot: mj006-text-details-expanded-light
+- tapOn:
+    id: add-meal-text-ingredients-add-button
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-ingredient-name-input-0
+    direction: DOWN
+- assertVisible:
+    id: add-meal-text-ingredient-name-input-0
+- assertVisible:
+    id: add-meal-text-ingredient-amount-input-0
+- takeScreenshot: mj006-text-ingredient-row-light
+
+- tapOn:
+    id: add-meal-text-close
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- extendedWaitUntil:
+    visible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- takeScreenshot: mj006-text-persisted-details-light
+
+- tapOn:
+    id: add-meal-text-details-toggle
+- extendedWaitUntil:
+    notVisible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Repair Loop Bowl
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- takeScreenshot: mj006-text-name-light-collapsed
+
+- tapOn:
+    id: add-meal-text-name-input
+- assertVisible:
+    id: add-meal-text-analyze-button
+- takeScreenshot: mj006-text-keyboard-light
+
+- openLink: "fitaly://e2e/reset?logout=0"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- tapOn:
+    id: back-title-header-back
+
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- extendedWaitUntil:
+    notVisible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- takeScreenshot: mj006-text-empty-dark-collapsed
+
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Dark Repair Bowl
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- takeScreenshot: mj006-text-name-dark-collapsed
+
+- tapOn:
+    id: add-meal-text-details-toggle
+- extendedWaitUntil:
+    visible:
+      id: add-meal-text-description-input
+    timeout: 5000
+- assertVisible:
+    id: add-meal-text-serving-input
+- assertVisible:
+    id: add-meal-text-ingredients-add-button
+- takeScreenshot: mj006-text-details-expanded-dark
+- tapOn:
+    id: add-meal-text-ingredients-add-button
+- scrollUntilVisible:
+    element:
+      id: add-meal-text-ingredient-name-input-0
+    direction: DOWN
+- assertVisible:
+    id: add-meal-text-ingredient-name-input-0
+- assertVisible:
+    id: add-meal-text-ingredient-amount-input-0
+- takeScreenshot: mj006-text-ingredient-row-dark
+
+- tapOn:
+    id: add-meal-text-description-input
+- eraseText
+- inputText: Extra context for estimate
+- assertVisible:
+    id: add-meal-text-analyze-button
+- takeScreenshot: mj006-text-keyboard-dark

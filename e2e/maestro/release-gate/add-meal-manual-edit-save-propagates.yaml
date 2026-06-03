@@ -39,6 +39,10 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-name-input
 - eraseText
 - inputText: Chicken
+- tapOn:
+    id: ingredient-editor-protein-input
+- eraseText
+- inputText: 10
 - assertVisible:
     id: ingredient-editor-submit-button
 - tapOn:

@@ -90,15 +90,33 @@ jest.mock("@/components", () => {
     Button: ({
       label,
       onPress,
+      testID,
       disabled,
     }: {
       label: string;
       onPress?: () => void;
+      testID?: string;
       disabled?: boolean;
     }) =>
       createElement(
         Pressable,
-        { onPress, disabled, accessibilityRole: "button" },
+        { onPress, disabled, testID, accessibilityRole: "button" },
+        createElement(Text, null, label),
+      ),
+    TextButton: ({
+      label,
+      onPress,
+      testID,
+      disabled,
+    }: {
+      label: string;
+      onPress?: () => void;
+      testID?: string;
+      disabled?: boolean;
+    }) =>
+      createElement(
+        Pressable,
+        { onPress, disabled, testID, accessibilityRole: "button" },
         createElement(Text, null, label),
       ),
   };
@@ -246,7 +264,9 @@ describe("PreparingReviewPhotoScreen", () => {
     });
 
     fireEvent.press(getByText("Use manual entry"));
-    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {});
+    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {
+      submitIntent: "replaceReview",
+    });
   });
 
   it("shows the offline recovery state and lets the user save the draft", async () => {

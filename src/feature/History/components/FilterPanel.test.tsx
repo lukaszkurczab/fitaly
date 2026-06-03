@@ -192,6 +192,26 @@ describe("FilterPanel", () => {
     });
   });
 
+  it("keeps macro filters directly available without the old more-filters modal", () => {
+    const { getByText, queryByText } = renderWithTheme(
+      <FilterPanel scope="history" />,
+    );
+
+    expect(getByText("history:nutritionRangesTitle")).toBeTruthy();
+    expect(getByText("history:filters.protein")).toBeTruthy();
+    expect(getByText("history:filters.carbs")).toBeTruthy();
+    expect(getByText("history:filters.fat")).toBeTruthy();
+    expect(queryByText("history:actions.moreFilters")).toBeNull();
+
+    fireEvent.press(getByText("history:filters.protein"));
+
+    expect(getByText("range:history:filters.protein")).toBeTruthy();
+    fireEvent.press(getByText("history:actions.showResults"));
+    expect(mockApplyFilters).toHaveBeenCalledWith({
+      protein: [0, 100],
+    });
+  });
+
   it("normalizes date range when end date is earlier than start date", () => {
     const { getAllByText, getByText } = renderWithTheme(
       <FilterPanel scope="history" />,

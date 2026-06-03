@@ -270,11 +270,33 @@ describe("MealDetailsScreen", () => {
     const screen = renderWithTheme(<MealDetailsScreen />);
 
     expect(screen.getByText("Chicken bowl")).toBeTruthy();
+    expect(screen.getByTestId("history-meal-details-sticky-header")).toBeTruthy();
+    expect(screen.getByTestId("history-meal-details-sticky-actions")).toBeTruthy();
+    expect(screen.queryByTestId("history-meal-details-sync-synced")).toBeNull();
     expect(screen.queryByText("fallback-image:file:///meal.jpg")).toBeNull();
     fireEvent.press(screen.getByText("meals:edit_meal"));
     fireEvent.press(screen.getByText("history:delete_meal"));
     expect(state.startEdit).toHaveBeenCalledTimes(1);
     expect(state.openDeleteModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders pending sync as a compact icon beside the meal name", () => {
+    mockUseMealDetailsScreenState.mockReturnValue(
+      buildState({
+        draft: buildMeal({ syncState: "pending" }),
+        showImageBlock: false,
+      }),
+    );
+
+    const screen = renderWithTheme(<MealDetailsScreen />);
+
+    expect(screen.getByTestId("history-meal-details-sync-pending")).toBeTruthy();
+    expect(
+      screen.queryByText("history.syncStatus.pending.label"),
+    ).toBeNull();
+    expect(
+      screen.queryByText("history.syncStatus.pending.description"),
+    ).toBeNull();
   });
 
   it("renders the existing photo branch and forwards image actions", () => {

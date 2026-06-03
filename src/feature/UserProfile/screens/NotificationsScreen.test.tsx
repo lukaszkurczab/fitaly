@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReactNode } from "react";
 import NotificationsScreen from "@/feature/UserProfile/screens/NotificationsScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import enNotifications from "@/locales/en/notifications.json";
+import plNotifications from "@/locales/pl/notifications.json";
 
 const mockSetSettingsCtaVisible = jest.fn<(visible: boolean) => void>();
 const mockOpenSettings = jest.fn<() => Promise<void>>();
@@ -290,6 +292,47 @@ describe("NotificationsScreen", () => {
     expect(screen.getByTestId("notifications-prefs-sync-success")).toBeTruthy();
     expect(
       screen.queryByTestId("notifications-smart-reminders-unavailable"),
+    ).toBeNull();
+  });
+
+  it("keeps notification preference copy calm and grammatically aligned", () => {
+    expect(plNotifications.screen.smartReminders).toBe(
+      "Inteligentne przypomnienia",
+    );
+    expect(plNotifications.screen.smartReminderHint).toBe(
+      "Dopasowują porę przypomnienia do Twojego dnia i godzin ciszy.",
+    );
+    expect(plNotifications.screen.motivation).toBe("Wsparcie");
+    expect(plNotifications.screen.motivationSubtitle).toBe(
+      "Delikatne wskazówki bez presji.",
+    );
+    expect(enNotifications.screen.motivation).toBe("Support");
+    expect(enNotifications.screen.motivationSubtitle).toBe(
+      "Gentle notes without pressure.",
+    );
+    expect(enNotifications.screen.permissionOnTitle).toBe(
+      "Notifications are ready",
+    );
+  });
+
+  it("keeps denied permission state distinct and actionable", () => {
+    mockNotificationsState = {
+      ...mockNotificationsState,
+      systemAllowed: false,
+    };
+
+    const screen = renderWithTheme(
+      <NotificationsScreen
+        navigation={{ canGoBack: () => true, goBack: jest.fn() } as never}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("notifications-permission-denied-state"),
+    ).toBeTruthy();
+    expect(screen.getByTestId("notifications-open-settings-button")).toBeTruthy();
+    expect(
+      screen.queryByTestId("notifications-permission-allowed-state"),
     ).toBeNull();
   });
 });

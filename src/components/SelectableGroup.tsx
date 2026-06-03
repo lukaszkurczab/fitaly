@@ -27,6 +27,7 @@ type SelectableGroupProps<T extends string> = {
   onChange: (value: T) => void;
   selectionMode?: "single" | "multiple";
   variant?: "chip" | "card";
+  size?: "default" | "compact";
   columns?: 1 | 2 | 3;
   style?: StyleProp<ViewStyle>;
 };
@@ -47,6 +48,7 @@ export function SelectableGroup<T extends string>({
   onChange,
   selectionMode = "single",
   variant = "chip",
+  size = "default",
   columns = 1,
   style,
 }: SelectableGroupProps<T>) {
@@ -88,6 +90,12 @@ export function SelectableGroup<T extends string>({
               }}
               style={({ pressed }) => [
                 variant === "card" ? styles.cardOption : styles.chipOption,
+                size === "compact" && variant === "card"
+                  ? styles.cardOptionCompact
+                  : null,
+                size === "compact" && variant === "chip"
+                  ? styles.chipOptionCompact
+                  : null,
                 widthStyle,
                 selected
                   ? variant === "card"
@@ -102,6 +110,7 @@ export function SelectableGroup<T extends string>({
               <Text
                 style={[
                   variant === "card" ? styles.cardLabel : styles.chipLabel,
+                  size === "compact" ? styles.labelCompact : null,
                   selected ? styles.selectedText : null,
                 ]}
               >
@@ -112,6 +121,7 @@ export function SelectableGroup<T extends string>({
                 <Text
                   style={[
                     styles.cardDescription,
+                    size === "compact" ? styles.cardDescriptionCompact : null,
                     selected ? styles.selectedDescription : null,
                   ]}
                 >
@@ -156,29 +166,58 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
       borderRadius: theme.rounded.full,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.70)",
+      backgroundColor: theme.isDark
+        ? "rgba(32, 37, 32, 0.84)"
+        : "rgba(255, 253, 248, 0.72)",
       alignItems: "center",
       justifyContent: "center",
+    },
+    chipOptionCompact: {
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
     },
     chipOptionSelected: {
       borderColor: theme.primaryStrong,
       backgroundColor: theme.primaryStrong,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.22 : 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
     },
     cardOption: {
       minHeight: 72,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.md,
       borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.12)"
+        : "rgba(207, 197, 184, 0.68)",
+      backgroundColor: theme.isDark
+        ? "rgba(32, 37, 32, 0.86)"
+        : "rgba(255, 253, 248, 0.76)",
       gap: theme.spacing.xxs,
+    },
+    cardOptionCompact: {
+      minHeight: 58,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.rounded.md,
     },
     cardOptionSelected: {
       borderColor: theme.primaryStrong,
       backgroundColor: theme.primarySoft,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.24 : 0.1,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
     },
     chipLabel: {
       color: theme.text,
@@ -198,6 +237,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
+    },
+    labelCompact: {
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    cardDescriptionCompact: {
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
     },
     selectedText: {
       color: theme.textInverse,

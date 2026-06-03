@@ -130,13 +130,21 @@ describe("useStatisticsState", () => {
     expect(result.current.avgProtein).toBe(canonical.averages.rangeDays.protein);
     expect(result.current.avgCarbs).toBe(canonical.averages.rangeDays.carbs);
     expect(result.current.avgFat).toBe(canonical.averages.rangeDays.fat);
+    expect(result.current.avgLoggedProtein).toBe(
+      canonical.averages.loggedDays.protein,
+    );
+    expect(result.current.avgLoggedCarbs).toBe(canonical.averages.loggedDays.carbs);
+    expect(result.current.avgLoggedFat).toBe(canonical.averages.loggedDays.fat);
+    expect(result.current.loggedDaysCount).toBe(canonical.averages.loggedDaysCount);
+    expect(result.current.rangeDaysCount).toBe(canonical.averages.rangeDaysCount);
+    expect(result.current.calorieTarget).toBe(2000);
+    expect(result.current.calorieComparison).toEqual(canonical.comparison);
 
     act(() => {
       result.current.setMetric("protein");
     });
 
     expect(result.current.selectedSeries).toEqual(canonical.seriesByMetric.protein);
-    expect(result.current.metricAverage).toBe(canonical.averages.rangeDays.protein);
   });
 
   it("recomputes the active range without precomputing inactive ranges", () => {

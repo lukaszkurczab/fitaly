@@ -1,0 +1,27 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- takeScreenshot: home-secondary-method-before
+- tapOn:
+    id: home-method-selector
+- assertVisible:
+    id: meal-add-option-text
+- assertVisible:
+    id: meal-add-option-manual
+- takeScreenshot: home-secondary-method-sheet
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- takeScreenshot: home-secondary-text-start
+- tapOn:
+    id: screen-corner-button
+- assertVisible:
+    id: home-screen
+- assertVisible: "Opisz posiłek"
+- takeScreenshot: home-secondary-method-after-text-preference

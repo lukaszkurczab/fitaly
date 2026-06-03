@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -19,9 +20,11 @@ import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { emit } from "@/services/core/events";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 import { resolveE2EShareExport } from "@/services/e2e/fixtures";
 import ShareComposerCanvas from "@/feature/Meals/shareComposer/ShareComposerCanvas";
 import ShareComposerDock from "@/feature/Meals/shareComposer/ShareComposerDock";
+import CustomizeToolRail from "@/feature/Meals/shareComposer/components/CustomizeToolRail";
 import {
   createAdditionalTextLayer,
   createCompositionForPreset,
@@ -55,8 +58,15 @@ type MealShareNavigation = StackNavigationProp<RootStackParamList, "MealShare">;
 
 const DEFAULT_PRESET: SharePresetId = "quickClassic";
 
+function waitForNextFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
 export default function MealShareScreen() {
   const theme = useTheme();
+  const stylesWithTheme = useMemo(() => makeStyles(theme), [theme]);
   const navigation = useNavigation<MealShareNavigation>();
   const route = useRoute<ScreenRoute>();
   const { t } = useTranslation(["share", "common", "meals"]);
@@ -92,15 +102,15 @@ export default function MealShareScreen() {
     () => ({
       protein: t("share_macro_protein", {
         ns: "share",
-        defaultValue: "protein",
+        defaultValue: "Protein",
       }),
       carbs: t("share_macro_carbs", {
         ns: "share",
-        defaultValue: "carbs",
+        defaultValue: "Carbs",
       }),
       fat: t("share_macro_fat", {
         ns: "share",
-        defaultValue: "fat",
+        defaultValue: "Fat",
       }),
     }),
     [t],
@@ -130,6 +140,14 @@ export default function MealShareScreen() {
     error: null,
   });
   const [completed, setCompleted] = useState(false);
+  const [isCapturingExport, setIsCapturingExport] = useState(false);
+  const [e2eCapturedExportPreviewUri, setE2ECapturedExportPreviewUri] =
+    useState<string | null>(null);
+  const activeModeSurface = theme.isDark ? theme.primaryStrong : theme.primary;
+  const activeModeTextColor = theme.isDark
+    ? theme.textInverse
+    : theme.cta.primaryText;
+  const inactiveModeTextColor = theme.textSecondary;
 
   const canvasWidth = useMemo(() => {
     const available = screenWidth - theme.spacing.md * 2;
@@ -140,6 +158,8 @@ export default function MealShareScreen() {
     () => Math.round(canvasWidth * CANVAS_RATIO),
     [canvasWidth],
   );
+  const showE2EExportPreview =
+    isE2EModeEnabled() && Boolean(e2eCapturedExportPreviewUri);
 
   const trackShareEvent = useCallback(
     (_name: string, _params: Record<string, unknown> = {}) => {
@@ -203,7 +223,8 @@ export default function MealShareScreen() {
     (nextMode: "quick" | "customize") => {
       if (nextMode === mode) return;
       setMode(nextMode);
-      setExportState((prev) => ({ ...prev, error: null }));
+      setE2ECapturedExportPreviewUri(null);
+      setExportState((prev) => ({ ...prev, error: null, failedAction: null }));
       void trackShareEvent("interaction.share.mode_changed", {
         mode: nextMode,
       });
@@ -228,8 +249,9 @@ export default function MealShareScreen() {
           titleText: mealTitle,
         }),
       );
+      setE2ECapturedExportPreviewUri(null);
       setSelectedLayerId(mode === "customize" ? "cardWidget" : null);
-      setExportState((prev) => ({ ...prev, error: null }));
+      setExportState((prev) => ({ ...prev, error: null, failedAction: null }));
 
       void trackShareEvent("interaction.share.template_selected", {
         template_id: presetId,
@@ -368,7 +390,7 @@ export default function MealShareScreen() {
       ...prev,
       textLayers: [...prev.textLayers, next],
     }));
-    setSelectedLayerId(null);
+    setSelectedLayerId(next.id);
     void trackShareEvent("interaction.share.text_added");
   }, [t, trackShareEvent]);
 
@@ -385,7 +407,7 @@ export default function MealShareScreen() {
         },
       };
     });
-    setSelectedLayerId(null);
+    setSelectedLayerId("chartWidget");
     void trackShareEvent("interaction.share.widget_added", {
       widget_type: "chart",
     });
@@ -409,7 +431,7 @@ export default function MealShareScreen() {
         },
       };
     });
-    setSelectedLayerId(null);
+    setSelectedLayerId("cardWidget");
     void trackShareEvent("interaction.share.widget_added", {
       widget_type: "card",
     });
@@ -548,28 +570,17 @@ export default function MealShareScreen() {
     [selectedPreset, trackShareEvent],
   );
 
-  const handleAdditionalPhotoTreatmentChange = useCallback(
-    (
-      treatment: NonNullable<
-        ShareCompositionState["additionalPhoto"]
-      >["treatment"],
-    ) => {
-      setComposition((prev) => {
-        if (!prev.additionalPhoto) return prev;
-        return {
-          ...prev,
-          additionalPhoto: {
-            ...prev.additionalPhoto,
-            treatment,
-          },
-        };
-      });
-    },
-    [],
-  );
-
   const handleAddOrReplaceAdditionalPhoto = useCallback(async () => {
     try {
+      if (isE2EModeEnabled() && mealPhotoUri.trim().length > 0) {
+        const nextLayer = createDefaultAdditionalPhotoLayer(mealPhotoUri);
+        setComposition((prev) => ({ ...prev, additionalPhoto: nextLayer }));
+        setSelectedLayerId("additionalPhoto");
+        setExportState((prev) => ({ ...prev, error: null, failedAction: null }));
+        void trackShareEvent("interaction.share.additional_photo_added");
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
@@ -583,7 +594,7 @@ export default function MealShareScreen() {
       const nextLayer = createDefaultAdditionalPhotoLayer(result.assets[0].uri);
       setComposition((prev) => ({ ...prev, additionalPhoto: nextLayer }));
       setSelectedLayerId("additionalPhoto");
-      setExportState((prev) => ({ ...prev, error: null }));
+      setExportState((prev) => ({ ...prev, error: null, failedAction: null }));
       void trackShareEvent("interaction.share.additional_photo_added");
     } catch {
       setExportState({
@@ -594,7 +605,7 @@ export default function MealShareScreen() {
         }),
       });
     }
-  }, [t, trackShareEvent]);
+  }, [mealPhotoUri, t, trackShareEvent]);
 
   const handleRemoveSelectedLayer = useCallback(() => {
     if (
@@ -659,6 +670,7 @@ export default function MealShareScreen() {
         titleText: mealTitle,
       }),
     );
+    setE2ECapturedExportPreviewUri(null);
     setSelectedLayerId(null);
     void trackShareEvent("interaction.share.reset_used");
   }, [mealTitle, selectedPreset, trackShareEvent]);
@@ -667,28 +679,44 @@ export default function MealShareScreen() {
     if (!shotRef.current) {
       throw new Error("capture_ref_missing");
     }
-    return captureRef(shotRef, {
-      format: "png",
-      quality: 1,
-      width: Math.round(canvasWidth),
-      height: Math.round(canvasHeight),
-      result: "tmpfile",
-    });
+    setIsCapturingExport(true);
+    await waitForNextFrame();
+    await waitForNextFrame();
+    try {
+      return await captureRef(shotRef, {
+        format: "png",
+        quality: 1,
+        width: Math.round(canvasWidth),
+        height: Math.round(canvasHeight),
+        result: "tmpfile",
+      });
+    } finally {
+      setIsCapturingExport(false);
+    }
   }, [canvasHeight, canvasWidth]);
 
   const performExport = useCallback(
     async (destination: "gallery" | "share_sheet") => {
       const action = destination === "gallery" ? "save_to_gallery" : "share";
-      setExportState({ action, error: null });
+      setExportState({ action, error: null, failedAction: null });
+      setE2ECapturedExportPreviewUri(null);
       try {
         const e2eExport = resolveE2EShareExport(destination);
         if (e2eExport?.status === "error") {
           throw new Error(e2eExport.code);
         }
+        const shouldCaptureForE2ECustomize =
+          e2eExport?.status === "success" && mode === "customize";
         const assetUri =
-          e2eExport?.status === "success"
+          e2eExport?.status === "success" && !shouldCaptureForE2ECustomize
             ? e2eExport.assetUri
             : await captureCanvasUri();
+
+        if (shouldCaptureForE2ECustomize) {
+          setE2ECapturedExportPreviewUri(assetUri);
+        } else {
+          setE2ECapturedExportPreviewUri(null);
+        }
 
         if (destination === "gallery") {
           if (!e2eExport) {
@@ -718,7 +746,7 @@ export default function MealShareScreen() {
         }
 
         setCompleted(true);
-        setExportState({ action: null, error: null });
+        setExportState({ action: null, error: null, failedAction: null });
         void trackShareEvent("interaction.share.exported", {
           destination_type: destination,
           export_result: "success",
@@ -727,34 +755,33 @@ export default function MealShareScreen() {
           destination_type: destination,
         });
       } catch (error) {
-        const message =
-          destination === "gallery"
-            ? t("share_save_failed", {
-                ns: "share",
-                defaultValue: "Could not save to gallery. Please try again.",
-              })
-            : t("share_export_failed", {
-                ns: "share",
-                defaultValue: "Could not share this image. Please try again.",
-              });
+        const isGalleryPermissionDenied =
+          destination === "gallery" &&
+          String(error).toLowerCase().includes("permission");
+        let message = t("share_export_failed", {
+          ns: "share",
+          defaultValue: "Could not share this image. Please try again.",
+        });
+        if (isGalleryPermissionDenied) {
+          message = t("share_permission_required", {
+            ns: "share",
+            defaultValue: "Gallery access is off. Check permissions and try again.",
+          });
+        } else if (destination === "gallery") {
+          message = t("share_save_failed", {
+            ns: "share",
+            defaultValue: "Could not save to gallery. Please try again.",
+          });
+        }
 
-        setExportState({ action: null, error: message });
+        setExportState({ action: null, error: message, failedAction: action });
         void trackShareEvent("interaction.share.exported", {
           destination_type: destination,
           export_result: "failed",
         });
-
-        if (String(error).includes("permission")) {
-          emit("ui:toast", {
-            text: t("share_permission_required", {
-              ns: "share",
-              defaultValue: "Gallery permission is required.",
-            }),
-          });
-        }
       }
     },
-    [captureCanvasUri, t, trackShareEvent],
+    [captureCanvasUri, mode, t, trackShareEvent],
   );
 
   const handleSaveToGallery = useCallback(() => {
@@ -777,13 +804,16 @@ export default function MealShareScreen() {
           paddingRight: theme.spacing.md,
         }}
       >
-        <View style={styles.invalidContainer} testID="share-unavailable-state">
+        <View
+          style={[styles.invalidContainer, stylesWithTheme.invalidContainer]}
+          testID="share-unavailable-state"
+        >
           <Pressable
             testID="share-unavailable-close-button"
             onPress={handleClose}
             accessibilityRole="button"
             accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-            style={styles.invalidClose}
+            style={stylesWithTheme.invalidClose}
           >
             <AppIcon name="close" size={14} color={theme.primaryStrong} />
           </Pressable>
@@ -808,9 +838,7 @@ export default function MealShareScreen() {
             accessibilityLabel={t("common:close", { defaultValue: "Close" })}
             style={[
               styles.invalidButton,
-              {
-                backgroundColor: theme.primary,
-              },
+              stylesWithTheme.invalidButton,
             ]}
           >
             <Text style={styles.invalidButtonText}>
@@ -826,6 +854,7 @@ export default function MealShareScreen() {
     <Layout
       showNavigation={false}
       disableScroll
+      keyboardAvoiding={false}
       style={{
         paddingTop: insets.top + theme.spacing.xs,
         paddingBottom: theme.spacing.md,
@@ -834,69 +863,135 @@ export default function MealShareScreen() {
       }}
     >
       <View style={styles.screen} testID="share-screen">
-        <Pressable
-          testID="share-close-button"
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel={t("common:close", { defaultValue: "Close" })}
-          style={[styles.closeButtonFloating, { borderColor: theme.border }]}
+        <View
+          style={[
+            styles.topControls,
+            {
+              width: screenWidth,
+              marginHorizontal: -theme.spacing.md,
+              paddingLeft: Math.max(
+                insets.left,
+                insets.right,
+                theme.spacing.lg,
+              ),
+              paddingRight: Math.max(
+                insets.left,
+                insets.right,
+                theme.spacing.lg,
+              ),
+            },
+          ]}
         >
-          <AppIcon name="close" size={14} color={theme.primaryStrong} />
-        </Pressable>
+          <View style={styles.topControlsSide}>
+            <Pressable
+              testID="share-back-button"
+              onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("common:back", { defaultValue: "Back" })}
+              hitSlop={8}
+              style={({ pressed }) => [
+                stylesWithTheme.navIconButton,
+                pressed ? styles.navIconButtonPressed : null,
+              ]}
+            >
+              <AppIcon name="arrow" size={20} color={theme.text} />
+            </Pressable>
+          </View>
 
-        <View style={[styles.modeSwitch, { borderColor: theme.border }]}>
-          <Pressable
-            testID="share-mode-quick-button"
-            onPress={() => handleSwitchMode("quick")}
-            accessibilityRole="button"
-            accessibilityLabel={t("share_mode_quick", {
-              ns: "share",
-              defaultValue: "Quick mode",
-            })}
-            style={[
-              styles.modeSwitchChip,
-              mode === "quick"
-                ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                : { backgroundColor: "#FBF8F2", borderColor: theme.border },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeSwitchLabel,
-                {
-                  color: mode === "quick" ? "#FBF8F2" : "#7A6D5E",
-                },
+          <View style={styles.topControlsCenter}>
+            <View style={stylesWithTheme.modeSwitch}>
+              <Pressable
+                testID="share-mode-quick-button"
+                onPress={() => handleSwitchMode("quick")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === "quick" }}
+                accessibilityLabel={t("share_mode_quick", {
+                  ns: "share",
+                  defaultValue: "Quick mode",
+                })}
+                style={[
+                  styles.modeSwitchChip,
+                  mode === "quick"
+                    ? [
+                        stylesWithTheme.modeSwitchChipActive,
+                        { backgroundColor: activeModeSurface },
+                      ]
+                    : stylesWithTheme.modeSwitchChipInactive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modeSwitchLabel,
+                    {
+                      color:
+                        mode === "quick"
+                          ? activeModeTextColor
+                          : inactiveModeTextColor,
+                      fontFamily:
+                        mode === "quick"
+                          ? theme.typography.fontFamily.semiBold
+                          : theme.typography.fontFamily.medium,
+                    },
+                  ]}
+                >
+                  {quickModeLabel}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="share-mode-customize-button"
+                onPress={() => handleSwitchMode("customize")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === "customize" }}
+                accessibilityLabel={t("share_mode_customize", {
+                  ns: "share",
+                  defaultValue: "Customize mode",
+                })}
+                style={[
+                  styles.modeSwitchChip,
+                  mode === "customize"
+                    ? [
+                        stylesWithTheme.modeSwitchChipActive,
+                        { backgroundColor: activeModeSurface },
+                      ]
+                    : stylesWithTheme.modeSwitchChipInactive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modeSwitchLabel,
+                    {
+                      color:
+                        mode === "customize"
+                          ? activeModeTextColor
+                          : inactiveModeTextColor,
+                      fontFamily:
+                        mode === "customize"
+                          ? theme.typography.fontFamily.semiBold
+                          : theme.typography.fontFamily.medium,
+                    },
+                  ]}
+                >
+                  {customizeModeLabel}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.topControlsSide, styles.topControlsRight]}>
+            <Pressable
+              testID="share-close-button"
+              onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("common:close", { defaultValue: "Close" })}
+              hitSlop={8}
+              style={({ pressed }) => [
+                stylesWithTheme.navIconButton,
+                pressed ? styles.navIconButtonPressed : null,
               ]}
             >
-              {quickModeLabel}
-            </Text>
-          </Pressable>
-          <Pressable
-            testID="share-mode-customize-button"
-            onPress={() => handleSwitchMode("customize")}
-            accessibilityRole="button"
-            accessibilityLabel={t("share_mode_customize", {
-              ns: "share",
-              defaultValue: "Customize mode",
-            })}
-            style={[
-              styles.modeSwitchChip,
-              mode === "customize"
-                ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                : { backgroundColor: "#FBF8F2", borderColor: theme.border },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeSwitchLabel,
-                {
-                  color: mode === "customize" ? "#FBF8F2" : "#7A6D5E",
-                },
-              ]}
-            >
-              {customizeModeLabel}
-            </Text>
-          </Pressable>
+              <AppIcon name="close" size={18} color={theme.text} />
+            </Pressable>
+          </View>
         </View>
 
         <View
@@ -906,8 +1001,8 @@ export default function MealShareScreen() {
             {
               width: canvasWidth,
               height: canvasHeight,
-              borderColor: theme.borderSoft,
             },
+            stylesWithTheme.canvasFrame,
           ]}
         >
           <ViewShot ref={shotRef} style={styles.canvasWrap}>
@@ -928,6 +1023,7 @@ export default function MealShareScreen() {
               composition={composition}
               mode={mode}
               selectedLayerId={selectedLayerId}
+              editorChromeVisible={!isCapturingExport}
               onSelectLayer={(layerId) => {
                 if (mode !== "customize") return;
                 if (layerId === "mealPhoto") {
@@ -941,37 +1037,68 @@ export default function MealShareScreen() {
               onBackgroundPress={handleCanvasBackgroundPress}
             />
           </ViewShot>
+          {e2eCapturedExportPreviewUri ? (
+            <View
+              pointerEvents="none"
+              testID="share-e2e-export-preview"
+              style={styles.e2eExportPreview}
+            >
+              <Image
+                source={{ uri: e2eCapturedExportPreviewUri }}
+                resizeMode="cover"
+                style={styles.e2eExportPreviewImage}
+              />
+            </View>
+          ) : null}
+          {mode === "customize" && !showE2EExportPreview ? (
+            <CustomizeToolRail
+              textLabel={t("dock.utility_text", { ns: "share" })}
+              chartLabel={t("dock.utility_chart", { ns: "share" })}
+              cardLabel={t("dock.utility_card", { ns: "share" })}
+              photoLabel={t("dock.utility_photo", { ns: "share" })}
+              resetLabel={t("dock.utility_reset", { ns: "share" })}
+              hasChart={Boolean(composition.widgets.chart)}
+              hasCard={Boolean(composition.widgets.card)}
+              hasPhoto={Boolean(composition.additionalPhoto)}
+              selectedLayerId={selectedLayerId}
+              onAddTextLayer={handleAddTextLayer}
+              onEnsureChartLayer={handleEnsureChartLayer}
+              onEnsureCardLayer={handleEnsureCardLayer}
+              onAddOrReplaceAdditionalPhoto={handleAddOrReplaceAdditionalPhoto}
+              onResetComposition={handleResetComposition}
+            />
+          ) : null}
         </View>
 
-        <ShareComposerDock
-          width={canvasWidth}
-          mode={mode}
-          selectedPreset={selectedPreset}
-          activeEditorKind={activeEditorKind}
-          selectedLayerId={selectedLayerId}
-          composition={composition}
-          mealPhotoUri={mealPhotoUri}
-          exportState={exportState}
-          onPresetSelect={handlePresetSelect}
-          onSaveToGallery={handleSaveToGallery}
-          onShare={handleShare}
-          onRemoveSelectedLayer={handleRemoveSelectedLayer}
-          onResetComposition={handleResetComposition}
-          onTextStyleChange={handleTextStyleChange}
-          onChartVariantChange={handleChartVariantChange}
-          onChartStyleChange={handleChartStyleChange}
-          onCardVariantChange={handleCardVariantChange}
-          onCardStyleChange={handleCardStyleChange}
-          onAdditionalPhotoTreatmentChange={
-            handleAdditionalPhotoTreatmentChange
-          }
-          onAddTextLayer={handleAddTextLayer}
-          onEnsureChartLayer={handleEnsureChartLayer}
-          onEnsureCardLayer={handleEnsureCardLayer}
-          onAddOrReplaceAdditionalPhoto={handleAddOrReplaceAdditionalPhoto}
-        />
+        {!showE2EExportPreview ? (
+          <ShareComposerDock
+            width={screenWidth}
+            contentWidth={canvasWidth}
+            mode={mode}
+            selectedPreset={selectedPreset}
+            activeEditorKind={activeEditorKind}
+            selectedLayerId={selectedLayerId}
+            composition={composition}
+            mealPhotoUri={mealPhotoUri}
+            nutrition={nutrition}
+            exportState={exportState}
+            onPresetSelect={handlePresetSelect}
+            onSaveToGallery={handleSaveToGallery}
+            onShare={handleShare}
+            onRemoveSelectedLayer={handleRemoveSelectedLayer}
+            onTextStyleChange={handleTextStyleChange}
+            onChartVariantChange={handleChartVariantChange}
+            onChartStyleChange={handleChartStyleChange}
+            onCardVariantChange={handleCardVariantChange}
+            onCardStyleChange={handleCardStyleChange}
+            onAdditionalPhotoReplace={handleAddOrReplaceAdditionalPhoto}
+          />
+        ) : null}
         {completed ? (
-          <Text testID="share-export-success" style={styles.exportSuccess}>
+          <Text
+            testID="share-export-success"
+            style={stylesWithTheme.exportSuccess}
+          >
             {t("share_saved_to_gallery", {
               ns: "share",
               defaultValue: "Saved to gallery.",
@@ -990,44 +1117,60 @@ const styles = StyleSheet.create({
     gap: 8,
     position: "relative",
   },
-  closeButtonFloating: {
-    position: "absolute",
-    top: 0,
-    left: 4,
-    zIndex: 5,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
+  topControls: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  topControlsSide: {
+    width: 44,
+    height: 44,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  topControlsRight: {
+    alignItems: "flex-end",
+  },
+  topControlsCenter: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FBF8F2",
+  },
+  navIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconButtonPressed: {
+    opacity: 0.72,
   },
   modeSwitch: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 2,
+    borderRadius: 18,
+    padding: 3,
     flexDirection: "row",
-    gap: 3,
-    backgroundColor: "#FBF8F2",
+    gap: 4,
+    minHeight: 38,
   },
   modeSwitchChip: {
-    minHeight: 24,
-    minWidth: 67,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
+    minHeight: 30,
+    minWidth: 82,
+    borderRadius: 15,
+    paddingHorizontal: 11,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
   modeSwitchLabel: {
-    fontSize: 11,
-    lineHeight: 12,
-    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    lineHeight: 14,
   },
   canvasFrame: {
     borderRadius: 31,
-    borderWidth: 1,
     overflow: "hidden",
   },
   canvasWrap: {
@@ -1035,31 +1178,22 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: "hidden",
   },
+  e2eExportPreview: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 30,
+    overflow: "hidden",
+    zIndex: 40,
+  },
+  e2eExportPreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
   invalidContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 20,
-  },
-  exportSuccess: {
-    color: "#3A4834",
-    fontFamily: "Inter-SemiBold",
-    fontSize: 11,
-    lineHeight: 13,
-  },
-  invalidClose: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E0D7C7",
-    backgroundColor: "#FBF8F2",
   },
   invalidTitle: {
     fontSize: 20,
@@ -1090,3 +1224,71 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
+
+const makeStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    navIconButton: {
+      ...styles.navIconButton,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.72)"
+        : "rgba(255,253,248,0.64)",
+    },
+    modeSwitch: {
+      ...styles.modeSwitch,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.96)"
+        : "rgba(255,253,248,0.88)",
+    },
+    modeSwitchChipActive: {
+      borderColor: theme.isDark ? theme.primaryStrong : theme.primary,
+      borderWidth: 1,
+    },
+    modeSwitchChipInactive: {
+      backgroundColor: "transparent",
+      borderColor: "transparent",
+      borderWidth: 1,
+    },
+    canvasFrame: {
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.05)"
+        : "rgba(255,253,248,0.22)",
+    },
+    exportSuccess: {
+      color: theme.success.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: 11,
+      lineHeight: 13,
+    },
+    invalidContainer: {
+      borderRadius: theme.rounded.xxl,
+      borderWidth: 1,
+      borderColor: theme.isDark
+        ? "rgba(255,253,248,0.14)"
+        : "rgba(79,104,75,0.14)",
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.52)"
+        : "rgba(255,253,248,0.46)",
+    },
+    invalidClose: {
+      position: "absolute",
+      top: 12,
+      left: 12,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceAlt,
+    },
+    invalidButton: {
+      backgroundColor: theme.primary,
+    },
+  });

@@ -1,0 +1,101 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-filter-button
+- assertVisible:
+    id: history-filter-panel
+- assertVisible:
+    id: history-filter-protein
+- assertVisible:
+    id: history-filter-carbs
+- assertVisible:
+    id: history-filter-fat
+- takeScreenshot: mj041-history-filters-enabled-light
+- tapOn:
+    id: history-filter-date-today
+- tapOn:
+    id: history-filter-calories-300-600
+- assertVisible:
+    id: history-filter-show-results-button
+- takeScreenshot: mj041-history-active-filter-chips-light
+- tapOn:
+    id: history-filter-show-results-button
+- assertVisible:
+    id: history-list-screen
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- tapOn:
+    id: history-filter-button
+- assertVisible:
+    id: history-filter-panel
+- tapOn:
+    id: history-filter-reset-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-filter-button
+- assertVisible:
+    id: history-filter-panel
+- assertVisible:
+    id: history-filter-protein
+- assertVisible:
+    id: history-filter-carbs
+- assertVisible:
+    id: history-filter-fat
+- takeScreenshot: mj041-history-filters-enabled-dark
+- tapOn:
+    id: history-filter-date-today
+- tapOn:
+    id: history-filter-calories-300-600
+- assertVisible:
+    id: history-filter-show-results-button
+- takeScreenshot: mj041-history-active-filter-chips-dark

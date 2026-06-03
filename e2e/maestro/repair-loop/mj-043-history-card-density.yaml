@@ -1,0 +1,220 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-ai-textSuccess
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: E2E Stats Bowl
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- assertVisible:
+    id: review-meal-save-button
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: mj043-history-after-save-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-ai-textSuccess
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: E2E Dark Bowl
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-analyze-button
+- tapOn:
+    id: add-meal-text-analyze-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- assertVisible:
+    id: review-meal-save-button
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- takeScreenshot: mj043-history-after-save-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-synced-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-synced-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- assertNotVisible:
+    id: history-meal-sync-synced-0
+- takeScreenshot: mj043-history-no-photo-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-synced-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-synced-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- assertNotVisible:
+    id: history-meal-sync-synced-0
+- takeScreenshot: mj043-history-no-photo-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light&offline=1"
+- assertVisible:
+    id: e2e-ready-offline
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- assertVisible:
+    id: history-meal-sync-pending-0
+- takeScreenshot: mj043-history-pending-sync-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark&offline=1"
+- assertVisible:
+    id: e2e-ready-offline
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: history-meal-row-0
+    timeout: 10000
+- assertVisible:
+    id: history-meal-sync-pending-0
+- takeScreenshot: mj043-history-pending-sync-dark
+
+- openLink: "fitaly://e2e/connectivity?offline=0"
+- assertVisible:
+    id: e2e-ready-home

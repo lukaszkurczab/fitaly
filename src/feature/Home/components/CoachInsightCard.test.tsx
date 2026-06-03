@@ -1,5 +1,6 @@
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest, beforeEach } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import CoachInsightCard from "@/feature/Home/components/CoachInsightCard";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import type { CoachInsight } from "@/services/coach/coachTypes";
@@ -70,6 +71,20 @@ describe("CoachInsightCard", () => {
     jest.clearAllMocks();
     mockTrackCoachInsightViewed.mockResolvedValue(undefined);
     mockTrackCoachInsightTapped.mockResolvedValue(undefined);
+  });
+
+  it("uses tint and border instead of theme depth", () => {
+    const { getByTestId } = renderWithTheme(
+      <CoachInsightCard insight={createInsight()} />,
+    );
+
+    const cardStyle = StyleSheet.flatten(
+      getByTestId("coach-insight-card").props.style,
+    );
+
+    expect(cardStyle.shadowOpacity).toBeUndefined();
+    expect(cardStyle.shadowRadius).toBeUndefined();
+    expect(cardStyle.elevation).toBeUndefined();
   });
 
   it("renders the insight and triggers CTA", () => {

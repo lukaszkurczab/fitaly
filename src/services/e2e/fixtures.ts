@@ -27,6 +27,7 @@ import type { Ingredient, Meal } from "@/types/meal";
 
 export type E2EFixtureName =
   | "activated-user-empty"
+  | "user-with-synced-meal"
   | "user-with-today-meal"
   | "user-with-photo-meal"
   | "user-with-saved-meals"
@@ -47,7 +48,10 @@ export type E2EBillingSeed =
   | "free"
   | "premium"
   | "restoreSuccess"
-  | "restoreFailure";
+  | "restorePending"
+  | "restoreFailure"
+  | "restoreSlowFailure"
+  | "restoreError";
 export type E2EChatSeed = "success" | "failure";
 export type E2EShareExportSeed =
   | "success"
@@ -79,6 +83,7 @@ type E2EFixtureState = E2ESeedCommand;
 
 const VALID_FIXTURES = new Set<E2EFixtureName>([
   "activated-user-empty",
+  "user-with-synced-meal",
   "user-with-today-meal",
   "user-with-photo-meal",
   "user-with-saved-meals",
@@ -106,7 +111,10 @@ const VALID_BILLING = new Set<E2EBillingSeed>([
   "free",
   "premium",
   "restoreSuccess",
+  "restorePending",
   "restoreFailure",
+  "restoreSlowFailure",
+  "restoreError",
 ]);
 const VALID_CHAT = new Set<E2EChatSeed>(["success", "failure"]);
 const VALID_SHARE_EXPORT = new Set<E2EShareExportSeed>([
@@ -258,12 +266,31 @@ function meal(params: {
     params.ingredients ??
     [
       ingredient({
-        id: `${params.id}-ingredient`,
-        name: "E2E grilled bowl",
-        kcal: 420,
-        protein: 32,
-        carbs: 41,
-        fat: 14,
+        id: `${params.id}-chicken`,
+        name: "Kurczak grillowany",
+        amount: 140,
+        kcal: 230,
+        protein: 40,
+        carbs: 0,
+        fat: 6,
+      }),
+      ingredient({
+        id: `${params.id}-rice`,
+        name: "Ryż gotowany",
+        amount: 160,
+        kcal: 210,
+        protein: 4,
+        carbs: 45,
+        fat: 1,
+      }),
+      ingredient({
+        id: `${params.id}-vegetables`,
+        name: "Warzywa na parze",
+        amount: 120,
+        kcal: 70,
+        protein: 3,
+        carbs: 12,
+        fat: 1,
       }),
     ];
   return {
@@ -346,9 +373,83 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-today-meal",
-        name: "E2E Today Meal",
+        name: "Jogurt z owocami i granolą",
         inputMethod: "manual",
+        ingredients: [
+          ingredient({
+            id: "e2e-today-greek-yogurt",
+            name: "Jogurt grecki",
+            amount: 200,
+            kcal: 150,
+            protein: 14,
+            carbs: 10,
+            fat: 5,
+          }),
+          ingredient({
+            id: "e2e-today-blueberries",
+            name: "Borówki",
+            amount: 80,
+            kcal: 45,
+            protein: 1,
+            carbs: 11,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-today-granola",
+            name: "Granola",
+            amount: 40,
+            kcal: 180,
+            protein: 5,
+            carbs: 28,
+            fat: 7,
+          }),
+        ],
       }),
+    );
+    return;
+  }
+
+  if (fixture === "user-with-synced-meal") {
+    await seedVisibleMeal(
+      uid,
+      {
+        ...meal({
+          uid,
+          id: "e2e-synced-meal",
+          name: "Jogurt z owocami i granolą",
+          inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-synced-greek-yogurt",
+              name: "Jogurt grecki",
+              amount: 200,
+              kcal: 150,
+              protein: 14,
+              carbs: 10,
+              fat: 5,
+            }),
+            ingredient({
+              id: "e2e-synced-blueberries",
+              name: "Borówki",
+              amount: 80,
+              kcal: 45,
+              protein: 1,
+              carbs: 11,
+              fat: 0,
+            }),
+            ingredient({
+              id: "e2e-synced-granola",
+              name: "Granola",
+              amount: 40,
+              kcal: 180,
+              protein: 5,
+              carbs: 28,
+              fat: 7,
+            }),
+          ],
+        }),
+        syncState: "synced",
+      },
     );
     return;
   }
@@ -360,8 +461,37 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-failed-meal",
-          name: "E2E Failed Meal",
+          name: "Kanapka z jajkiem",
           inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-failed-bread",
+              name: "Pieczywo pełnoziarniste",
+              amount: 80,
+              kcal: 190,
+              protein: 8,
+              carbs: 34,
+              fat: 3,
+            }),
+            ingredient({
+              id: "e2e-failed-eggs",
+              name: "Jajka gotowane",
+              amount: 100,
+              kcal: 155,
+              protein: 13,
+              carbs: 1,
+              fat: 11,
+            }),
+            ingredient({
+              id: "e2e-failed-tomato",
+              name: "Pomidor",
+              amount: 60,
+              kcal: 12,
+              protein: 1,
+              carbs: 3,
+              fat: 0,
+            }),
+          ],
         }),
         syncState: "failed",
       },
@@ -376,8 +506,37 @@ async function applyNamedFixture(
         ...meal({
           uid,
           id: "e2e-conflict-meal",
-          name: "E2E Conflict Meal",
+          name: "Makaron z pomidorami",
           inputMethod: "manual",
+          ingredients: [
+            ingredient({
+              id: "e2e-conflict-pasta",
+              name: "Makaron gotowany",
+              amount: 180,
+              kcal: 280,
+              protein: 9,
+              carbs: 56,
+              fat: 2,
+            }),
+            ingredient({
+              id: "e2e-conflict-sauce",
+              name: "Sos pomidorowy",
+              amount: 120,
+              kcal: 80,
+              protein: 2,
+              carbs: 14,
+              fat: 2,
+            }),
+            ingredient({
+              id: "e2e-conflict-parmesan",
+              name: "Parmesan",
+              amount: 20,
+              kcal: 80,
+              protein: 7,
+              carbs: 1,
+              fat: 6,
+            }),
+          ],
         }),
         syncState: "conflict",
       },
@@ -392,10 +551,39 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-photo-meal",
-        name: "E2E Photo Meal",
+        name: "Talerz z kurczakiem",
         source: "ai",
         inputMethod: "photo",
         photoUrl: sampleMealUri,
+        ingredients: [
+          ingredient({
+            id: "e2e-photo-chicken",
+            name: "Kurczak grillowany",
+            amount: 150,
+            kcal: 245,
+            protein: 43,
+            carbs: 0,
+            fat: 6,
+          }),
+          ingredient({
+            id: "e2e-photo-potatoes",
+            name: "Pieczone ziemniaki",
+            amount: 160,
+            kcal: 210,
+            protein: 4,
+            carbs: 38,
+            fat: 5,
+          }),
+          ingredient({
+            id: "e2e-photo-salad",
+            name: "Sałatka z ogórka i pomidora",
+            amount: 120,
+            kcal: 45,
+            protein: 2,
+            carbs: 8,
+            fat: 1,
+          }),
+        ],
       }),
     );
     return;
@@ -407,9 +595,38 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-1",
-        name: "E2E Saved Bowl",
+        name: "Miska z kaszą i warzywami",
         source: "saved",
         inputMethod: "saved",
+        ingredients: [
+          ingredient({
+            id: "e2e-saved-bulgur",
+            name: "Kasza bulgur",
+            amount: 160,
+            kcal: 170,
+            protein: 6,
+            carbs: 37,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-saved-chickpeas",
+            name: "Ciecierzyca",
+            amount: 100,
+            kcal: 165,
+            protein: 9,
+            carbs: 27,
+            fat: 3,
+          }),
+          ingredient({
+            id: "e2e-saved-vegetables",
+            name: "Pieczone warzywa",
+            amount: 140,
+            kcal: 90,
+            protein: 3,
+            carbs: 16,
+            fat: 2,
+          }),
+        ],
       }),
     );
     await seedSavedMeal(
@@ -417,17 +634,36 @@ async function applyNamedFixture(
       meal({
         uid,
         id: "e2e-saved-meal-2",
-        name: "E2E Saved Smoothie",
+        name: "Koktajl białkowy z owocami",
         source: "saved",
         inputMethod: "saved",
         ingredients: [
           ingredient({
-            id: "e2e-smoothie-ingredient",
-            name: "E2E protein smoothie",
-            kcal: 310,
-            protein: 28,
-            carbs: 30,
-            fat: 8,
+            id: "e2e-smoothie-yogurt",
+            name: "Jogurt grecki",
+            amount: 180,
+            kcal: 135,
+            protein: 17,
+            carbs: 7,
+            fat: 4,
+          }),
+          ingredient({
+            id: "e2e-smoothie-berries",
+            name: "Owoce jagodowe",
+            amount: 120,
+            kcal: 65,
+            protein: 1,
+            carbs: 15,
+            fat: 0,
+          }),
+          ingredient({
+            id: "e2e-smoothie-banana",
+            name: "Banana",
+            amount: 90,
+            kcal: 80,
+            protein: 1,
+            carbs: 21,
+            fat: 0,
           }),
         ],
       }),
@@ -439,7 +675,7 @@ async function applyNamedFixture(
     const draft = meal({
       uid,
       id: "e2e-draft-meal",
-      name: "E2E Draft Meal",
+      name: "Kurczak z ryżem",
       source: "manual",
       inputMethod: "manual",
     });
@@ -560,7 +796,7 @@ export function resolveE2EChatRun(): { reply: string } | { error: Error } | null
     case "success":
       return {
         reply:
-          "E2E chat response: keep hydration consistent and plan the next meal.",
+          "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
       };
     case "failure":
       return {
@@ -587,12 +823,12 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
     ...creditsStatus(uid, fixtureState.credits ?? "ok"),
     ingredients: [
       {
-        name: "E2E analyzed bowl",
-        amount: 100,
-        kcal: 430,
-        protein: 31,
-        carbs: 45,
-        fat: 13,
+        name: "Kurczak z ryżem",
+        amount: 380,
+        kcal: 520,
+        protein: 38,
+        carbs: 58,
+        fat: 14,
       },
     ],
   };
@@ -601,11 +837,12 @@ function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
 function e2eAiIngredient(): Ingredient {
   return ingredient({
     id: "e2e-ai-ingredient",
-    name: "E2E analyzed bowl",
-    kcal: 430,
-    protein: 31,
-    carbs: 45,
-    fat: 13,
+    name: "Kurczak z ryżem",
+    amount: 380,
+    kcal: 520,
+    protein: 38,
+    carbs: 58,
+    fat: 14,
   });
 }
 
@@ -708,34 +945,34 @@ function e2eWeeklyReport(weekEnd: string): WeeklyReport {
       startDay: addDaysToDayKey(weekEnd, -6),
       endDay: weekEnd,
     },
-    summary: "E2E weekly report: calories and protein stayed consistent.",
+    summary: "E2E: kalorie i białko utrzymały stabilny rytm.",
     insights: [
       {
         type: "consistency",
         importance: "high",
         tone: "positive",
-        title: "Consistent logging",
-        body: "Most meals were logged close to the planned day windows.",
+        title: "Regularne wpisy",
+        body: "Większość posiłków została dodana blisko planowanych pór dnia.",
         reasonCodes: ["e2e_consistency"],
       },
       {
         type: "logging_coverage",
         importance: "medium",
         tone: "neutral",
-        title: "Coverage is improving",
-        body: "Lunch and dinner have enough signal for a useful review.",
+        title: "Pełniejszy obraz dnia",
+        body: "Lunch i kolacja dają już wystarczający sygnał do krótkiego przeglądu.",
         reasonCodes: ["e2e_coverage"],
       },
     ],
     priorities: [
       {
         type: "maintain_consistency",
-        text: "Keep logging your first meal before noon.",
+        text: "Dodawaj pierwszy posiłek przed południem.",
         reasonCodes: ["e2e_priority"],
       },
       {
         type: "increase_logging_coverage",
-        text: "Add missing snacks when they affect your daily totals.",
+        text: "Uzupełniaj przekąski, gdy zmieniają dzienną sumę.",
         reasonCodes: ["e2e_snacks"],
       },
     ],
@@ -815,6 +1052,7 @@ export function resolveE2EShareExport(
 
 const E2E_TEXT_SLOW_ANALYSIS_DELAY_MS = 4000;
 const E2E_PHOTO_SLOW_ANALYSIS_DELAY_MS = 4000;
+const E2E_BILLING_RESTORE_SLOW_DELAY_MS = 5000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -874,10 +1112,10 @@ export function resolveE2EBarcodeLookup(): BarcodeLookupResult | null {
     case "known":
       return {
         kind: "found",
-        name: "E2E Barcode Yogurt",
+        name: "Jogurt naturalny",
         ingredient: ingredient({
           id: "e2e-barcode-ingredient",
-          name: "E2E Barcode Yogurt",
+          name: "Jogurt naturalny",
           kcal: 120,
           protein: 10,
           carbs: 12,
@@ -896,13 +1134,42 @@ export function resolveE2EBarcodeLookup(): BarcodeLookupResult | null {
 
 export function resolveE2EBillingPurchaseResult(
   action: "purchase" | "restore",
-): { status: "success" } | { status: "error"; errorCode: "entitlement_inactive"; message: string } | null {
+):
+  | { status: "success"; delayMs?: number }
+  | {
+      status: "error";
+      errorCode: "entitlement_inactive" | "network";
+      message: string;
+      delayMs?: number;
+    }
+  | null {
   if (!isE2EModeEnabled()) return null;
   const billing = fixtureState.billing;
   if (!billing) return null;
 
   if (billing === "premium" || billing === "restoreSuccess") {
     return { status: "success" };
+  }
+
+  if (billing === "restorePending" && action === "restore") {
+    return { status: "success" };
+  }
+
+  if (billing === "restoreError" && action === "restore") {
+    return {
+      status: "error",
+      errorCode: "network",
+      message: "E2E restore could not contact the store.",
+    };
+  }
+
+  if (billing === "restoreSlowFailure" && action === "restore") {
+    return {
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E delayed restore did not find an active entitlement.",
+      delayMs: E2E_BILLING_RESTORE_SLOW_DELAY_MS,
+    };
   }
 
   if (billing === "restoreFailure" || action === "restore") {

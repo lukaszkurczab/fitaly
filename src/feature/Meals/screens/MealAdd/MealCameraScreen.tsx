@@ -1,14 +1,21 @@
-import { useMemo } from "react";
-import { Image, View, StyleSheet, Pressable, Text, Linking } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Image,
+  View,
+  StyleSheet,
+  Pressable,
+  Text,
+  Linking,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  type GestureResponderEvent,
+} from "react-native";
 import { CameraView } from "expo-camera";
 import * as Device from "expo-device";
 import { useTranslation } from "react-i18next";
-import {
-  Button,
-  Layout,
-  PhotoPreview,
-  ScreenCornerNavButton,
-} from "@/components";
+import { Layout, PhotoPreview } from "@/components";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { Modal } from "@/components/Modal";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import type {
@@ -18,14 +25,43 @@ import type {
 import { useMealCameraState } from "@/feature/Meals/hooks/useMealCameraState";
 import {
   MealAddPhotoScaffold,
-  MealAddTextLink,
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import { useTheme } from "@/theme/useTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppIcon from "@/components/AppIcon";
+import { useAuthContext } from "@/context/AuthContext";
+import { useMealDraftContext } from "@contexts/MealDraftContext";
+import { setPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SAMPLE_MEAL_PREVIEW = require("../../../../../assets/sampleMeal.jpg");
+
+const CAMERA_MODE_TRANSITION: Parameters<
+  typeof LayoutAnimation.configureNext
+>[0] = {
+  duration: 260,
+  create: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+  update: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+  },
+  delete: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+};
+
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+function configureCameraModeTransition() {
+  LayoutAnimation.configureNext(CAMERA_MODE_TRANSITION);
+}
 
 export default function MealCameraScreen({
   navigation,
@@ -35,9 +71,20 @@ export default function MealCameraScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const { uid } = useAuthContext();
+  const { clearMeal } = useMealDraftContext();
   const { t: tCommon } = useTranslation("common");
   const { t: tMeals } = useTranslation("meals");
   const { t: tChat } = useTranslation("chat");
+  const fullscreenPreferred = params.fullscreenPreferred === true;
+  const fullscreenControlColor = "#FFFDF8";
+  const [isCameraFullscreen, setIsCameraFullscreen] =
+    useState(fullscreenPreferred);
+  const isCameraFullscreenRef = useRef(fullscreenPreferred);
+  const sheetGestureStartRef = useRef<{ x: number; y: number } | null>(null);
+  const fullscreenGestureStartRef = useRef<{ x: number; y: number } | null>(
+    null,
+  );
   const canStepBack = flow.canGoBack();
   const isSimulatorPreview =
     typeof __DEV__ !== "undefined" && __DEV__ && !Device.isDevice;
@@ -45,15 +92,6 @@ export default function MealCameraScreen({
   const e2eAiSeed = getE2EFixtureState()?.ai;
   const e2ePhotoSimulation =
     e2eAiSeed === "photoSuccess" || e2eAiSeed === "photoSlow";
-
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
 
   const {
     permission,
@@ -81,12 +119,42 @@ export default function MealCameraScreen({
     navigation.goBack();
   };
 
+  const handleCloseFlow = () => {
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  };
+
   const handleChangeMethod = () => {
     navigation.navigate("MealAddMethod", {
       selectionMode: "temporary",
       origin: "mealAddFlow",
     });
   };
+
+  const setCameraFullscreenMode = useCallback((nextFullscreen: boolean) => {
+    if (isCameraFullscreenRef.current !== nextFullscreen) {
+      configureCameraModeTransition();
+      isCameraFullscreenRef.current = nextFullscreen;
+    }
+
+    setIsCameraFullscreen(nextFullscreen);
+  }, []);
+
+  const handleEnterFullscreenCamera = useCallback(() => {
+    setCameraFullscreenMode(true);
+    void setPhotoFullscreenPreference(uid, true);
+  }, [setCameraFullscreenMode, uid]);
+
+  const handleExitFullscreenCamera = useCallback(() => {
+    setCameraFullscreenMode(false);
+    void setPhotoFullscreenPreference(uid, false);
+  }, [setCameraFullscreenMode, uid]);
 
   const photoCost = credits?.costs.photo ?? 5;
   const rawBadgeLabel = tChat(
@@ -119,6 +187,65 @@ export default function MealCameraScreen({
     : remainingAfterPhoto;
   const showNoCreditsState = !skipDetection && cameraCreditsState === "none";
   const isLowCredits = !skipDetection && cameraCreditsState === "low";
+  const canUseFullscreenCamera = !showNoCreditsState;
+  const showFullscreenCamera = isCameraFullscreen && canUseFullscreenCamera;
+  const fullscreenBottomInset = Math.max(
+    insets.bottom + theme.spacing.lg,
+    theme.spacing.xl,
+  );
+  const footerBottomInset = Math.max(
+    insets.bottom - theme.spacing.xxs,
+    theme.spacing.sm,
+  );
+
+  useEffect(() => {
+    setCameraFullscreenMode(fullscreenPreferred);
+  }, [fullscreenPreferred, setCameraFullscreenMode]);
+
+  const handleSheetTouchStart = useCallback((event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    sheetGestureStartRef.current = { x: pageX, y: pageY };
+  }, []);
+
+  const handleSheetTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const start = sheetGestureStartRef.current;
+      sheetGestureStartRef.current = null;
+      if (!canUseFullscreenCamera || !start) return;
+
+      const { pageX, pageY } = event.nativeEvent;
+      const dx = pageX - start.x;
+      const dy = pageY - start.y;
+      if (dy > 44 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        handleEnterFullscreenCamera();
+      }
+    },
+    [canUseFullscreenCamera, handleEnterFullscreenCamera],
+  );
+
+  const handleFullscreenTouchStart = useCallback(
+    (event: GestureResponderEvent) => {
+      const { pageX, pageY } = event.nativeEvent;
+      fullscreenGestureStartRef.current = { x: pageX, y: pageY };
+    },
+    [],
+  );
+
+  const handleFullscreenTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const start = fullscreenGestureStartRef.current;
+      fullscreenGestureStartRef.current = null;
+      if (!showFullscreenCamera || !start) return;
+
+      const { pageX, pageY } = event.nativeEvent;
+      const dx = pageX - start.x;
+      const dy = pageY - start.y;
+      if (dy < -44 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        handleExitFullscreenCamera();
+      }
+    },
+    [handleExitFullscreenCamera, showFullscreenCamera],
+  );
 
   const title = showNoCreditsState
     ? tMeals("camera_no_credits_title", {
@@ -151,15 +278,28 @@ export default function MealCameraScreen({
             count: Math.max(previewRemainingAfterPhoto, 0),
             defaultValue: "Only {{count}} credits left after this photo",
           })
-        : tMeals("camera_credits_remaining_note", {
+      : tMeals("camera_credits_remaining_note", {
             count: Math.max(previewRemainingAfterPhoto, 0),
             defaultValue: "✦ {{count}} credits remaining",
           });
+  const flowHeader = (
+    <AddMealFlowHeader
+      progress={flow.progress}
+      onBack={handleTopLeftPress}
+      onClose={handleCloseFlow}
+      containerStyle={styles.flowHeader}
+      testID="add-meal-photo-flow-header"
+      backTestID="add-meal-photo-back"
+      closeTestID="add-meal-photo-close"
+    />
+  );
 
   if (!permission && !e2ePhotoSimulation) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.flexBackground} testID="add-meal-photo-loading-state" />
+        <View style={styles.fill} testID="add-meal-photo-loading-state">
+          {flowHeader}
+        </View>
       </Layout>
     );
   }
@@ -168,26 +308,29 @@ export default function MealCameraScreen({
     const blocked = permission.canAskAgain === false;
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <View style={styles.permissionWrap} testID="add-meal-photo-permission-state">
-          <Text style={styles.permissionTitle}>
-            {tCommon("camera_permission_title")}
-          </Text>
-          <Text style={styles.permissionSubtitle}>
-            {blocked
-              ? tMeals("camera_permission_blocked_message")
-              : tCommon("camera_permission_message")}
-          </Text>
-          <Pressable
-            testID="add-meal-photo-permission-button"
-            onPress={blocked ? () => Linking.openSettings() : requestPermission}
-            style={styles.permissionButton}
-            accessibilityRole="button"
-            accessibilityLabel={tCommon("continue")}
-          >
-            <Text style={styles.permissionButtonLabel}>
-              {tCommon("continue")}
+        <View style={styles.fill} testID="add-meal-photo-permission-state">
+          {flowHeader}
+          <View style={styles.permissionContent}>
+            <Text style={styles.permissionTitle}>
+              {tCommon("camera_permission_title")}
             </Text>
-          </Pressable>
+            <Text style={styles.permissionSubtitle}>
+              {blocked
+                ? tMeals("camera_permission_blocked_message")
+                : tCommon("camera_permission_message")}
+            </Text>
+            <Pressable
+              testID="add-meal-photo-permission-button"
+              onPress={blocked ? () => Linking.openSettings() : requestPermission}
+              style={styles.permissionButton}
+              accessibilityRole="button"
+              accessibilityLabel={tCommon("continue")}
+            >
+              <Text style={styles.permissionButtonLabel}>
+                {tCommon("continue")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </Layout>
     );
@@ -196,22 +339,32 @@ export default function MealCameraScreen({
   if (photoUri) {
     return (
       <Layout showNavigation={false} disableScroll style={styles.layout}>
-        <PhotoPreview
-          photoUri={photoUri}
-          onRetake={handleRetake}
-          onAccept={handleAccept}
-          secondaryText={tCommon("camera_retake")}
-          primaryText={tCommon("camera_use_photo")}
-        />
+        <View style={styles.fill}>
+          {flowHeader}
+          <PhotoPreview
+            photoUri={photoUri}
+            onRetake={handleRetake}
+            onAccept={handleAccept}
+            secondaryText={tCommon("camera_retake")}
+            primaryText={tCommon("camera_use_photo")}
+          />
+        </View>
       </Layout>
     );
   }
 
   return (
-    <Layout showNavigation={false} disableScroll style={styles.layout}>
+    <Layout
+      showNavigation={false}
+      disableScroll
+      style={showFullscreenCamera ? styles.fullscreenLayout : styles.layout}
+    >
       <View style={styles.fill} testID="add-meal-photo-screen">
+        {showFullscreenCamera ? null : flowHeader}
         <MealAddPhotoScaffold
-          topInset={previewTopInset}
+          topInset={showFullscreenCamera ? 0 : undefined}
+          previewFillsAvailable={showFullscreenCamera}
+          previewFullBleed={showFullscreenCamera}
           preview={
             e2ePhotoSimulation ? (
               <Image
@@ -229,15 +382,129 @@ export default function MealCameraScreen({
               />
             )
           }
-          topAction={
-            <ScreenCornerNavButton
-              icon={canStepBack ? "back" : "close"}
-              onPress={handleTopLeftPress}
-              accessibilityLabel={tCommon(canStepBack ? "back" : "close", {
-                defaultValue: canStepBack ? "Back" : "Close",
-              })}
-              containerStyle={styles.screenCornerNavStyle}
-            />
+          previewOverlay={
+            showFullscreenCamera ? (
+              <View
+                testID="add-meal-photo-fullscreen-overlay"
+                style={[
+                  styles.fullCameraOverlay,
+                  { paddingBottom: fullscreenBottomInset },
+                ]}
+                onTouchStart={handleFullscreenTouchStart}
+                onTouchEnd={handleFullscreenTouchEnd}
+              >
+                <View
+                  testID="add-meal-photo-fullscreen-top-controls"
+                  style={[
+                    styles.fullCameraTopControls,
+                    {
+                      paddingTop: Math.max(
+                        insets.top + theme.spacing.sm,
+                        theme.spacing.xl,
+                      ),
+                    },
+                  ]}
+                  pointerEvents="box-none"
+                >
+                  <Pressable
+                    testID="add-meal-photo-fullscreen-back"
+                    accessibilityRole="button"
+                    accessibilityLabel={tCommon("back", {
+                      defaultValue: "Back",
+                    })}
+                    hitSlop={8}
+                    onPress={handleTopLeftPress}
+                    style={({ pressed }) => [
+                      styles.fullCameraTopButton,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <AppIcon
+                      name="arrow"
+                      size={20}
+                      color={fullscreenControlColor}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    testID="add-meal-photo-fullscreen-close"
+                    accessibilityRole="button"
+                    accessibilityLabel={tCommon("close", {
+                      defaultValue: "Close",
+                    })}
+                    hitSlop={8}
+                    onPress={handleCloseFlow}
+                    style={({ pressed }) => [
+                      styles.fullCameraTopButton,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <AppIcon
+                      name="close"
+                      size={18}
+                      color={fullscreenControlColor}
+                    />
+                  </Pressable>
+                </View>
+
+                <View style={styles.fullCameraControls} pointerEvents="box-none">
+                  {!skipDetection ? (
+                    <Pressable
+                      testID="add-meal-photo-fullscreen-change-method-button"
+                      accessibilityRole="button"
+                      accessibilityLabel={tMeals("change_method", {
+                        defaultValue: "Change add method",
+                      })}
+                      onPress={handleChangeMethod}
+                      style={({ pressed }) => [
+                        styles.fullCameraMethodButton,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.82}
+                        style={styles.fullCameraSecondaryLabel}
+                      >
+                        {tMeals("camera_change_method_short", {
+                          defaultValue: "Change method",
+                        })}
+                      </Text>
+                      <AppIcon
+                        name="chevron"
+                        rotation="180deg"
+                        size={16}
+                        color={fullscreenControlColor}
+                      />
+                    </Pressable>
+                  ) : null}
+
+                  {!showNoCreditsState ? (
+                    <Pressable
+                      testID="add-meal-photo-fullscreen-capture-button"
+                      accessibilityRole="button"
+                      accessibilityLabel={tCommon("camera_take_photo", {
+                        defaultValue: "Take photo",
+                      })}
+                      disabled={isTakingPhoto}
+                      onPress={handleTakePicture}
+                      style={({ pressed }) => [
+                        styles.fullCameraCaptureButton,
+                        isTakingPhoto ? styles.fullCameraCaptureButtonDisabled : null,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <AppIcon
+                        name="camera"
+                        size={26}
+                        color={theme.textInverse}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            ) : undefined
           }
           eyebrow={tMeals("camera_default_label", {
             defaultValue: "Photo",
@@ -249,43 +516,48 @@ export default function MealCameraScreen({
               <AiCreditsBadge text={badgeText} tone="success" />
             ) : undefined
           }
-          content={
-            <>
-              {!showNoCreditsState ? (
-                <Button
-                  testID="add-meal-photo-capture-button"
-                  label={tCommon("camera_take_photo", {
-                    defaultValue: "Take photo",
-                  })}
-                  onPress={handleTakePicture}
-                  disabled={isTakingPhoto}
-                  style={styles.captureButton}
-                />
-              ) : null}
-
-              {footerNote ? (
-                <Text
-                  style={[
-                    styles.inlineNote,
-                    isLowCredits ? styles.inlineNoteWarning : null,
-                  ]}
-                >
-                  {footerNote}
-                </Text>
-              ) : null}
-
-              {!skipDetection ? (
-                <MealAddTextLink
-                  testID="add-meal-photo-change-method-button"
-                  label={tMeals("change_method", {
-                    defaultValue: "Change add method",
-                  })}
-                  onPress={handleChangeMethod}
-                />
-              ) : null}
-            </>
+          sheetVisible={!showFullscreenCamera}
+          showSheetHandle={canUseFullscreenCamera}
+          sheetTestID="add-meal-photo-entry-sheet"
+          sheetTouchHandlers={
+            canUseFullscreenCamera
+              ? {
+                  onTouchStart: handleSheetTouchStart,
+                  onTouchEnd: handleSheetTouchEnd,
+                }
+              : undefined
           }
         />
+        {!showFullscreenCamera ? (
+          <BottomActionBar
+            bottomInset={footerBottomInset}
+            helperText={footerNote}
+            helperTone={isLowCredits ? "warning" : "default"}
+            primaryAction={
+              !showNoCreditsState
+                ? {
+                    testID: "add-meal-photo-capture-button",
+                    label: tCommon("camera_take_photo", {
+                      defaultValue: "Take photo",
+                    }),
+                    onPress: handleTakePicture,
+                    disabled: isTakingPhoto,
+                  }
+                : undefined
+            }
+            linkAction={
+              !skipDetection
+                ? {
+                    testID: "add-meal-photo-change-method-button",
+                    label: tMeals("change_method", {
+                      defaultValue: "Change add method",
+                    }),
+                    onPress: handleChangeMethod,
+                  }
+                : undefined
+            }
+          />
+        ) : null}
       </View>
 
       <Modal
@@ -314,6 +586,11 @@ export default function MealCameraScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
+    fullscreenLayout: {
       paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
@@ -321,16 +598,102 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     camera: {
       flex: 1,
     },
-    flexBackground: {
-      flex: 1,
-      backgroundColor: theme.background,
+    fullCameraOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: "flex-end",
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
+      backgroundColor: theme.isDark
+        ? "rgba(0, 0, 0, 0.08)"
+        : "rgba(18, 21, 18, 0.04)",
     },
-    permissionWrap: {
+    fullCameraControls: {
+      width: "100%",
+      minHeight: 86,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    fullCameraTopControls: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: theme.spacing.lg,
+    },
+    fullCameraTopButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.76)"
+        : "rgba(36, 41, 36, 0.58)",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.18)"
+        : "rgba(255, 253, 248, 0.24)",
+    },
+    fullCameraMethodButton: {
+      position: "absolute",
+      left: 0,
+      top: 24,
+      minHeight: 38,
+      maxWidth: 126,
+      paddingHorizontal: theme.spacing.sm + theme.spacing.xs,
+      borderRadius: theme.rounded.full,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.xs,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.86)"
+        : "rgba(36, 41, 36, 0.76)",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.18)"
+        : "rgba(255, 253, 248, 0.24)",
+      ...theme.depth.raised,
+    },
+    fullCameraSecondaryLabel: {
+      color: "#FFFDF8",
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      flexShrink: 1,
+    },
+    fullCameraCaptureButton: {
+      width: 74,
+      height: 74,
+      borderRadius: 37,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      borderWidth: 4,
+      borderColor: theme.isDark
+        ? "rgba(246, 243, 237, 0.28)"
+        : "rgba(255, 253, 248, 0.92)",
+      ...theme.depth.cta,
+    },
+    fullCameraCaptureButtonDisabled: {
+      opacity: 0.56,
+    },
+    pressed: {
+      opacity: 0.82,
+    },
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
+    },
+    permissionContent: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
@@ -361,23 +724,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: theme.typography.size.bodyL,
       color: theme.text,
-    },
-    captureButton: {
-      minHeight: 48,
-      borderRadius: theme.rounded.sm,
-    },
-    inlineNote: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.regular,
-      textAlign: "center",
-      marginTop: theme.spacing.xs,
-    },
-    inlineNoteWarning: {
-      color: theme.accentWarm,
-    },
-    screenCornerNavStyle: {
-      top: 0,
     },
   });

@@ -1,0 +1,115 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- assertVisible:
+    id: account-logout-row
+- assertVisible:
+    id: account-delete-account-row
+- takeScreenshot: mj051-account-bottom-scrolled-light
+- tapOn:
+    id: account-logout-row
+- assertVisible:
+    id: account-logout-modal
+- tapOn:
+    id: account-logout-cancel-button
+- assertVisible:
+    id: account-screen
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- tapOn:
+    id: account-delete-account-row
+- assertVisible:
+    id: delete-account-screen
+- tapOn:
+    id: delete-account-cancel-button
+- assertVisible:
+    id: account-screen
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- assertVisible:
+    id: account-logout-row
+- assertVisible:
+    id: account-delete-account-row
+- takeScreenshot: mj051-account-bottom-scrolled-dark
+- tapOn:
+    id: account-logout-row
+- assertVisible:
+    id: account-logout-modal
+- tapOn:
+    id: account-logout-cancel-button
+- assertVisible:
+    id: account-screen
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- tapOn:
+    id: account-delete-account-row
+- assertVisible:
+    id: delete-account-screen
+- tapOn:
+    id: delete-account-cancel-button
+- assertVisible:
+    id: account-screen

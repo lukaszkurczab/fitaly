@@ -89,9 +89,11 @@ describe("useManageSubscriptionState", () => {
     expect(mockStartOrRenewSubscription).toHaveBeenCalledWith("user-1");
     expect(confirmPremiumEntitlement).toHaveBeenCalledTimes(1);
     expect(result.current.actionFeedback).toMatchObject({
-      tone: "warning",
-      title: "Confirmation pending",
+      tone: "info",
+      title: "Subscription activation in progress",
       source: "purchase",
+      feedbackState: "activation-pending",
+      restoreState: "confirmation-pending",
     });
     expect(result.current.actionFeedback?.title).not.toBe("Premium active");
     expect(mockTrack).toHaveBeenCalledWith(
@@ -124,7 +126,7 @@ describe("useManageSubscriptionState", () => {
     );
   });
 
-  it("shows restore success as toast instead of persistent action feedback", async () => {
+  it("keeps confirmed restore success available for the focused restore state", async () => {
     const confirmPremiumEntitlement = jest.fn(async () => ({ confirmed: true }));
     const { result } = renderHook(() =>
       useManageSubscriptionState(makeParams({ confirmPremiumEntitlement })),
@@ -135,7 +137,11 @@ describe("useManageSubscriptionState", () => {
     });
 
     expect(mockRestorePurchases).toHaveBeenCalledWith("user-1");
-    expect(result.current.actionFeedback).toBeNull();
+    expect(result.current.actionFeedback).toMatchObject({
+      tone: "success",
+      title: "Purchases restored",
+      source: "restore",
+    });
     expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
       text: "Purchases restored and premium is active.",
     });
@@ -159,9 +165,10 @@ describe("useManageSubscriptionState", () => {
     });
 
     expect(result.current.actionFeedback).toMatchObject({
-      tone: "warning",
-      title: "Confirmation pending",
+      tone: "info",
+      title: "Subscription activation in progress",
       source: "purchase",
+      feedbackState: "activation-pending",
     });
     expect(mockTrack).toHaveBeenCalledWith(
       "entitlement_confirmation_failed",
@@ -188,13 +195,97 @@ describe("useManageSubscriptionState", () => {
 
     expect(mockRestorePurchases).toHaveBeenCalledWith("user-1");
     expect(result.current.actionFeedback).toMatchObject({
-      tone: "warning",
-      title: "Confirmation pending",
+      tone: "info",
+      title: "Subscription activation in progress",
       source: "restore",
+      feedbackState: "activation-pending",
+      restoreState: "confirmation-pending",
     });
     expect(mockTrack).toHaveBeenCalledWith(
       "restore_succeeded",
       { confirmed: false },
+    );
+  });
+
+  it("treats no restored entitlement as a calm no-purchase-found state", async () => {
+    mockRestorePurchases.mockResolvedValue({
+      status: "error",
+      errorCode: "entitlement_inactive",
+    });
+    const confirmPremiumEntitlement = jest.fn(async () => ({ confirmed: true }));
+    const { result } = renderHook(() =>
+      useManageSubscriptionState(makeParams({ confirmPremiumEntitlement })),
+    );
+
+    await act(async () => {
+      await result.current.tryRestore();
+    });
+
+    expect(mockRestorePurchases).toHaveBeenCalledWith("user-1");
+    expect(confirmPremiumEntitlement).not.toHaveBeenCalled();
+    expect(result.current.actionFeedback).toMatchObject({
+      tone: "neutral",
+      title: "No active subscription found",
+      source: "restore",
+      feedbackState: "no-purchase",
+      restoreState: "no-purchase",
+    });
+    expect(mockTrack).toHaveBeenCalledWith(
+      "restore_failed",
+      { reason: "entitlement_inactive" },
+    );
+  });
+
+  it("keeps purchase entitlement-inactive feedback in activation pending recovery", async () => {
+    mockStartOrRenewSubscription.mockResolvedValue({
+      status: "error",
+      errorCode: "entitlement_inactive",
+    });
+    const confirmPremiumEntitlement = jest.fn(async () => ({ confirmed: true }));
+    const { result } = renderHook(() =>
+      useManageSubscriptionState(makeParams({ confirmPremiumEntitlement })),
+    );
+
+    await act(async () => {
+      await result.current.trySubscribe();
+    });
+
+    expect(confirmPremiumEntitlement).not.toHaveBeenCalled();
+    expect(result.current.actionFeedback).toMatchObject({
+      tone: "info",
+      title: "Subscription activation in progress",
+      source: "purchase",
+      feedbackState: "activation-pending",
+      restoreState: "confirmation-pending",
+    });
+    expect(result.current.actionFeedback?.title).not.toBe("Subscription unavailable");
+  });
+
+  it("keeps true restore system failures as retryable restore failures", async () => {
+    mockRestorePurchases.mockResolvedValue({
+      status: "error",
+      errorCode: "network",
+    });
+    const { result } = renderHook(() =>
+      useManageSubscriptionState(makeParams()),
+    );
+
+    await act(async () => {
+      await result.current.tryRestore();
+    });
+
+    expect(result.current.actionFeedback).toMatchObject({
+      tone: "error",
+      title: "Restore failed",
+      source: "restore",
+      feedbackState: "restore-failed",
+    });
+    expect(result.current.actionFeedback?.title).not.toBe(
+      "Subscription activation in progress",
+    );
+    expect(mockTrack).toHaveBeenCalledWith(
+      "restore_failed",
+      { reason: "network" },
     );
   });
 
@@ -220,8 +311,9 @@ describe("useManageSubscriptionState", () => {
     expect(confirmPremiumEntitlement).toHaveBeenCalledTimes(1);
     expect(result.current.actionFeedback).toMatchObject({
       tone: "warning",
-      title: "Cannot confirm premium right now",
+      title: "Access refresh did not finish",
       source: "manage",
+      feedbackState: "entitlement-refresh-failed",
     });
     expect(mockTrack).toHaveBeenCalledWith(
       "entitlement_confirmation_failed",

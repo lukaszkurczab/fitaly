@@ -60,4 +60,32 @@ describe("SettingsRow", () => {
       ).props.numberOfLines,
     ).toBe(3);
   });
+
+  it("allows a long title to wrap without requiring a subtitle", () => {
+    const { getByText } = renderWithTheme(
+      <SettingsRow title="Update nutrition survey" titleNumberOfLines={2} />,
+    );
+
+    expect(getByText("Update nutrition survey").props.numberOfLines).toBe(2);
+  });
+
+  it("allows screens to tune row hierarchy without changing shared defaults", () => {
+    const { getByText } = renderWithTheme(
+      <SettingsRow
+        title="Legal and privacy"
+        subtitle="Short supporting copy"
+        titleStyle={{ fontSize: 15 }}
+        subtitleStyle={{ fontSize: 12 }}
+        chevronSize={20}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(getByText("Legal and privacy").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ fontSize: 15 })]),
+    );
+    expect(getByText("Short supporting copy").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ fontSize: 12 })]),
+    );
+  });
 });

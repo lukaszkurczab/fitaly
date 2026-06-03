@@ -9,7 +9,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@/theme/useTheme";
+import type { BackgroundGradientLayer } from "@/theme/themes";
 import {
   BottomTabBar,
   BOTTOM_TAB_BAR_BASE_HEIGHT,
@@ -21,6 +23,8 @@ import { useE2ENetInfo } from "@/services/e2e/connectivity";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 
+export type { BackgroundGradientLayer } from "@/theme/themes";
+
 type LayoutProps = {
   children: ReactNode;
   showNavigation?: boolean;
@@ -28,6 +32,7 @@ type LayoutProps = {
   style?: StyleProp<ViewStyle>;
   showOfflineBanner?: boolean;
   keyboardAvoiding?: boolean;
+  backgroundGradient?: BackgroundGradientLayer | BackgroundGradientLayer[];
 };
 
 export const Layout = ({
@@ -37,13 +42,14 @@ export const Layout = ({
   style,
   showOfflineBanner = showNavigation,
   keyboardAvoiding = true,
+  backgroundGradient,
 }: LayoutProps) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const netInfo = useE2ENetInfo();
 
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [offlineBannerHeight, setOfflineBannerHeight] = useState(0);
+  const [offlineDismissed, setOfflineDismissed] = useState(false);
 
   useEffect(() => {
     const showEventName =
@@ -70,27 +76,51 @@ export const Layout = ({
     : isKeyboardVisible
       ? 0
       : insets.bottom + 8;
+  const surfaceBottomPadding = disableScroll ? bottomPadding : 0;
+  const scrollContentBottomPadding = disableScroll ? 0 : bottomPadding;
   const isOffline = isOfflineNetState(netInfo);
-  const shouldShowOffline = showOfflineBanner && isOffline;
-  const contentTopPadding = shouldShowOffline
-    ? offlineBannerHeight + theme.spacing.sm
-    : 0;
+  const shouldShowOffline = showOfflineBanner && isOffline && !offlineDismissed;
 
   useEffect(() => {
-    if (!shouldShowOffline) {
-      setOfflineBannerHeight(0);
+    if (!isOffline) {
+      setOfflineDismissed(false);
     }
-  }, [shouldShowOffline]);
+  }, [isOffline]);
+
+  const resolvedBackgroundGradient =
+    backgroundGradient === undefined
+      ? theme.material.backgroundGradient
+      : backgroundGradient;
+  const backgroundGradientLayers = Array.isArray(resolvedBackgroundGradient)
+    ? resolvedBackgroundGradient
+    : resolvedBackgroundGradient
+      ? [resolvedBackgroundGradient]
+      : [];
+  const rootBackgroundColor =
+    backgroundGradientLayers[0]?.colors[0] ?? theme.background;
 
   const content = (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
+    <View style={[styles.root, { backgroundColor: rootBackgroundColor }]}>
+      {backgroundGradientLayers.map((layer, index) => (
+        <LinearGradient
+          key={`background-gradient-${index}`}
+          pointerEvents="none"
+          colors={layer.colors}
+          locations={layer.locations}
+          start={layer.start ?? { x: 0, y: 0 }}
+          end={layer.end ?? { x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ))}
       <View
         style={[
           styles.surface,
           {
-            backgroundColor: theme.background,
+            backgroundColor: backgroundGradientLayers.length
+              ? "transparent"
+              : theme.background,
             paddingTop: insets.top + theme.spacing.md,
-            paddingBottom: bottomPadding,
+            paddingBottom: surfaceBottomPadding,
             paddingLeft: insets.left + theme.spacing.screenPadding,
             paddingRight: insets.right + theme.spacing.screenPadding,
           },
@@ -99,41 +129,38 @@ export const Layout = ({
       >
         <StatusBar
           barStyle={theme.mode === "dark" ? "light-content" : "dark-content"}
-          backgroundColor={theme.background}
+          backgroundColor={rootBackgroundColor}
         />
 
         {shouldShowOffline && (
           <View
-            pointerEvents="none"
-            onLayout={(event) => {
-              const nextHeight = event.nativeEvent.layout.height;
-              if (nextHeight !== offlineBannerHeight) {
-                setOfflineBannerHeight(nextHeight);
-              }
-            }}
+            pointerEvents="box-none"
             style={[
               styles.offlineBannerWrap,
               {
-                top: insets.top + theme.spacing.sm,
-                left: insets.left + theme.spacing.md,
-                right: insets.right + theme.spacing.md,
+                top: theme.spacing.hero,
+                left: theme.spacing.md,
+                right: theme.spacing.md,
               },
             ]}
           >
-            <OfflineBanner compact style={styles.offlineBanner} />
+            <OfflineBanner
+              compact
+              dismissible
+              onDismiss={() => setOfflineDismissed(true)}
+              style={styles.offlineBanner}
+            />
           </View>
         )}
 
         {disableScroll ? (
-          <View style={[styles.content, { paddingTop: contentTopPadding }]}>
-            {children}
-          </View>
+          <View style={styles.content}>{children}</View>
         ) : (
           <KeyboardAwareScrollView
             style={styles.content}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingTop: contentTopPadding },
+              { paddingBottom: scrollContentBottomPadding },
             ]}
             showsVerticalScrollIndicator={false}
           >

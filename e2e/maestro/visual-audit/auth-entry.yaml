@@ -4,17 +4,12 @@ appId: com.lkurczab.fitaly
 - openLink: __E2E_EXPO_URL__
 - runFlow:
     when:
-      visible: "Nie teraz"
+      visible: "Nie teraz|Not [Nn]ow"
     commands:
-      - tapOn: "Nie teraz"
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
-- openLink: fitaly://e2e/reset?logout=1
+- openLink: fitaly://e2e/reset?logout=1&theme=light
 - assertVisible:
     id: e2e-ready-login
 - assertVisible:
@@ -47,7 +42,8 @@ appId: com.lkurczab.fitaly
     id: register-confirm-password-input
 - eraseText
 - inputText: ${E2E_DISPOSABLE_PASSWORD}
-- hideKeyboard
+- tapOn:
+    point: "87%,89%"
 - tapOn:
     id: register-terms-checkbox
 - tapOn:
@@ -86,7 +82,7 @@ appId: com.lkurczab.fitaly
     id: onboarding-step-3
 - takeScreenshot: onboarding-step-3
 - tapOn:
-    id: onboarding-step-3-next-button
+    id: onboarding-step-3-skip-button
 - assertVisible:
     id: onboarding-confirm-modal
 - takeScreenshot: onboarding-skip-confirm

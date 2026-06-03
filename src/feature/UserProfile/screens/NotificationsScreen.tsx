@@ -225,6 +225,7 @@ export default function NotificationsScreen({
         title={t("screen.permissionOffTitle")}
         body={t("screen.permissionOffBody")}
         tone="warning"
+        style={styles.statusBlock}
         icon={<AppIcon name="wifi-off" size={18} color={theme.warning.text} />}
       />
     ) : systemAllowed === true ? (
@@ -233,6 +234,7 @@ export default function NotificationsScreen({
         title={t("screen.permissionOnTitle")}
         body={t("screen.permissionOnBody")}
         tone="success"
+        style={[styles.statusBlock, styles.enabledStatusBlock]}
         icon={<AppIcon name="check" size={18} color={theme.success.text} />}
       />
     ) : (
@@ -241,6 +243,7 @@ export default function NotificationsScreen({
         title={t("screen.permissionCheckingTitle")}
         body={t("screen.permissionCheckingBody")}
         tone="neutral"
+        style={styles.statusBlock}
         icon={<AppIcon name="info" size={18} color={theme.textSecondary} />}
       />
     );
@@ -250,7 +253,6 @@ export default function NotificationsScreen({
       <FormScreenShell
         testID="notifications-screen"
         title={t("screen.title")}
-        intro={t("screen.intro")}
         onBack={handleBack}
       >
         <View
@@ -277,16 +279,26 @@ export default function NotificationsScreen({
               title={t("screen.smartReminderUnavailableTitle")}
               body={t("screen.smartReminderUnavailableBody")}
               tone="neutral"
+              style={styles.statusBlock}
               icon={<AppIcon name="info" size={18} color={theme.textSecondary} />}
             />
           ) : null}
 
-          <SettingsSection title={t("screen.preferenceTitle")}>
+          <SettingsSection
+            title={t("screen.preferenceTitle")}
+            contentStyle={styles.sectionGroup}
+          >
             <SettingsRow
               testID={`notifications-smart-reminders-state-${
                 effectiveSmartRemindersEnabled ? "on" : "off"
               }`}
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="schedule" size={20} color={theme.primaryStrong} />
+                </View>
+              }
               title={t("screen.smartReminders")}
+              subtitleNumberOfLines={3}
               subtitle={t(
                 smartRemindersAvailable
                   ? "screen.smartReminderHint"
@@ -309,6 +321,15 @@ export default function NotificationsScreen({
               testID={`notifications-motivation-state-${
                 motivationEnabled ? "on" : "off"
               }`}
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon
+                    name="sparkles"
+                    size={20}
+                    color={theme.accentWarmStrong}
+                  />
+                </View>
+              }
               title={t("screen.motivation")}
               subtitle={t("screen.motivationSubtitle")}
               trailing={
@@ -324,6 +345,11 @@ export default function NotificationsScreen({
             />
             <SettingsRow
               testID={`notifications-stats-state-${statsEnabled ? "on" : "off"}`}
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="stats" size={20} color={theme.primaryStrong} />
+                </View>
+              }
               title={t("screen.stats")}
               subtitle={t("screen.statsSubtitle")}
               trailing={
@@ -435,5 +461,26 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
       gap: theme.spacing.sectionGap,
+    },
+    statusBlock: {
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
+    },
+    enabledStatusBlock: {
+      backgroundColor: theme.surface,
+      borderColor: theme.borderSoft,
+    },
+    sectionGroup: {
+      ...theme.depth.raised,
+    },
+    rowIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
   });

@@ -12,19 +12,15 @@ appId: com.lkurczab.fitaly
     element:
       id: weekly-report-card
     direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: weekly-report-card-unavailable
 - tapOn:
     id: weekly-report-card
 - assertVisible:
-    id: weekly-report-screen
-- extendedWaitUntil:
-    visible:
-      id: weekly-report-unavailable-state
-    timeout: 15000
-- assertVisible:
-    id: weekly-report-retry-button
-- assertVisible:
-    id: weekly-report-unavailable-back-button
-- tapOn:
-    id: weekly-report-unavailable-back-button
-- assertVisible:
     id: home-screen
+- assertVisible:
+    id: weekly-report-card
+- assertNotVisible:
+    id: weekly-report-screen
+- takeScreenshot: weekly-report-card-unavailable-after-retry

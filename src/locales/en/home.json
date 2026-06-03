@@ -3,9 +3,11 @@
   "addFirstMeal": "Add your first meal today!",
   "addMeal": "Add meal",
   "askAi": "Ask AI for help",
+  "chooseAddMethod": "Choose how to add",
   "savedMeals": "Saved meals",
   "todaysMacros": "Today’s macros",
   "todaysMeals": "Today’s meals",
+  "details": "Details",
   "meal": "Meal",
   "weeklyProgress": "Weekly Progress",
   "totalToday": "Total today",
@@ -15,6 +17,7 @@
   "mealCount_other": "{{count}} meals",
   "methodSelector": "Method: {{method}}",
   "viewHistory": "See full history",
+  "viewHistoryShort": "History",
   "hero": {
     "greeting": {
       "morning": "Good morning, {{name}}",
@@ -23,10 +26,18 @@
     },
     "todayEmpty": {
       "cta": "Log breakfast",
-      "supportCopy": "Start with your first meal and the rest of today will build from there."
+      "supportCopy": "Small steps each day lead to bigger changes."
     },
     "todayInProgress": {
       "cta": "Log next meal"
+    },
+    "methodCta": {
+      "photo": "Take meal photo",
+      "text": "Describe meal",
+      "barcode": "Scan barcode",
+      "saved": "Use saved meal",
+      "manual": "Enter manually",
+      "default": "Add meal"
     },
     "pastIncomplete": {
       "meta": "You missed a meal log",
@@ -75,10 +86,31 @@
     "needsMoreSignalPill": "Needs more signal",
     "unavailablePill": "Unavailable",
     "preparingPill": "Preparing",
+    "cardRetryingPill": "Checking",
+    "cardRetryingTitle": "Checking the report",
+    "cardRetryingBody": "This should only take a moment.",
+    "cardRetryingCta": "Checking again",
+    "readyDetailPill": "Your week",
     "reflectionReadyFallback": "Your weekly reflection is ready.",
-    "signalsBehindIt": "Signals behind it",
-    "carryForwardTitle": "Carry into next week",
-    "carryForwardBody": "Keep it light. Guard the first weekend meal and let the weekday rhythm hold.",
+    "detailInsightTitle": {
+      "consistency": "Your weekly rhythm was the most helpful signal.",
+      "loggingCoverage": "A fuller log will make the week easier to read.",
+      "startOfDayPattern": "The start of the day is the rhythm to steady.",
+      "dayCompletionPattern": "Closing days can make the week feel lighter.",
+      "weekendDrift": "The weekend needs one gentle anchor point.",
+      "improvingTrend": "This week shows quiet movement in the right direction."
+    },
+    "cardInsightTitle": {
+      "consistency": "Keep the rhythm",
+      "loggingCoverage": "Fill in the gaps",
+      "startOfDayPattern": "Start days steadier",
+      "dayCompletionPattern": "Close days fully",
+      "weekendDrift": "Watch the weekend",
+      "improvingTrend": "Momentum is building"
+    },
+    "signalsBehindIt": "What stood out",
+    "carryForwardTitle": "Small step for next week",
+    "carryForwardBody": "Start with one calm adjustment. The rest can stay in the background.",
     "loadingTitle": "Composing your weekly reflection",
     "loadingBody": "Reading the closed week first, then shaping one carry-forward for next week.",
     "loadingHelperNote": "This stays concise: one reflection, a short signal read, and one carry-forward.",
@@ -89,9 +121,8 @@
     "insufficientBody": "That can happen when only part of the week is captured. Once the closed week has a fuller shape, this summary usually unlocks on its own.",
     "insufficientFootnote": "This is normal. Nothing is failing here.",
     "backToHome": "Back to Home",
-    "unavailableTitle": "Your weekly reflection isn't ready right now",
-    "unavailableBody": "The closed week is there, but this summary is taking a little longer to finish.",
-    "unavailableFootnote": "The rest of Home stays available while this catches up.",
+    "unavailableTitle": "The report is still preparing",
+    "unavailableBody": "Try again in a moment.",
     "tryAgain": "Try again",
     "back": "Back",
     "accessibilityRefresh": "Refresh weekly report",
@@ -106,10 +137,10 @@
     "retryAccessCta": "Retry access check",
     "restoreAccessCta": "Manage subscription",
     "cardTitleInsufficient": "This closed week needs a little more signal.",
-    "cardTitleUnavailable": "Weekly reflection is temporarily unavailable.",
+    "cardTitleUnavailable": "Couldn't load the report",
     "cardBodyReady": "Open the closed-week read and carry one useful thought into next week.",
     "cardBodyInsufficient": "A fuller closed week usually unlocks this naturally.",
-    "cardBodyUnavailable": "Open the report to try again shortly."
+    "cardBodyUnavailable": "Try again in a moment."
   },
   "coachInsight": {
     "defaultEyebrow": "Coach insight",

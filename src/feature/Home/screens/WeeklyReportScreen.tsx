@@ -37,8 +37,6 @@ type Props = {
 type HeaderProps = {
   title: string;
   onBack: () => void;
-  onRefresh?: () => void;
-  refreshDisabled?: boolean;
 };
 
 type StateCardProps = {
@@ -46,6 +44,7 @@ type StateCardProps = {
   body: string;
   leading?: React.ReactNode;
   children?: React.ReactNode;
+  testID?: string;
 };
 
 type WeeklyReportAccessState =
@@ -53,6 +52,17 @@ type WeeklyReportAccessState =
   | "locked"
   | "degraded"
   | "premium";
+
+const HERO_TAKEAWAY_BY_INSIGHT_TYPE: Partial<
+  Record<WeeklyReportInsight["type"], string>
+> = {
+  consistency: "weeklyReport.detailInsightTitle.consistency",
+  logging_coverage: "weeklyReport.detailInsightTitle.loggingCoverage",
+  start_of_day_pattern: "weeklyReport.detailInsightTitle.startOfDayPattern",
+  day_completion_pattern: "weeklyReport.detailInsightTitle.dayCompletionPattern",
+  weekend_drift: "weeklyReport.detailInsightTitle.weekendDrift",
+  improving_trend: "weeklyReport.detailInsightTitle.improvingTrend",
+};
 
 function resolveWeeklyReportAccessState(
   status: "enabled" | "disabled" | "unknown" | null,
@@ -111,8 +121,6 @@ function HeaderButton({
 function WeeklyReportHeader({
   title,
   onBack,
-  onRefresh,
-  refreshDisabled = false,
 }: HeaderProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -129,23 +137,7 @@ function WeeklyReportHeader({
 
       <Text style={styles.headerTitle}>{title}</Text>
 
-      {onRefresh ? (
-        <HeaderButton
-          testID="weekly-report-refresh-button"
-          icon={
-            <AppIcon
-              name="refresh"
-              size={18}
-              color={refreshDisabled ? theme.textTertiary : theme.textSecondary}
-            />
-          }
-          onPress={onRefresh}
-          disabled={refreshDisabled}
-          accessibilityLabel={t("weeklyReport.accessibilityRefresh")}
-        />
-      ) : (
-        <View style={styles.headerSpacer} />
-      )}
+      <View style={styles.headerSpacer} />
     </View>
   );
 }
@@ -169,6 +161,60 @@ function StatusPill({
   );
 }
 
+function getHeroTakeaway(
+  report: WeeklyReport,
+  t: (key: string) => string,
+): string {
+  const primaryInsight = report.insights[0];
+  const insightKey = primaryInsight
+    ? HERO_TAKEAWAY_BY_INSIGHT_TYPE[primaryInsight.type]
+    : null;
+
+  if (insightKey) {
+    return t(insightKey);
+  }
+
+  return t("weeklyReport.reflectionReadyFallback");
+}
+
+function WeeklyRhythmAccent() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const rhythm = [
+    { height: 18, tone: "calories" },
+    { height: 26, tone: "protein" },
+    { height: 22, tone: "carbs" },
+    { height: 30, tone: "calories" },
+    { height: 24, tone: "fat" },
+    { height: 16, tone: "carbs" },
+    { height: 28, tone: "protein" },
+  ] as const;
+
+  return (
+    <View
+      style={styles.rhythmAccent}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={styles.rhythmLine} />
+      <View style={styles.rhythmBars}>
+        {rhythm.map((item, index) => (
+          <View
+            key={`${item.tone}:${index}`}
+            style={[
+              styles.rhythmBar,
+              {
+                height: item.height,
+                backgroundColor: theme.macro[item.tone],
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function ReflectionHero({ report, locale }: { report: WeeklyReport; locale?: string }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -176,11 +222,16 @@ function ReflectionHero({ report, locale }: { report: WeeklyReport; locale?: str
 
   return (
     <View style={styles.heroCard} testID="weekly-report-summary-section">
-      <StatusPill label={t("weeklyReport.closedWeekPill")} />
-      <Text style={styles.metaText}>{formatWeeklyPeriod(report.period, locale)}</Text>
-      <Text style={styles.heroHeadline}>
-        {report.summary ?? t("weeklyReport.reflectionReadyFallback")}
-      </Text>
+      <View style={styles.heroTopRow}>
+        <View style={styles.heroMetaGroup}>
+          <StatusPill label={t("weeklyReport.readyDetailPill")} />
+          <Text style={styles.metaText}>
+            {formatWeeklyPeriod(report.period, locale)}
+          </Text>
+        </View>
+        <WeeklyRhythmAccent />
+      </View>
+      <Text style={styles.heroHeadline}>{getHeroTakeaway(report, t)}</Text>
       <Text style={styles.heroSupport}>{getCarryForwardLine(report)}</Text>
     </View>
   );
@@ -236,13 +287,30 @@ function PriorityRow({
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const isPrimary = index === 0;
 
   return (
-    <View style={styles.priorityRow}>
-      <View style={styles.priorityBadge}>
-        <Text style={styles.priorityBadgeText}>{index + 1}</Text>
+    <View style={isPrimary ? styles.priorityPrimary : styles.prioritySecondary}>
+      <View
+        style={
+          isPrimary
+            ? styles.priorityMarkerPrimary
+            : styles.priorityMarkerSecondary
+        }
+      >
+        {isPrimary ? (
+          <AppIcon name="check" size={15} color={theme.textInverse} />
+        ) : null}
       </View>
-      <Text style={styles.priorityText}>{priority.text}</Text>
+      <Text
+        style={
+          isPrimary
+            ? styles.priorityPrimaryText
+            : styles.prioritySecondaryText
+        }
+      >
+        {priority.text}
+      </Text>
     </View>
   );
 }
@@ -299,7 +367,7 @@ function LoadingState({
 
   return (
     <View style={styles.content} testID="weekly-report-loading-state">
-      <View style={styles.loadingHero}>
+      <View style={styles.loadingHero} testID="weekly-report-loading-hero">
         <StatusPill
           label={`${t("weeklyReport.closedWeekPill")} · ${formatWeeklyPeriod(report.period, i18n.language)}`}
         />
@@ -319,7 +387,10 @@ function LoadingState({
         <View style={[styles.skeletonBar, styles.skeletonBarShort]} />
       </View>
 
-      <View style={styles.loadingSupportCard}>
+      <View
+        style={styles.loadingSupportCard}
+        testID="weekly-report-loading-support-card"
+      >
         <View style={[styles.skeletonBar, styles.skeletonMini]} />
         <View style={[styles.skeletonBar, styles.skeletonMedium]} />
         <View style={[styles.skeletonBar, styles.skeletonSupport]} />
@@ -332,12 +403,12 @@ function LoadingState({
   );
 }
 
-function StateCard({ title, body, leading, children }: StateCardProps) {
+function StateCard({ title, body, leading, children, testID }: StateCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View style={styles.stateCard}>
+    <View style={styles.stateCard} testID={testID ?? "weekly-report-state-card"}>
       {leading}
       <Text style={styles.stateTitle}>{title}</Text>
       <Text style={styles.stateBody}>{body}</Text>
@@ -425,18 +496,19 @@ function UnavailableState({
 
   return (
     <View style={styles.content} testID="weekly-report-unavailable-state">
-      <View style={styles.stateCard}>
-        <StatusPill label={t("weeklyReport.temporarilyUnavailablePill")} tone="warm" />
-
-        <View style={styles.unavailableIconWrap}>
-          <AppIcon name="refresh" size={22} color={theme.accentWarm} />
+      <View
+        style={styles.unavailableCard}
+        testID="weekly-report-unavailable-card"
+      >
+        <View style={styles.unavailableStatusRow}>
+          <View style={styles.unavailableCompactIconWrap}>
+            <AppIcon name="refresh" size={16} color={theme.accentWarm} />
+          </View>
+          <StatusPill label={t("weeklyReport.temporarilyUnavailablePill")} tone="warm" />
         </View>
 
         <Text style={styles.unavailableTitle}>{t("weeklyReport.unavailableTitle")}</Text>
         <Text style={styles.unavailableBody}>{t("weeklyReport.unavailableBody")}</Text>
-
-        <View style={styles.divider} />
-        <Text style={styles.unavailableFootnote}>{t("weeklyReport.unavailableFootnote")}</Text>
       </View>
 
       <Button
@@ -706,8 +778,6 @@ export default function WeeklyReportScreen({ navigation }: Props) {
       <WeeklyReportHeader
         title={t("weeklyReport.screenTitle")}
         onBack={() => navigation.goBack()}
-        onRefresh={isReady ? handleRefresh : undefined}
-        refreshDisabled={refreshing}
       />
 
       <View style={styles.screen} testID="weekly-report-screen">
@@ -759,8 +829,30 @@ export default function WeeklyReportScreen({ navigation }: Props) {
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const quietSurface = theme.isDark
+    ? "rgba(255,253,248,0.04)"
+    : "rgba(255,253,248,0.54)";
+  const quietSurfaceStrong = theme.isDark
+    ? "rgba(255,253,248,0.055)"
+    : "rgba(255,249,240,0.70)";
+  const warmSurface = theme.isDark
+    ? "rgba(255,253,248,0.05)"
+    : "rgba(248,240,231,0.72)";
+  const neutralBorder = theme.isDark
+    ? "rgba(255,253,248,0.10)"
+    : "rgba(207,197,184,0.42)";
+  const warmBorder = theme.isDark
+    ? theme.borderSoft
+    : "rgba(199,126,97,0.16)";
+  const skeletonBase = theme.isDark
+    ? "rgba(255,253,248,0.11)"
+    : "rgba(234,223,210,0.76)";
+  const skeletonSoft = theme.isDark
+    ? "rgba(255,253,248,0.07)"
+    : "rgba(240,231,219,0.72)";
+
+  return StyleSheet.create({
     screen: {
       flex: 1,
     },
@@ -800,20 +892,65 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     heroCard: {
       borderRadius: theme.rounded.xxl,
-      paddingHorizontal: 18,
-      paddingTop: 16,
-      paddingBottom: 18,
-      gap: 10,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 20,
+      gap: 14,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurfaceStrong,
+    },
+    heroTopRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: theme.spacing.md,
+    },
+    heroMetaGroup: {
+      flex: 1,
+      alignItems: "flex-start",
+      gap: 8,
+    },
+    rhythmAccent: {
+      width: 92,
+      height: 56,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.055)"
+        : "rgba(242,232,218,0.68)",
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      overflow: "hidden",
+      justifyContent: "flex-end",
+    },
+    rhythmLine: {
+      position: "absolute",
+      left: 12,
+      right: 12,
+      top: 27,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.14)"
+        : "rgba(143,114,90,0.22)",
+    },
+    rhythmBars: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+    },
+    rhythmBar: {
+      width: 5,
+      borderRadius: theme.rounded.full,
+      opacity: theme.isDark ? 0.78 : 0.72,
     },
     pill: {
       alignSelf: "flex-start",
       borderRadius: theme.rounded.full,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.backgroundSecondary,
+      borderColor: theme.isDark ? theme.borderSoft : "rgba(111,138,105,0.22)",
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.055)"
+        : "rgba(237,242,232,0.76)",
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
@@ -838,8 +975,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     heroHeadline: {
       color: theme.text,
-      fontSize: theme.typography.size.h1,
-      lineHeight: 29,
+      fontSize: theme.typography.size.title,
+      lineHeight: 25,
       fontFamily: theme.typography.fontFamily.bold,
     },
     heroSupport: {
@@ -858,28 +995,34 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.semiBold,
     },
     signalsCard: {
-      borderRadius: theme.rounded.xl,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
-      paddingHorizontal: 18,
-      paddingVertical: 14,
-      gap: theme.spacing.sm,
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255,253,248,0.10)"
+        : "rgba(207,197,184,0.30)",
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.03)"
+        : "rgba(255,253,248,0.46)",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      gap: 2,
     },
     signalRow: {
       flexDirection: "row",
       alignItems: "flex-start",
-      gap: theme.spacing.sm,
+      gap: 10,
+      paddingVertical: 8,
     },
     signalDot: {
-      width: 8,
-      height: 8,
+      width: 7,
+      height: 7,
       borderRadius: theme.rounded.full,
       marginTop: 6,
+      opacity: 0.86,
     },
     signalTextWrap: {
       flex: 1,
-      gap: 2,
+      gap: 1,
     },
     signalTitle: {
       color: theme.text,
@@ -896,20 +1039,22 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: theme.borderSoft,
-      marginVertical: 8,
+      marginVertical: 2,
     },
     carryCard: {
-      borderRadius: theme.rounded.xxl,
-      backgroundColor: "#F3EAE1",
-      paddingHorizontal: 18,
-      paddingTop: 18,
-      paddingBottom: 20,
-      gap: 12,
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: warmBorder,
+      backgroundColor: warmSurface,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 16,
+      gap: 10,
     },
     carryTitle: {
       color: theme.text,
-      fontSize: theme.typography.size.title,
-      lineHeight: 21,
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: 22,
       fontFamily: theme.typography.fontFamily.bold,
     },
     carryBody: {
@@ -919,40 +1064,63 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.regular,
     },
     priorityList: {
-      gap: 10,
+      gap: 8,
       marginTop: 4,
     },
-    priorityRow: {
+    priorityPrimary: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.sm,
+      alignItems: "flex-start",
+      gap: 10,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.isDark
+        ? "rgba(111,138,105,0.18)"
+        : "rgba(237,242,232,0.92)",
+      paddingHorizontal: 12,
+      paddingVertical: 12,
     },
-    priorityBadge: {
-      width: 20,
-      height: 20,
-      borderRadius: theme.rounded.sm,
+    prioritySecondary: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+    },
+    priorityMarkerPrimary: {
+      width: 22,
+      height: 22,
+      borderRadius: theme.rounded.full,
       backgroundColor: theme.primary,
       alignItems: "center",
       justifyContent: "center",
+      marginTop: 1,
     },
-    priorityBadgeText: {
-      color: theme.textInverse,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      fontFamily: theme.typography.fontFamily.bold,
+    priorityMarkerSecondary: {
+      width: 7,
+      height: 7,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.textTertiary,
+      marginTop: 7,
+      opacity: 0.62,
     },
-    priorityText: {
+    priorityPrimaryText: {
       flex: 1,
       color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: 19,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    prioritySecondaryText: {
+      flex: 1,
+      color: theme.textSecondary,
       fontSize: theme.typography.size.caption,
       lineHeight: 16,
-      fontFamily: theme.typography.fontFamily.medium,
+      fontFamily: theme.typography.fontFamily.regular,
     },
     loadingHero: {
       borderRadius: theme.rounded.xxl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurfaceStrong,
       paddingHorizontal: 18,
       paddingTop: 16,
       paddingBottom: 18,
@@ -1001,7 +1169,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     skeletonBar: {
       borderRadius: theme.rounded.sm,
-      backgroundColor: "#EADFD2",
+      backgroundColor: skeletonBase,
     },
     skeletonBarLong: {
       width: 214,
@@ -1010,13 +1178,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     skeletonBarShort: {
       width: 176,
       height: 12,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     loadingSupportCard: {
       borderRadius: theme.rounded.xl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
       paddingHorizontal: 18,
       paddingVertical: 18,
       gap: 12,
@@ -1028,12 +1196,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     skeletonMedium: {
       width: 210,
       height: 12,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     skeletonSupport: {
       width: 168,
       height: 10,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     helperNote: {
       color: theme.textTertiary,
@@ -1044,8 +1212,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     stateCard: {
       borderRadius: theme.rounded.xxl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
       paddingHorizontal: 18,
       paddingTop: 18,
       paddingBottom: 16,
@@ -1144,23 +1312,40 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
       marginTop: 6,
     },
+    unavailableCompactIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: theme.rounded.lg,
+      backgroundColor: theme.backgroundSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    unavailableCard: {
+      borderRadius: theme.rounded.xl,
+      borderWidth: 1,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 15,
+      gap: 9,
+    },
+    unavailableStatusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
     unavailableTitle: {
       color: theme.text,
-      fontSize: theme.typography.size.title,
-      lineHeight: 22,
-      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: 21,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
     unavailableBody: {
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: 19,
       fontFamily: theme.typography.fontFamily.regular,
-    },
-    unavailableFootnote: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: 16,
-      fontFamily: theme.typography.fontFamily.medium,
     },
     primaryButton: {
       minHeight: 46,
@@ -1189,3 +1374,4 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
   });
+};

@@ -139,7 +139,28 @@ describe("homeRetentionPresenter", () => {
     expect(surface).toEqual({ type: "weekly_report" });
   });
 
-  it("chooses coach when weekly is unavailable and coach does not compete with the hero CTA", () => {
+  it("keeps a not-available weekly report visible as a recoverable retention card", () => {
+    const surface = buildHomeRetentionSurface({
+      dayState: createDayState(),
+      weekly: {
+        hasAccess: true,
+        loading: false,
+        report: createWeeklyReport({ status: "not_available", summary: null }),
+        status: "service_unavailable",
+      },
+      coach: {
+        loading: false,
+        enabled: true,
+        coach: createCoachResponse(createCoachInsight()),
+        status: "live_success",
+        isStale: false,
+      },
+    });
+
+    expect(surface).toEqual({ type: "weekly_report" });
+  });
+
+  it("chooses coach when weekly has insufficient signal and coach does not compete with the hero CTA", () => {
     const surface = buildHomeRetentionSurface({
       dayState: createDayState(),
       weekly: {

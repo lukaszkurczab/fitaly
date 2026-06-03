@@ -9,6 +9,7 @@ import type { AiCreditsStatus } from "@/services/ai/contracts";
 import { getE2EAccessState } from "@/services/e2e/fixtures";
 import { trackPaywallViewed } from "@/services/telemetry/telemetryInstrumentation";
 import type {
+  MealAddTextIngredientInput,
   MealAddFlowApi,
   MealAddStepParams,
 } from "@/feature/Meals/feature/MapMealAddScreens";
@@ -33,14 +34,20 @@ export function useMealTextAiState(params: {
   const [quickDescription, setQuickDescription] = useState(
     initialValues?.quickDescription ?? "",
   );
+  const [textIngredients, setTextIngredients] = useState<
+    MealAddTextIngredientInput[]
+  >(initialValues?.textIngredients ?? []);
+  const [servingAmount, setServingAmount] = useState(
+    initialValues?.servingAmount ?? "",
+  );
   const [loading, setLoading] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(
     Boolean(initialValues?.showLimitModal),
   );
   const [retries, setRetries] = useState(initialValues?.retries ?? 0);
-  const [descriptionError, setDescriptionError] = useState<
-    string | undefined
-  >(initialValues?.descriptionError);
+  const [nameError, setNameError] = useState<string | undefined>(
+    initialValues?.nameError,
+  );
   const [submitError, setSubmitError] = useState<string | undefined>(
     initialValues?.submitError,
   );
@@ -49,18 +56,27 @@ export function useMealTextAiState(params: {
   useEffect(() => {
     setName(initialValues?.name ?? "");
     setQuickDescription(initialValues?.quickDescription ?? "");
+    setTextIngredients(initialValues?.textIngredients ?? []);
+    setServingAmount(initialValues?.servingAmount ?? "");
     setShowLimitModal(Boolean(initialValues?.showLimitModal));
     setRetries(initialValues?.retries ?? 0);
-    setDescriptionError(initialValues?.descriptionError);
+    setNameError(initialValues?.nameError);
     setSubmitError(initialValues?.submitError);
   }, [
-    initialValues?.descriptionError,
     initialValues?.name,
+    initialValues?.nameError,
     initialValues?.quickDescription,
     initialValues?.retries,
+    initialValues?.servingAmount,
     initialValues?.showLimitModal,
     initialValues?.submitError,
+    initialValues?.textIngredients,
   ]);
+
+  const clearSubmitState = useCallback(() => {
+    if (submitError) setSubmitError(undefined);
+    if (retries > 0) setRetries(0);
+  }, [retries, submitError]);
 
   const reconcileCredits = useCallback(async (): Promise<AiCreditsStatus | null> => {
     const refreshedAccess = await refreshAccess();
@@ -68,23 +84,30 @@ export function useMealTextAiState(params: {
   }, [credits, refreshAccess]);
 
   const onAnalyze = useCallback(async () => {
-    setDescriptionError(undefined);
+    setNameError(undefined);
     setSubmitError(undefined);
 
-    if (!quickDescription.trim()) {
-      setDescriptionError(
-        t("text_ai_require_quick_description", { ns: "meals" }),
-      );
+    if (!name.trim()) {
+      setNameError(t("text_ai_require_meal_name", { ns: "meals" }));
       return;
     }
 
     setLoading(true);
     try {
       const analysisRequestId = uuidv4();
+      const normalizedTextIngredients = textIngredients
+        .map((ingredient) => ({
+          id: ingredient.id,
+          name: ingredient.name.trim(),
+          amount: ingredient.amount.trim(),
+        }))
+        .filter((ingredient) => ingredient.name.length > 0);
       const textAnalyzingParams = {
         analysisRequestId,
         name: name.trim(),
         quickDescription: quickDescription.trim(),
+        textIngredients: normalizedTextIngredients,
+        servingAmount: servingAmount.trim(),
         retries,
       } as const;
       let resolvedCredits = credits;
@@ -125,14 +148,16 @@ export function useMealTextAiState(params: {
     quickDescription,
     reconcileCredits,
     retries,
+    servingAmount,
     t,
+    textIngredients,
   ]);
 
   const analysisState = useMemo<
-    "missing_description" | "credits_unverified" | "insufficient_credits" | "ready"
+    "missing_name" | "credits_unverified" | "insufficient_credits" | "ready"
   >(() => {
-    if (!quickDescription.trim()) {
-      return "missing_description";
+    if (!name.trim()) {
+      return "missing_name";
     }
     if (!credits) {
       return "credits_unverified";
@@ -141,7 +166,7 @@ export function useMealTextAiState(params: {
       return "insufficient_credits";
     }
     return "ready";
-  }, [credits, quickDescription, textMealCost]);
+  }, [credits, name, textMealCost]);
 
   const analyzeDisabled = analysisState !== "ready";
 
@@ -153,18 +178,57 @@ export function useMealTextAiState(params: {
 
   const onNameChange = useCallback((text: string) => {
     setName(text);
-    if (submitError) setSubmitError(undefined);
-    if (retries > 0) setRetries(0);
-  }, [retries, submitError]);
+    if (nameError) setNameError(undefined);
+    clearSubmitState();
+  }, [clearSubmitState, nameError]);
 
   const onQuickDescriptionChange = useCallback(
     (text: string) => {
       setQuickDescription(text);
-      if (descriptionError) setDescriptionError(undefined);
-      if (submitError) setSubmitError(undefined);
-      if (retries > 0) setRetries(0);
+      clearSubmitState();
     },
-    [descriptionError, retries, submitError],
+    [clearSubmitState],
+  );
+
+  const onServingAmountChange = useCallback(
+    (text: string) => {
+      setServingAmount(text);
+      clearSubmitState();
+    },
+    [clearSubmitState],
+  );
+
+  const onAddTextIngredient = useCallback(() => {
+    setTextIngredients((current) => [
+      ...current,
+      { id: uuidv4(), name: "", amount: "" },
+    ]);
+    clearSubmitState();
+  }, [clearSubmitState]);
+
+  const onUpdateTextIngredient = useCallback(
+    (
+      id: string,
+      patch: Partial<Pick<MealAddTextIngredientInput, "name" | "amount">>,
+    ) => {
+      setTextIngredients((current) =>
+        current.map((ingredient) =>
+          ingredient.id === id ? { ...ingredient, ...patch } : ingredient,
+        ),
+      );
+      clearSubmitState();
+    },
+    [clearSubmitState],
+  );
+
+  const onRemoveTextIngredient = useCallback(
+    (id: string) => {
+      setTextIngredients((current) =>
+        current.filter((ingredient) => ingredient.id !== id),
+      );
+      clearSubmitState();
+    },
+    [clearSubmitState],
   );
 
   const closeLimitModal = useCallback(() => {
@@ -183,6 +247,8 @@ export function useMealTextAiState(params: {
   return {
     name,
     quickDescription,
+    textIngredients,
+    servingAmount,
     loading,
     retries,
     showLimitModal,
@@ -190,13 +256,17 @@ export function useMealTextAiState(params: {
     creditsBalance,
     textMealCost,
     remainingCreditsAfterAnalyze,
-    descriptionError,
+    nameError,
     submitError,
     analyzeDisabled,
     analysisState,
     creditAllocation,
     onNameChange,
     onQuickDescriptionChange,
+    onServingAmountChange,
+    onAddTextIngredient,
+    onUpdateTextIngredient,
+    onRemoveTextIngredient,
     onAnalyze,
     closeLimitModal,
     openPaywall,

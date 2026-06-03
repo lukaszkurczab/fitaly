@@ -1,0 +1,85 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=available"
+- assertVisible:
+    id: e2e-ready-weeklyReport-available
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: weekly-report-card
+    direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: mj062-weekly-report-card-ready-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=available"
+- assertVisible:
+    id: e2e-ready-weeklyReport-available
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: weekly-report-card
+    direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: mj062-weekly-report-card-ready-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=unavailable"
+- assertVisible:
+    id: e2e-ready-weeklyReport-unavailable
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: weekly-report-card
+    direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: mj062-weekly-report-card-unavailable-light
+- tapOn:
+    id: weekly-report-card
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: weekly-report-card
+- assertNotVisible:
+    id: weekly-report-screen
+- takeScreenshot: mj062-weekly-report-card-unavailable-retry-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=unavailable"
+- assertVisible:
+    id: e2e-ready-weeklyReport-unavailable
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: weekly-report-card
+    direction: DOWN
+- assertVisible:
+    id: weekly-report-card
+- takeScreenshot: mj062-weekly-report-card-unavailable-dark
+- tapOn:
+    id: weekly-report-card
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: weekly-report-card
+- assertNotVisible:
+    id: weekly-report-screen
+- takeScreenshot: mj062-weekly-report-card-unavailable-retry-dark

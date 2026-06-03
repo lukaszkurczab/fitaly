@@ -24,6 +24,9 @@ type TextInputProps = {
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
+  helperText?: string;
+  error?: boolean | string;
+  errorTestID?: string;
 };
 
 const mockLookupBarcodeProduct = jest.fn<
@@ -110,7 +113,7 @@ jest.mock("@/services/barcode/barcodeService", () => ({
 jest.mock("@/components", () => {
   const { createElement } =
     jest.requireActual<typeof import("react")>("react");
-  const { Pressable, Text, TextInput, View } =
+  const { Pressable, Text, TextInput: RNTextInput, View } =
     jest.requireActual<typeof import("react-native")>("react-native");
 
   return {
@@ -139,13 +142,32 @@ jest.mock("@/components", () => {
       ),
     ErrorBox: ({ message }: { message: string }) =>
       message ? createElement(Text, null, message) : null,
-    TextInput: ({ testID, value, onChangeText, placeholder }: TextInputProps) =>
-      createElement(TextInput, {
-        testID,
-        value,
-        onChangeText,
-        placeholder,
-      }),
+    TextInput: ({
+      testID,
+      value,
+      onChangeText,
+      placeholder,
+      helperText,
+      error,
+      errorTestID,
+    }: TextInputProps) =>
+      createElement(
+        View,
+        null,
+        createElement(RNTextInput, {
+          testID,
+          value,
+          onChangeText,
+          placeholder,
+        }),
+        error || helperText
+          ? createElement(
+              Text,
+              { testID: error ? errorTestID : undefined },
+              typeof error === "string" ? error : helperText,
+            )
+          : null,
+      ),
   };
 });
 
@@ -186,6 +208,28 @@ describe("BarcodeScanScreen", () => {
     mockSetLastScreen.mockResolvedValue(undefined);
   });
 
+  it("shows concise ready guidance with live status and secondary manual fallback", () => {
+    const props = buildProps();
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <BarcodeScanScreen {...props} />,
+    );
+
+    expect(
+      getByText(
+        "Place the code in the frame. After scanning, confirm the number before searching.",
+      ),
+    ).toBeTruthy();
+    expect(getByText("Scanning for a code")).toBeTruthy();
+    expect(getByTestId("barcode-live-status").props.accessibilityRole).toBe(
+      undefined,
+    );
+
+    fireEvent.press(getByTestId("barcode-open-manual-button"));
+
+    expect(getByTestId("barcode-manual-sheet")).toBeTruthy();
+  });
+
   it("waits for explicit confirmation before searching and routes success to ReviewMeal", async () => {
     mockLookupBarcodeProduct.mockResolvedValue({
       kind: "found",
@@ -194,11 +238,18 @@ describe("BarcodeScanScreen", () => {
     });
     const props = buildProps();
 
-    const { getByText } = renderWithTheme(<BarcodeScanScreen {...props} />);
+    const { getAllByText, getByTestId, getByText, queryByTestId } =
+      renderWithTheme(
+        <BarcodeScanScreen {...props} />,
+      );
 
     fireEvent.press(getByText("barcode-scan"));
 
-    expect(getByText("5901234123457")).toBeTruthy();
+    expect(getAllByText("5901234123457")).toHaveLength(1);
+    expect(getByTestId("barcode-preview-detected-code").props.children).toBe(
+      "5901234123457",
+    );
+    expect(queryByTestId("barcode-detected-summary")).toBeNull();
     expect(mockLookupBarcodeProduct).not.toHaveBeenCalled();
 
     fireEvent.press(getByText("Search product"));
@@ -238,6 +289,10 @@ describe("BarcodeScanScreen", () => {
       <BarcodeScanScreen {...props} />,
     );
 
+    expect(getByTestId("barcode-manual-input").props.placeholder).toBe(
+      "Enter code",
+    );
+
     fireEvent.changeText(getByTestId("barcode-manual-input"), "5901234123457");
     fireEvent.press(getByText("Search product"));
 
@@ -261,7 +316,7 @@ describe("BarcodeScanScreen", () => {
     expect(mockLayoutProps).toHaveBeenLastCalledWith(
       expect.objectContaining({ keyboardAvoiding: false }),
     );
-    expect(sheetStyle.marginBottom).toBe(280);
+    expect(sheetStyle.marginBottom).toBe(260);
     expect(sheetStyle.maxHeight).toEqual(expect.any(Number));
     expect(sheetStyle.maxHeight).toBeGreaterThan(0);
   });
@@ -272,17 +327,41 @@ describe("BarcodeScanScreen", () => {
     });
     const props = buildProps();
 
-    const { getByText } = renderWithTheme(<BarcodeScanScreen {...props} />);
+    const { getByText, queryByTestId, queryByText } = renderWithTheme(
+      <BarcodeScanScreen {...props} />,
+    );
 
     fireEvent.press(getByText("barcode-scan"));
     fireEvent.press(getByText("Search product"));
 
+    expect(await screen.findByTestId("barcode-lookup-not-found")).toBeTruthy();
     expect(
-      await screen.findAllByText(
-        "We couldn't find a product. Edit the code or choose another method.",
-      ),
-    ).not.toHaveLength(0);
+      screen.getByText("We don't have this product in the database yet."),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Check the code or add this meal another way."),
+    ).toBeTruthy();
+    expect(queryByText("Detected by scanner")).toBeNull();
+    expect(queryByTestId("barcode-detected-summary")).toBeNull();
+    expect(queryByTestId("barcode-lookup-error")).toBeNull();
     expect(props.flow.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps invalid manual codes in validation instead of lookup recovery", () => {
+    const props = buildProps({ showManualEntry: true });
+
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <BarcodeScanScreen {...props} />,
+    );
+
+    fireEvent.changeText(getByTestId("barcode-manual-input"), "123");
+    fireEvent.press(getByText("Search product"));
+
+    expect(getByTestId("barcode-manual-validation-error")).toBeTruthy();
+    expect(getByText("Enter a valid barcode to continue.")).toBeTruthy();
+    expect(queryByTestId("barcode-manual-not-found")).toBeNull();
+    expect(queryByTestId("barcode-manual-error")).toBeNull();
+    expect(mockLookupBarcodeProduct).not.toHaveBeenCalled();
   });
 
   it("opens the add method chooser from the footer link", () => {
@@ -304,18 +383,23 @@ describe("BarcodeScanScreen", () => {
     });
     const props = buildProps({ showManualEntry: true });
 
-    const { getByTestId, getByText } = renderWithTheme(
-      <BarcodeScanScreen {...props} />,
-    );
+    const { getByTestId, getByText, queryByTestId, queryByText } =
+      renderWithTheme(
+        <BarcodeScanScreen {...props} />,
+      );
 
     fireEvent.changeText(getByTestId("barcode-manual-input"), "5901234123457");
     fireEvent.press(getByText("Search product"));
 
+    expect(await screen.findByTestId("barcode-manual-not-found")).toBeTruthy();
     expect(
-      await screen.findAllByText(
-        "We couldn't find a product. Edit the code or choose another method.",
-      ),
-    ).not.toHaveLength(0);
+      screen.getByText("We don't have this product in the database yet."),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Check the code or add this meal another way."),
+    ).toBeTruthy();
+    expect(queryByText("Entered manually")).toBeNull();
+    expect(queryByTestId("barcode-manual-error")).toBeNull();
     expect(props.flow.replace).not.toHaveBeenCalled();
   });
 });

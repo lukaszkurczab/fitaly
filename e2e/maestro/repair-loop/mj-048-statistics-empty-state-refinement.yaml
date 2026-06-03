@@ -1,0 +1,39 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- takeScreenshot: mj048-statistics-empty-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-statistics
+- assertVisible:
+    id: statistics-screen
+- extendedWaitUntil:
+    visible:
+      id: statistics-empty-state-no_history
+    timeout: 10000
+- takeScreenshot: mj048-statistics-empty-dark

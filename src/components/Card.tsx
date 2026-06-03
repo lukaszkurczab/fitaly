@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, ViewStyle, StyleProp, Platform } from "react-native";
+import { View, Pressable, ViewStyle, StyleProp, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 
 type CardProps = {
@@ -18,13 +18,14 @@ export const Card: React.FC<CardProps> = ({
   elevation = 2,
 }) => {
   const theme = useTheme();
+  const depthStyle = variant === "outlined" ? null : theme.depth.raised;
 
   const cardStyle: ViewStyle = {
     backgroundColor:
       variant === "outlined" ? theme.background : theme.surfaceElevated,
     borderRadius: variant === "stat" ? theme.rounded.sm : theme.rounded.md,
-    borderWidth: variant === "outlined" ? 1 : 0,
-    borderColor: variant === "outlined" ? theme.border : undefined,
+    borderWidth: variant === "outlined" ? 1 : StyleSheet.hairlineWidth,
+    borderColor: variant === "outlined" ? theme.border : theme.borderSoft,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     ...(variant === "stat"
@@ -36,9 +37,8 @@ export const Card: React.FC<CardProps> = ({
           marginBottom: 0,
         }
       : {}),
-    ...(Platform.OS === "android" && variant !== "outlined"
-      ? { elevation }
-      : {}),
+    ...(depthStyle ?? {}),
+    ...(variant !== "outlined" ? { elevation } : {}),
   };
 
   const Content = <View style={[cardStyle, style]}>{children}</View>;
@@ -51,9 +51,6 @@ export const Card: React.FC<CardProps> = ({
           style,
           {
             opacity: pressed ? 0.92 : 1,
-            elevation: 2,
-            shadowOpacity: 0.07,
-            shadowRadius: 12,
           },
         ]}
         onPress={onPress}

@@ -2,21 +2,21 @@
   "screen": {
     "title": "Powiadomienia",
     "intro": "Ustaw przypomnienia o posiłkach i powiadomienia z Fitaly.",
-    "smartReminderHint": "Dopasowuje porę przypomnienia do Twojego dnia i godzin ciszy.",
+    "smartReminderHint": "Dopasowują porę przypomnienia do Twojego dnia i godzin ciszy.",
     "smartReminderUnavailableTitle": "Inteligentne przypomnienia są niedostępne",
     "smartReminderUnavailableBody": "Ta funkcja jest teraz wstrzymana. Pozostałe powiadomienia możesz nadal kontrolować poniżej.",
     "smartReminderUnavailableHint": "Tymczasowo wstrzymane.",
     "smartReminderDebugTitle": "Diagnostyka inteligentnych przypomnień",
     "smartReminders": "Inteligentne przypomnienia",
     "preferenceTitle": "Preferencje powiadomień",
-    "permissionOnTitle": "Powiadomienia są włączone",
-    "permissionOnBody": "Możesz otrzymywać przypomnienia i inne powiadomienia na tym urządzeniu.",
+    "permissionOnTitle": "Powiadomienia są gotowe",
+    "permissionOnBody": "Fitaly może spokojnie przypominać Ci o posiłkach i podsumowaniach na tym urządzeniu.",
     "permissionOffTitle": "Powiadomienia są wyłączone",
-    "permissionOffBody": "Włącz powiadomienia systemowe, aby otrzymywać przypomnienia o posiłkach i inne typy powiadomień na czas.",
+    "permissionOffBody": "Włącz powiadomienia systemowe, jeśli chcesz otrzymywać przypomnienia o posiłkach i inne typy powiadomień na czas.",
     "permissionCheckingTitle": "Sprawdzanie dostępu do powiadomień",
     "permissionCheckingBody": "Fitaly nadal sprawdza, czy to urządzenie może odbierać powiadomienia.",
-    "motivation": "Motywacja",
-    "motivationSubtitle": "Krótkie, wspierające przypomnienia.",
+    "motivation": "Wsparcie",
+    "motivationSubtitle": "Delikatne wskazówki bez presji.",
     "stats": "Statystyki",
     "statsSubtitle": "Cotygodniowe podsumowania postępów."
   },
@@ -57,7 +57,7 @@
   },
   "permissions": {
     "title": "Włącz powiadomienia",
-    "message": "Włącz powiadomienia w ustawieniach systemowych, aby otrzymywać przypomnienia, w tym Smart Reminders, na czas.",
+    "message": "Włącz powiadomienia w ustawieniach systemowych, jeśli chcesz otrzymywać przypomnienia, w tym inteligentne przypomnienia, na czas.",
     "openSettings": "Otwórz ustawienia",
     "notNow": "Nie teraz"
   }

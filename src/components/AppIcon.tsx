@@ -17,6 +17,8 @@ import CloseIcon from "@assets/icons/close.svg";
 import CopyIcon from "@assets/icons/copy.svg";
 import CropIcon from "@assets/icons/crop.svg";
 import DeleteIcon from "@assets/icons/delete.svg";
+import DocumentIcon from "@assets/icons/document.svg";
+import DownloadIcon from "@assets/icons/download.svg";
 import EditIcon from "@assets/icons/edit.svg";
 import EmailIcon from "@assets/icons/email.svg";
 import EmptyMealsIcon from "@assets/icons/empty-meals.svg";
@@ -32,6 +34,10 @@ import ImageIcon from "@assets/icons/image.svg";
 import InfoIcon from "@assets/icons/info.svg";
 import InsightIcon from "@assets/icons/insight.svg";
 import LockIcon from "@assets/icons/lock.svg";
+import MacroCaloriesFlameIcon from "@assets/icons/macro-calories-flame.svg";
+import MacroCarbsGrainIcon from "@assets/icons/macro-carbs-grain.svg";
+import MacroFatDropIcon from "@assets/icons/macro-fat-drop.svg";
+import MacroProteinDrumstickIcon from "@assets/icons/macro-protein-drumstick.svg";
 import MenuIcon from "@assets/icons/menu.svg";
 import MoreIcon from "@assets/icons/more.svg";
 import NotificationIcon from "@assets/icons/notification.svg";
@@ -72,6 +78,8 @@ const ICONS = {
   copy: CopyIcon,
   crop: CropIcon,
   delete: DeleteIcon,
+  document: DocumentIcon,
+  download: DownloadIcon,
   edit: EditIcon,
   email: EmailIcon,
   "empty-meals": EmptyMealsIcon,
@@ -87,6 +95,10 @@ const ICONS = {
   info: InfoIcon,
   insight: InsightIcon,
   lock: LockIcon,
+  "macro-calories-flame": MacroCaloriesFlameIcon,
+  "macro-carbs-grain": MacroCarbsGrainIcon,
+  "macro-fat-drop": MacroFatDropIcon,
+  "macro-protein-drumstick": MacroProteinDrumstickIcon,
   menu: MenuIcon,
   more: MoreIcon,
   notification: NotificationIcon,

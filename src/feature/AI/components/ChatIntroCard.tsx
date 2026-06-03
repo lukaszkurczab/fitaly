@@ -29,18 +29,18 @@ export function ChatIntroCard({ title, subtitle, creditsText }: Props) {
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     card: {
-      borderRadius: theme.rounded.xl,
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark ? theme.surfaceElevated : theme.surface,
       paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.md,
-      gap: theme.spacing.xs,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.xxs,
     },
     title: {
       color: theme.text,
-      fontSize: theme.typography.size.h1,
-      lineHeight: theme.typography.lineHeight.h1,
+      fontSize: theme.typography.size.h2,
+      lineHeight: theme.typography.lineHeight.h2,
       fontFamily: theme.typography.fontFamily.bold,
     },
     subtitle: {
@@ -53,10 +53,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       alignSelf: "flex-start",
       marginTop: theme.spacing.xs,
       borderRadius: theme.rounded.sm,
-      backgroundColor: theme.surfaceAlt,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
-      minWidth: 160,
+      backgroundColor: theme.isDark ? theme.disabled.background : theme.surfaceAlt,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
       alignItems: "center",
       justifyContent: "center",
     },

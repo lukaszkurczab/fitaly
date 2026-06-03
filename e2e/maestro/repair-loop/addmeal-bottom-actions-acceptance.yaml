@@ -1,0 +1,123 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=photoSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-photo
+- tapOn:
+    id: meal-add-option-photo
+- assertVisible:
+    id: add-meal-photo-screen
+- assertVisible:
+    id: add-meal-photo-capture-button
+- takeScreenshot: addmeal-bottom-photo-action-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-details-form-submit-button
+- takeScreenshot: addmeal-bottom-manual-empty-disabled-light
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Manual Bowl
+- assertVisible:
+    id: meal-details-form-submit-button
+- takeScreenshot: addmeal-bottom-manual-content-keyboard-light
+- hideKeyboard
+- takeScreenshot: addmeal-bottom-manual-content-enabled-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=photoSlow"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-photo
+- tapOn:
+    id: meal-add-option-photo
+- assertVisible:
+    id: add-meal-photo-screen
+- assertVisible:
+    id: add-meal-photo-capture-button
+- takeScreenshot: addmeal-bottom-photo-action-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-details-form-submit-button
+- takeScreenshot: addmeal-bottom-manual-empty-disabled-dark
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Manual Bowl
+- assertVisible:
+    id: meal-details-form-submit-button
+- takeScreenshot: addmeal-bottom-manual-content-keyboard-dark
+- hideKeyboard
+- takeScreenshot: addmeal-bottom-manual-content-enabled-dark

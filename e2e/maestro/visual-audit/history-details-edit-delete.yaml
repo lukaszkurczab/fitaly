@@ -41,15 +41,6 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: meal-name-input
 - takeScreenshot: history-details-edit-form
-- tapOn:
-    id: meal-name-input
-- eraseText
-- inputText: E2E Edited Meal
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: meal-details-form-submit-button
-    direction: DOWN
 - assertVisible:
     id: meal-details-form-submit-button
 - takeScreenshot: history-details-edit-submit
@@ -59,7 +50,7 @@ appId: com.lkurczab.fitaly
     id: history-meal-details-screen
 - assertVisible:
     id: history-meal-details-title
-- takeScreenshot: history-details-after-edit
+- takeScreenshot: history-details-after-edit-submit
 - tapOn:
     id: back-title-header-back
 - extendedWaitUntil:

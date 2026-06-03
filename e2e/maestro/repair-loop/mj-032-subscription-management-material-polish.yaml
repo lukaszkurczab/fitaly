@@ -1,0 +1,117 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- assertVisible:
+    id: manage-subscription-status-value-free_active
+- assertVisible:
+    id: manage-subscription-credits-balance-row
+- takeScreenshot: mj032-manage-free-light
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-refund-row
+    direction: DOWN
+- assertVisible:
+    id: manage-subscription-restore-row
+- assertVisible:
+    id: manage-subscription-legal-row
+- assertVisible:
+    id: manage-subscription-refund-row
+- takeScreenshot: mj032-manage-actions-light
+- tapOn:
+    id: back-title-header-back
+
+- openLink: "fitaly://e2e/seed?credits=ok&billing=premium"
+- assertVisible:
+    id: e2e-ready-billing-premium
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-status-value-premium_active
+    timeout: 15000
+- assertVisible:
+    id: manage-subscription-credits-allocation-value-800
+- takeScreenshot: mj032-manage-premium-light
+- tapOn:
+    id: back-title-header-back
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- assertVisible:
+    id: manage-subscription-status-value-free_active
+- assertVisible:
+    id: manage-subscription-credits-balance-row
+- takeScreenshot: mj032-manage-free-dark
+- scrollUntilVisible:
+    element:
+      id: manage-subscription-refund-row
+    direction: DOWN
+- assertVisible:
+    id: manage-subscription-restore-row
+- assertVisible:
+    id: manage-subscription-legal-row
+- assertVisible:
+    id: manage-subscription-refund-row
+- takeScreenshot: mj032-manage-actions-dark
+- tapOn:
+    id: back-title-header-back
+
+- openLink: "fitaly://e2e/seed?credits=ok&billing=premium"
+- assertVisible:
+    id: e2e-ready-billing-premium
+- scrollUntilVisible:
+    element:
+      id: account-manage-subscription-row
+    direction: DOWN
+- tapOn:
+    id: account-manage-subscription-row
+- assertVisible:
+    id: manage-subscription-screen
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-status-value-premium_active
+    timeout: 15000
+- assertVisible:
+    id: manage-subscription-credits-allocation-value-800
+- takeScreenshot: mj032-manage-premium-dark

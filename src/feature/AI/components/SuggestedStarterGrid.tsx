@@ -11,6 +11,8 @@ type Props = {
   title: string;
   starters: SuggestedStarter[];
   disabled?: boolean;
+  compact?: boolean;
+  accessibilityHint?: string;
   onSelect: (value: string) => void;
 };
 
@@ -18,6 +20,8 @@ export function SuggestedStarterGrid({
   title,
   starters,
   disabled = false,
+  compact = false,
+  accessibilityHint,
   onSelect,
 }: Props) {
   const theme = useTheme();
@@ -27,7 +31,7 @@ export function SuggestedStarterGrid({
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>{title}</Text>
 
-      <View style={styles.grid}>
+      <View style={[styles.grid, compact ? styles.gridCompact : null]}>
         {starters.map((starter) => (
           <Pressable
             key={starter.label}
@@ -35,13 +39,24 @@ export function SuggestedStarterGrid({
             onPress={() => onSelect(starter.value)}
             style={({ pressed }) => [
               styles.chip,
+              compact ? styles.chipCompact : null,
               disabled ? styles.chipDisabled : null,
               pressed && !disabled ? styles.chipPressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel={starter.label}
+            accessibilityHint={accessibilityHint}
+            accessibilityState={{ disabled }}
           >
-            <Text style={styles.chipLabel}>{starter.label}</Text>
+            <Text
+              style={[
+                styles.chipLabel,
+                compact ? styles.chipLabelCompact : null,
+                disabled ? styles.chipLabelDisabled : null,
+              ]}
+            >
+              {starter.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -52,39 +67,55 @@ export function SuggestedStarterGrid({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     sectionLabel: {
       color: theme.textTertiary,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.semiBold,
-      letterSpacing: 0.6,
+      letterSpacing: 0.2,
     },
     grid: {
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "space-between",
-      rowGap: theme.spacing.md,
+      rowGap: theme.spacing.xs,
+    },
+    gridCompact: {
+      rowGap: theme.spacing.xs,
     },
     chip: {
       width: "48%",
-      minHeight: 66,
-      borderRadius: theme.rounded.xl,
+      minHeight: 50,
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      paddingHorizontal: theme.spacing.md,
+      backgroundColor: theme.isDark ? theme.surfaceAlt : theme.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
       justifyContent: "center",
+    },
+    chipCompact: {
+      minHeight: 48,
+      paddingHorizontal: theme.spacing.sm,
     },
     chipLabel: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.medium,
     },
+    chipLabelCompact: {
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+    },
     chipDisabled: {
-      opacity: 0.45,
+      backgroundColor: theme.isDark ? theme.disabled.background : theme.surfaceAlt,
+      borderColor: theme.borderSoft,
+    },
+    chipLabelDisabled: {
+      color: theme.textTertiary,
     },
     chipPressed: {
       opacity: 0.82,

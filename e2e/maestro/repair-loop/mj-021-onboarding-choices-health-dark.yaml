@@ -1,0 +1,151 @@
+appId: com.lkurczab.fitaly
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: fitaly://e2e/reset?logout=1&theme=dark
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-screen
+- tapOn:
+    id: login-register-link
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
+- tapOn:
+    id: register-username-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_USERNAME}
+- tapOn:
+    id: register-email-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_EMAIL}
+- tapOn:
+    id: register-password-visibility-toggle
+- tapOn:
+    id: register-confirm-password-visibility-toggle
+- tapOn:
+    id: register-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    id: register-confirm-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    point: "87%,89%"
+- tapOn:
+    id: register-terms-checkbox
+- tapOn:
+    id: register-submit-button
+- extendedWaitUntil:
+    visible:
+      id: onboarding-screen
+    timeout: 30000
+- assertVisible:
+    id: onboarding-step-1
+- scrollUntilVisible:
+    element:
+      id: onboarding-weight-input
+    direction: DOWN
+- swipe:
+    direction: UP
+    duration: 300
+- tapOn:
+    id: onboarding-weight-input
+- eraseText
+- inputText: "78"
+- tapOn:
+    id: onboarding-height-input
+- eraseText
+- inputText: "178"
+- tapOn:
+    id: onboarding-age-input
+- eraseText
+- inputText: "34"
+- assertVisible:
+    id: onboarding-step-1
+- tapOn:
+    id: onboarding-step-1-next-button
+- assertVisible:
+    id: onboarding-step-2
+- takeScreenshot: mj021-step2-dark
+- tapOn:
+    id: onboarding-preferences-dropdown-field
+- tapOn: "Keto"
+- tapOn:
+    point: "50%,28%"
+- tapOn:
+    id: onboarding-goal-lose
+- takeScreenshot: mj021-step2-selected-dark
+- tapOn:
+    id: onboarding-step-2-next-button
+- assertVisible:
+    id: onboarding-step-3
+- takeScreenshot: mj021-step3-dark
+- tapOn:
+    id: onboarding-condition-diabetes
+- tapOn:
+    id: onboarding-allergy-gluten
+- takeScreenshot: mj021-step3-selected-dark
+- tapOn:
+    id: onboarding-step-3-skip-button
+- assertVisible:
+    id: onboarding-confirm-modal
+- takeScreenshot: mj021-step3-skip-confirm-dark
+- tapOn:
+    id: onboarding-confirm-secondary-button
+- assertVisible:
+    id: onboarding-step-3
+- swipe:
+    direction: UP
+    duration: 500
+- swipe:
+    direction: UP
+    duration: 500
+- tapOn:
+    id: onboarding-lifestyle-notes-input
+- inputText: "night shifts"
+- takeScreenshot: mj021-step3-keyboard-dark
+- tapOn:
+    point: "50%,20%"
+- tapOn:
+    id: onboarding-step-3-next-button
+- assertVisible:
+    id: onboarding-step-4
+- tapOn:
+    id: onboarding-step-4-submit-button
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- tapOn:
+    id: account-delete-account-row
+- assertVisible:
+    id: delete-account-screen
+- tapOn:
+    id: delete-account-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    id: delete-account-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 30000

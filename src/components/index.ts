@@ -23,6 +23,7 @@ export * from "./CheckboxDropdown";
 export * from "./LongTextInput";
 export * from "./KeyboardAwareScrollView";
 export * from "./BottomTabBar";
+export * from "./BottomActionBar";
 export * from "./ButtonToggle";
 export * from "./SelectableGroup";
 export * from "./RowPicker";

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { Button } from "@/components/Button";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -32,21 +33,58 @@ export function HomeHeroCard({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const isSuccess = tone === "success";
+  const cardAccentColors: [string, string, string] = theme.isDark
+    ? [
+        "rgba(255, 253, 248, 0.03)",
+        isSuccess ? "rgba(127, 160, 122, 0.07)" : "rgba(111, 138, 105, 0.05)",
+        "rgba(199, 126, 97, 0.02)",
+      ]
+    : [
+        "rgba(255, 253, 248, 0.56)",
+        isSuccess ? "rgba(111, 138, 105, 0.05)" : "rgba(111, 138, 105, 0.025)",
+        "rgba(199, 126, 97, 0.016)",
+      ];
 
   return (
     <View
       testID="home-hero-card"
       style={[styles.card, isSuccess ? styles.cardSuccess : styles.cardDefault]}
     >
+      <LinearGradient
+        pointerEvents="none"
+        colors={cardAccentColors}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardWash}
+      />
+      <View
+        pointerEvents="none"
+        style={styles.assetSlot}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Image
+          source={require("../../../../assets/images/image.png")}
+          resizeMode="contain"
+          style={styles.assetImage}
+        />
+      </View>
+
       <View style={styles.header}>
         <Text
           testID="home-hero-title"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
           style={[styles.title, isSuccess ? styles.titleSuccess : null]}
         >
           {title}
         </Text>
         <View style={styles.metaBlock}>
-          <Text testID="home-hero-meta" style={styles.meta}>{meta}</Text>
+          <Text testID="home-hero-meta" numberOfLines={1} style={styles.meta}>
+            {meta}
+          </Text>
           {typeof progress === "number" ? (
             <View style={styles.progressTrack}>
               <View
@@ -59,6 +97,12 @@ export function HomeHeroCard({
           ) : null}
         </View>
       </View>
+
+      {supportText ? (
+        <Text numberOfLines={2} style={styles.supportText}>
+          {supportText}
+        </Text>
+      ) : null}
 
       <View style={styles.actions}>
         <Button
@@ -77,7 +121,14 @@ export function HomeHeroCard({
                 />
               </View>
             ) : null}
-            <Text style={styles.ctaLabel}>{ctaLabel}</Text>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+              style={styles.ctaLabel}
+            >
+              {ctaLabel}
+            </Text>
           </View>
         </Button>
 
@@ -92,6 +143,9 @@ export function HomeHeroCard({
             ]}
             testID="home-method-selector"
           >
+            <View style={styles.methodIconWrap}>
+              <AppIcon name="assistant" size={22} color={theme.primaryStrong} />
+            </View>
             <Text
               numberOfLines={1}
               ellipsizeMode="tail"
@@ -102,16 +156,12 @@ export function HomeHeroCard({
             <View style={styles.methodChevronWrap}>
               <AppIcon
                 name="chevron"
-                rotation="-90deg"
+                rotation="180deg"
                 size={24}
                 color={theme.textTertiary}
               />
             </View>
           </Pressable>
-        ) : null}
-
-        {supportText ? (
-          <Text style={styles.supportText}>{supportText}</Text>
         ) : null}
       </View>
     </View>
@@ -122,26 +172,59 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     card: {
       borderRadius: theme.rounded.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      minHeight: 230,
       paddingHorizontal: theme.spacing.cardPaddingLarge,
-      paddingVertical: theme.spacing.bottomSheetPadding,
-      gap: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+      gap: theme.spacing.sm,
+      overflow: "hidden",
+      position: "relative",
     },
     cardDefault: {
-      backgroundColor: theme.surface,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.78)"
+        : "rgba(255, 253, 248, 0.72)",
     },
     cardSuccess: {
-      backgroundColor: theme.success.surface,
+      backgroundColor: theme.isDark
+        ? "rgba(79, 104, 75, 0.28)"
+        : "rgba(231, 236, 226, 0.78)",
+      borderColor: theme.isDark ? theme.primarySoft : theme.success.main,
+    },
+    cardWash: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 0,
+    },
+    assetSlot: {
+      position: "absolute",
+      top: theme.spacing.xxs,
+      right: -theme.spacing.xl,
+      height: 172,
+      width: 172,
+      alignItems: "center",
+      justifyContent: "center",
+      opacity: theme.isDark ? 0.78 : 0.96,
+      zIndex: 1,
+      transform: [{ scaleX: -1 }],
+    },
+    assetImage: {
+      height: 172,
+      width: 172,
     },
     header: {
-      gap: theme.spacing.sm,
+      width: "67%",
+      minHeight: 64,
+      gap: theme.spacing.xs,
+      zIndex: 2,
     },
     metaBlock: {
-      gap: theme.spacing.xs,
+      gap: theme.spacing.sm,
     },
     title: {
       color: theme.text,
-      fontSize: theme.typography.size.h2,
-      lineHeight: theme.typography.lineHeight.h2,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
       fontFamily: theme.typography.fontFamily.semiBold,
     },
     titleSuccess: {
@@ -151,10 +234,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontFamily: theme.typography.fontFamily.medium,
+      alignSelf: "flex-start",
+      maxWidth: "100%",
     },
     progressTrack: {
-      height: 3,
+      height: 6,
       borderRadius: theme.rounded.full,
       backgroundColor: theme.borderSoft,
       overflow: "hidden",
@@ -166,10 +251,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     actions: {
       gap: theme.spacing.sm,
+      zIndex: 2,
     },
     cta: {
-      minHeight: 50,
-      borderRadius: 14,
+      alignSelf: "flex-start",
+      width: "62%",
+      minHeight: 48,
+      borderRadius: theme.rounded.lg,
     },
     ctaContent: {
       flexDirection: "row",
@@ -185,23 +273,38 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     ctaLabel: {
       color: theme.cta.primaryText,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.semiBold,
       flexShrink: 1,
+      textAlign: "center",
     },
     methodSelector: {
-      minHeight: 44,
-      borderRadius: theme.rounded.md,
-      backgroundColor: theme.surfaceAlt,
+      minHeight: 48,
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.isDark
+        ? "rgba(47, 55, 48, 0.72)"
+        : "rgba(239, 231, 218, 0.7)",
       paddingHorizontal: theme.spacing.md,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: theme.spacing.sm,
+      gap: theme.spacing.md,
     },
     methodSelectorPressed: {
       opacity: 0.88,
+    },
+    methodIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      alignItems: "center",
+      justifyContent: "center",
     },
     methodLabel: {
       color: theme.textSecondary,
@@ -216,9 +319,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     supportText: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
+      width: "58%",
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
+      zIndex: 2,
     },
   });
 

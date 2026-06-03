@@ -16,6 +16,11 @@ type Props = {
     carbs?: string;
     fat?: string;
   };
+  macroLabels?: {
+    protein?: string;
+    carbs?: string;
+    fat?: string;
+  };
   macroColor?: {
     protein?: string;
     carbs?: string;
@@ -34,6 +39,7 @@ export default function MacroBarMini({
   carbs,
   kcal,
   chartMacroColors,
+  macroLabels,
   macroColor,
   showKcalLabel = true,
   textColor,
@@ -43,11 +49,11 @@ export default function MacroBarMini({
   const theme = useTheme();
   const items = useMemo(
     () => [
-      { key: "protein", label: "P", value: Math.max(0, protein) },
-      { key: "carbs", label: "C", value: Math.max(0, carbs) },
-      { key: "fat", label: "F", value: Math.max(0, fat) },
+      { key: "protein", label: macroLabels?.protein ?? "P", value: Math.max(0, protein) },
+      { key: "carbs", label: macroLabels?.carbs ?? "C", value: Math.max(0, carbs) },
+      { key: "fat", label: macroLabels?.fat ?? "F", value: Math.max(0, fat) },
     ],
-    [protein, carbs, fat]
+    [protein, carbs, fat, macroLabels?.protein, macroLabels?.carbs, macroLabels?.fat]
   );
 
   const maxVal = Math.max(1, ...items.map((i) => i.value));

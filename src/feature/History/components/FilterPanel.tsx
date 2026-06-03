@@ -106,15 +106,17 @@ function compactDateRangeLabel(range: Range, locale?: string): string {
 type ChipButtonProps = {
   label: string;
   selected?: boolean;
+  testID?: string;
   onPress: () => void;
 };
 
-function ChipButton({ label, selected = false, onPress }: ChipButtonProps) {
+function ChipButton({ label, selected = false, testID, onPress }: ChipButtonProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -146,7 +148,6 @@ export const FilterPanel: React.FC<{
   const { t, i18n } = useTranslation(["history", "common"]);
   const accessWindowDays = isPremium ? undefined : windowDays;
   const {
-    query,
     filters: ctxFilters,
     applyFilters,
     clearFilters,
@@ -184,7 +185,6 @@ export const FilterPanel: React.FC<{
   const [openCalendar, setOpenCalendar] = useState(false);
   const [focus, setFocus] = useState<"start" | "end">("start");
   const [localRange, setLocalRange] = useState<Range>(initialRange);
-  const [openPicker, setOpenPicker] = useState(false);
 
   useEffect(() => {
     setDateRange(initialRange);
@@ -306,12 +306,6 @@ export const FilterPanel: React.FC<{
     ? resolveCaloriePreset(calories)
     : null;
 
-  const macroFilterOptions: Array<{ key: FilterKey; label: string }> = [
-    { key: "protein", label: t("history:filters.protein", "Protein") },
-    { key: "carbs", label: t("history:filters.carbs", "Carbs") },
-    { key: "fat", label: t("history:filters.fat", "Fat") },
-  ];
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -321,40 +315,43 @@ export const FilterPanel: React.FC<{
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topSearchShell}>
-          <Text style={styles.topSearchLabel}>
-            {query.trim().length > 0
-              ? query
-              : t("history:searchPlaceholder", "Search meals...")}
+        <View style={styles.screenHeader}>
+          <Text style={styles.screenTitle}>
+            {t("history:sheetTitle", "Filters")}
           </Text>
+          <Pressable
+            testID="history-filter-reset-button"
+            onPress={clear}
+            accessibilityRole="button"
+            accessibilityLabel={t("history:actions.reset", "Reset")}
+            style={({ pressed }) => [
+              styles.resetButton,
+              pressed ? styles.resetButtonPressed : null,
+            ]}
+          >
+            <Text style={styles.resetLabel}>
+              {t("history:actions.reset", "Reset")}
+            </Text>
+          </Pressable>
         </View>
 
-        {hasActive ? <View style={styles.summaryChipRail}>{summaryChips}</View> : null}
-
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>
-              {t("history:sheetTitle", "Filters")}
+        {hasActive ? (
+          <View style={styles.summarySection}>
+            <Text style={styles.sectionEyebrow}>
+              {t("history:title", "Selected filters")}
             </Text>
-            <Pressable
-              onPress={clear}
-              accessibilityRole="button"
-              accessibilityLabel={t("history:actions.reset", "Reset")}
-            >
-              <Text style={styles.resetLabel}>
-                {t("history:actions.reset", "Reset")}
-              </Text>
-            </Pressable>
+            <View style={styles.summaryChipRail}>{summaryChips}</View>
           </View>
+        ) : null}
 
+        <View style={styles.controlSurface}>
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
+            <Text style={styles.sectionTitle}>
               {t("history:filters.date", "Date range")}
             </Text>
             <View style={styles.chipRow}>
               <ChipButton
+                testID="history-filter-date-today"
                 label={t("history:presets.today", "Today")}
                 selected={selectedDatePreset === "today"}
                 onPress={() => {
@@ -395,9 +392,11 @@ export const FilterPanel: React.FC<{
               />
             ) : null}
           </View>
+        </View>
 
+        <View style={styles.controlSurface}>
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
+            <Text style={styles.sectionTitle}>
               {t("history:filters.calories", "Calories")}
             </Text>
             <View style={styles.chipRow}>
@@ -410,6 +409,7 @@ export const FilterPanel: React.FC<{
                 }}
               />
               <ChipButton
+                testID="history-filter-calories-300-600"
                 label={t("history:presets.range300To600", "300-600")}
                 selected={selectedCaloriePreset === "300-600"}
                 onPress={() => {
@@ -454,123 +454,104 @@ export const FilterPanel: React.FC<{
               />
             ) : null}
           </View>
+        </View>
 
-          {(active.includes("protein") ||
-            active.includes("carbs") ||
-            active.includes("fat")) ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>
-                {t("history:advancedTitle", "Advanced filters")}
-              </Text>
-
-              {active.includes("protein") ? (
-                <RangeSlider
-                  label={t("history:filters.protein", "Protein")}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={protein}
-                  onChange={setProtein}
-                />
-              ) : null}
-
-              {active.includes("carbs") ? (
-                <RangeSlider
-                  label={t("history:filters.carbs", "Carbs")}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={carbs}
-                  onChange={setCarbs}
-                />
-              ) : null}
-
-              {active.includes("fat") ? (
-                <RangeSlider
-                  label={t("history:filters.fat", "Fat")}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={fat}
-                  onChange={setFat}
-                />
-              ) : null}
-            </View>
-          ) : null}
-
-          <Pressable
-            style={styles.moreFiltersRow}
-            onPress={() => setOpenPicker(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t("history:actions.moreFilters", "More filters")}
-          >
-            <Text style={styles.moreFiltersLabel}>
-              {t("history:actions.moreFilters", "More filters")}
+        <View style={styles.controlSurface}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t("history:nutritionRangesTitle", "Macro ranges")}
             </Text>
-          </Pressable>
+            <View style={styles.chipRow}>
+              <ChipButton
+                testID="history-filter-protein"
+                label={t("history:filters.protein", "Protein")}
+                selected={active.includes("protein")}
+                onPress={() => {
+                  if (active.includes("protein")) {
+                    removeFilter("protein");
+                    return;
+                  }
+                  addFilter("protein");
+                }}
+              />
+              <ChipButton
+                testID="history-filter-carbs"
+                label={t("history:filters.carbs", "Carbs")}
+                selected={active.includes("carbs")}
+                onPress={() => {
+                  if (active.includes("carbs")) {
+                    removeFilter("carbs");
+                    return;
+                  }
+                  addFilter("carbs");
+                }}
+              />
+              <ChipButton
+                testID="history-filter-fat"
+                label={t("history:filters.fat", "Fat")}
+                selected={active.includes("fat")}
+                onPress={() => {
+                  if (active.includes("fat")) {
+                    removeFilter("fat");
+                    return;
+                  }
+                  addFilter("fat");
+                }}
+              />
+            </View>
 
-          <Button
-            label={t("history:actions.showResults", "Show results")}
-            onPress={apply}
-            style={styles.applyButton}
-          />
+            {active.includes("protein") ? (
+              <RangeSlider
+                label={t("history:filters.protein", "Protein")}
+                min={0}
+                max={100}
+                step={1}
+                value={protein}
+                onChange={(next) => {
+                  setProtein(next);
+                  addFilter("protein");
+                }}
+              />
+            ) : null}
+
+            {active.includes("carbs") ? (
+              <RangeSlider
+                label={t("history:filters.carbs", "Carbs")}
+                min={0}
+                max={100}
+                step={1}
+                value={carbs}
+                onChange={(next) => {
+                  setCarbs(next);
+                  addFilter("carbs");
+                }}
+              />
+            ) : null}
+
+            {active.includes("fat") ? (
+              <RangeSlider
+                label={t("history:filters.fat", "Fat")}
+                min={0}
+                max={100}
+                step={1}
+                value={fat}
+                onChange={(next) => {
+                  setFat(next);
+                  addFilter("fat");
+                }}
+              />
+            ) : null}
+          </View>
         </View>
       </ScrollView>
 
-      <Modal
-        visible={openPicker}
-        title={t("history:actions.moreFilters", "More filters")}
-        onClose={() => setOpenPicker(false)}
-        primaryAction={{
-          label: t("history:actions.done", "Done"),
-          onPress: () => setOpenPicker(false),
-        }}
-      >
-        <View style={styles.modalList}>
-          {macroFilterOptions.map(({ key, label }) => {
-            const selected = active.includes(key);
-
-            return (
-              <Pressable
-                key={key}
-                onPress={() => {
-                  if (selected) {
-                    removeFilter(key);
-                    return;
-                  }
-                  addFilter(key);
-                }}
-                style={[
-                  styles.modalRow,
-                  selected ? styles.modalRowSelected : styles.modalRowDefault,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  selected
-                    ? t("history:actions.removeFilter", {
-                        defaultValue: `Remove ${label} filter`,
-                        label,
-                      })
-                    : t("history:actions.addFilter", {
-                        defaultValue: `Add ${label} filter`,
-                        label,
-                      })
-                }
-              >
-                <Text style={styles.modalRowLabel}>{label}</Text>
-                <Text
-                  style={[
-                    styles.modalRowIcon,
-                    selected ? styles.modalRowIconSelected : null,
-                  ]}
-                >
-                  {selected ? "✓" : "+"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Modal>
+      <View style={styles.footer}>
+        <Button
+          testID="history-filter-show-results-button"
+          label={t("history:actions.showResults", "Show results")}
+          onPress={apply}
+        />
+      </View>
 
       <Modal
         visible={openCalendar}
@@ -617,24 +598,48 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.sectionGapLarge,
+      paddingBottom: theme.spacing.md,
       gap: theme.spacing.md,
     },
-    topSearchShell: {
-      minHeight: 44,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
-      justifyContent: "center",
-      paddingHorizontal: theme.spacing.sm + 2,
-      opacity: 0.88,
+    screenHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.md,
+      paddingTop: theme.spacing.xs,
     },
-    topSearchLabel: {
+    screenTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    resetButton: {
+      minHeight: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.rounded.full,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+    },
+    resetButtonPressed: {
+      backgroundColor: theme.surfaceAlt,
+    },
+    resetLabel: {
       color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    summarySection: {
+      gap: theme.spacing.xs,
+    },
+    sectionEyebrow: {
+      color: theme.textTertiary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
     },
     summaryChipRail: {
       flexDirection: "row",
@@ -663,70 +668,39 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
     },
-    sheet: {
-      borderRadius: 26,
+    controlSurface: {
+      borderRadius: theme.rounded.lg,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.lg,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.18 : 0.06,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 14 },
-      elevation: theme.isDark ? 0 : 2,
-      gap: theme.spacing.lg,
-    },
-    handle: {
-      alignSelf: "center",
-      width: 40,
-      height: 4,
-      borderRadius: theme.rounded.full,
-      backgroundColor: theme.borderSoft,
-    },
-    sheetHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    sheetTitle: {
-      color: theme.text,
-      fontSize: theme.typography.size.h1,
-      lineHeight: theme.typography.lineHeight.h1,
-      fontFamily: theme.typography.fontFamily.semiBold,
-    },
-    resetLabel: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.labelS,
-      lineHeight: theme.typography.lineHeight.labelS,
-      fontFamily: theme.typography.fontFamily.medium,
+      backgroundColor: theme.isDark ? theme.surfaceElevated : theme.surface,
+      padding: theme.spacing.md,
     },
     section: {
       gap: theme.spacing.sm,
     },
-    sectionLabel: {
-      color: theme.textSecondary,
-      fontSize: theme.typography.size.labelS,
-      lineHeight: theme.typography.lineHeight.labelS,
-      fontFamily: theme.typography.fontFamily.medium,
+    sectionTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
     chipRow: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     chipButton: {
-      minHeight: 26,
+      minHeight: 38,
       paddingHorizontal: theme.spacing.sm,
-      paddingVertical: 6,
+      paddingVertical: theme.spacing.xs,
       borderRadius: theme.rounded.full,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
+      maxWidth: "100%",
     },
     chipButtonDefault: {
-      backgroundColor: theme.surface,
+      backgroundColor: theme.isDark ? theme.surface : theme.surfaceAlt,
       borderColor: theme.borderSoft,
     },
     chipButtonSelected: {
@@ -737,9 +711,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       opacity: 0.86,
     },
     chipButtonLabel: {
-      fontSize: 11,
-      lineHeight: 14,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
       fontFamily: theme.typography.fontFamily.medium,
+      textAlign: "center",
     },
     chipButtonLabelDefault: {
       color: theme.textSecondary,
@@ -747,58 +722,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     chipButtonLabelSelected: {
       color: theme.textInverse,
     },
-    moreFiltersRow: {
-      minHeight: 44,
-      borderRadius: theme.rounded.lg,
-      borderWidth: 1,
-      borderColor: theme.borderSoft,
+    footer: {
+      paddingTop: theme.spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.divider,
       backgroundColor: theme.background,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    moreFiltersLabel: {
-      color: theme.text,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.medium,
-    },
-    applyButton: {
-      marginTop: -theme.spacing.xs,
-    },
-    modalList: {
-      gap: theme.spacing.sm,
-    },
-    modalRow: {
-      minHeight: 52,
-      borderRadius: theme.rounded.md,
-      borderWidth: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: theme.spacing.md,
-    },
-    modalRowDefault: {
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
-    },
-    modalRowSelected: {
-      borderColor: theme.primary,
-      backgroundColor: theme.success.surface,
-    },
-    modalRowLabel: {
-      color: theme.text,
-      fontSize: theme.typography.size.bodyM,
-      lineHeight: theme.typography.lineHeight.bodyM,
-      fontFamily: theme.typography.fontFamily.medium,
-    },
-    modalRowIcon: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
-      fontFamily: theme.typography.fontFamily.bold,
-    },
-    modalRowIconSelected: {
-      color: theme.primary,
     },
     calendarWrap: {
       gap: theme.spacing.md,

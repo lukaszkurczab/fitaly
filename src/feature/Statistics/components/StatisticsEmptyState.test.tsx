@@ -14,6 +14,17 @@ jest.mock("react-i18next", () => ({
 }));
 
 describe("StatisticsEmptyState", () => {
+  it("renders the no-history copy with the soft growth motif", () => {
+    const { getByTestId, getByText } = renderWithTheme(
+      <StatisticsEmptyState kind="no_history" isOffline={false} />,
+    );
+
+    expect(getByTestId("statistics-empty-growth-motif")).toBeTruthy();
+    expect(getByText("statistics:empty.title")).toBeTruthy();
+    expect(getByText("statistics:empty.desc")).toBeTruthy();
+    expect(getByText("statistics:empty.foot")).toBeTruthy();
+  });
+
   it("uses the offline copy only for no_history", () => {
     const offlineNoHistory = renderWithTheme(
       <StatisticsEmptyState kind="no_history" isOffline />,

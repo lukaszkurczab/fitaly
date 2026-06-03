@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { MacroCardProps } from "../CardOverlay";
 import { OverlayKcalBlock, withAlpha } from "../overlayPrimitives";
 
@@ -14,13 +15,14 @@ export default function MacroVerticalStackCard({
   fontFamily,
   fontWeight,
 }: MacroCardProps) {
+  const { t } = useTranslation(["meals"]);
   const effectiveFontFamily = fontFamily ?? undefined;
   const effectiveFontWeight = fontWeight ?? "500";
 
   const rows = [
-    { label: "Protein", value: protein, color: macroColors.protein },
-    { label: "Carbs", value: carbs, color: macroColors.carbs },
-    { label: "Fat", value: fat, color: macroColors.fat },
+    { label: t("meals:protein"), value: protein, color: macroColors.protein },
+    { label: t("meals:carbs"), value: carbs, color: macroColors.carbs },
+    { label: t("meals:fat"), value: fat, color: macroColors.fat },
   ];
 
   if (!showKcal && !showMacros) {
@@ -37,7 +39,7 @@ export default function MacroVerticalStackCard({
           fontWeight={effectiveFontWeight}
           align="left"
           tone="title"
-          subtitle="Meal"
+          subtitle={t("meals:meal", { defaultValue: "Meal" })}
         />
       )}
       {showMacros && (
@@ -46,6 +48,7 @@ export default function MacroVerticalStackCard({
             <View key={r.label} style={styles.row}>
               <View style={[styles.marker, { backgroundColor: withAlpha(r.color, 0.62) }]} />
               <Text
+                numberOfLines={1}
                 style={[
                   styles.rowLabel,
                   {

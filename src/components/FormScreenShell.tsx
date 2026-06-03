@@ -11,7 +11,7 @@ import {
   BackTitleHeader,
   type BackTitleHeaderProps,
 } from "@/components/BackTitleHeader";
-import { GlobalActionButtons } from "@/components/GlobalActionButtons";
+import { BottomActionBar } from "@/components/BottomActionBar";
 import { Layout } from "@/components/Layout";
 import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
 import { useTheme } from "@/theme/useTheme";
@@ -79,32 +79,43 @@ export function FormScreenShell({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const hasActions = !!actionLabel || !!secondaryActionLabel;
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
+  const stickyScrollPadding = hasActions && stickyActions
+    ? theme.spacing.xxxl + 112 + footerBottomInset
+    : theme.spacing.sectionGap;
+  const actionsPlacement = stickyActions ? "fixed" : "inline";
+  const bottomActionLayout = actionsLayout === "row" ? "row" : "stack";
 
   const actions = hasActions ? (
-    <View
-      style={[
-        styles.actions,
-        { paddingBottom: Math.max(insets.bottom, theme.spacing.sm) },
-        actionContainerStyle,
-      ]}
-    >
-      <GlobalActionButtons
-        label={actionLabel ?? ""}
-        onPress={onActionPress}
-        tone={actionTone}
-        primaryLoading={actionLoading}
-        primaryDisabled={actionDisabled || !actionLabel}
-        primaryTestID={actionTestID}
-        secondaryLabel={secondaryActionLabel}
-        secondaryOnPress={secondaryActionPress}
-        secondaryLoading={secondaryActionLoading}
-        secondaryDisabled={secondaryActionDisabled}
-        secondaryTone={secondaryActionTone}
-        secondaryTestID={secondaryActionTestID}
-        layout={actionsLayout}
-        rowOrder={actionsRowOrder}
-      />
-    </View>
+    <BottomActionBar
+      placement={actionsPlacement}
+      bottomInset={stickyActions ? footerBottomInset : 0}
+      horizontalPadding={stickyActions ? theme.spacing.lg : 0}
+      horizontalBleed={stickyActions ? theme.spacing.screenPadding : 0}
+      actionsLayout={bottomActionLayout}
+      actionsRowOrder={actionsRowOrder}
+      style={actionContainerStyle}
+      primaryAction={{
+        label: actionLabel ?? "",
+        onPress: onActionPress,
+        variant: actionTone,
+        loading: actionLoading,
+        disabled: actionDisabled || !actionLabel,
+        testID: actionTestID,
+      }}
+      secondaryAction={
+        secondaryActionLabel
+          ? {
+              label: secondaryActionLabel,
+              onPress: secondaryActionPress,
+              variant: secondaryActionTone,
+              loading: secondaryActionLoading,
+              disabled: secondaryActionDisabled,
+              testID: secondaryActionTestID,
+            }
+          : undefined
+      }
+    />
   ) : null;
 
   return (
@@ -124,7 +135,11 @@ export function FormScreenShell({
 
         <KeyboardAwareScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, contentStyle]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: stickyScrollPadding },
+            contentStyle,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {intro ? <Text style={styles.intro}>{intro}</Text> : null}
@@ -148,7 +163,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: theme.spacing.sectionGap,
     },
     intro: {
       color: theme.textSecondary,
@@ -159,12 +173,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     content: {
       gap: theme.spacing.sectionGap,
-    },
-    actions: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.borderSoft,
-      backgroundColor: theme.background,
-      paddingTop: theme.spacing.md,
     },
   });
 

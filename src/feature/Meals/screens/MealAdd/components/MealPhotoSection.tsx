@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useTranslation } from "react-i18next";
 import AppIcon from "@/components/AppIcon";
 import { useTheme } from "@/theme/useTheme";
@@ -37,11 +38,31 @@ export default function MealPhotoSection({
         pressed ? styles.selectionFieldPressed : null,
       ]}
     >
+      <LinearGradient
+        pointerEvents="none"
+        colors={
+          theme.isDark
+            ? [
+                "rgba(255, 255, 255, 0.035)",
+                "rgba(126, 153, 120, 0.06)",
+                "rgba(0, 0, 0, 0)",
+              ]
+            : [
+                "rgba(255, 255, 255, 0.92)",
+                "rgba(250, 247, 240, 0.78)",
+                "rgba(126, 153, 120, 0.08)",
+              ]
+        }
+        locations={[0, 0.58, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardGradient}
+      />
       {reviewPhotoUri ? (
         <Image source={{ uri: reviewPhotoUri }} style={styles.photoPreview} />
       ) : (
         <View style={styles.photoIconCircle}>
-          <Text style={styles.photoPlus}>+</Text>
+          <AppIcon name="add-photo" size={21} color={theme.primary} />
         </View>
       )}
       <View style={styles.photoCopy}>
@@ -84,41 +105,42 @@ export default function MealPhotoSection({
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     photoCard: {
-      minHeight: 78,
-      borderRadius: theme.rounded.xl + 2,
+      position: "relative",
+      overflow: "hidden",
+      minHeight: 72,
+      borderRadius: theme.rounded.xl,
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceAlt,
+      backgroundColor: theme.surfaceElevated,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       gap: theme.spacing.sm,
+      ...theme.depth.raised,
+    },
+    cardGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: theme.rounded.xl,
     },
     selectionFieldPressed: {
       opacity: 0.72,
     },
     photoPreview: {
-      width: 56,
-      height: 56,
+      width: 58,
+      height: 58,
       borderRadius: theme.rounded.lg + 2,
       backgroundColor: theme.borderSoft,
     },
     photoIconCircle: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 50,
+      height: 50,
+      borderRadius: theme.rounded.lg,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.surface,
+      backgroundColor: theme.backgroundSecondary,
       borderWidth: 1,
-      borderColor: theme.border,
-    },
-    photoPlus: {
-      color: theme.primary,
-      fontSize: 22,
-      lineHeight: 22,
-      fontFamily: theme.typography.fontFamily.bold,
+      borderColor: theme.borderSoft,
     },
     photoCopy: {
       flex: 1,

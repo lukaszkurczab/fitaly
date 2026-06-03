@@ -36,4 +36,22 @@ describe("AccountIdentityCard", () => {
     fireEvent.press(getByTestId("identity-card"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it("allows local title and subtitle hierarchy overrides", () => {
+    const { getByText } = renderWithTheme(
+      <AccountIdentityCard
+        title="lukasz"
+        subtitle="name@example.com"
+        titleStyle={{ fontSize: 16 }}
+        subtitleStyle={{ fontSize: 12 }}
+      />,
+    );
+
+    expect(getByText("lukasz").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ fontSize: 16 })]),
+    );
+    expect(getByText("name@example.com").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ fontSize: 12 })]),
+    );
+  });
 });

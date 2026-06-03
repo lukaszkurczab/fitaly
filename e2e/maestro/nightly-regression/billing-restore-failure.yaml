@@ -1,11 +1,11 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreFailure"
+- openLink: "fitaly://e2e/seed?credits=ok&billing=restoreError"
 - assertVisible:
     id: e2e-ready-credits-ok
 - assertVisible:
-    id: e2e-ready-billing-restoreFailure
+    id: e2e-ready-billing-restoreError
 - tapOn:
     id: tab-profile
 - scrollUntilVisible:
@@ -24,11 +24,11 @@ appId: com.lkurczab.fitaly
     id: manage-subscription-restore-row
 - scrollUntilVisible:
     element:
-      id: manage-subscription-action-feedback-error
+      id: manage-subscription-action-feedback-restore-failed
     direction: UP
 - extendedWaitUntil:
     visible:
-      id: manage-subscription-action-feedback-error
+      id: manage-subscription-action-feedback-restore-failed
     timeout: 15000
 - assertVisible:
     id: manage-subscription-screen

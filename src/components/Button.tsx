@@ -41,6 +41,8 @@ export const Button: React.FC<ButtonProps> = ({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const tokens = theme.button[variant];
   const isDisabled = disabled || loading;
+  const shouldElevate =
+    !isDisabled && (variant === "primary" || variant === "destructive");
   const resolveTextColor = (pressed: boolean) =>
     isDisabled
       ? tokens.disabledText
@@ -64,6 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
       style={({ pressed }) => [
         styles.button,
         fullWidth ? styles.fullWidth : styles.autoWidth,
+        shouldElevate ? theme.depth.cta : null,
         {
           backgroundColor: isDisabled
             ? tokens.disabledBackground

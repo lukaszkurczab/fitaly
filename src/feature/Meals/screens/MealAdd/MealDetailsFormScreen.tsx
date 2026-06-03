@@ -1,7 +1,12 @@
 import { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import type { NavigationProp } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
-import { KeyboardAwareScrollView, Layout } from "@/components";
+import {
+  KeyboardAwareScrollView,
+  Layout,
+  UnsavedChangesModal,
+} from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import { useMealDetailsForm } from "@/feature/Meals/hooks/useMealDetailsForm";
 import type { MealDetailsDraftAdapter } from "@/feature/Meals/hooks/useMealDetailsForm";
@@ -9,6 +14,7 @@ import {
   formatMealTime,
   getMealDateOrNow,
 } from "@/feature/Meals/hooks/useMealDetailsForm";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 import MealDetailsEmptyState from "@/feature/Meals/screens/MealAdd/components/MealDetailsEmptyState";
 import MealPhotoSection from "@/feature/Meals/screens/MealAdd/components/MealPhotoSection";
 import MealBasicsSection from "@/feature/Meals/screens/MealAdd/components/MealBasicsSection";
@@ -18,22 +24,29 @@ import MealTypePickerModal from "@/feature/Meals/screens/MealAdd/components/Meal
 import MealTimePickerModal from "@/feature/Meals/screens/MealAdd/components/MealTimePickerModal";
 import IngredientEditorModal from "@/feature/Meals/screens/MealAdd/components/IngredientEditorModal";
 import type { Meal } from "@/types/meal";
-import type { MealAddFlowApi } from "@/feature/Meals/feature/MapMealAddScreens";
+import type {
+  MealAddEditSubmitIntent,
+  MealAddFlowApi,
+} from "@/feature/Meals/feature/MapMealAddScreens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import type { RootStackParamList } from "@/navigation/navigate";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 type Mode = "review";
+type MealDetailsFormNavigation = Pick<
+  NavigationProp<RootStackParamList>,
+  "addListener" | "canGoBack" | "dispatch" | "goBack" | "navigate"
+>;
 
 type Props = {
   flow: MealAddFlowApi;
-  navigation: {
-    navigate: (
-      screen: "Home" | "MealAddMethod",
-      params?: { selectionMode: "temporary"; origin: "mealAddFlow" },
-    ) => void;
-  };
+  navigation: MealDetailsFormNavigation;
   mode: Mode;
+  submitIntent?: MealAddEditSubmitIntent;
+  showAddMealFlowHeader?: boolean;
   onReviewSubmit?: (meal: Meal) => Promise<void> | void;
   reviewSubmitLabel?: string;
   reviewFallbackLabel?: string;
@@ -42,6 +55,9 @@ type Props = {
   reviewPhotoActionLabel?: string;
   onReviewPhotoPress?: () => void;
   draftAdapter?: MealDetailsDraftAdapter;
+  onFlowHeaderBack?: () => void;
+  onFlowHeaderClose?: () => void;
+  flowHeaderExitGuardEnabled?: boolean;
 };
 
 export function MealDetailsFormScreen({
@@ -62,7 +78,7 @@ export function MealDetailsFormScreen({
 
 function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter">) {
   const { uid } = useAuthContext();
-  const { meal, loadDraft, saveDraft, setMeal, setLastScreen } =
+  const { meal, clearMeal, loadDraft, saveDraft, setMeal, setLastScreen } =
     useMealDraftContext();
 
   useEffect(() => {
@@ -81,12 +97,13 @@ function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter"
           await saveDraft(uid, nextMeal);
         }
       },
+      clearMeal,
       retryLoadDraft: async () => {
         if (!uid) return;
         await loadDraft(uid);
       },
     }),
-    [loadDraft, meal, saveDraft, setMeal, uid],
+    [clearMeal, loadDraft, meal, saveDraft, setMeal, uid],
   );
 
   return <MealDetailsFormScreenInner {...props} draftAdapter={draftAdapter} />;
@@ -94,7 +111,10 @@ function MealDetailsFormScreenWithDraftContext(props: Omit<Props, "draftAdapter"
 
 function MealDetailsFormScreenInner({
   flow,
+  navigation,
   mode,
+  submitIntent = "replaceReview",
+  showAddMealFlowHeader = false,
   onReviewSubmit,
   reviewSubmitLabel,
   reviewFallbackLabel,
@@ -102,12 +122,16 @@ function MealDetailsFormScreenInner({
   reviewPhotoUri,
   reviewPhotoActionLabel,
   onReviewPhotoPress,
+  onFlowHeaderBack,
+  onFlowHeaderClose,
+  flowHeaderExitGuardEnabled = true,
   draftAdapter,
 }: Omit<Props, "draftAdapter"> & { draftAdapter: MealDetailsDraftAdapter }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation(["meals", "common"]);
   const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset({ includeSafeArea: true });
   const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
 
   const {
@@ -140,16 +164,51 @@ function MealDetailsFormScreenInner({
     handleCommitIngredient,
     handleDeleteIngredient,
     handleSubmit,
+    canSubmitReview,
   } = useMealDetailsForm({
     mode,
     flow,
+    submitIntent,
     onReviewSubmit,
     draftAdapter,
+  });
+  const shouldUseExitGuard = showAddMealFlowHeader && flowHeaderExitGuardEnabled;
+  const guard = useUnsavedChangesGuard({
+    navigation,
+    hasUnsavedChanges: Boolean(uid && meal),
+    enabled: shouldUseExitGuard,
+    interceptHardwareBack: shouldUseExitGuard,
+    onDiscard: () => {
+      if (!uid) return;
+      void draftAdapter.clearMeal?.(uid);
+    },
+    onExit: () => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
+      navigation.navigate("Home");
+    },
   });
 
   const selectedAt = getMealDateOrNow(mealTimestamp);
   const mealTypeLabel = t(meal?.type ?? "other", { ns: "meals" });
   const mealTimeLabel = formatMealTime(selectedAt, locale, prefers12h);
+  const handleSecondaryFooterAction = () => {
+    if (submitIntent === "goBack") {
+      flow.goBack();
+      return;
+    }
+
+    navigation.navigate("MealAddMethod", {
+      selectionMode: "temporary",
+      origin: "mealAddFlow",
+    });
+  };
+  const handleFlowHeaderBack = onFlowHeaderBack ?? (() => {
+    void handleSubmit();
+  });
+  const handleFlowHeaderClose = onFlowHeaderClose ?? guard.requestExit;
 
   if (!meal || !uid) {
     return (
@@ -169,20 +228,62 @@ function MealDetailsFormScreenInner({
   }
 
   return (
-    <Layout showNavigation={false} disableScroll style={styles.layout}>
+    <Layout
+      showNavigation={false}
+      disableScroll
+      keyboardAvoiding={false}
+      style={styles.layout}
+    >
       <View style={styles.screen} testID="meal-details-form-screen">
+        {showAddMealFlowHeader ? (
+          <AddMealFlowHeader
+            progress={flow.progress}
+            onBack={handleFlowHeaderBack}
+            onClose={handleFlowHeaderClose}
+            testID="edit-meal-flow-header"
+            backTestID="edit-meal-back"
+            closeTestID="edit-meal-close"
+          />
+        ) : null}
+
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           extraScrollOffset={theme.spacing.xs}
+          keyboardShouldPersistTaps="never"
           contentContainerStyle={[
             styles.scrollContent,
             {
+              paddingTop: showAddMealFlowHeader
+                ? theme.spacing.sm
+                : theme.spacing.lg,
               paddingBottom:
                 theme.spacing.xxxl + 92 + footerBottomInset,
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.headerBlock}>
+            <Text style={styles.headerEyebrow}>
+              {t("review_meal_edit_eyebrow", {
+                ns: "meals",
+                defaultValue: "Correction",
+              })}
+            </Text>
+            <Text style={styles.headerTitle}>
+              {t("review_meal_edit_title", {
+                ns: "meals",
+                defaultValue: "Adjust your meal",
+              })}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {t("review_meal_edit_correction_subtitle", {
+                ns: "meals",
+                defaultValue:
+                  "Adjust only what needs correcting.",
+              })}
+            </Text>
+          </View>
+
           {onReviewPhotoPress ? (
             <MealPhotoSection
               reviewPhotoUri={reviewPhotoUri}
@@ -211,7 +312,11 @@ function MealDetailsFormScreenInner({
 
         <MealDetailsFooter
           reviewSubmitLabel={reviewSubmitLabel}
+          submitIntent={submitIntent}
           footerBottomInset={footerBottomInset}
+          keyboardInset={keyboardInset}
+          disabled={!onReviewSubmit && !canSubmitReview}
+          onSecondaryAction={handleSecondaryFooterAction}
           onSubmit={() => {
             void handleSubmit();
           }}
@@ -251,6 +356,18 @@ function MealDetailsFormScreenInner({
           void handleDeleteIngredient();
         }}
       />
+
+      {shouldUseExitGuard ? (
+        <UnsavedChangesModal
+          visible={guard.confirmVisible}
+          title={t("confirm_exit_title", { ns: "meals" })}
+          message={t("confirm_exit_message", { ns: "meals" })}
+          discardLabel={t("leave", { ns: "common" })}
+          continueEditingLabel={t("cancel", { ns: "common" })}
+          onDiscard={guard.confirmExit}
+          onContinueEditing={guard.cancelExit}
+        />
+      ) : null}
     </Layout>
   );
 }
@@ -260,6 +377,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     layout: {
       paddingLeft: theme.spacing.screenPaddingWide,
       paddingRight: theme.spacing.screenPaddingWide,
+      paddingBottom: 0,
     },
     screen: {
       flex: 1,
@@ -268,7 +386,29 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      gap: theme.spacing.md,
-      paddingTop: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+    headerBlock: {
+      gap: theme.spacing.xxs,
+      paddingBottom: theme.spacing.xs,
+    },
+    headerEyebrow: {
+      color: theme.primary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      textTransform: "uppercase",
+    },
+    headerTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.h1,
+      lineHeight: theme.typography.lineHeight.h1,
+      fontFamily: theme.typography.fontFamily.bold,
+    },
+    headerSubtitle: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      maxWidth: 330,
     },
   });

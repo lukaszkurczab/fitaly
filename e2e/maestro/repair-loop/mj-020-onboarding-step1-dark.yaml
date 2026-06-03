@@ -1,0 +1,119 @@
+appId: com.lkurczab.fitaly
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: fitaly://e2e/reset?logout=1&theme=dark
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-screen
+- tapOn:
+    id: login-register-link
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
+- tapOn:
+    id: register-username-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_USERNAME}
+- tapOn:
+    id: register-email-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_EMAIL}
+- tapOn:
+    id: register-password-visibility-toggle
+- tapOn:
+    id: register-confirm-password-visibility-toggle
+- tapOn:
+    id: register-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    id: register-confirm-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    point: "87%,89%"
+- tapOn:
+    id: register-terms-checkbox
+- tapOn:
+    id: register-submit-button
+- extendedWaitUntil:
+    visible:
+      id: onboarding-screen
+    timeout: 30000
+- assertVisible:
+    id: onboarding-step-1
+- takeScreenshot: mj020-step1-empty-dark
+- scrollUntilVisible:
+    element:
+      id: onboarding-weight-input
+    direction: DOWN
+- swipe:
+    direction: UP
+    duration: 300
+- tapOn:
+    id: onboarding-weight-input
+- eraseText
+- inputText: "78"
+- tapOn:
+    id: onboarding-height-input
+- eraseText
+- inputText: "178"
+- tapOn:
+    id: onboarding-age-input
+- eraseText
+- inputText: "34"
+- tapOn: "Done"
+- tapOn:
+    id: onboarding-step-1-next-button
+- assertVisible:
+    id: onboarding-step-2
+- tapOn:
+    id: onboarding-step-2-next-button
+- assertVisible:
+    id: onboarding-step-3
+- tapOn:
+    id: onboarding-step-3-skip-button
+- assertVisible:
+    id: onboarding-confirm-modal
+- tapOn:
+    id: onboarding-confirm-primary-button
+- assertVisible:
+    id: onboarding-step-4
+- tapOn:
+    id: onboarding-step-4-submit-button
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-delete-account-row
+    direction: DOWN
+- tapOn:
+    id: account-delete-account-row
+- assertVisible:
+    id: delete-account-screen
+- tapOn:
+    id: delete-account-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    id: delete-account-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 30000

@@ -83,7 +83,7 @@ describe("E2E fixtures", () => {
         credits: "none",
         ai: "photoSlow",
         barcode: "known",
-        billing: "premium",
+        billing: "restoreSlowFailure",
         chat: "success",
         shareExport: "success",
         notificationPermission: "allowed",
@@ -95,7 +95,7 @@ describe("E2E fixtures", () => {
       credits: "none",
       ai: "photoSlow",
       barcode: "known",
-      billing: "premium",
+      billing: "restoreSlowFailure",
       chat: "success",
       shareExport: "success",
       notificationPermission: "allowed",
@@ -155,9 +155,32 @@ describe("E2E fixtures", () => {
       expect.objectContaining({
         meal: expect.objectContaining({
           userUid: "user-1",
-          name: "E2E Today Meal",
+          name: "Jogurt z owocami i granolą",
           inputMethod: "manual",
         }),
+      }),
+    );
+  });
+
+  it("seeds a synced visible meal for normal details visual coverage", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-synced-meal" },
+    });
+
+    expect(markers).toEqual(["fixture-user-with-synced-meal"]);
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Jogurt z owocami i granolą",
+        syncState: "synced",
+      }),
+    );
+    expect(mockEmit).toHaveBeenCalledWith(
+      "meal:local:upserted",
+      expect.objectContaining({
+        uid: "user-1",
+        meal: expect.objectContaining({ syncState: "synced" }),
       }),
     );
   });
@@ -173,7 +196,7 @@ describe("E2E fixtures", () => {
     expect(mockSaveMealTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         meal: expect.objectContaining({
-          name: "E2E Photo Meal",
+          name: "Talerz z kurczakiem",
           inputMethod: "photo",
           photoUrl: "file:///sampleMeal-local.jpg",
           photoLocalPath: "file:///sampleMeal-local.jpg",
@@ -193,7 +216,7 @@ describe("E2E fixtures", () => {
     expect(mockUpsertMyMealLocal).toHaveBeenCalledWith(
       "user-1",
       expect.objectContaining({
-        name: "E2E Saved Bowl",
+        name: "Miska z kaszą i warzywami",
         source: "saved",
         inputMethod: "saved",
       }),
@@ -209,7 +232,7 @@ describe("E2E fixtures", () => {
     expect(markers).toEqual(["fixture-user-with-draft"]);
     expect(mockSetItem).toHaveBeenCalledWith(
       "current_meal_draft_user-1",
-      expect.stringContaining("E2E Draft Meal"),
+      expect.stringContaining("Kurczak z ryżem"),
     );
     expect(mockSetItem).toHaveBeenCalledWith(
       "current_meal_draft_screen_user-1",
@@ -229,13 +252,13 @@ describe("E2E fixtures", () => {
 
     expect(mockUpsertMealLocal).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "E2E Failed Meal",
+        name: "Kanapka z jajkiem",
         syncState: "failed",
       }),
     );
     expect(mockUpsertMealLocal).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "E2E Conflict Meal",
+        name: "Makaron z pomidorami",
         syncState: "conflict",
       }),
     );
@@ -282,11 +305,13 @@ describe("E2E fixtures", () => {
     expect(access?.credits?.allocation).toBe(800);
     expect(access?.features.aiChat.enabled).toBe(false);
     expect(resolveE2EBarcodeLookup()).toEqual(
-      expect.objectContaining({ kind: "found", name: "E2E Barcode Yogurt" }),
+      expect.objectContaining({ kind: "found", name: "Jogurt naturalny" }),
     );
     await expect(resolveE2ETextMealAnalysis("user-1")).resolves.toEqual(
       expect.objectContaining({
-        ingredients: [expect.objectContaining({ name: "E2E analyzed bowl" })],
+        ingredients: [
+          expect.objectContaining({ name: "Kurczak z ryżem" }),
+        ],
       }),
     );
     expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
@@ -294,7 +319,7 @@ describe("E2E fixtures", () => {
     });
     expect(resolveE2EChatRun()).toEqual({
       reply:
-        "E2E chat response: keep hydration consistent and plan the next meal.",
+        "Wygląda na to, że najważniejszy kolejny krok to spokojnie dopilnować białka i nawodnienia.",
     });
     expect(resolveE2ENotificationPermission()).toEqual(
       expect.objectContaining({ granted: true, status: "granted" }),
@@ -317,6 +342,61 @@ describe("E2E fixtures", () => {
     );
   });
 
+  it("supports restore error billing fixture for restore-state visual evidence", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { billing: "restoreError" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "error",
+      errorCode: "network",
+      message: "E2E restore could not contact the store.",
+    });
+    expect(resolveE2EBillingPurchaseResult("purchase")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E free billing state has no active entitlement.",
+    });
+  });
+
+  it("supports pending restore fixture without granting backend premium access", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { credits: "ok", billing: "restorePending" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "success",
+    });
+    expect(getE2EAccessState("user-1")).toEqual(
+      expect.objectContaining({
+        tier: "free",
+        entitlementStatus: "inactive",
+        credits: expect.objectContaining({ tier: "free" }),
+      }),
+    );
+  });
+
+  it("supports delayed restore failure fixture for loading-state visual evidence", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { billing: "restoreSlowFailure" },
+    });
+
+    expect(resolveE2EBillingPurchaseResult("restore")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E delayed restore did not find an active entitlement.",
+      delayMs: 5000,
+    });
+    expect(resolveE2EBillingPurchaseResult("purchase")).toEqual({
+      status: "error",
+      errorCode: "entitlement_inactive",
+      message: "E2E free billing state has no active entitlement.",
+    });
+  });
+
   it("returns deterministic chat failure without a backend call", async () => {
     await applyE2ESeedCommand({
       uid: "user-1",
@@ -335,7 +415,9 @@ describe("E2E fixtures", () => {
 
     await expect(resolveE2EPhotoAnalysis("user-1")).resolves.toEqual(
       expect.objectContaining({
-        ingredients: [expect.objectContaining({ name: "E2E analyzed bowl" })],
+        ingredients: [
+          expect.objectContaining({ name: "Kurczak z ryżem" }),
+        ],
       }),
     );
   });

@@ -21,6 +21,7 @@ import { useMealAddMethodState } from "@/feature/Meals/hooks/useMealAddMethodSta
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
 import { buildHomeHeroModel } from "@/feature/Home/services/homeHeroPresenter";
+import type { AppIconName } from "@/components/AppIcon";
 import {
   buildHomeRetentionSurface,
   shouldRequestHomeCoach,
@@ -50,6 +51,30 @@ type Props = {
   navigation: HomeNavigation;
 };
 
+type HomeAddMethodPresentation = {
+  icon: AppIconName;
+  ctaKey: string;
+};
+
+function getHomeAddMethodPresentation(
+  key: string | undefined,
+): HomeAddMethodPresentation {
+  switch (key) {
+    case "photo":
+      return { icon: "camera", ctaKey: "home:hero.methodCta.photo" };
+    case "text":
+      return { icon: "text", ctaKey: "home:hero.methodCta.text" };
+    case "barcode":
+      return { icon: "scan-barcode", ctaKey: "home:hero.methodCta.barcode" };
+    case "saved":
+      return { icon: "saved-items", ctaKey: "home:hero.methodCta.saved" };
+    case "manual":
+      return { icon: "edit", ctaKey: "home:hero.methodCta.manual" };
+    default:
+      return { icon: "add", ctaKey: "home:hero.methodCta.default" };
+  }
+}
+
 export default function HomeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -72,13 +97,12 @@ export default function HomeScreen({ navigation }: Props) {
     navigation,
     replaceOnStart: false,
   });
+  const addMethodPresentation = useMemo(
+    () => getHomeAddMethodPresentation(mealAddEntry.preferredOption.key),
+    [mealAddEntry.preferredOption.key],
+  );
 
-  const {
-    dayMeals,
-    mealCount,
-    consumed,
-    macroTargets,
-  } = homeDay;
+  const { dayMeals, mealCount, consumed, macroTargets } = homeDay;
   const canAccessWeeklyReport =
     canUseFeature("weeklyReport") ||
     Boolean(getE2EFixtureState()?.weeklyReport);
@@ -90,6 +114,9 @@ export default function HomeScreen({ navigation }: Props) {
     uid,
     active: weeklyReportActive,
   });
+  const [weeklyReportRetrying, setWeeklyReportRetrying] = useState(false);
+  const weeklyReportStatus = weeklyReport.report.status;
+  const refreshWeeklyReport = weeklyReport.refresh;
   const coachActive = shouldRequestHomeCoach({
     uid,
     dayState: homeDay,
@@ -119,11 +146,6 @@ export default function HomeScreen({ navigation }: Props) {
     if (!candidate) return null;
     return candidate.split(/\s+/)[0] ?? null;
   }, [userData?.username]);
-
-  const selectedMethodName = t(`meals:${mealAddEntry.preferredOption.titleKey}`);
-  const methodSelectorLabel = t("home:methodSelector", {
-    method: selectedMethodName,
-  });
 
   const heroModel = useMemo(() => {
     return buildHomeHeroModel({
@@ -192,6 +214,12 @@ export default function HomeScreen({ navigation }: Props) {
     },
     [navigation],
   );
+  const heroCtaLabel =
+    heroModel.ctaAction === "add_meal"
+      ? t(addMethodPresentation.ctaKey, {
+          defaultValue: heroModel.ctaLabel,
+        })
+      : heroModel.ctaLabel;
 
   const handleCoachCta = useCallback(() => {
     if (retentionSurface.type !== "coach_insight") {
@@ -212,6 +240,33 @@ export default function HomeScreen({ navigation }: Props) {
     }
   }, [mealAddEntry, navigation, retentionSurface]);
 
+  const handleWeeklyReportPress = useCallback(() => {
+    if (weeklyReportStatus === "ready") {
+      navigation.navigate("WeeklyReport");
+      return;
+    }
+
+    if (weeklyReportRetrying) {
+      return;
+    }
+
+    setWeeklyReportRetrying(true);
+    void refreshWeeklyReport().finally(() => {
+      setWeeklyReportRetrying(false);
+    });
+  }, [
+    navigation,
+    refreshWeeklyReport,
+    weeklyReportRetrying,
+    weeklyReportStatus,
+  ]);
+
+  const openHomeMethodChooser = useCallback(() => {
+    navigation.navigate("MealAddMethod", {
+      selectionMode: "persistDefault",
+    });
+  }, [navigation]);
+
   return (
     <Layout>
       <View style={[styles.screen, styles.screenGap]} testID="home-screen">
@@ -224,7 +279,7 @@ export default function HomeScreen({ navigation }: Props) {
         <HomeHeroCard
           title={heroModel.title}
           meta={heroModel.meta}
-          ctaLabel={heroModel.ctaLabel}
+          ctaLabel={heroCtaLabel}
           onPressCta={() => {
             if (heroModel.ctaAction === "review_history") {
               navigation.navigate("HistoryList");
@@ -233,18 +288,17 @@ export default function HomeScreen({ navigation }: Props) {
 
             void mealAddEntry.handleDirectStart();
           }}
-          methodLabel={heroModel.showMethodSelector ? methodSelectorLabel : undefined}
-          methodIcon={heroModel.showMethodSelector ? mealAddEntry.preferredOption.icon : undefined}
-          onPressMethodSelector={
+          methodLabel={t("home:chooseAddMethod")}
+          methodIcon={
             heroModel.showMethodSelector
-              ? () =>
-                  navigation.navigate("MealAddMethod", {
-                    selectionMode: "persistDefault",
-                  })
+              ? addMethodPresentation.icon
               : undefined
           }
+          onPressMethodSelector={openHomeMethodChooser}
           progress={heroModel.progress}
-          supportText={heroModel.supportText ?? undefined}
+          supportText={
+            heroModel.supportText ?? heroModel.supportCopy ?? undefined
+          }
           tone={heroModel.tone}
         />
 
@@ -259,23 +313,40 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ) : null}
 
-        {heroModel.supportCopy ? (
-          <Text style={styles.supportCopy}>{heroModel.supportCopy}</Text>
-        ) : null}
-
         {mealCount > 0 ? (
-          <TodaysMealsList
-            meals={dayMeals}
-            onOpenMeal={openMealDetails}
-          />
+          <>
+            <TodaysMealsList meals={dayMeals} onOpenMeal={openMealDetails} />
+            <Pressable
+              testID="home-view-history-button"
+              onPress={() => navigation.navigate("HistoryList")}
+              accessibilityRole="button"
+              accessibilityLabel={t("home:viewHistory")}
+              style={({ pressed }) => [
+                styles.historyLink,
+                retentionSurface.type === "weekly_report"
+                  ? styles.historyLinkBeforeReport
+                  : null,
+                pressed && styles.historyLinkPressed,
+              ]}
+            >
+              <Text style={styles.historyLinkText}>
+                {t("home:viewHistory")} →
+              </Text>
+            </Pressable>
+          </>
         ) : null}
 
         {retentionSurface.type === "weekly_report" ? (
-          <WeeklyReportCard
-            loading={false}
-            report={weeklyReport.report}
-            onPress={() => navigation.navigate("WeeklyReport")}
-          />
+          <View
+            style={mealCount > 0 ? styles.retentionBottomClearance : null}
+          >
+            <WeeklyReportCard
+              loading={weeklyReportRetrying}
+              report={weeklyReport.report}
+              action={weeklyReportStatus === "ready" ? "open" : "retry"}
+              onPress={handleWeeklyReportPress}
+            />
+          </View>
         ) : retentionSurface.type === "coach_insight" ? (
           <CoachInsightCard
             insight={retentionSurface.insight}
@@ -285,17 +356,22 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ) : null}
 
-        <Pressable
-          testID="home-view-history-button"
-          onPress={() => navigation.navigate("HistoryList")}
-          accessibilityRole="button"
-          accessibilityLabel={t("home:viewHistory")}
-          style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
-        >
-          <Text style={styles.historyLinkText}>
-            {t("home:viewHistory")} →
-          </Text>
-        </Pressable>
+        {mealCount === 0 ? (
+          <Pressable
+            testID="home-view-history-button"
+            onPress={() => navigation.navigate("HistoryList")}
+            accessibilityRole="button"
+            accessibilityLabel={t("home:viewHistory")}
+            style={({ pressed }) => [
+              styles.historyLink,
+              pressed && styles.historyLinkPressed,
+            ]}
+          >
+            <Text style={styles.historyLinkText}>
+              {t("home:viewHistory")} →
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <Modal
@@ -330,29 +406,34 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     screenGap: {
-      gap: theme.spacing.sectionGap,
+      gap: theme.spacing.lg,
     },
-    supportCopy: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
-      textAlign: "left",
-      paddingHorizontal: theme.spacing.sm,
+    retentionBottomClearance: {
+      marginBottom: theme.spacing.nav + theme.spacing.md,
     },
     historyLink: {
+      alignSelf: "center",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 48,
-      paddingVertical: theme.spacing.sm,
+      minHeight: 40,
+      marginBottom: theme.spacing.nav + theme.spacing.md,
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: "transparent",
+      backgroundColor: "transparent",
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xxs,
+    },
+    historyLinkBeforeReport: {
+      marginBottom: 0,
     },
     historyLinkPressed: {
       opacity: 0.6,
     },
     historyLinkText: {
       color: theme.textTertiary,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
     },
   });

@@ -311,6 +311,84 @@ describe("statisticsRangeSelectors", () => {
     });
   });
 
+  it("builds previous equivalent-range kcal comparison", () => {
+    const state = buildStatisticsRangeState({
+      meals: [
+        makeMeal({
+          mealId: "previous-1",
+          cloudId: "previous-1",
+          dayKey: "2026-03-15",
+          totals: { kcal: 100, protein: 10, carbs: 12, fat: 2 },
+        }),
+        makeMeal({
+          mealId: "previous-2",
+          cloudId: "previous-2",
+          dayKey: "2026-03-16",
+          totals: { kcal: 100, protein: 10, carbs: 12, fat: 2 },
+        }),
+        makeMeal({
+          mealId: "current-1",
+          cloudId: "current-1",
+          dayKey: "2026-03-17",
+          totals: { kcal: 150, protein: 15, carbs: 18, fat: 3 },
+        }),
+        makeMeal({
+          mealId: "current-2",
+          cloudId: "current-2",
+          dayKey: "2026-03-18",
+          totals: { kcal: 150, protein: 15, carbs: 18, fat: 3 },
+        }),
+      ],
+      activeRange: "custom",
+      todayDayKey: "2026-03-18",
+      customRange: {
+        startDayKey: "2026-03-17",
+        endDayKey: "2026-03-18",
+      },
+    });
+
+    expect(state.comparison.previousRange).toEqual({
+      startDayKey: "2026-03-15",
+      endDayKey: "2026-03-16",
+    });
+    expect(state.comparison.hasPreviousEntries).toBe(true);
+    expect(state.comparison.previousAverages?.rangeDays.kcal).toBe(100);
+    expect(state.comparison.kcalAverageDelta).toBe(50);
+    expect(state.comparison.kcalAverageDeltaPercent).toBe(50);
+  });
+
+  it("does not compare against days outside the free access window", () => {
+    const state = buildStatisticsRangeState({
+      meals: [
+        makeMeal({
+          mealId: "previous-outside-window",
+          cloudId: "previous-outside-window",
+          dayKey: "2026-03-15",
+          totals: { kcal: 100, protein: 10, carbs: 12, fat: 2 },
+        }),
+        makeMeal({
+          mealId: "current",
+          cloudId: "current",
+          dayKey: "2026-03-18",
+          totals: { kcal: 150, protein: 15, carbs: 18, fat: 3 },
+        }),
+      ],
+      activeRange: "custom",
+      todayDayKey: "2026-03-18",
+      customRange: {
+        startDayKey: "2026-03-17",
+        endDayKey: "2026-03-18",
+      },
+      accessWindowDays: 3,
+    });
+
+    expect(state.comparison.previousRange).toBeNull();
+    expect(state.comparison.previousAverages).toBeNull();
+    expect(state.comparison.kcalAverageDelta).toBeNull();
+    expect(state.comparison.kcalAverageDeltaPercent).toBeNull();
+    expect(state.comparison.hasPreviousEntries).toBe(false);
+  });
+
   it("clamps a free-window range as a separate pure function", () => {
     expect(
       clampStatisticsRangeToFreeWindow({

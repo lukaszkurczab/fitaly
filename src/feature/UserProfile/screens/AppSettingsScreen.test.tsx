@@ -50,6 +50,7 @@ jest.mock("@/components", () => {
       </View>
     ),
     SettingsRow: ({
+      leading,
       title,
       subtitle,
       value,
@@ -57,6 +58,7 @@ jest.mock("@/components", () => {
       testID,
       trailing,
     }: {
+      leading?: ReactNode;
       title: string;
       subtitle?: string;
       value?: string;
@@ -70,13 +72,29 @@ jest.mock("@/components", () => {
         accessibilityRole="button"
         accessibilityLabel={title}
       >
+        {leading}
         <Text>{title}</Text>
         {subtitle ? <Text>{subtitle}</Text> : null}
         {value ? <Text>{value}</Text> : null}
         {trailing}
       </Pressable>
     ),
-    ButtonToggle: () => <View />,
+    InfoBlock: ({
+      title,
+      body,
+      icon,
+    }: {
+      title: string;
+      body: string;
+      icon?: ReactNode;
+    }) => (
+      <View>
+        {icon}
+        <Text>{title}</Text>
+        <Text>{body}</Text>
+      </View>
+    ),
+    ButtonToggle: ({ testID }: { testID?: string }) => <View testID={testID} />,
   };
 });
 
@@ -121,5 +139,19 @@ describe("AppSettingsScreen", () => {
     });
 
     expect(navigation.navigate).not.toHaveBeenCalledWith("Language");
+  });
+
+  it("exposes the dark mode toggle for E2E coverage", () => {
+    const navigation = {
+      canGoBack: jest.fn(() => true),
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+    };
+
+    const { getByTestId } = renderWithTheme(
+      <AppSettingsScreen navigation={navigation as never} />,
+    );
+
+    expect(getByTestId("app-settings-dark-mode-toggle")).toBeTruthy();
   });
 });

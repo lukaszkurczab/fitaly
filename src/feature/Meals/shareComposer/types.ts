@@ -114,4 +114,5 @@ export type ShareExportAction = "save_to_gallery" | "share";
 export type ShareExportState = {
   action: ShareExportAction | null;
   error: string | null;
+  failedAction?: ShareExportAction | null;
 };

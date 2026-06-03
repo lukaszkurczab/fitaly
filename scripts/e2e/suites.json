@@ -90,6 +90,7 @@
   ],
   "visual-audit": [
     "e2e/maestro/visual-audit/auth-entry.yaml",
+    "e2e/maestro/visual-audit/auth-dark-entry.yaml",
     "e2e/maestro/visual-audit/add-meal-barcode.yaml",
     "e2e/maestro/visual-audit/add-meal-photo.yaml",
     "e2e/maestro/visual-audit/add-meal-saved-template.yaml",
@@ -97,7 +98,11 @@
     "e2e/maestro/visual-audit/history-details-edit-delete.yaml",
     "e2e/maestro/visual-audit/review-edit-save.yaml",
     "e2e/maestro/visual-audit/chat-premium-notifications.yaml",
-    "e2e/maestro/visual-audit/platform-layout.yaml"
+    "e2e/maestro/visual-audit/notifications-preferences.yaml",
+    "e2e/maestro/visual-audit/platform-layout.yaml",
+    "e2e/maestro/visual-audit/dark-mode-core.yaml",
+    "e2e/maestro/visual-audit/offline-banner-dark.yaml",
+    "e2e/maestro/visual-audit/share-dark.yaml"
   ],
   "full-review": [
     "e2e/maestro/smoke/login.yaml",

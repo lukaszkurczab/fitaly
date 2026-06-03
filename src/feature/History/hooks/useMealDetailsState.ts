@@ -35,7 +35,7 @@ export function useMealDetailsState(params: {
     return (
       isE2EModeEnabled() &&
       Boolean(meal) &&
-      (meal?.inputMethod === "photo" || meal?.name === "E2E Photo Meal")
+      meal?.inputMethod === "photo"
     );
   }, []);
 

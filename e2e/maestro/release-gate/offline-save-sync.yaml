@@ -23,6 +23,20 @@ appId: com.lkurczab.fitaly
 - inputText: Offline Manual Meal
 - hideKeyboard
 - tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Chicken
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
+- tapOn:
     id: meal-details-form-submit-button
 - assertVisible:
     id: review-meal-screen
@@ -36,10 +50,11 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: home-meal-sync-pending-0
-- scrollUntilVisible:
-    element:
-      id: home-view-history-button
-    direction: DOWN
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:

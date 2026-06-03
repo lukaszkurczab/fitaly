@@ -1,8 +1,16 @@
-import { Text, Keyboard, Platform, View, StyleSheet } from "react-native";
-import { act } from "@testing-library/react-native";
+import {
+  Text,
+  Keyboard,
+  Platform,
+  View,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
+import { act, fireEvent } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { Layout } from "@/components/Layout";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import { themes } from "@/theme/themes";
 
 const mockUseE2ENetInfo = jest.fn<
   () => { isConnected: boolean | null; isInternetReachable?: boolean | null }
@@ -39,9 +47,14 @@ jest.mock("@/components/BottomTabBar", () => ({
 jest.mock("@/components/OfflineBanner", () => {
   const { createElement } =
     jest.requireActual<typeof import("react")>("react");
-  const { Text: RNText } =
+  const { Pressable, Text: RNText } =
     jest.requireActual<typeof import("react-native")>("react-native");
-  const OfflineBanner = () => createElement(RNText, null, "offline-banner");
+  const OfflineBanner = ({ onDismiss }: { onDismiss?: () => void }) =>
+    createElement(
+      Pressable,
+      { onPress: onDismiss, testID: "offline-dismiss-mock" },
+      createElement(RNText, null, "offline-banner"),
+    );
   return { __esModule: true, OfflineBanner, default: OfflineBanner };
 });
 
@@ -64,6 +77,11 @@ describe("Layout", () => {
     );
   };
 
+  const getGradientViews = (nodes: ReturnType<typeof renderWithTheme>) =>
+    nodes.UNSAFE_getAllByType(View).filter((node) =>
+      Array.isArray(node.props.colors),
+    );
+
   afterEach(() => {
     jest.restoreAllMocks();
     mockUseE2ENetInfo.mockReset();
@@ -84,6 +102,44 @@ describe("Layout", () => {
     expect(getByText("screen-content")).toBeTruthy();
     expect(getByText("bottom-tab-bar")).toBeTruthy();
     expect(queryByText("offline-banner")).toBeNull();
+  });
+
+  it("uses the canonical theme material background by default", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    const rendered = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const gradients = getGradientViews(rendered);
+
+    expect(gradients).toHaveLength(
+      themes.light.material.backgroundGradient.length,
+    );
+    expect(gradients[0]?.props.colors).toBe(
+      themes.light.material.backgroundGradient[0]?.colors,
+    );
+  });
+
+  it("keeps explicit background gradient overrides", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    const customGradient = [
+      {
+        colors: ["#111111", "#222222"] as [string, string],
+        locations: [0, 1],
+      },
+    ];
+    const rendered = renderWithTheme(
+      <Layout backgroundGradient={customGradient}>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const gradients = getGradientViews(rendered);
+
+    expect(gradients).toHaveLength(1);
+    expect(gradients[0]?.props.colors).toBe(customGradient[0]?.colors);
   });
 
   it("hides bottom tab when navigation is disabled", () => {
@@ -120,6 +176,59 @@ describe("Layout", () => {
     );
 
     expect(getByText("offline-banner")).toBeTruthy();
+  });
+
+  it("lets the floating offline banner dismiss without changing network state", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+    const { getByText, getByTestId, queryByText } = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    expect(getByText("offline-banner")).toBeTruthy();
+
+    fireEvent.press(getByTestId("offline-dismiss-mock"));
+
+    expect(queryByText("offline-banner")).toBeNull();
+    expect(getByText("screen-content")).toBeTruthy();
+  });
+
+  it("anchors the floating offline banner below the top safe area", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+    mockInsets.top = 44;
+    const { UNSAFE_getAllByType } = renderWithTheme(
+      <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const offlineWrap = UNSAFE_getAllByType(View).find((node) => {
+      const flattened = StyleSheet.flatten(node.props.style);
+      return flattened?.position === "absolute" && flattened?.zIndex === 20;
+    });
+
+    expect(offlineWrap).toBeTruthy();
+    expect(StyleSheet.flatten(offlineWrap?.props.style).top).toBe(48);
+  });
+
+  it("uses the same floating offline anchor when no tab bar is shown", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: false });
+
+    const { UNSAFE_getAllByType, queryByText } = renderWithTheme(
+      <Layout showNavigation={false} showOfflineBanner>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const offlineWrap = UNSAFE_getAllByType(View).find((node) => {
+      const flattened = StyleSheet.flatten(node.props.style);
+      return flattened?.position === "absolute" && flattened?.zIndex === 20;
+    });
+
+    expect(queryByText("bottom-tab-bar")).toBeNull();
+    expect(offlineWrap).toBeTruthy();
+    expect(StyleSheet.flatten(offlineWrap?.props.style).top).toBe(48);
   });
 
   it("registers keyboard listeners matching the current platform", () => {
@@ -173,13 +282,12 @@ describe("Layout", () => {
       </Layout>,
     );
 
-    const getRootPaddingBottom = () => {
-      const rootView = UNSAFE_getAllByType(View).find((node) => {
-        return isSurfaceView(node.props.style);
-      });
+    const getScrollContentPaddingBottom = () => {
+      const scrollView = UNSAFE_getAllByType(ScrollView)[0];
 
-      expect(rootView).toBeTruthy();
-      return StyleSheet.flatten(rootView?.props.style).paddingBottom;
+      expect(scrollView).toBeTruthy();
+      return StyleSheet.flatten(scrollView?.props.contentContainerStyle)
+        .paddingBottom;
     };
 
     const showEventName =
@@ -187,25 +295,47 @@ describe("Layout", () => {
     const hideEventName =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
-    expect(getRootPaddingBottom()).toBe(44);
+    expect(getScrollContentPaddingBottom()).toBe(44);
 
     act(() => {
       listeners.get(showEventName)?.();
     });
-    expect(getRootPaddingBottom()).toBe(0);
+    expect(getScrollContentPaddingBottom()).toBe(0);
 
     act(() => {
       listeners.get(hideEventName)?.();
     });
-    expect(getRootPaddingBottom()).toBe(44);
+    expect(getScrollContentPaddingBottom()).toBe(44);
   });
 
-  it("does not double-count safe-area inset when bottom navigation is visible", () => {
+  it("adds bottom navigation clearance to scroll content without double-counting the safe area", () => {
     mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
     mockInsets.bottom = 34;
 
     const { UNSAFE_getAllByType } = renderWithTheme(
       <Layout>
+        <Text>screen-content</Text>
+      </Layout>,
+    );
+
+    const rootView = UNSAFE_getAllByType(View).find((node) => {
+      return isSurfaceView(node.props.style);
+    });
+    const scrollView = UNSAFE_getAllByType(ScrollView)[0];
+
+    expect(rootView).toBeTruthy();
+    expect(StyleSheet.flatten(rootView?.props.style).paddingBottom).toBe(0);
+    expect(
+      StyleSheet.flatten(scrollView.props.contentContainerStyle).paddingBottom,
+    ).toBe(44);
+  });
+
+  it("keeps bottom navigation clearance on the surface for non-scroll layouts", () => {
+    mockUseE2ENetInfo.mockReturnValue({ isConnected: true });
+    mockInsets.bottom = 34;
+
+    const { UNSAFE_getAllByType } = renderWithTheme(
+      <Layout disableScroll>
         <Text>screen-content</Text>
       </Layout>,
     );

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -12,7 +12,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/components";
-import AppIcon from "@/components/AppIcon";
+import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import AvatarBadge from "@/components/AvatarBadge";
 import { usePremiumContext } from "@/context/PremiumContext";
 import { AccountIdentityCard } from "@/feature/UserProfile/components/AccountIdentityCard";
@@ -45,10 +45,14 @@ export default function UserProfileScreen({
     return (
       <Layout>
         <View style={styles.emptyStateWrap} testID="account-loading-state">
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.emptyStateDescription}>
-            {t("common:loading")}
-          </Text>
+          <View style={styles.emptyStateCard}>
+            <View style={styles.emptyStateSpinnerWrap}>
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+            <Text style={styles.emptyStateDescription}>
+              {t("common:loading")}
+            </Text>
+          </View>
         </View>
       </Layout>
     );
@@ -58,22 +62,24 @@ export default function UserProfileScreen({
     return (
       <Layout>
         <View style={styles.emptyStateWrap} testID="account-empty-state">
-          <Text style={styles.emptyStateTitle}>
-            {t("profileUnavailableTitle")}
-          </Text>
-          <Text style={styles.emptyStateDescription}>
-            {state.isOnline
-              ? t("profileUnavailableDesc")
-              : t("profileUnavailableOfflineDesc")}
-          </Text>
-          <Button
-            testID="account-empty-retry-button"
-            label={t("common:retry")}
-            onPress={() => {
-              void state.handleRetryProfileLoad();
-            }}
-            style={styles.emptyStateAction}
-          />
+          <View style={styles.emptyStateCard}>
+            <Text style={styles.emptyStateTitle}>
+              {t("profileUnavailableTitle")}
+            </Text>
+            <Text style={styles.emptyStateDescription}>
+              {state.isOnline
+                ? t("profileUnavailableDesc")
+                : t("profileUnavailableOfflineDesc")}
+            </Text>
+            <Button
+              testID="account-empty-retry-button"
+              label={t("common:retry")}
+              onPress={() => {
+                void state.handleRetryProfileLoad();
+              }}
+              style={styles.emptyStateAction}
+            />
+          </View>
         </View>
       </Layout>
     );
@@ -87,14 +93,23 @@ export default function UserProfileScreen({
             defaultValue: "Cannot confirm premium",
           })
         : t("manageSubscription.free");
+  const accountRowProps = {
+    style: styles.accountRow,
+    chevronSize: 20,
+  };
+
   return (
     <Layout>
       <View style={styles.content} testID="account-screen">
         <View style={styles.hero}>
           <AccountIdentityCard
+            testID="account-identity-card"
+            style={styles.identityCard}
+            titleStyle={styles.identityTitle}
+            subtitleStyle={styles.identitySubtitle}
             avatar={
               <AvatarBadge
-                size={72}
+                size={64}
                 uri={state.avatarSrc || undefined}
                 badges={state.safeBadges}
                 overrideColor={state.overrideColor}
@@ -102,7 +117,7 @@ export default function UserProfileScreen({
                 fallbackIcon={
                   <AppIcon
                     name="person"
-                    size={36}
+                    size={32}
                     color={theme.textSecondary}
                   />
                 }
@@ -111,7 +126,19 @@ export default function UserProfileScreen({
             }
             title={state.userData.username}
             subtitle={state.userData.email}
-            badge={<Text style={styles.identityBadge}>{planLabel}</Text>}
+            badge={
+              <View style={styles.identityBadge}>
+                <Text style={styles.identityBadgeText}>{planLabel}</Text>
+              </View>
+            }
+            accessory={
+              <AppIcon
+                name="chevron"
+                rotation="180deg"
+                size={20}
+                color={theme.textSecondary}
+              />
+            }
             onPress={() => navigation.navigate("EditUserData")}
           />
 
@@ -158,65 +185,82 @@ export default function UserProfileScreen({
           ) : null}
         </View>
 
-        <SettingsSection title={t("profileSectionTitle")}>
+        <AccountOverviewSection
+          styles={styles}
+          title={t("profileSectionTitle")}
+        >
           <SettingsRow
-            title={t("profileDetailsLabel")}
-            testID="account-profile-details-row"
-            onPress={() => navigation.navigate("EditUserData")}
-          />
-          <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "palette", theme.accentWarmStrong)}
             title={t("updateHealthSurvey")}
+            titleNumberOfLines={2}
             onPress={() =>
               navigation.navigate("OnboardingRefill", { mode: "refill" })
             }
           />
-        </SettingsSection>
-
-        <SettingsSection title={t("membershipSectionTitle")}>
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "star", theme.primaryStrong)}
             title={t("manageSubscription.title")}
             testID="account-manage-subscription-row"
             onPress={() => navigation.navigate("ManageSubscription")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
-        <SettingsSection title={t("legalPrivacySectionTitle")}>
+        <AccountOverviewSection
+          styles={styles}
+          title={t("legalPrivacySectionTitle")}
+        >
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "lock", theme.primaryStrong)}
             title={t("legalPrivacyHubRowTitle")}
+            subtitle={t("legalPrivacyHubRowSubtitle")}
+            subtitleNumberOfLines={2}
             testID="account-legal-privacy-row"
             onPress={() => navigation.navigate("LegalPrivacyHub")}
           />
-        </SettingsSection>
-
-        <SettingsSection title={t("helpFeedbackSectionTitle")}>
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "help", theme.accentWarmStrong)}
             title={t("helpFeedbackHubRowTitle")}
+            subtitle={t("helpFeedbackHubRowSubtitle")}
+            subtitleNumberOfLines={2}
             testID="account-help-feedback-row"
             onPress={() => navigation.navigate("HelpFeedback")}
           />
-        </SettingsSection>
-
-        <SettingsSection title={t("appSettingsSectionTitle")}>
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "settings", theme.primaryStrong)}
             title={t("appSettingsHubRowTitle")}
+            subtitle={t("appSettingsHubRowSubtitle")}
             testID="account-app-settings-row"
             onPress={() => navigation.navigate("AppSettings")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
-        <SettingsSection title={t("accountActionsSectionTitle")}>
+        <AccountOverviewSection
+          styles={styles}
+          title={t("accountActionsSectionTitle")}
+        >
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "arrow", theme.textSecondary)}
             title={t("logOut")}
+            subtitle={t("logOutSubtitle")}
             testID="account-logout-row"
             onPress={() => setLogoutModalVisible(true)}
             showChevron={false}
           />
           <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "delete", theme.error.text)}
             title={t("deleteAccount")}
+            subtitle={t("deleteAccountSubtitle")}
             testID="account-delete-account-row"
             onPress={() => navigation.navigate("DeleteAccount")}
           />
-        </SettingsSection>
+        </AccountOverviewSection>
 
         <Text style={styles.version}>{t("appVersion")} 1.0.1</Text>
       </View>
@@ -243,6 +287,36 @@ export default function UserProfileScreen({
   );
 }
 
+const renderRowIcon = (
+  styles: ReturnType<typeof makeStyles>,
+  name: AppIconName,
+  color: string,
+) => (
+  <View style={styles.rowIcon}>
+    <AppIcon name={name} size={18} color={color} />
+  </View>
+);
+
+const AccountOverviewSection = ({
+  styles,
+  title,
+  children,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  title: string;
+  children: ReactNode;
+}) => {
+  return (
+    <SettingsSection
+      title={title}
+      style={styles.accountSection}
+      contentStyle={styles.sectionGroup}
+    >
+      {children}
+    </SettingsSection>
+  );
+};
+
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
@@ -250,7 +324,51 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingBottom: theme.spacing.sectionGap,
     },
     hero: {
-      gap: theme.spacing.lg,
+      gap: theme.spacing.md,
+    },
+    identityCard: {
+      gap: theme.spacing.sm,
+      padding: theme.spacing.cardPadding,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.52)",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.74)"
+        : "rgba(255, 253, 248, 0.72)",
+    },
+    identityTitle: {
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
+    },
+    identitySubtitle: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    sectionGroup: {
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.46)",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.68)"
+        : "rgba(255, 253, 248, 0.58)",
+    },
+    accountSection: {
+      gap: theme.spacing.sm,
+    },
+    accountRow: {
+      minHeight: 64,
+      borderBottomColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.42)",
+    },
+    rowIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
     screenTitle: {
       color: theme.text,
@@ -259,12 +377,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.h1,
     },
     identityBadge: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceAlt,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+    },
+    identityBadgeText: {
+      overflow: "hidden",
       color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
     },
     syncStack: {
       gap: theme.spacing.sm,
@@ -281,8 +406,29 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: theme.spacing.sm,
       paddingVertical: theme.spacing.display,
+    },
+    emptyStateCard: {
+      width: "100%",
+      maxWidth: 360,
+      alignItems: "center",
+      gap: theme.spacing.sm,
+      padding: theme.spacing.bottomSheetPadding,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.92)"
+        : "rgba(255, 253, 248, 0.88)",
+      ...theme.depth.raised,
+    },
+    emptyStateSpinnerWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
     emptyStateTitle: {
       color: theme.text,

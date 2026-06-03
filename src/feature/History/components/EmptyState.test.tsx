@@ -1,4 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 import { EmptyState } from "@/feature/History/components/EmptyState";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
@@ -7,14 +9,42 @@ jest.mock("@/components/AppIcon", () => ({
   default: () => null,
 }));
 
+const flattenViewStyle = (style: StyleProp<ViewStyle>) =>
+  StyleSheet.flatten(style) ?? {};
+
 describe("History EmptyState", () => {
   it("renders title and description", () => {
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <EmptyState title="No meals" description="Add your first meal" />,
     );
 
     expect(getByText("No meals")).toBeTruthy();
     expect(getByText("Add your first meal")).toBeTruthy();
+    expect(getByTestId("history-empty-archive-graphic")).toBeTruthy();
+    expect(getByTestId("history-empty-archive-image")).toBeTruthy();
+  });
+
+  it("keeps the archive shadow outside the clipped image layer", () => {
+    const { getByTestId } = renderWithTheme(<EmptyState title="No meals" />);
+
+    const graphicStyle = flattenViewStyle(
+      getByTestId("history-empty-archive-graphic").props
+        .style as StyleProp<ViewStyle>,
+    );
+    const clipStyle = flattenViewStyle(
+      getByTestId("history-empty-archive-clip").props
+        .style as StyleProp<ViewStyle>,
+    );
+
+    expect(graphicStyle.overflow).toBe("visible");
+    expect(graphicStyle.shadowOpacity).toBeDefined();
+    expect(graphicStyle.shadowRadius).toBeDefined();
+    expect(graphicStyle.elevation).toBeDefined();
+
+    expect(clipStyle.overflow).toBe("hidden");
+    expect(clipStyle.shadowOpacity).toBeUndefined();
+    expect(clipStyle.shadowRadius).toBeUndefined();
+    expect(clipStyle.elevation).toBeUndefined();
   });
 
   it("hides description when it is not provided", () => {
@@ -24,5 +54,28 @@ describe("History EmptyState", () => {
 
     expect(getByText("No meals")).toBeTruthy();
     expect(queryByText("Add your first meal")).toBeNull();
+  });
+
+  it("uses the compact treatment for no-results states", () => {
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <EmptyState
+        testID="history-empty-compact-state"
+        variant="compact"
+        title="Nothing matches"
+        description="Change filters"
+      />,
+    );
+    const compactStyle = flattenViewStyle(
+      getByTestId("history-empty-compact-state").props
+        .style as StyleProp<ViewStyle>,
+    );
+
+    expect(getByText("Nothing matches")).toBeTruthy();
+    expect(getByText("Change filters")).toBeTruthy();
+    expect(getByTestId("history-empty-compact-accent")).toBeTruthy();
+    expect(queryByTestId("history-empty-archive-graphic")).toBeNull();
+    expect(compactStyle.overflow).toBe("visible");
+    expect(compactStyle.shadowOpacity).toBeDefined();
+    expect(compactStyle.elevation).toBeDefined();
   });
 });

@@ -129,7 +129,10 @@ export default function SavedMealsScreen({
       setMeal(next);
       await saveDraft(uid, next);
       await setLastScreen(uid, "EditMealDetails");
-      navigation.navigate("AddMeal", { start: "EditMealDetails" });
+      navigation.navigate("AddMeal", {
+        start: "EditMealDetails",
+        submitIntent: "replaceReview",
+      });
     },
     [draftMeal?.createdAt, navigation, saveDraft, setLastScreen, setMeal, uid],
   );

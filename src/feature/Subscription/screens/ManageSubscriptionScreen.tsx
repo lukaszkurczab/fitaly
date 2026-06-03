@@ -1,5 +1,11 @@
-import { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { useMemo, type ReactNode } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -11,8 +17,6 @@ import {
   FullScreenLoader,
   InfoBlock,
   Layout,
-  SettingsRow,
-  SettingsSection,
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import { usePremiumContext } from "@/context/PremiumContext";
@@ -22,14 +26,7 @@ import { PaywallModal } from "@/feature/Subscription/components/PaywallModal";
 import { useManageSubscriptionState } from "@/feature/Subscription/hooks/useManageSubscriptionState";
 import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
 
-const BENEFITS = [
-  "aiCredits800",
-  "flexibleAiUsage",
-  "photoAnalysisIncluded",
-  "fullCloudBackup",
-  "fullHistoryAccess",
-  "earlyAccess",
-] as const;
+const DARK_PRIMARY_CTA_LABEL = "#10150E";
 
 type ManageSubscriptionNavigation = StackNavigationProp<
   RootStackParamList,
@@ -88,7 +85,6 @@ export default function ManageSubscriptionScreen({
     showStart,
     showConfirmationRetry,
     showManageInStore,
-    headerStatus,
     isPremiumComputed,
     billingAvailability,
     actionFeedback,
@@ -184,12 +180,12 @@ export default function ManageSubscriptionScreen({
                 : state === "premium_pending_confirmation"
                   ? t("manageSubscription.summaryPendingConfirmationBody", {
                       defaultValue:
-                        "The store entitlement is active, but backend credits are still being confirmed. Retry confirmation or restore purchases; credits will stay unavailable until the backend sync succeeds.",
+                        "The purchase was confirmed. We will refresh access shortly, or you can try restoring purchases.",
                     })
                 : state === "unknown"
                   ? t("manageSubscription.summaryUnknownBody", {
                       defaultValue:
-                        "We could not confirm premium with billing and backend credits. Try again, restore purchases, or manage your store subscription.",
+                        "We could not confirm Premium right now. Try again, restore purchases, or manage your store subscription.",
                     })
                   : state === "premium_expired"
                     ? t("manageSubscription.summaryExpiredBody", {
@@ -200,16 +196,6 @@ export default function ManageSubscriptionScreen({
                         defaultValue:
                           "You’re currently on the free plan. Upgrade to unlock the premium AI Credits tier and additional account features.",
                       });
-
-  const primaryCtaLabel = showConfirmationRetry
-    ? t("manageSubscription.retryConfirmation", {
-        defaultValue: "Retry confirmation",
-      })
-    : showRenew
-      ? t("manageSubscription.renewSubscription")
-      : showStart
-        ? t("manageSubscription.startSubscription")
-        : null;
 
   const billingStatusMessage =
     billingAvailability === "disabled"
@@ -223,7 +209,7 @@ export default function ManageSubscriptionScreen({
           })
         : null;
   const confirmationWarningFeedback =
-    actionFeedback?.tone === "warning" &&
+    (actionFeedback?.tone === "warning" || actionFeedback?.tone === "info") &&
     (state === "premium_pending_confirmation" || state === "unknown")
       ? actionFeedback
       : null;
@@ -233,8 +219,81 @@ export default function ManageSubscriptionScreen({
     confirmationWarningFeedback?.message ?? summaryBody;
   const displayedSummaryTone =
     confirmationWarningFeedback?.tone ?? getSummaryTone(state);
-  const shouldShowSummaryBlock =
-    state !== "free_active" && state !== "free_expired";
+  const statusDescription = showStart
+    ? t("manageSubscription.freeValueBridge", {
+        defaultValue:
+          "Premium adds more AI Credits, photo analysis, full history, and cloud backup.",
+      })
+    : displayedSummaryBody;
+
+  const creditsBalanceValue = creditsLoading ? "..." : `${credits?.balance ?? "-"}`;
+  const creditsAllocationValue = creditsLoading
+    ? "..."
+    : `${credits?.allocation ?? "-"}`;
+  const creditsTierLabel = creditsLoading
+    ? "..."
+    : credits?.tier === "premium"
+      ? t("manageSubscription.tierPremium", {
+          defaultValue: "Premium",
+        })
+      : credits?.tier === "free"
+        ? t("manageSubscription.tierFree", {
+            defaultValue: "Free",
+          })
+        : "-";
+  const creditsRenewalText = creditsLoading
+    ? "..."
+    : credits?.periodEndAt
+      ? (formatLocalDateTime(credits.periodEndAt, {
+          locale: i18n?.language,
+        }) ?? t("manageSubscription.aiCreditsRenewalUnknown", {
+          defaultValue: "Unavailable",
+        }))
+      : t("manageSubscription.aiCreditsRenewalUnknown", {
+          defaultValue: "Unavailable",
+        });
+  const statusPrimaryKind = showConfirmationRetry
+    ? "retry"
+    : showRenew
+      ? "renew"
+      : showStart
+        ? "subscribe"
+        : showManageInStore
+          ? "manage"
+          : null;
+  const statusPrimaryLabel =
+    statusPrimaryKind === "retry"
+      ? t("manageSubscription.retryConfirmation", {
+          defaultValue: "Retry confirmation",
+        })
+      : statusPrimaryKind === "renew"
+        ? t("manageSubscription.renewSubscription")
+        : statusPrimaryKind === "subscribe"
+          ? t("manageSubscription.startSubscription")
+          : statusPrimaryKind === "manage"
+            ? t("manageSubscription.manageInStore", {
+                defaultValue: "Manage subscription in store",
+              })
+            : null;
+  const statusPrimaryDisabled =
+    busy
+    || ((statusPrimaryKind === "subscribe" || statusPrimaryKind === "renew")
+      && billingAvailability !== "ready");
+  const toneStyles =
+    displayedSummaryTone === "success"
+      ? {
+          card: styles.statusCardSuccess,
+          icon: styles.statusIconSuccess,
+        }
+      : displayedSummaryTone === "warning"
+        ? {
+            card: styles.statusCardWarning,
+            icon: styles.statusIconWarning,
+          }
+        : {
+            card: styles.statusCardNeutral,
+            icon: styles.statusIconNeutral,
+          };
 
   if (!subscription) {
     if (!isOnline) {
@@ -289,7 +348,7 @@ export default function ManageSubscriptionScreen({
         title={t("manageSubscription.title")}
         intro={t("manageSubscription.screenIntro", {
           defaultValue:
-            "Review your current membership, AI Credits tier, and subscription actions.",
+            "Your plan, AI Credits, and store actions in one place.",
         })}
         onBack={() => {
           if (navigation.canGoBack()) {
@@ -300,33 +359,6 @@ export default function ManageSubscriptionScreen({
         }}
       >
         <View style={styles.content}>
-          {shouldShowSummaryBlock ? (
-            <InfoBlock
-              title={displayedSummaryTitle}
-              body={displayedSummaryBody}
-              tone={displayedSummaryTone}
-              icon={
-                <AppIcon
-                  name={isPremiumComputed ? "star" : "info"}
-                  size={18}
-                  color={
-                    state === "premium_active"
-                    || state === "premium_trial"
-                      ? theme.success.text
-                    : state === "premium_expired"
-                      || state === "unknown"
-                      || state === "premium_grace"
-                      || state === "premium_pending_downgrade"
-                      || state === "premium_paused"
-                      || state === "premium_refunded"
-                      ? theme.warning.text
-                      : theme.textSecondary
-                  }
-                />
-              }
-            />
-          ) : null}
-
           {!isOnline ? (
             <InfoBlock
               title={t("manageSubscription.offlineTitle", {
@@ -356,18 +388,24 @@ export default function ManageSubscriptionScreen({
           actionFeedback.tone !== "success" &&
           !confirmationWarningFeedback ? (
             <InfoBlock
-              testID={`manage-subscription-action-feedback-${actionFeedback.tone}`}
+              testID={`manage-subscription-action-feedback-${
+                actionFeedback.feedbackState ?? actionFeedback.tone
+              }`}
               title={actionFeedback.title}
               body={actionFeedback.message}
               tone={actionFeedback.tone}
               icon={
                 <AppIcon
-                  name={actionFeedback.tone === "warning" ? "info" : "close"}
+                  name={actionFeedback.tone === "error" ? "close" : "info"}
                   size={18}
                   color={
-                    actionFeedback.tone === "warning"
-                      ? theme.warning.text
-                      : theme.error.text
+                    actionFeedback.tone === "error"
+                      ? theme.error.text
+                      : actionFeedback.tone === "warning"
+                        ? theme.warning.text
+                        : actionFeedback.tone === "info"
+                          ? theme.info.text
+                          : theme.textSecondary
                   }
                 />
               }
@@ -384,192 +422,260 @@ export default function ManageSubscriptionScreen({
               })}
               body={t("manageSubscription.aiCreditsUnavailableBody", {
                 defaultValue:
-                  "Credits require backend confirmation. No Premium credits are being shown until access-state and sync-tier return a Premium balance.",
+                  "Premium credits will appear after subscription access is confirmed. We are not showing Premium access until that check succeeds.",
               })}
               tone="warning"
               icon={<AppIcon name="info" size={18} color={theme.warning.text} />}
             />
           ) : null}
 
-          {primaryCtaLabel ? (
-            <View style={styles.primaryActionWrap}>
+          <View
+            testID="manage-subscription-status-row"
+            style={[styles.statusCard, toneStyles.card]}
+          >
+            <View style={styles.statusHeader}>
+              <View style={[styles.statusIcon, toneStyles.icon]}>
+                <AppIcon
+                  name={isPremiumComputed ? "star" : "info"}
+                  size={20}
+                  color={
+                    displayedSummaryTone === "success"
+                      ? theme.success.text
+                      : displayedSummaryTone === "warning"
+                        ? theme.warning.text
+                        : theme.textSecondary
+                  }
+                />
+              </View>
+
+              <View style={styles.statusTitleWrap}>
+                <Text style={styles.statusEyebrow}>
+                  {t("manageSubscription.currentPlanEyebrow", {
+                    defaultValue: "Current plan",
+                  })}
+                </Text>
+                <Text
+                  testID={`manage-subscription-status-value-${state}`}
+                  style={styles.statusTitle}
+                >
+                  {displayedSummaryTitle}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.statusBody}>{statusDescription}</Text>
+
+            {statusPrimaryLabel ? (
               <Button
                 testID="manage-subscription-primary-button"
-                label={primaryCtaLabel}
+                label={statusPrimaryLabel}
+                loading={
+                  (statusPrimaryKind === "manage" && busyAction === "manage")
+                  || (statusPrimaryKind === "retry" && busyAction === "manage")
+                }
+                textStyle={
+                  !statusPrimaryDisabled && theme.isDark
+                    ? styles.statusPrimaryCtaLabel
+                    : undefined
+                }
                 onPress={() => {
                   clearActionFeedback();
-                  if (showConfirmationRetry) {
+                  if (statusPrimaryKind === "retry") {
                     void tryRefreshPremium();
+                    return;
+                  }
+                  if (statusPrimaryKind === "manage") {
+                    void tryOpenManage();
                     return;
                   }
                   openPaywall();
                 }}
-                disabled={
-                  busy || (!showConfirmationRetry && billingAvailability !== "ready")
-                }
+                disabled={statusPrimaryDisabled}
               />
+            ) : null}
+          </View>
+
+          <View
+            testID="manage-subscription-credits-balance-row"
+            style={styles.creditsCard}
+          >
+            <View style={styles.creditsHeader}>
+              <Text style={styles.creditsTitle}>
+                {t("manageSubscription.aiCreditsSection", {
+                  defaultValue: "AI Credits",
+                })}
+              </Text>
+              <Text style={styles.creditsLabel}>
+                {t("manageSubscription.aiCreditsAvailableNow", {
+                  defaultValue: "Available now",
+                })}
+              </Text>
             </View>
-          ) : null}
 
-          <SettingsSection
-            title={t("manageSubscription.currentMembershipTitle", {
-              defaultValue: "Current membership",
-            })}
-          >
-            <SettingsRow
-              testID="manage-subscription-status-row"
-              valueTestID={`manage-subscription-status-value-${state}`}
-              title={t("manageSubscription.yourSubscription")}
-              value={headerStatus}
-            />
-            {showManageInStore ? (
-              <SettingsRow
-                title={t("manageSubscription.manageInStore", {
-                  defaultValue: "Manage subscription in store",
+            <View style={styles.creditsBalancePanel}>
+              <View style={styles.creditsHeroRow}>
+                <Text
+                  testID={`manage-subscription-credits-balance-value-${
+                    credits?.balance ?? "missing"
+                  }`}
+                  style={styles.creditsBalance}
+                >
+                  {creditsBalanceValue}
+                </Text>
+                <Text style={styles.creditsUnit}>
+                  {t("manageSubscription.aiCreditsUnit", {
+                    defaultValue: "AI Credits",
+                  })}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.creditDetailGrid}>
+              <View
+                testID="manage-subscription-credits-allocation-row"
+                style={styles.creditDetailTile}
+              >
+                <Text style={styles.metaLabel}>
+                  {t("manageSubscription.aiCreditsAllocation", {
+                    defaultValue: "Allocation",
+                  })}
+                </Text>
+                <Text
+                  testID={`manage-subscription-credits-allocation-value-${
+                    credits?.allocation ?? "missing"
+                  }`}
+                  style={styles.metaValue}
+                >
+                  {creditsAllocationValue}
+                </Text>
+              </View>
+              <View
+                testID="manage-subscription-tier-row"
+                style={styles.creditDetailTile}
+              >
+                <Text style={styles.metaLabel}>
+                  {t("manageSubscription.aiCreditsTier", {
+                    defaultValue: "Tier",
+                  })}
+                </Text>
+                <Text
+                  testID={`manage-subscription-tier-value-${
+                    credits?.tier ?? "missing"
+                  }`}
+                  style={styles.metaValue}
+                >
+                  {creditsTierLabel}
+                </Text>
+              </View>
+              <View style={[styles.creditDetailTile, styles.creditRenewalTile]}>
+                <Text style={styles.metaLabel}>
+                  {t("manageSubscription.aiCreditsRenewalDate", {
+                    defaultValue: "Renews on",
+                  })}
+                </Text>
+                <Text style={styles.metaValue}>{creditsRenewalText}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.actionSection}>
+            <Text style={styles.actionSectionTitle} accessibilityRole="header">
+              {t("manageSubscription.actionsTitle", {
+                defaultValue: "Subscription actions",
+              })}
+            </Text>
+
+            <View style={styles.actionCard}>
+              {showManageInStore && statusPrimaryKind !== "manage" ? (
+                <>
+                  <ActionRow
+                    testID="manage-subscription-manage-store-row"
+                    icon={
+                      <AppIcon name="card" size={18} color={theme.textSecondary} />
+                    }
+                    title={t("manageSubscription.manageInStore", {
+                      defaultValue: "Manage subscription in store",
+                    })}
+                    subtitle={t("manageSubscription.manageInStoreSubtitle", {
+                      defaultValue:
+                        "Open your store account settings to manage or cancel.",
+                    })}
+                    loading={busy && busyAction === "manage"}
+                    onPress={() => {
+                      void tryOpenManage();
+                    }}
+                    styles={styles}
+                    theme={theme}
+                  />
+                  <View style={styles.actionDivider} />
+                </>
+              ) : null}
+
+              <ActionRow
+                testID="manage-subscription-restore-row"
+                icon={<AppIcon name="refresh" size={18} color={theme.textSecondary} />}
+                title={t("manageSubscription.restorePurchases", {
+                  defaultValue: "Restore purchases",
                 })}
-                subtitle={t("manageSubscription.manageInStoreSubtitle", {
+                subtitle={t("manageSubscription.restoreSubtitle", {
                   defaultValue:
-                    "Open your store account settings to manage or cancel.",
+                    "Restore access if you already purchased premium on this account.",
                 })}
+                loading={busy && busyAction === "restore"}
                 onPress={() => {
-                  void tryOpenManage();
+                  void tryRestore();
                 }}
-                loading={busy && busyAction === "manage"}
+                showChevron={false}
+                styles={styles}
+                theme={theme}
               />
-            ) : null}
-          </SettingsSection>
 
-          <SettingsSection
-            title={t("manageSubscription.aiCreditsSection", {
-              defaultValue: "AI Credits",
-            })}
-          >
-            <SettingsRow
-              testID="manage-subscription-credits-balance-row"
-              valueTestID={`manage-subscription-credits-balance-value-${
-                credits?.balance ?? "missing"
-              }`}
-              title={t("manageSubscription.aiCreditsBalance", {
-                defaultValue: "Balance",
-              })}
-              value={creditsLoading ? "..." : `${credits?.balance ?? "-"}`}
-            />
-            <SettingsRow
-              testID="manage-subscription-credits-allocation-row"
-              valueTestID={`manage-subscription-credits-allocation-value-${
-                credits?.allocation ?? "missing"
-              }`}
-              title={t("manageSubscription.aiCreditsAllocation", {
-                defaultValue: "Allocation",
-              })}
-              value={creditsLoading ? "..." : `${credits?.allocation ?? "-"}`}
-            />
-            <SettingsRow
-              testID="manage-subscription-tier-row"
-              valueTestID={`manage-subscription-tier-value-${
-                credits?.tier ?? "missing"
-              }`}
-              title={t("manageSubscription.aiCreditsTier", {
-                defaultValue: "Tier",
-              })}
-              value={
-                creditsLoading
-                  ? "..."
-                  : credits?.tier === "premium"
-                    ? t("manageSubscription.tierPremium", {
-                        defaultValue: "Premium",
-                      })
-                    : credits?.tier === "free"
-                      ? t("manageSubscription.tierFree", {
-                          defaultValue: "Free",
-                        })
-                      : "-"
-              }
-            />
-            <SettingsRow
-              title={t("manageSubscription.aiCreditsRenewalDate", {
-                defaultValue: "Renews on",
-              })}
-              value={
-                creditsLoading
-                  ? "..."
-                  : credits?.periodEndAt
-                    ? (formatLocalDateTime(credits.periodEndAt, {
-                        locale: i18n?.language,
-                      }) ?? t("manageSubscription.aiCreditsRenewalUnknown", {
-                        defaultValue: "Unavailable",
-                      }))
-                    : t("manageSubscription.aiCreditsRenewalUnknown", {
-                        defaultValue: "Unavailable",
-                      })
-              }
-            />
-          </SettingsSection>
+              <View style={styles.actionDivider} />
 
-          <SettingsSection
-            title={t("manageSubscription.premiumBenefits", {
-              defaultValue: "Premium benefits",
-            })}
-          >
-            {BENEFITS.map((key) => (
-              <SettingsRow
-                key={key}
-                title={t(`manageSubscription.benefit_${key}`)}
-                subtitle={t(`manageSubscription.benefitDesc_${key}`)}
-              />
-            ))}
-          </SettingsSection>
-
-          <SettingsSection
-            title={t("manageSubscription.actionsTitle", {
-              defaultValue: "Subscription actions",
-            })}
-          >
-            <SettingsRow
-              testID="manage-subscription-restore-row"
-              title={t("manageSubscription.restorePurchases", {
-                defaultValue: "Restore purchases",
-              })}
-              subtitle={t("manageSubscription.restoreSubtitle", {
-                defaultValue:
-                  "Restore access if you already purchased premium on this account.",
-              })}
-              onPress={() => {
-                void tryRestore();
-              }}
-              loading={busy && busyAction === "restore"}
-            />
-
-            <SettingsRow
-              title={t("legalPrivacySectionTitle", {
-                defaultValue: "Legal & privacy",
-              })}
-              subtitle={t("manageSubscription.legalHubSubtitle", {
-                defaultValue:
-                  "Privacy Policy, Terms of Service, and Data & AI clarity.",
-              })}
-              onPress={() => navigation.navigate("LegalPrivacyHub")}
-            />
-
-            {refundUrl ? (
-              <SettingsRow
-                title={t("manageSubscription.refundPolicy")}
-                subtitle={t("manageSubscription.refundSubtitle", {
-                  defaultValue: "Open the current store refund policy.",
+              <ActionRow
+                testID="manage-subscription-legal-row"
+                icon={<AppIcon name="lock" size={18} color={theme.textSecondary} />}
+                title={t("legalPrivacySectionTitle", {
+                  defaultValue: "Legal & privacy",
                 })}
-                onPress={() => {
-                  void tryOpenRefundPolicy();
-                }}
+                subtitle={t("manageSubscription.legalHubSubtitle", {
+                  defaultValue:
+                    "Privacy Policy, Terms of Service, and Data & AI clarity.",
+                })}
+                onPress={() => navigation.navigate("LegalPrivacyHub")}
+                styles={styles}
+                theme={theme}
               />
-            ) : null}
-          </SettingsSection>
 
+              {refundUrl ? (
+                <>
+                  <View style={styles.actionDivider} />
+                  <ActionRow
+                    testID="manage-subscription-refund-row"
+                    icon={
+                      <AppIcon name="help" size={18} color={theme.textSecondary} />
+                    }
+                    title={t("manageSubscription.refundPolicy")}
+                    subtitle={t("manageSubscription.refundSubtitle", {
+                      defaultValue: "Open the current store refund policy.",
+                    })}
+                    onPress={() => {
+                      void tryOpenRefundPolicy();
+                    }}
+                    styles={styles}
+                    theme={theme}
+                  />
+                </>
+              ) : null}
+            </View>
+          </View>
         </View>
       </FormScreenShell>
 
       <PaywallModal
         visible={paywallVisible}
         busy={busy}
+        busyAction={busyAction}
         priceText={priceText}
         onClose={closePaywall}
         onSubscribe={() => {
@@ -578,6 +684,13 @@ export default function ManageSubscriptionScreen({
         onRestore={() => {
           void tryRestore();
         }}
+        onReturnToOffer={clearActionFeedback}
+        restoreFeedback={
+          actionFeedback?.source === "restore" ||
+          actionFeedback?.feedbackState === "activation-pending"
+            ? actionFeedback
+            : null
+        }
         termsUrl={termsUrl}
         privacyUrl={privacyUrl}
       />
@@ -590,7 +703,281 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     content: {
       gap: theme.spacing.sectionGap,
     },
-    primaryActionWrap: {
+    statusCard: {
+      gap: theme.spacing.md,
+      borderWidth: 1,
+      borderRadius: theme.rounded.xl,
+      padding: theme.spacing.cardPaddingLarge,
+      backgroundColor: theme.surfaceElevated,
+      borderColor: theme.borderSoft,
+    },
+    statusCardSuccess: {
+      borderColor: theme.isDark ? "#6F8F6A" : "#9CAD94",
+      backgroundColor: theme.isDark ? "#1E321F" : theme.success.surface,
+    },
+    statusCardWarning: {
+      borderColor: theme.isDark ? "#7A6240" : "#D7BE91",
+      backgroundColor: theme.warning.surface,
+    },
+    statusCardNeutral: {
+      borderColor: theme.isDark ? "#343B34" : "#DED3C3",
+      backgroundColor: theme.isDark ? "#232923" : theme.surface,
+    },
+    statusHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.md,
+    },
+    statusIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: theme.rounded.lg,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark ? "#1D231D" : "#F6EFE5",
+    },
+    statusIconSuccess: {
+      backgroundColor: theme.isDark ? "#1B251B" : theme.surface,
+    },
+    statusIconWarning: {
+      backgroundColor: theme.isDark ? "#261F17" : theme.surface,
+    },
+    statusIconNeutral: {
+      backgroundColor: theme.isDark ? "#202620" : "#EFE7DA",
+    },
+    statusTitleWrap: {
+      flex: 1,
+      gap: theme.spacing.xxs,
+    },
+    statusEyebrow: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+    },
+    statusTitle: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
+    },
+    statusBody: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+    },
+    metaLabel: {
+      color: theme.textTertiary,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.labelS,
+      lineHeight: theme.typography.lineHeight.labelS,
+    },
+    metaValue: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+    },
+    statusPrimaryCtaLabel: {
+      color: DARK_PRIMARY_CTA_LABEL,
+    },
+    creditsCard: {
+      gap: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      padding: theme.spacing.cardPaddingLarge,
+      backgroundColor: theme.surfaceElevated,
+    },
+    creditsHeader: {
+      gap: theme.spacing.xxs,
+    },
+    creditsTitle: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.title,
+      lineHeight: theme.typography.lineHeight.title,
+    },
+    creditsLabel: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    creditsBalancePanel: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark ? "#363F36" : "#E8DDCE",
+      borderRadius: theme.rounded.lg,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      backgroundColor: theme.isDark ? "#202720" : "#FBF6EE",
+    },
+    creditsHeroRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: theme.spacing.sm,
+      flexWrap: "wrap",
+    },
+    creditsBalance: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.size.numericXL,
+      lineHeight: theme.typography.lineHeight.numericXL,
+    },
+    creditsUnit: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+    },
+    creditDetailGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
       gap: theme.spacing.sm,
     },
+    creditDetailTile: {
+      flexBasis: "47%",
+      flexGrow: 1,
+      minWidth: 128,
+      gap: theme.spacing.xxs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark ? "#333B33" : "#E8DDCE",
+      borderRadius: theme.rounded.md,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      backgroundColor: theme.isDark ? "#202620" : "#F8F1E7",
+    },
+    creditRenewalTile: {
+      flexBasis: "100%",
+    },
+    actionSection: {
+      gap: theme.spacing.sm,
+    },
+    actionSectionTitle: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
+      paddingHorizontal: theme.spacing.xs,
+    },
+    actionCard: {
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.surfaceElevated,
+    },
+    actionRow: {
+      minHeight: 72,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.md,
+      paddingHorizontal: theme.spacing.cardPadding,
+      paddingVertical: theme.spacing.md,
+      borderRadius: theme.rounded.lg,
+    },
+    actionRowPressed: {
+      backgroundColor: theme.isDark ? "#2A312A" : "#F8F1E7",
+    },
+    actionRowDisabled: {
+      opacity: 0.54,
+    },
+    actionIconWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.isDark ? "#1E241E" : "#F4EBDD",
+    },
+    actionCopy: {
+      flex: 1,
+      gap: theme.spacing.xxs,
+    },
+    actionTitle: {
+      color: theme.text,
+      fontFamily: theme.typography.fontFamily.semiBold,
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
+    },
+    actionSubtitle: {
+      color: theme.textSecondary,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    actionAccessory: {
+      width: 28,
+      minHeight: 28,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionDivider: {
+      height: StyleSheet.hairlineWidth,
+      marginLeft: theme.spacing.cardPadding + 38 + theme.spacing.md,
+      marginRight: theme.spacing.cardPadding,
+      backgroundColor: theme.isDark ? "#303830" : "#E9DED0",
+    },
   });
+
+type ActionRowProps = {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  onPress: () => void;
+  styles: ReturnType<typeof makeStyles>;
+  theme: ReturnType<typeof useTheme>;
+  testID?: string;
+  loading?: boolean;
+  showChevron?: boolean;
+};
+
+function ActionRow({
+  title,
+  subtitle,
+  icon,
+  onPress,
+  styles,
+  theme,
+  testID,
+  loading = false,
+  showChevron = true,
+}: ActionRowProps) {
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ busy: loading, disabled: loading }}
+      disabled={loading}
+      onPress={loading ? undefined : onPress}
+      style={({ pressed }) => [
+        styles.actionRow,
+        pressed && !loading ? styles.actionRowPressed : null,
+        loading ? styles.actionRowDisabled : null,
+      ]}
+    >
+      <View style={styles.actionIconWrap}>{icon}</View>
+      <View style={styles.actionCopy}>
+        <Text style={styles.actionTitle} numberOfLines={2}>
+          {title}
+        </Text>
+        <Text style={styles.actionSubtitle} numberOfLines={3}>
+          {subtitle}
+        </Text>
+      </View>
+      <View style={styles.actionAccessory}>
+        {loading ? (
+          <ActivityIndicator size="small" color={theme.textSecondary} />
+        ) : showChevron ? (
+          <AppIcon
+            name="chevron"
+            rotation="180deg"
+            size={22}
+            color={theme.textSecondary}
+          />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}

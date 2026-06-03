@@ -1,6 +1,9 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
 - openLink: "fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
@@ -28,3 +31,4 @@ appId: com.lkurczab.fitaly
     id: barcode-manual-submit-button
 - assertVisible:
     id: barcode-manual-cancel-button
+- takeScreenshot: addmeal-bottom-barcode-manual-keyboard-light

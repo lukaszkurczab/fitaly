@@ -24,6 +24,7 @@ type RowPickerProps<T extends string> = {
   error?: string;
   style?: StyleProp<ViewStyle>;
   size?: "default" | "compact";
+  surfaceTone?: "default" | "soft";
   testID?: string;
 };
 
@@ -35,10 +36,14 @@ export function RowPicker<T extends string>({
   error,
   style,
   size = "default",
+  surfaceTone = "default",
   testID,
 }: RowPickerProps<T>) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const styles = useMemo(
+    () => makeStyles(theme, surfaceTone),
+    [surfaceTone, theme],
+  );
 
   return (
     <View style={style} testID={testID}>
@@ -90,7 +95,10 @@ export function RowPicker<T extends string>({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
+const makeStyles = (
+  theme: ReturnType<typeof useTheme>,
+  surfaceTone: "default" | "soft",
+) =>
   StyleSheet.create({
     label: {
       color: theme.textSecondary,
@@ -102,7 +110,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     row: {
       flexDirection: "row",
       alignItems: "center",
-      gap: theme.spacing.xs,
+      gap: theme.spacing.xxs,
+      padding: theme.spacing.xxs,
+      borderRadius: theme.rounded.lg,
+      borderWidth: surfaceTone === "soft" ? StyleSheet.hairlineWidth : 0,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.48)",
+      backgroundColor:
+        surfaceTone === "soft"
+          ? theme.isDark
+            ? "rgba(30, 34, 30, 0.72)"
+            : "rgba(239, 231, 218, 0.48)"
+          : "transparent",
     },
     option: {
       flex: 1,
@@ -113,7 +133,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.md,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "transparent",
+      backgroundColor:
+        surfaceTone === "soft" && !theme.isDark
+          ? "rgba(255, 253, 248, 0.20)"
+          : "transparent",
     },
     optionCompact: {
       minHeight: 40,
@@ -122,6 +145,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     optionSelected: {
       backgroundColor: theme.primary,
+      shadowColor: theme.isDark ? "#000000" : "#2F312B",
+      shadowOpacity: theme.isDark ? 0.2 : 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
     },
     optionDisabled: {
       opacity: 0.4,

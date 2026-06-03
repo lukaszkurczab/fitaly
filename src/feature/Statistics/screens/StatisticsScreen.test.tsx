@@ -129,19 +129,27 @@ jest.mock("@/feature/Statistics/components/StatisticsTrendCard", () => ({
   },
 }));
 
-jest.mock("@/feature/Statistics/components/StatisticsDailyAveragesSection", () => ({
-  StatisticsDailyAveragesSection: () => {
+jest.mock("@/feature/Statistics/components/StatisticsSummaryCard", () => ({
+  StatisticsSummaryCard: () => {
     const { createElement } = jest.requireActual<typeof import("react")>("react");
     const { Text } = jest.requireActual<typeof import("react-native")>("react-native");
-    return createElement(Text, null, "daily-averages");
+    return createElement(Text, null, "summary-card");
   },
 }));
 
 jest.mock("@/feature/Statistics/components/StatisticsMacroBreakdownCard", () => ({
-  StatisticsMacroBreakdownCard: () => {
+  StatisticsMacroBreakdownCard: ({
+    protein,
+    carbs,
+    fat,
+  }: {
+    protein: number;
+    carbs: number;
+    fat: number;
+  }) => {
     const { createElement } = jest.requireActual<typeof import("react")>("react");
     const { Text } = jest.requireActual<typeof import("react-native")>("react-native");
-    return createElement(Text, null, "macro-breakdown");
+    return createElement(Text, null, `macro-breakdown:${protein}:${carbs}:${fat}`);
   },
 }));
 
@@ -210,13 +218,26 @@ function makeAnalyticsState(overrides: Record<string, unknown> = {}) {
     emptyKind: "none",
     labels: ["Mon", "Tue"],
     selectedSeries: [1200, 1500],
-    metricAverage: 1400,
     totals: { protein: 80, carbs: 150, fat: 50 },
     hasTotals: true,
     avgKcal: 1400,
     avgProtein: 80,
     avgCarbs: 150,
     avgFat: 50,
+    avgLoggedProtein: 280,
+    avgLoggedCarbs: 525,
+    avgLoggedFat: 175,
+    loggedDaysCount: 2,
+    rangeDaysCount: 7,
+    calorieTarget: 2200,
+    calorieGoalProgress: 64,
+    calorieComparison: {
+      previousRange: null,
+      previousAverages: null,
+      kcalAverageDelta: null,
+      kcalAverageDeltaPercent: null,
+      hasPreviousEntries: false,
+    },
     isWindowLimited: false,
     ...overrides,
   };
@@ -226,7 +247,16 @@ describe("StatisticsScreen", () => {
   beforeEach(() => {
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockUseUserContext.mockReturnValue({
-      userData: { uid: "user-1", calorieTarget: 2200 },
+      userData: {
+        uid: "user-1",
+        profile: {
+          nutritionProfile: {
+            calorieTarget: 2200,
+            preferences: ["balanced"],
+            goal: "maintain",
+          },
+        },
+      },
     });
     mockUsePremiumContext.mockReturnValue({ isPremium: false });
     mockUseAccessContext.mockReturnValue({
@@ -272,9 +302,9 @@ describe("StatisticsScreen", () => {
       <StatisticsScreen navigation={navigation as never} />,
     );
 
+    expect(getByText("summary-card")).toBeTruthy();
     expect(getByText("trend-card")).toBeTruthy();
-    expect(getByText("daily-averages")).toBeTruthy();
-    expect(getByText("macro-breakdown")).toBeTruthy();
+    expect(getByText("macro-breakdown:280:525:175")).toBeTruthy();
 
     fireEvent.press(getByText("statistics:ranges.30d"));
     fireEvent.press(getByText("apply-custom-range"));

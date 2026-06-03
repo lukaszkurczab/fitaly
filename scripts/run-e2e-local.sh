@@ -18,6 +18,14 @@ else
   FLOW_PATHS=("e2e/maestro")
 fi
 PLATFORM="${E2E_PLATFORM:-ios}"
+if [[ -n "${E2E_APP_ID:-}" ]]; then
+  APP_ID="${E2E_APP_ID}"
+elif [[ "${PLATFORM}" == "ios" ]]; then
+  # iOS keeps the legacy App Store bundle id; Android uses com.lkurczab.fitaly.
+  APP_ID="com.lkurczab.foodscannerai"
+else
+  APP_ID="com.lkurczab.fitaly"
+fi
 EXPO_PORT="${E2E_EXPO_PORT:-8081}"
 EXPO_HOST="${E2E_EXPO_HOST:-lan}"
 RESULTS_PATH="${E2E_RESULTS_PATH:-/tmp/maestro-${PLATFORM}-results.xml}"
@@ -26,7 +34,22 @@ TEST_OUTPUT_DIR="${E2E_TEST_OUTPUT_DIR:-}"
 DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
 TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
-API_BASE_URL="${E2E_API_BASE_URL:-${EXPO_PUBLIC_API_BASE_URL:-https://fitaly-backend-smoke.up.railway.app}}"
+SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
+PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
+if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
+  API_BASE_URL="${E2E_API_BASE_URL}"
+else
+  API_BASE_URL="${SMOKE_API_BASE_URL}"
+  if [[ -n "${EXPO_PUBLIC_API_BASE_URL:-}" && "${EXPO_PUBLIC_API_BASE_URL}" != "${SMOKE_API_BASE_URL}" ]]; then
+    echo "[e2e] Ignoring EXPO_PUBLIC_API_BASE_URL from .env for E2E: ${EXPO_PUBLIC_API_BASE_URL}"
+    echo "[e2e] Use E2E_API_BASE_URL to intentionally run E2E against a non-smoke backend."
+  fi
+fi
+if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUCTION_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run E2E against production API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_ALLOW_PRODUCTION_API=1 only for an explicitly approved production verification." >&2
+  exit 1
+fi
 EXPO_URL="${E2E_EXPO_URL:-}"
 E2E_EMAIL="${E2E_EMAIL:-${SMOKE_EXPORT_TEST_EMAIL:-e2e@example.com}}"
 E2E_PASSWORD="${E2E_PASSWORD:-${SMOKE_EXPORT_TEST_PASSWORD:-Test@1234}}"
@@ -39,6 +62,8 @@ E2E_RUN_ID="${E2E_RUN_ID:-$(date +%s)-$$}"
 E2E_DISPOSABLE_EMAIL="${E2E_DISPOSABLE_EMAIL:-fitaly-e2e-${E2E_RUN_ID}@example.com}"
 E2E_DISPOSABLE_USERNAME="${E2E_DISPOSABLE_USERNAME:-e2e${E2E_RUN_ID//[^A-Za-z0-9]/}}"
 E2E_DISPOSABLE_PASSWORD="${E2E_DISPOSABLE_PASSWORD:-Test1234.}"
+E2E_DELETE_DISPOSABLE_EMAIL="${E2E_DELETE_DISPOSABLE_EMAIL:-fitaly-e2e-delete-${E2E_RUN_ID}@example.com}"
+E2E_DELETE_DISPOSABLE_USERNAME="${E2E_DELETE_DISPOSABLE_USERNAME:-e2edel${E2E_RUN_ID//[^A-Za-z0-9]/}}"
 
 EXPO_LOG="/tmp/expo-e2e.log"
 EXPO_PID=""
@@ -309,7 +334,7 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export CI=1
     export E2E=true
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
-    export E2E_MOCK_CHAT_REPLY="E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day."
+    export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
     exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
   ) >"${EXPO_LOG}" 2>&1 &
   EXPO_PID=$!
@@ -363,11 +388,38 @@ if [[ "${PLATFORM}" == "ios" ]]; then
   xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
 
-  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
-  cat >"${DEV_MENU_DISMISS_FLOW}" <<'YAML'
-appId: com.lkurczab.fitaly
+  IOS_OPEN_PROMPT_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-ios-open-prompt.XXXXXX")"
+  cat >"${IOS_OPEN_PROMPT_FLOW}" <<'YAML'
+appId: com.apple.springboard
 ---
-- tapOn: "Close"
+- runFlow:
+    when:
+      visible: "Otwórz"
+    commands:
+      - tapOn: "Otwórz"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+YAML
+  maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  rm -f "${IOS_OPEN_PROMPT_FLOW}"
+
+  DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
+  cat >"${DEV_MENU_DISMISS_FLOW}" <<YAML
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
 YAML
   maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
   rm -f "${DEV_MENU_DISMISS_FLOW}"
@@ -376,11 +428,13 @@ fi
 FLOW_WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/fitaly-e2e-flows.XXXXXX")"
 cp -R "${ROOT_DIR}/e2e/maestro/." "${FLOW_WORKDIR}/"
 export E2E_EXPO_URL="${EXPO_URL}"
+export E2E_APP_ID="${APP_ID}"
 export E2E_EMAIL E2E_PASSWORD E2E_ALT_EMAIL E2E_ALT_PASSWORD
 export E2E_CONFLICT_USERNAME E2E_REGISTER_EMAIL E2E_REGISTER_PASSWORD
 export E2E_RUN_ID E2E_DISPOSABLE_EMAIL E2E_DISPOSABLE_USERNAME E2E_DISPOSABLE_PASSWORD
+export E2E_DELETE_DISPOSABLE_EMAIL E2E_DELETE_DISPOSABLE_USERNAME
 while IFS= read -r -d '' flow_file; do
-  perl -0pi -e 's/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
+  perl -0pi -e 's/^appId:\s*com\.lkurczab\.fitaly\s*$/appId: $ENV{E2E_APP_ID}/mg; s/__E2E_EXPO_URL__/$ENV{E2E_EXPO_URL}/g; s/\$\{(E2E_[A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/ge' "${flow_file}"
 done < <(find "${FLOW_WORKDIR}" -type f -name '*.yaml' -print0)
 
 FLOW_SUMMARY_NAMES=()

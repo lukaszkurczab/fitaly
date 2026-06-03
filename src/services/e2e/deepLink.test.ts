@@ -6,6 +6,7 @@ const mockGetApp = jest.fn();
 const mockSignOut = jest.fn<() => Promise<void>>();
 const mockResetNavigation = jest.fn();
 const mockStopSyncLoop = jest.fn();
+const mockRunReconnectReconcile = jest.fn<(uid: string) => Promise<unknown>>();
 const mockResetOfflineStorage = jest.fn();
 const mockSetE2EForcedOffline = jest.fn();
 const mockMarkE2EResetStarted = jest.fn();
@@ -36,6 +37,7 @@ jest.mock("@/navigation/navigate", () => ({
 
 jest.mock("@/services/offline/sync.engine", () => ({
   stopSyncLoop: () => mockStopSyncLoop(),
+  runReconnectReconcile: (uid: string) => mockRunReconnectReconcile(uid),
 }));
 
 jest.mock("@/services/offline/db", () => ({
@@ -81,6 +83,7 @@ describe("handleE2EDeepLink", () => {
     mockSignOut.mockResolvedValue(undefined);
     mockApplyE2ESeedCommand.mockResolvedValue([]);
     mockResetE2EFixtureState.mockResolvedValue(undefined);
+    mockRunReconnectReconcile.mockResolvedValue(undefined);
     mockE2EEnabled = true;
     mockCurrentUser = { uid: "user-1" };
   });
@@ -180,9 +183,21 @@ describe("handleE2EDeepLink", () => {
 
     expect(handled).toBe(true);
     expect(mockSetE2EForcedOffline).toHaveBeenCalledWith(true);
+    expect(mockRunReconnectReconcile).not.toHaveBeenCalled();
     expect(mockAsyncStorageClear).not.toHaveBeenCalled();
     expect(mockResetOfflineStorage).not.toHaveBeenCalled();
     expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockMarkE2EResetReady).toHaveBeenCalledWith("offline");
+  });
+
+  it("runs reconnect reconcile when forced connectivity returns online", async () => {
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/connectivity?offline=0",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockSetE2EForcedOffline).toHaveBeenCalledWith(false);
+    expect(mockRunReconnectReconcile).toHaveBeenCalledWith("user-1");
+    expect(mockMarkE2EResetReady).toHaveBeenCalledWith("home");
   });
 });

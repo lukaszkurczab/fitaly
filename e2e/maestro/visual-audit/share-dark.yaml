@@ -1,0 +1,63 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-photo-meal
+- assertVisible:
+    id: e2e-ready-shareExport-success
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- swipe:
+    direction: UP
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: app-settings-dark-mode-toggle
+- waitForAnimationToEnd
+- tapOn:
+    id: back-title-header-back
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-share-button
+- tapOn:
+    id: history-meal-share-button
+- assertVisible:
+    id: share-screen
+- assertVisible:
+    id: share-canvas
+- takeScreenshot: share-dark-quick-ready
+- tapOn:
+    id: share-mode-customize-button
+- assertVisible:
+    id: share-utility-row
+- takeScreenshot: share-dark-customize-ready

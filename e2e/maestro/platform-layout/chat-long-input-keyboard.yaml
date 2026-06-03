@@ -17,12 +17,12 @@ appId: com.lkurczab.fitaly
           id: chat-legal-accept
 - tapOn:
     id: chat-input
-- inputText: This is a deliberately long E2E chat prompt that keeps the keyboard open while the composer grows enough to verify that the input and send action remain reachable on a small screen.
+- inputText: Czy możesz spokojnie podsumować mój dzisiejszy dzień pod kątem białka, kalorii i regularności posiłków? Napisz krótko, co wygląda dobrze, co warto poprawić przy kolacji i jaki jeden prosty krok zrobić teraz.
 - assertVisible:
     id: chat-input
 - assertVisible:
     id: chat-send-button
-- hideKeyboard
+- tapOn:
+    id: chat-keyboard-dismiss-zone
 - assertVisible:
     id: chat-send-button
-

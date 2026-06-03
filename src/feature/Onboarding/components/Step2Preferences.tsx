@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  BottomActionBar,
   CheckboxDropdown,
   Dropdown,
-  GlobalActionButtons,
   RowPicker,
   Slider,
 } from "@/components";
@@ -17,6 +18,7 @@ import {
   PREFERENCE_CONFLICTS,
   PREFERENCE_OPTIONS,
 } from "@/feature/Onboarding/constants";
+import { createOnboardingMaterialStyles } from "@/feature/Onboarding/components/onboardingMaterial";
 
 type Props = {
   form: OnboardingFormData;
@@ -44,7 +46,9 @@ export default function Step2Preferences({
 }: Props) {
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const footerBottomInset = Math.max(insets.bottom, theme.spacing.sm);
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
@@ -60,6 +64,13 @@ export default function Step2Preferences({
 
   const calorieAdjustmentValue = form.calorieAdjustment ?? 0.2;
   const calorieAdjustmentError = errors.calorieAdjustment;
+  const selectedPreferenceLabels = useMemo(
+    () =>
+      PREFERENCE_OPTIONS.filter((option) =>
+        (form.preferences ?? []).includes(option.value),
+      ).map((option) => t(option.labelKey)),
+    [form.preferences, t],
+  );
 
   return (
     <View style={styles.container} testID="onboarding-step-2">
@@ -92,8 +103,19 @@ export default function Step2Preferences({
               }));
             }}
             disabledValues={[...disabledPreferences]}
+            surfaceTone="soft"
           />
-          <Text style={styles.helperText}>{t("step2.preferencesHelper")}</Text>
+          {selectedPreferenceLabels.length > 0 ? (
+            <View style={styles.selectedPreferenceRow}>
+              {selectedPreferenceLabels.map((label) => (
+                <View key={label} style={styles.selectedPreferenceTag}>
+                  <Text style={styles.selectedPreferenceText}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.helperText}>{t("step2.preferencesHelper")}</Text>
+          )}
         </View>
 
         <View style={styles.panel}>
@@ -117,6 +139,7 @@ export default function Step2Preferences({
               }));
             }}
             error={errors.activityLevel}
+            surfaceTone="soft"
           />
           {form.activityLevel ? (
             <Text style={styles.helperText}>
@@ -137,6 +160,7 @@ export default function Step2Preferences({
             options={GOAL_OPTIONS.map((option) => ({
               value: option.value,
               label: t(option.labelKey),
+              testID: `onboarding-goal-${option.value}`,
             }))}
             value={form.goal || null}
             onChange={(nextGoal) => {
@@ -153,6 +177,7 @@ export default function Step2Preferences({
             }}
             error={errors.goal}
             size="compact"
+            surfaceTone="soft"
           />
           {form.goal ? (
             <Text style={styles.helperText}>
@@ -205,22 +230,34 @@ export default function Step2Preferences({
         </View>
       </ScrollView>
 
-      <GlobalActionButtons
-        primaryTestID="onboarding-step-2-next-button"
-        label={t("step2.primaryCta")}
-        onPress={onContinue}
-        loading={submitting}
-        secondaryLabel={t("common:back")}
-        secondaryOnPress={onBack}
-        secondaryTestID="onboarding-step-2-back-button"
-        containerStyle={styles.footer}
+      <BottomActionBar
+        placement="docked"
+        bottomInset={footerBottomInset}
+        horizontalPadding={theme.spacing.screenPadding}
+        horizontalBleed={theme.spacing.screenPadding}
+        actionsLayout="row"
+        secondaryAction={{
+          testID: "onboarding-step-2-back-button",
+          label: t("common:back"),
+          onPress: onBack,
+          variant: "secondary",
+        }}
+        primaryAction={{
+          testID: "onboarding-step-2-next-button",
+          label: t("step2.primaryCta"),
+          onPress: onContinue,
+          loading: submitting,
+        }}
       />
     </View>
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const material = createOnboardingMaterialStyles(theme);
+
+  return StyleSheet.create({
+    ...material,
     container: {
       flex: 1,
     },
@@ -228,11 +265,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing.md,
-      gap: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl,
+      gap: theme.spacing.sm,
     },
     header: {
-      gap: theme.spacing.sm,
+      gap: theme.spacing.xs,
     },
     title: {
       color: theme.text,
@@ -242,22 +279,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     subtitle: {
       color: theme.textSecondary,
-      fontSize: theme.typography.size.bodyL,
-      lineHeight: theme.typography.lineHeight.bodyL,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
       fontFamily: theme.typography.fontFamily.regular,
     },
     panel: {
-      padding: theme.spacing.cardPaddingLarge,
-      borderRadius: theme.rounded.xl,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surfaceElevated,
-      gap: theme.spacing.lg,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.16 : 0.08,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 3,
+      ...material.panel,
+      padding: theme.spacing.md,
+      gap: theme.spacing.sm,
     },
     helperText: {
       color: theme.textSecondary,
@@ -265,7 +294,39 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    selectedPreferenceRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: theme.spacing.xs,
+    },
+    selectedPreferenceTag: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(137, 162, 132, 0.38)"
+        : "rgba(111, 138, 105, 0.26)",
+      backgroundColor: theme.isDark
+        ? "rgba(137, 162, 132, 0.14)"
+        : "rgba(111, 138, 105, 0.11)",
+    },
+    selectedPreferenceText: {
+      color: theme.isDark ? theme.primaryStrong : theme.primary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
     adjustmentWrap: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.44)",
+      backgroundColor: theme.isDark
+        ? "rgba(30, 35, 30, 0.56)"
+        : "rgba(239, 231, 218, 0.26)",
       gap: theme.spacing.sm,
     },
     adjustmentLabel: {
@@ -286,7 +347,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.medium,
     },
-    footer: {
-      paddingTop: theme.spacing.md,
-    },
   });
+};

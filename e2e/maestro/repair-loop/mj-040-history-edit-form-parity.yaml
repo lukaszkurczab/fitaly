@@ -1,0 +1,129 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-draft&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- scrollUntilVisible:
+    element:
+      id: review-meal-ingredients-edit-button
+    direction: DOWN
+- tapOn:
+    id: review-meal-ingredients-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: mj040-addmeal-correction-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: mj040-history-edit-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-draft&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- assertVisible:
+    id: home-screen
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- scrollUntilVisible:
+    element:
+      id: review-meal-ingredients-edit-button
+    direction: DOWN
+- tapOn:
+    id: review-meal-ingredients-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: mj040-addmeal-correction-dark
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=user-with-today-meal&credits=ok"
+- assertVisible:
+    id: e2e-ready-fixture-user-with-today-meal
+- assertVisible:
+    id: home-screen
+- swipe:
+    direction: UP
+    duration: 600
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- tapOn:
+    id: history-meal-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- assertVisible:
+    id: meal-name-input
+- takeScreenshot: mj040-history-edit-dark

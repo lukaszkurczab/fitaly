@@ -1,0 +1,137 @@
+appId: com.lkurczab.fitaly
+env:
+  E2E_EMAIL: e2e@example.com
+  E2E_PASSWORD: Test@1234
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: "fitaly://e2e/reset?logout=1&theme=light"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-email-input
+- tapOn:
+    id: login-email-input
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=light"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-legal-privacy-row
+    direction: DOWN
+- tapOn:
+    id: account-legal-privacy-row
+- assertVisible:
+    id: legal-privacy-screen
+- assertVisible: "Prywatność i dokumenty|Privacy & documents"
+- assertVisible:
+    id: legal-download-data-row
+- takeScreenshot: mj055-legal-privacy-hub-light
+- swipe:
+    direction: UP
+    duration: 500
+- assertVisible:
+    id: legal-download-data-row
+- takeScreenshot: mj055-legal-privacy-hub-bottom-light
+
+- openLink: "fitaly://e2e/reset?logout=0&theme=dark"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-home
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-legal-privacy-row
+    direction: DOWN
+- tapOn:
+    id: account-legal-privacy-row
+- assertVisible:
+    id: legal-privacy-screen
+- assertVisible: "Prywatność i dokumenty|Privacy & documents"
+- assertVisible:
+    id: legal-download-data-row
+- takeScreenshot: mj055-legal-privacy-hub-dark
+- swipe:
+    direction: UP
+    duration: 500
+- assertVisible:
+    id: legal-download-data-row
+- takeScreenshot: mj055-legal-privacy-hub-bottom-dark

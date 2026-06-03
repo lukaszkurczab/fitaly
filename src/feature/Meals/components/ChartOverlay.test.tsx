@@ -71,9 +71,9 @@ describe("ChartOverlay", () => {
         textColor: "#111",
         fontWeight: "700",
         data: [
-          { value: 0, color: "#11f", label: "protein" },
-          { value: 12, color: "#f11", label: "fat" },
-          { value: 40, color: "#1f1", label: "carbs" },
+          { value: 0, color: "#11f", label: "protein", shortLabel: "protein_short" },
+          { value: 12, color: "#f11", label: "fat", shortLabel: "fat_short" },
+          { value: 40, color: "#1f1", label: "carbs", shortLabel: "carbs_short" },
         ],
       }),
     );
@@ -107,9 +107,9 @@ describe("ChartOverlay", () => {
         fontWeight: "500",
         backgroundColor: "#222",
         data: [
-          { value: 22, color: "#0f0", label: "protein" },
-          { value: 9, color: "#f00", label: "fat" },
-          { value: 31, color: "#00f", label: "carbs" },
+          { value: 22, color: "#0f0", label: "protein", shortLabel: "protein_short" },
+          { value: 9, color: "#f00", label: "fat", shortLabel: "fat_short" },
+          { value: 31, color: "#00f", label: "carbs", shortLabel: "carbs_short" },
         ],
       }),
     );

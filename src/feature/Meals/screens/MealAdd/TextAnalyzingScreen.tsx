@@ -25,23 +25,53 @@ import {
 } from "@/feature/Meals/components/MealAddPhotoScaffold";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { useTheme } from "@/theme/useTheme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
+import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 
 const MAX_RETRIES = 3;
-const TEXT_PREVIEW_HEIGHT = 441;
+const TEXT_PREVIEW_HEIGHT = 220;
 const ANALYZING_MIN_VISIBLE_MS = 900;
 
 const nextRetryCount = (current: number) => Math.min(current + 1, MAX_RETRIES);
 
+const parsePositiveInteger = (value?: string): number | null => {
+  if (!value?.trim()) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed);
+};
+
+const buildIngredientsText = (
+  ingredients?: MealAddScreenProps<"TextAnalyzing">["params"]["textIngredients"],
+): string => {
+  if (!ingredients?.length) return "";
+
+  return ingredients
+    .map((ingredient) => {
+      const name = ingredient.name.trim();
+      if (!name) return "";
+
+      const amount = parsePositiveInteger(ingredient.amount);
+      return amount ? `${name} ${amount} g` : name;
+    })
+    .filter(Boolean)
+    .join(", ");
+};
+
 const buildPayload = (
   params: MealAddScreenProps<"TextAnalyzing">["params"],
-): AiTextMealPayload => ({
-  name: params.name.trim() || null,
-  ingredients: params.quickDescription.trim() || params.name.trim() || null,
-  amount_g: null,
-  notes: null,
-});
+): AiTextMealPayload => {
+  const name = params.name.trim();
+  const description = params.quickDescription.trim();
+  const ingredientsText = buildIngredientsText(params.textIngredients);
+
+  return {
+    name: name || null,
+    ingredients: ingredientsText || description || name || null,
+    amount_g: parsePositiveInteger(params.servingAmount),
+    notes: description || null,
+  };
+};
 
 const buildInitialMeal = (uid: string): Meal => ({
   mealId: uuidv4(),
@@ -66,33 +96,38 @@ const buildInitialMeal = (uid: string): Meal => ({
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function TextAnalyzingScreen({
+  navigation,
   flow,
   params,
 }: MealAddScreenProps<"TextAnalyzing">) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation(["meals", "chat"]);
   const { uid } = useAuthContext();
   const { language } = useAppSettingsContext();
-  const { meal, saveDraft, setLastScreen, setMeal } = useMealDraftContext();
+  const { clearMeal, meal, saveDraft, setLastScreen, setMeal } =
+    useMealDraftContext();
   const { applyCreditsFromResponse } = useAiCreditsContext();
   const { applyAccessFromResponse, refreshAccess } = useAccessContext();
   const mealRef = useRef(meal);
   const startedForKeyRef = useRef<string | null>(null);
   const trimmedName = params.name.trim();
   const trimmedDescription = params.quickDescription.trim();
+  const trimmedIngredientsText = buildIngredientsText(params.textIngredients);
+  const parsedServingAmount = parsePositiveInteger(params.servingAmount);
+  const detailsPreview = [
+    trimmedDescription,
+    trimmedIngredientsText,
+    parsedServingAmount
+      ? `${t("describe_meal_serving_label", { ns: "meals" })}: ${parsedServingAmount} ${t("describe_meal_grams_suffix", { ns: "meals" })}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const hasDetailsPreview = detailsPreview.length > 0;
   const retries = params.retries ?? 0;
   const analysisLang = language || "en";
   const analysisKey = params.analysisRequestId;
-  const previewTopInset = useMemo(
-    () =>
-      Math.max(
-        theme.spacing.xxl,
-        Math.round(insets.top * 0.65) + theme.spacing.xs,
-      ),
-    [insets.top, theme.spacing.xs, theme.spacing.xxl],
-  );
 
   useEffect(() => {
     mealRef.current = meal;
@@ -113,6 +148,8 @@ export default function TextAnalyzingScreen({
       flow.replace("DescribeMeal", {
         name: params.name,
         quickDescription: params.quickDescription,
+        textIngredients: params.textIngredients,
+        servingAmount: params.servingAmount,
         retries,
         ...patch,
       });
@@ -290,33 +327,64 @@ export default function TextAnalyzingScreen({
     trimmedName,
     uid,
   ]);
+  const handleBack = () => {
+    if (flow.canGoBack()) {
+      flow.goBack();
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  };
+  const handleCloseFlow = () => {
+    if (uid) {
+      clearMeal(uid);
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home");
+  };
 
   return (
     <Layout showNavigation={false} disableScroll style={styles.layout}>
       <View style={styles.fill} testID="add-meal-text-analyzing-screen">
+        <AddMealFlowHeader
+          progress={flow.progress}
+          onBack={handleBack}
+          onClose={handleCloseFlow}
+          containerStyle={styles.flowHeader}
+          testID="add-meal-text-analyzing-flow-header"
+          backTestID="add-meal-text-analyzing-back"
+          closeTestID="add-meal-text-analyzing-close"
+        />
         <MealAddPhotoScaffold
-          topInset={previewTopInset}
           previewHeight={TEXT_PREVIEW_HEIGHT}
           preview={
             <View style={styles.preview}>
               <TextInput
-                label={t("meal_name", { ns: "meals" })}
+                label={t("describe_meal_name_label", { ns: "meals" })}
                 value={params.name}
                 onChangeText={() => {}}
                 editable={false}
                 style={styles.previewNameField}
               />
-              <TextInput
-                label={t("describe_meal_quick_description_label", {
-                  ns: "meals",
-                })}
-                value={params.quickDescription}
-                onChangeText={() => {}}
-                editable={false}
-                style={styles.previewDescriptionField}
-                multiline
-                numberOfLines={8}
-              />
+              {hasDetailsPreview ? (
+                <TextInput
+                  label={t("describe_meal_optional_details_label", {
+                    ns: "meals",
+                  })}
+                  value={detailsPreview}
+                  onChangeText={() => {}}
+                  editable={false}
+                  style={styles.previewDescriptionField}
+                  multiline
+                  numberOfLines={4}
+                />
+              ) : null}
             </View>
           }
           eyebrow={t("text_analyzing_overline")}
@@ -343,26 +411,28 @@ export default function TextAnalyzingScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     layout: {
-      paddingTop: 0,
       paddingBottom: 0,
       paddingLeft: 0,
       paddingRight: 0,
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
     },
     preview: {
       flex: 1,
-      backgroundColor: theme.backgroundSecondary,
-      paddingHorizontal: 24,
-      paddingTop: 24,
-      paddingBottom: 24,
+      backgroundColor: theme.surfaceElevated,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
+    },
+    flowHeader: {
+      marginHorizontal: theme.spacing.lg,
     },
     previewNameField: {
-      marginBottom: 24,
+      marginBottom: 16,
     },
     previewDescriptionField: {
-      flex: 1,
+      flexShrink: 1,
     },
   });

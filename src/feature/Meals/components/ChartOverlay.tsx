@@ -49,7 +49,12 @@ type Props = {
   backgroundColor?: string | null;
 };
 
-type PieDatum = { value: number; color: string; label: string };
+type PieDatum = {
+  value: number;
+  color: string;
+  label: string;
+  shortLabel?: string;
+};
 
 type ChartRendererProps = {
   data: PieDatum[];
@@ -63,6 +68,11 @@ type ChartRendererProps = {
   fontFamily?: string;
   fontWeight?: "300" | "500" | "700" | "normal" | "bold";
   backgroundColor?: string;
+  macroLabels: {
+    protein: string;
+    carbs: string;
+    fat: string;
+  };
 };
 
 type ChartRenderer = (props: ChartRendererProps) => ReactElement;
@@ -118,6 +128,7 @@ const CHART_RENDERERS: Record<ChartVariant, ChartRenderer> = {
         fat: props.data[1]?.color,
         carbs: props.data[2]?.color,
       }}
+      macroLabels={props.macroLabels}
       backgroundColor={props.backgroundColor}
     />
   ),
@@ -188,12 +199,19 @@ export default function ChartOverlay({
         value: Math.max(0, protein),
         color: proteinColor,
         label: t("protein"),
+        shortLabel: t("protein_short"),
       },
-      { value: Math.max(0, fat), color: fatColor, label: t("fat") },
+      {
+        value: Math.max(0, fat),
+        color: fatColor,
+        label: t("fat"),
+        shortLabel: t("fat_short"),
+      },
       {
         value: Math.max(0, carbs),
         color: carbsColor,
         label: t("carbs"),
+        shortLabel: t("carbs_short"),
       },
     ],
     [protein, fat, carbs, proteinColor, fatColor, carbsColor, t]
@@ -228,6 +246,11 @@ export default function ChartOverlay({
     fontFamily: sharedFontFamily,
     fontWeight: sharedFontWeight,
     backgroundColor: chartBackground,
+    macroLabels: {
+      protein: t("protein_short"),
+      carbs: t("carbs_short"),
+      fat: t("fat_short"),
+    },
   });
 
   return (

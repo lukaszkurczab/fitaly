@@ -135,8 +135,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           <Text style={styles.footerText}>{t("dont_have_account")} </Text>
           <LinkText
             testID="login-register-link"
-            onPress={() => navigation.navigate("Register")}
+            onPress={() => navigation.replace("Register")}
             disabled={loading}
+            hitSlop={12}
           >
             {t("sign_up")}
           </LinkText>
@@ -176,11 +177,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             placeholder={t("enter_password")}
             accessibilityLabel={t("password")}
             style={styles.passwordField}
-            icon={
+            right={
               <Pressable
                 testID="login-password-visibility-toggle"
                 onPress={() => setShowPassword((v) => !v)}
-                hitSlop={8}
+                style={styles.visibilityToggle}
                 accessibilityLabel={t("toggle_password_visibility")}
               >
                 <AppIcon
@@ -190,7 +191,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 />
               </Pressable>
             }
-            iconPosition="right"
           />
 
           <LinkText
@@ -210,7 +210,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     authFormSpacing: {
-      paddingTop: theme.spacing.xxxl,
+      paddingTop: theme.spacing.sectionGap,
     },
     authFormSpacingCompact: {
       paddingTop: theme.spacing.sm,
@@ -226,6 +226,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     passwordField: {
       marginBottom: theme.spacing.xxs,
+    },
+    visibilityToggle: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginVertical: -theme.spacing.sm,
+      marginRight: -theme.spacing.xs,
     },
     forgotPasswordLink: {
       alignSelf: "flex-end",

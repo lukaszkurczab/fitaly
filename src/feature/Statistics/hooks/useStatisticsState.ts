@@ -116,18 +116,19 @@ export function useStatisticsState(params: {
           : "no_entries_in_range"
         : "none";
 
-  const metricAverageByKey: Record<MetricKey, number> = {
-    kcal: rangeState.averages.rangeDays.kcal,
-    protein: rangeState.averages.rangeDays.protein,
-    carbs: rangeState.averages.rangeDays.carbs,
-    fat: rangeState.averages.rangeDays.fat,
-  };
-
   const hasTotals =
     rangeState.totals.kcal > 0 ||
     rangeState.totals.protein > 0 ||
     rangeState.totals.carbs > 0 ||
     rangeState.totals.fat > 0;
+  const calorieTarget =
+    params.calorieTarget && params.calorieTarget > 0
+      ? Math.round(params.calorieTarget)
+      : null;
+  const calorieGoalProgress =
+    calorieTarget !== null
+      ? Math.round((rangeState.averages.rangeDays.kcal / calorieTarget) * 100)
+      : null;
 
   return {
     active,
@@ -152,7 +153,14 @@ export function useStatisticsState(params: {
     avgProtein: rangeState.averages.rangeDays.protein,
     avgCarbs: rangeState.averages.rangeDays.carbs,
     avgFat: rangeState.averages.rangeDays.fat,
-    metricAverage: metricAverageByKey[metric],
+    avgLoggedProtein: rangeState.averages.loggedDays.protein,
+    avgLoggedCarbs: rangeState.averages.loggedDays.carbs,
+    avgLoggedFat: rangeState.averages.loggedDays.fat,
+    loggedDaysCount: rangeState.averages.loggedDaysCount,
+    rangeDaysCount: rangeState.averages.rangeDaysCount,
+    calorieTarget,
+    calorieGoalProgress,
+    calorieComparison: rangeState.comparison,
     isWindowLimited,
   };
 }

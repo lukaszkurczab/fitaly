@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "@/theme/useTheme";
 
 type DockActiveLayerHeaderProps = {
-  metaLabel: string;
+  metaLabel?: string | null;
   title: string;
   showRemove: boolean;
   removeLabel: string;
@@ -17,24 +17,41 @@ export default function DockActiveLayerHeader({
   onRemove,
 }: DockActiveLayerHeaderProps) {
   const theme = useTheme();
+  const showMetaLabel = Boolean(metaLabel?.trim());
 
   return (
-    <View style={styles.activeLayerHeader}>
-      <View>
+    <View
+      style={[
+        styles.activeLayerHeader,
+        {
+          borderBottomColor: theme.isDark
+            ? "rgba(166,189,160,0.16)"
+            : "rgba(79,104,75,0.12)",
+        },
+      ]}
+    >
+      <View style={styles.titleBlock}>
+        {showMetaLabel ? (
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.metaLabel,
+              {
+                color: theme.textTertiary,
+                fontFamily: theme.typography.fontFamily.medium,
+              },
+            ]}
+          >
+            {metaLabel}
+          </Text>
+        ) : null}
         <Text
-          style={[
-            styles.metaLabel,
-            {
-              fontFamily: theme.typography.fontFamily.medium,
-            },
-          ]}
-        >
-          {metaLabel}
-        </Text>
-        <Text
+          numberOfLines={1}
           style={[
             styles.activeLayerTitle,
+            !showMetaLabel ? styles.activeLayerTitleSingle : null,
             {
+              color: theme.text,
               fontFamily: theme.typography.fontFamily.semiBold,
             },
           ]}
@@ -44,11 +61,13 @@ export default function DockActiveLayerHeader({
       </View>
       {showRemove ? (
         <Pressable
+          testID="share-remove-layer-button"
           onPress={onRemove}
           style={[
             styles.localAction,
             {
-              borderColor: theme.border,
+              backgroundColor: theme.error.surface,
+              borderColor: theme.error.border,
             },
           ]}
           accessibilityRole="button"
@@ -56,11 +75,12 @@ export default function DockActiveLayerHeader({
         >
           <Text
             style={[
-              styles.localActionLabel,
-              {
-                fontFamily: theme.typography.fontFamily.medium,
-              },
-            ]}
+            styles.localActionLabel,
+            {
+              color: theme.error.text,
+              fontFamily: theme.typography.fontFamily.medium,
+            },
+          ]}
           >
             {removeLabel}
           </Text>
@@ -75,32 +95,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
+    minHeight: 32,
+    borderBottomWidth: 1,
+    paddingHorizontal: 2,
+    paddingTop: 1,
+    paddingBottom: 5,
+  },
+  titleBlock: {
+    flex: 1,
+    paddingRight: 10,
   },
   metaLabel: {
-    color: "#7A6D5E",
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 9,
+    lineHeight: 11,
+    textTransform: "uppercase",
   },
   activeLayerTitle: {
-    color: "#393128",
+    fontSize: 13.5,
+    lineHeight: 16,
+    marginTop: 1,
+  },
+  activeLayerTitleSingle: {
     fontSize: 15,
     lineHeight: 18,
-    marginTop: 2,
+    marginTop: 0,
   },
   localAction: {
-    height: 24,
-    minWidth: 68,
+    height: 25,
+    minWidth: 60,
     borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: "#F7F2EA",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
   },
   localActionLabel: {
-    color: "#C69272",
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 10.5,
+    lineHeight: 12,
   },
 });

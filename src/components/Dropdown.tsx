@@ -16,6 +16,7 @@ import { useTheme } from "@/theme/useTheme";
 import AppIcon from "@/components/AppIcon";
 import {
   getPickerControlStyleParts,
+  type PickerControlSurfaceTone,
   PICKER_MENU_BOTTOM_OFFSET,
   PICKER_MENU_MAX_HEIGHT,
 } from "@/components/pickerControlStyles";
@@ -34,6 +35,7 @@ type Props<T extends string> = {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   renderLabel?: (option: Option<T>) => React.ReactNode;
+  surfaceTone?: PickerControlSurfaceTone;
   testID?: string;
 };
 
@@ -53,10 +55,14 @@ export function Dropdown<T extends string>({
   disabled,
   style,
   renderLabel,
+  surfaceTone = "default",
   testID,
 }: Props<T>) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const styles = useMemo(
+    () => makeStyles(theme, surfaceTone),
+    [surfaceTone, theme],
+  );
   const keyboardDismissMode: "none" | "interactive" | "on-drag" =
     Platform.OS === "ios" ? "interactive" : "on-drag";
 
@@ -228,14 +234,19 @@ export function Dropdown<T extends string>({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
-    ...getPickerControlStyleParts(theme),
+const makeStyles = (
+  theme: ReturnType<typeof useTheme>,
+  surfaceTone: PickerControlSurfaceTone,
+) => {
+  const control = getPickerControlStyleParts(theme, { surfaceTone });
+
+  return StyleSheet.create({
+    ...control,
     fieldContent: {
       flex: 1,
       justifyContent: "center",
     },
-    selectedText: getPickerControlStyleParts(theme).valueText,
+    selectedText: control.valueText,
     modalRoot: {
       flex: 1,
     },
@@ -245,3 +256,4 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       zIndex: 1,
     },
   });
+};

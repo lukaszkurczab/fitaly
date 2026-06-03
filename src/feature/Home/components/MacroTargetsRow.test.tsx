@@ -1,14 +1,42 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import { MacroTargetsRow } from "@/feature/Home/components/MacroTargetsRow";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, options?: string | { defaultValue?: string }) => {
+      if (typeof options === "string") return options;
+      return options?.defaultValue ?? key;
+    },
   }),
 }));
 
 describe("MacroTargetsRow", () => {
+  it("uses tint and border instead of local card depth", () => {
+    const { getByTestId } = renderWithTheme(
+      <MacroTargetsRow
+        macroTargets={{
+          proteinGrams: 150,
+          fatGrams: 60,
+          carbsGrams: 220,
+          proteinKcal: 600,
+          fatKcal: 540,
+          carbsKcal: 880,
+        }}
+        consumed={{ protein: 80, fat: 30, carbs: 110 }}
+      />,
+    );
+
+    const cardStyle = StyleSheet.flatten(
+      getByTestId("home-macro-targets-card").props.style,
+    );
+
+    expect(cardStyle.shadowOpacity).toBeUndefined();
+    expect(cardStyle.shadowRadius).toBeUndefined();
+    expect(cardStyle.elevation).toBeUndefined();
+  });
+
   it("renders nothing when all targets are zero", () => {
     const { toJSON } = renderWithTheme(
       <MacroTargetsRow
@@ -48,5 +76,26 @@ describe("MacroTargetsRow", () => {
     expect(getByText("Protein")).toBeTruthy();
     expect(getByText("Carbs")).toBeTruthy();
     expect(getByText("Fat")).toBeTruthy();
+  });
+
+  it("keeps the standard macro presentation on an empty day", () => {
+    const { getByText, getAllByText } = renderWithTheme(
+      <MacroTargetsRow
+        macroTargets={{
+          proteinGrams: 150,
+          fatGrams: 60,
+          carbsGrams: 220,
+          proteinKcal: 600,
+          fatKcal: 540,
+          carbsKcal: 880,
+        }}
+        consumed={{ protein: 0, fat: 0, carbs: 0 }}
+      />,
+    );
+
+    expect(getByText("0 / 150g")).toBeTruthy();
+    expect(getByText("0 / 220g")).toBeTruthy();
+    expect(getByText("0 / 60g")).toBeTruthy();
+    expect(getAllByText("0%")).toHaveLength(3);
   });
 });

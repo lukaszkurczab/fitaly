@@ -1,8 +1,14 @@
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import type { StackScreenProps } from "@react-navigation/stack";
-import { Layout, Modal } from "@/components";
+import { AppIcon, Layout, Modal } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 import type { RootStackParamList } from "@/navigation/navigate";
 import ProgressDots from "@/feature/Onboarding/components/ProgressDots";
@@ -24,6 +30,7 @@ export default function OnboardingScreen({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mode = route.params?.mode ?? "first";
+  const isRefill = mode === "refill";
 
   const state = useOnboardingFlow({
     mode,
@@ -32,9 +39,9 @@ export default function OnboardingScreen({
 
   useEffect(() => {
     navigation.setOptions({
-      gestureEnabled: mode === "refill",
+      gestureEnabled: isRefill,
     });
-  }, [mode, navigation]);
+  }, [isRefill, navigation]);
 
   const modalCopy = useMemo(() => {
     if (!state.modalState) return null;
@@ -59,9 +66,15 @@ export default function OnboardingScreen({
     };
   }, [state.modalState, t]);
 
+  const isSkipConfirmation = state.modalState?.type === "skip_step";
+
   if (!state.isLoaded) {
     return (
-      <Layout showNavigation={false} disableScroll style={styles.layout}>
+      <Layout
+        showNavigation={false}
+        disableScroll
+        style={styles.layout}
+      >
         <View style={styles.loadingWrap} testID="onboarding-loading-state">
           <ActivityIndicator color={theme.primary} />
           <Text style={styles.loadingText}>{t("common:loading")}</Text>
@@ -72,62 +85,86 @@ export default function OnboardingScreen({
 
   return (
     <>
-      <Layout showNavigation={false} disableScroll style={styles.layout}>
+      <Layout
+        showNavigation={false}
+        disableScroll
+        style={styles.layout}
+      >
         <View testID="onboarding-screen" style={styles.screenMarker}>
-        <ProgressDots
-          step={state.step}
-          total={state.totalSteps}
-          label={state.progressLabel}
-          style={styles.progress}
-        />
+          <View style={styles.topRow}>
+            <ProgressDots
+              step={state.step}
+              total={state.totalSteps}
+              label={state.progressLabel}
+              style={isRefill ? styles.progressWithClose : styles.progress}
+            />
+            {isRefill ? (
+              <Pressable
+                testID="onboarding-refill-close-button"
+                accessibilityRole="button"
+                accessibilityLabel={t("exitRefillModal.closeA11y")}
+                accessibilityState={{ disabled: state.submitting }}
+                disabled={state.submitting}
+                hitSlop={8}
+                onPress={state.handleCloseRefill}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed ? styles.closeButtonPressed : null,
+                  state.submitting ? styles.closeButtonDisabled : null,
+                ]}
+              >
+                <AppIcon name="close" size={18} color={theme.text} />
+              </Pressable>
+            ) : null}
+          </View>
 
-        {state.step === 1 ? (
-          <Step1BasicData
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onSecondaryAction={state.handleStep1SecondaryAction}
-            showSecondaryAction={mode === "refill"}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 1 ? (
+            <Step1BasicData
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onSecondaryAction={state.handleStep1SecondaryAction}
+              showSecondaryAction={false}
+              submitting={state.submitting}
+            />
+          ) : null}
 
-        {state.step === 2 ? (
-          <Step2Preferences
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 2 ? (
+            <Step2Preferences
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              submitting={state.submitting}
+            />
+          ) : null}
 
-        {state.step === 3 ? (
-          <Step3Health
-            form={state.form}
-            setForm={state.setForm}
-            errors={state.errors}
-            setErrors={state.setErrors}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            onSkip={state.handleSkipStep}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 3 ? (
+            <Step3Health
+              form={state.form}
+              setForm={state.setForm}
+              errors={state.errors}
+              setErrors={state.setErrors}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              onSkip={state.handleSkipStep}
+              submitting={state.submitting}
+            />
+          ) : null}
 
-        {state.step === 4 ? (
-          <Step4AIAssistantPreferences
-            form={state.form}
-            setForm={state.setForm}
-            onContinue={state.handlePrimaryAction}
-            onBack={state.handleBack}
-            submitting={state.submitting}
-          />
-        ) : null}
+          {state.step === 4 ? (
+            <Step4AIAssistantPreferences
+              form={state.form}
+              setForm={state.setForm}
+              onContinue={state.handlePrimaryAction}
+              onBack={state.handleBack}
+              submitting={state.submitting}
+            />
+          ) : null}
         </View>
       </Layout>
 
@@ -136,7 +173,8 @@ export default function OnboardingScreen({
         visible={!!state.modalState}
         title={modalCopy?.title}
         message={modalCopy?.message}
-        onClose={state.handleModalClose}
+        onClose={isSkipConfirmation ? undefined : state.handleModalClose}
+        closeOnBackdropPress={!isSkipConfirmation}
         primaryAction={{
           testID: "onboarding-confirm-primary-button",
           label: modalCopy?.primaryLabel ?? "",
@@ -180,8 +218,39 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+    },
     progress: {
-      marginBottom: theme.spacing.xl,
+      flex: 1,
+    },
+    progressWithClose: {
+      flex: 1,
+      paddingTop: theme.spacing.xs,
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      shadowColor: theme.shadow,
+      shadowOpacity: theme.isDark ? 0.16 : 0.08,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    closeButtonPressed: {
+      opacity: 0.72,
+    },
+    closeButtonDisabled: {
+      opacity: 0.48,
     },
     screenMarker: {
       flex: 1,

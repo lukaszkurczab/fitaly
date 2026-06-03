@@ -107,6 +107,7 @@ export default function LanguageScreen({ navigation }: LanguageScreenProps) {
                 void handleSelect(option.code);
               }}
               loading={saving && selected === option.code}
+              showChevron={false}
               trailing={
                 selected === option.code ? (
                   <AppIcon

@@ -21,12 +21,7 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Premium gated bowl
 - tapOn:
-    id: add-meal-text-description-input
-- eraseText
-- inputText: Rice chicken avocado and tahini
-- hideKeyboard
-- tapOn:
-    id: add-meal-text-screen
+    point: "50%,30%"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
@@ -48,20 +43,28 @@ appId: com.lkurczab.fitaly
     id: paywall-modal
 - scrollUntilVisible:
     element:
-      id: paywall-restore-button
+      id: paywall-open-restore-button
     direction: DOWN
 - assertVisible:
-    id: paywall-restore-button
+    id: paywall-open-restore-button
+- tapOn:
+    id: paywall-open-restore-button
+- assertVisible:
+    id: paywall-restore-state-initial
 - tapOn:
     id: paywall-restore-button
 - extendedWaitUntil:
     visible:
-      id: manage-subscription-status-value-premium_active
+      id: paywall-restore-state-success
     timeout: 15000
-- assertNotVisible:
-    id: paywall-modal
+- tapOn:
+    id: paywall-restore-done-button
 - assertVisible:
     id: manage-subscription-screen
+- extendedWaitUntil:
+    visible:
+      id: manage-subscription-status-value-premium_active
+    timeout: 15000
 - assertVisible:
     id: manage-subscription-status-row
 - scrollUntilVisible:
