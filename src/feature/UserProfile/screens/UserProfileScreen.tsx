@@ -1,12 +1,4 @@
-import {
-  Children,
-  cloneElement,
-  isValidElement,
-  useMemo,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -18,6 +10,7 @@ import {
   Layout,
   Modal,
   SettingsRow,
+  SettingsSection,
 } from "@/components";
 import AppIcon, { type AppIconName } from "@/components/AppIcon";
 import AvatarBadge from "@/components/AvatarBadge";
@@ -52,10 +45,14 @@ export default function UserProfileScreen({
     return (
       <Layout>
         <View style={styles.emptyStateWrap} testID="account-loading-state">
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.emptyStateDescription}>
-            {t("common:loading")}
-          </Text>
+          <View style={styles.emptyStateCard}>
+            <View style={styles.emptyStateSpinnerWrap}>
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+            <Text style={styles.emptyStateDescription}>
+              {t("common:loading")}
+            </Text>
+          </View>
         </View>
       </Layout>
     );
@@ -65,22 +62,24 @@ export default function UserProfileScreen({
     return (
       <Layout>
         <View style={styles.emptyStateWrap} testID="account-empty-state">
-          <Text style={styles.emptyStateTitle}>
-            {t("profileUnavailableTitle")}
-          </Text>
-          <Text style={styles.emptyStateDescription}>
-            {state.isOnline
-              ? t("profileUnavailableDesc")
-              : t("profileUnavailableOfflineDesc")}
-          </Text>
-          <Button
-            testID="account-empty-retry-button"
-            label={t("common:retry")}
-            onPress={() => {
-              void state.handleRetryProfileLoad();
-            }}
-            style={styles.emptyStateAction}
-          />
+          <View style={styles.emptyStateCard}>
+            <Text style={styles.emptyStateTitle}>
+              {t("profileUnavailableTitle")}
+            </Text>
+            <Text style={styles.emptyStateDescription}>
+              {state.isOnline
+                ? t("profileUnavailableDesc")
+                : t("profileUnavailableOfflineDesc")}
+            </Text>
+            <Button
+              testID="account-empty-retry-button"
+              label={t("common:retry")}
+              onPress={() => {
+                void state.handleRetryProfileLoad();
+              }}
+              style={styles.emptyStateAction}
+            />
+          </View>
         </View>
       </Layout>
     );
@@ -96,8 +95,6 @@ export default function UserProfileScreen({
         : t("manageSubscription.free");
   const accountRowProps = {
     style: styles.accountRow,
-    titleStyle: styles.accountRowTitle,
-    subtitleStyle: styles.accountRowSubtitle,
     chevronSize: 20,
   };
 
@@ -129,7 +126,11 @@ export default function UserProfileScreen({
             }
             title={state.userData.username}
             subtitle={state.userData.email}
-            badge={<Text style={styles.identityBadge}>{planLabel}</Text>}
+            badge={
+              <View style={styles.identityBadge}>
+                <Text style={styles.identityBadgeText}>{planLabel}</Text>
+              </View>
+            }
             accessory={
               <AppIcon
                 name="chevron"
@@ -305,43 +306,21 @@ const AccountOverviewSection = ({
   title: string;
   children: ReactNode;
 }) => {
-  const items = Children.toArray(children).filter(
-    (child) => child !== null && child !== undefined,
-  );
-
   return (
-    <View style={styles.accountSection}>
-      <Text style={styles.accountSectionTitle} accessibilityRole="header">
-        {title}
-      </Text>
-
-      <View style={styles.sectionGroup}>
-        {items.map((child, index) => {
-          if (!isValidElement(child)) {
-            return child;
-          }
-
-          const element = child as ReactElement<{ showDivider?: boolean }>;
-          if (element.props.showDivider !== undefined) {
-            return cloneElement(element, {
-              key: element.key ?? `account-overview-section-item-${index}`,
-            });
-          }
-
-          return cloneElement(element, {
-            key: element.key ?? `account-overview-section-item-${index}`,
-            showDivider: index < items.length - 1,
-          });
-        })}
-      </View>
-    </View>
+    <SettingsSection
+      title={title}
+      style={styles.accountSection}
+      contentStyle={styles.sectionGroup}
+    >
+      {children}
+    </SettingsSection>
   );
 };
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     content: {
-      gap: theme.spacing.lg,
+      gap: theme.spacing.sectionGap,
       paddingBottom: theme.spacing.sectionGap,
     },
     hero: {
@@ -350,7 +329,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     identityCard: {
       gap: theme.spacing.sm,
       padding: theme.spacing.cardPadding,
-      ...theme.depth.raised,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.52)",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.74)"
+        : "rgba(255, 253, 248, 0.72)",
     },
     identityTitle: {
       fontSize: theme.typography.size.bodyL,
@@ -362,39 +346,26 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.bodyS,
     },
     sectionGroup: {
-      ...theme.depth.raised,
+      borderColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.46)",
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.68)"
+        : "rgba(255, 253, 248, 0.58)",
     },
     accountSection: {
-      gap: theme.spacing.xs,
-    },
-    accountSectionTitle: {
-      color: theme.textTertiary,
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
-      paddingHorizontal: theme.spacing.sm,
+      gap: theme.spacing.sm,
     },
     accountRow: {
-      minHeight: 54,
-      gap: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm - 2,
-    },
-    accountRowTitle: {
-      color: theme.textSecondary,
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-    },
-    accountRowSubtitle: {
-      color: theme.textTertiary,
-      fontSize: theme.typography.size.caption,
-      lineHeight: theme.typography.lineHeight.caption,
+      minHeight: 64,
+      borderBottomColor: theme.isDark
+        ? "rgba(255, 253, 248, 0.08)"
+        : "rgba(207, 197, 184, 0.42)",
     },
     rowIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: theme.rounded.sm,
+      width: 42,
+      height: 42,
+      borderRadius: theme.rounded.md,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.surfaceAlt,
@@ -406,15 +377,19 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.h1,
     },
     identityBadge: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.surfaceAlt,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+    },
+    identityBadgeText: {
       overflow: "hidden",
-      color: theme.primaryStrong,
-      backgroundColor: theme.success.surface,
+      color: theme.textSecondary,
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xxs,
-      borderRadius: theme.rounded.full,
     },
     syncStack: {
       gap: theme.spacing.sm,
@@ -431,8 +406,29 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: theme.spacing.sm,
       paddingVertical: theme.spacing.display,
+    },
+    emptyStateCard: {
+      width: "100%",
+      maxWidth: 360,
+      alignItems: "center",
+      gap: theme.spacing.sm,
+      padding: theme.spacing.bottomSheetPadding,
+      borderWidth: 1,
+      borderColor: theme.borderSoft,
+      borderRadius: theme.rounded.xl,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.92)"
+        : "rgba(255, 253, 248, 0.88)",
+      ...theme.depth.raised,
+    },
+    emptyStateSpinnerWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.rounded.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceAlt,
     },
     emptyStateTitle: {
       color: theme.text,

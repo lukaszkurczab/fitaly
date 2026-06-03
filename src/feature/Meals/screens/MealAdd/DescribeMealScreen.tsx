@@ -648,7 +648,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     fill: {
       flex: 1,
-      backgroundColor: theme.background,
     },
     scroller: {
       flex: 1,

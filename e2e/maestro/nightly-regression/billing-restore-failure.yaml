@@ -24,11 +24,11 @@ appId: com.lkurczab.fitaly
     id: manage-subscription-restore-row
 - scrollUntilVisible:
     element:
-      id: manage-subscription-action-feedback-error
+      id: manage-subscription-action-feedback-restore-failed
     direction: UP
 - extendedWaitUntil:
     visible:
-      id: manage-subscription-action-feedback-error
+      id: manage-subscription-action-feedback-restore-failed
     timeout: 15000
 - assertVisible:
     id: manage-subscription-screen

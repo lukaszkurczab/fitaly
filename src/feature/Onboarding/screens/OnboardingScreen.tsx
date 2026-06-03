@@ -16,7 +16,6 @@ import Step1BasicData from "@/feature/Onboarding/components/Step1BasicData";
 import Step2Preferences from "@/feature/Onboarding/components/Step2Preferences";
 import Step3Health from "@/feature/Onboarding/components/Step3Health";
 import Step4AIAssistantPreferences from "@/feature/Onboarding/components/Step4AIAssistantPreferences";
-import { getOnboardingBackgroundGradient } from "@/feature/Onboarding/components/onboardingMaterial";
 import { useOnboardingFlow } from "@/feature/Onboarding/hooks/useOnboardingFlow";
 
 type OnboardingScreenProps =
@@ -30,10 +29,6 @@ export default function OnboardingScreen({
   const { t } = useTranslation("onboarding");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const backgroundGradient = useMemo(
-    () => getOnboardingBackgroundGradient(theme),
-    [theme],
-  );
   const mode = route.params?.mode ?? "first";
   const isRefill = mode === "refill";
 
@@ -79,7 +74,6 @@ export default function OnboardingScreen({
         showNavigation={false}
         disableScroll
         style={styles.layout}
-        backgroundGradient={backgroundGradient}
       >
         <View style={styles.loadingWrap} testID="onboarding-loading-state">
           <ActivityIndicator color={theme.primary} />
@@ -95,7 +89,6 @@ export default function OnboardingScreen({
         showNavigation={false}
         disableScroll
         style={styles.layout}
-        backgroundGradient={backgroundGradient}
       >
         <View testID="onboarding-screen" style={styles.screenMarker}>
           <View style={styles.topRow}>

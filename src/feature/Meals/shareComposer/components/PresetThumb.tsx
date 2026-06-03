@@ -88,10 +88,13 @@ export default function PresetThumb({
         {
           borderColor: active ? theme.primary : theme.border,
           borderWidth: active ? 1.5 : 1,
-          backgroundColor: theme.surfaceAlt,
+          backgroundColor: active
+            ? theme.isDark
+              ? "rgba(111,138,105,0.18)"
+              : "rgba(255,253,248,0.92)"
+            : theme.surfaceAlt,
           opacity: pressed ? 0.86 : 1,
         },
-        active ? theme.depth.raised : null,
       ]}
     >
       {mealPhotoUri.trim() ? (

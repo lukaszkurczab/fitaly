@@ -161,7 +161,9 @@ function formatMealTime(
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.72)"
+        : "rgba(255, 253, 248, 0.68)",
       borderRadius: theme.rounded.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
@@ -170,11 +172,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.xs,
       overflow: "hidden",
       position: "relative",
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.18 : 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: theme.isDark ? 3 : 2,
     },
     cardWash: {
       ...StyleSheet.absoluteFillObject,

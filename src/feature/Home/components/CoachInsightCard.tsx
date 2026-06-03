@@ -162,8 +162,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: theme.spacing.lg,
       gap: theme.spacing.md,
       borderWidth: 1,
-      backgroundColor: theme.surfaceElevated,
-      ...theme.depth.raised,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.72)"
+        : "rgba(255, 253, 248, 0.68)",
     },
     containerNeutral: {
       borderColor: theme.border,

@@ -79,7 +79,7 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
       ];
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="home-macro-targets-card">
       <LinearGradient
         pointerEvents="none"
         colors={cardAccentColors}
@@ -133,7 +133,9 @@ export function MacroTargetsRow({ macroTargets, consumed }: Props) {
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.72)"
+        : "rgba(255, 253, 248, 0.68)",
       borderRadius: theme.rounded.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
@@ -142,11 +144,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.md,
       overflow: "hidden",
       position: "relative",
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.18 : 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: theme.isDark ? 3 : 2,
     },
     cardWash: {
       ...StyleSheet.absoluteFillObject,

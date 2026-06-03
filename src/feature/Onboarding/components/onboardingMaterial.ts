@@ -1,72 +1,8 @@
 import { StyleSheet } from "react-native";
 import type { TextStyle, ViewStyle } from "react-native";
-import type { BackgroundGradientLayer } from "@/components";
 import { useTheme } from "@/theme/useTheme";
 
 type Theme = ReturnType<typeof useTheme>;
-
-export function getOnboardingBackgroundGradient(
-  theme: Theme,
-): BackgroundGradientLayer[] {
-  if (theme.isDark) {
-    return [
-      {
-        colors: ["#151914", theme.background, theme.backgroundSecondary],
-        locations: [0, 0.54, 1],
-        start: { x: 0, y: 0 },
-        end: { x: 1, y: 1 },
-      },
-      {
-        colors: [
-          "rgba(127, 160, 122, 0.12)",
-          "rgba(127, 160, 122, 0.02)",
-          "rgba(199, 126, 97, 0.08)",
-        ],
-        locations: [0, 0.48, 1],
-        start: { x: 1, y: 0 },
-        end: { x: 0, y: 1 },
-      },
-      {
-        colors: [
-          "rgba(255, 253, 248, 0.04)",
-          "rgba(255, 253, 248, 0.00)",
-        ],
-        locations: [0, 1],
-        start: { x: 0, y: 0 },
-        end: { x: 0, y: 1 },
-      },
-    ];
-  }
-
-  return [
-    {
-      colors: ["#F8F0E4", theme.background, "#F2E8DC"],
-      locations: [0, 0.54, 1],
-      start: { x: 0, y: 0 },
-      end: { x: 1, y: 1 },
-    },
-    {
-      colors: [
-        "rgba(255, 253, 248, 0.58)",
-        "rgba(255, 253, 248, 0.10)",
-        "rgba(111, 138, 105, 0.08)",
-      ],
-      locations: [0, 0.58, 1],
-      start: { x: 0, y: 0 },
-      end: { x: 1, y: 1 },
-    },
-    {
-      colors: [
-        "rgba(199, 126, 97, 0.08)",
-        "rgba(199, 126, 97, 0.00)",
-        "rgba(255, 253, 248, 0.18)",
-      ],
-      locations: [0, 0.48, 1],
-      start: { x: 1, y: 0 },
-      end: { x: 0, y: 1 },
-    },
-  ];
-}
 
 export function createOnboardingMaterialStyles(theme: Theme) {
   const panelBorder = theme.isDark

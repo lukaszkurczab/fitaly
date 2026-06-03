@@ -176,8 +176,14 @@ describe("WeeklyReportScreen", () => {
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
+    );
+    const loadingHeroStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-loading-hero").props.style,
+    );
+    const loadingSupportStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-loading-support-card").props.style,
     );
 
     expect(getByText("Weekly report")).toBeTruthy();
@@ -187,6 +193,10 @@ describe("WeeklyReportScreen", () => {
         "Reading the closed week first, then shaping one carry-forward for next week.",
       ),
     ).toBeTruthy();
+    expect(loadingHeroStyle.elevation).toBeUndefined();
+    expect(loadingHeroStyle.shadowOpacity).toBeUndefined();
+    expect(loadingSupportStyle.elevation).toBeUndefined();
+    expect(loadingSupportStyle.shadowOpacity).toBeUndefined();
   });
 
   it("keeps weekly report request inactive while premium state is unknown", () => {
@@ -256,8 +266,11 @@ describe("WeeklyReportScreen", () => {
     });
 
     const navigation = { goBack: jest.fn(), navigate: jest.fn() };
-    const { getByText } = renderWithTheme(
+    const { getByTestId, getByText } = renderWithTheme(
       <WeeklyReportScreen navigation={navigation as never} />,
+    );
+    const lockedCardStyle = StyleSheet.flatten(
+      getByTestId("weekly-report-state-card").props.style,
     );
 
     expect(mockUseWeeklyReport).toHaveBeenCalledWith({
@@ -266,6 +279,9 @@ describe("WeeklyReportScreen", () => {
     });
     expect(getByText("Weekly Report is a Premium feature")).toBeTruthy();
     expect(getByText("Manage subscription")).toBeTruthy();
+    expect(lockedCardStyle.elevation).toBeUndefined();
+    expect(lockedCardStyle.shadowOpacity).toBeUndefined();
+    expect(lockedCardStyle.shadowRadius).toBeUndefined();
     expect(mockTrackWeeklyReportLockedViewed).toHaveBeenCalledWith({
       source: "disabled",
       accessState: "locked",

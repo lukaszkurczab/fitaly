@@ -180,18 +180,17 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       gap: theme.spacing.sm,
       overflow: "hidden",
       position: "relative",
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.2 : 0.07,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: theme.isDark ? 3 : 2,
     },
     cardDefault: {
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark
+        ? "rgba(36, 41, 36, 0.78)"
+        : "rgba(255, 253, 248, 0.72)",
     },
     cardSuccess: {
-      backgroundColor: theme.success.surface,
-      borderColor: theme.success.main,
+      backgroundColor: theme.isDark
+        ? "rgba(79, 104, 75, 0.28)"
+        : "rgba(231, 236, 226, 0.78)",
+      borderColor: theme.isDark ? theme.primarySoft : theme.success.main,
     },
     cardWash: {
       ...StyleSheet.absoluteFillObject,
@@ -285,17 +284,14 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceAlt,
+      backgroundColor: theme.isDark
+        ? "rgba(47, 55, 48, 0.72)"
+        : "rgba(239, 231, 218, 0.7)",
       paddingHorizontal: theme.spacing.md,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: theme.spacing.md,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.14 : 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: theme.isDark ? 2 : 1,
     },
     methodSelectorPressed: {
       opacity: 0.88,

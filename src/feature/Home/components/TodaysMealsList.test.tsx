@@ -1,5 +1,6 @@
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import type { Meal } from "@/types/meal";
 import { TodaysMealsList } from "@/feature/Home/components/TodaysMealsList";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -10,7 +11,6 @@ jest.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
-
 
 const buildMeal = (overrides: Partial<Meal> = {}): Meal => ({
   userUid: "u1",
@@ -28,6 +28,20 @@ const buildMeal = (overrides: Partial<Meal> = {}): Meal => ({
 });
 
 describe("TodaysMealsList", () => {
+  it("uses tint and border instead of local card depth", () => {
+    const { getByTestId } = renderWithTheme(
+      <TodaysMealsList meals={[buildMeal()]} />,
+    );
+
+    const cardStyle = StyleSheet.flatten(
+      getByTestId("home-today-meals-list").props.style,
+    );
+
+    expect(cardStyle.shadowOpacity).toBeUndefined();
+    expect(cardStyle.shadowRadius).toBeUndefined();
+    expect(cardStyle.elevation).toBeUndefined();
+  });
+
   it("renders meals, computes kcal and handles row presses", () => {
     const onOpenMeal = jest.fn<(meal: Meal) => void>();
     const onViewHistory = jest.fn();

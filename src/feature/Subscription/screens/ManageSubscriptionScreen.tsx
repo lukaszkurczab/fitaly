@@ -350,7 +350,6 @@ export default function ManageSubscriptionScreen({
           defaultValue:
             "Your plan, AI Credits, and store actions in one place.",
         })}
-        style={styles.screen}
         onBack={() => {
           if (navigation.canGoBack()) {
             navigation.goBack();
@@ -700,11 +699,6 @@ export default function ManageSubscriptionScreen({
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
-    screen: {
-      backgroundColor: theme.isDark ? "#151914" : "#F5EFE6",
-      marginHorizontal: -theme.spacing.screenPadding,
-      paddingHorizontal: theme.spacing.screenPadding,
-    },
     content: {
       gap: theme.spacing.sectionGap,
     },
@@ -713,13 +707,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderWidth: 1,
       borderRadius: theme.rounded.xl,
       padding: theme.spacing.cardPaddingLarge,
-      backgroundColor: theme.isDark ? "#242B24" : theme.surface,
-      borderColor: theme.isDark ? "#323A32" : "#DED3C3",
-      shadowColor: theme.isDark ? "#000000" : "#2F312B",
-      shadowOpacity: theme.isDark ? 0.24 : 0.08,
-      shadowRadius: theme.isDark ? 18 : 20,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: theme.isDark ? 2 : 3,
+      backgroundColor: theme.surfaceElevated,
+      borderColor: theme.borderSoft,
     },
     statusCardSuccess: {
       borderColor: theme.isDark ? "#6F8F6A" : "#9CAD94",
@@ -795,15 +784,10 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     creditsCard: {
       gap: theme.spacing.md,
       borderWidth: 1,
-      borderColor: theme.isDark ? "#323A32" : "#DED3C3",
+      borderColor: theme.borderSoft,
       borderRadius: theme.rounded.xl,
       padding: theme.spacing.cardPaddingLarge,
-      backgroundColor: theme.isDark ? "#242A24" : theme.surface,
-      shadowColor: theme.isDark ? "#000000" : "#2F312B",
-      shadowOpacity: theme.isDark ? 0.22 : 0.07,
-      shadowRadius: theme.isDark ? 16 : 18,
-      shadowOffset: { width: 0, height: 7 },
-      elevation: theme.isDark ? 2 : 3,
+      backgroundColor: theme.surfaceElevated,
     },
     creditsHeader: {
       gap: theme.spacing.xxs,
@@ -878,14 +862,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     actionCard: {
       borderWidth: 1,
-      borderColor: theme.isDark ? "#323A32" : "#DED3C3",
+      borderColor: theme.borderSoft,
       borderRadius: theme.rounded.xl,
-      backgroundColor: theme.isDark ? "#242A24" : theme.surface,
-      shadowColor: theme.isDark ? "#000000" : "#2F312B",
-      shadowOpacity: theme.isDark ? 0.22 : 0.07,
-      shadowRadius: theme.isDark ? 16 : 18,
-      shadowOffset: { width: 0, height: 7 },
-      elevation: theme.isDark ? 2 : 3,
+      backgroundColor: theme.surfaceElevated,
     },
     actionRow: {
       minHeight: 72,

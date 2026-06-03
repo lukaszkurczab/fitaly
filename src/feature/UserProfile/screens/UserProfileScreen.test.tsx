@@ -1,6 +1,11 @@
 import { fireEvent } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReactNode } from "react";
+import {
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import UserProfileScreen from "@/feature/UserProfile/screens/UserProfileScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
@@ -59,14 +64,16 @@ jest.mock("@/feature/UserProfile/components/AccountIdentityCard", () => {
       title,
       subtitle,
       onPress,
+      style,
       testID,
     }: {
       title: string;
       subtitle: string;
       onPress?: () => void;
+      style?: StyleProp<ViewStyle>;
       testID?: string;
     }) => (
-      <Pressable onPress={onPress} testID={testID}>
+      <Pressable onPress={onPress} style={style} testID={testID}>
         <Text>{title}</Text>
         <Text>{subtitle}</Text>
       </Pressable>
@@ -136,26 +143,35 @@ jest.mock("@/components", () => {
     SettingsRow: ({
       title,
       onPress,
+      style,
       testID,
     }: {
       title: string;
       onPress?: () => void;
+      style?: StyleProp<ViewStyle>;
       testID?: string;
     }) => (
-      <Pressable onPress={onPress} testID={testID}>
+      <Pressable onPress={onPress} style={style} testID={testID}>
         <Text>{title}</Text>
       </Pressable>
     ),
     SettingsSection: ({
       title,
       children,
+      contentStyle,
     }: {
       title?: string;
       children: ReactNode;
+      contentStyle?: StyleProp<ViewStyle>;
     }) => (
-      <View>
+      <View testID={title ? `settings-section-${title}` : undefined}>
         {title ? <Text>{title}</Text> : null}
-        {children}
+        <View
+          testID={title ? `settings-section-${title}-content` : undefined}
+          style={contentStyle}
+        >
+          {children}
+        </View>
       </View>
     ),
   };
@@ -210,5 +226,33 @@ describe("UserProfileScreen", () => {
     fireEvent.press(screen.getByTestId("account-identity-card"));
 
     expect(navigation.navigate).toHaveBeenCalledWith("EditUserData");
+  });
+
+  it("keeps profile material translucent without heavy panels or clipped raised section shadows", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    const identityStyle = StyleSheet.flatten(
+      screen.getByTestId("account-identity-card").props.style,
+    );
+    const sectionStyle = StyleSheet.flatten(
+      screen.getByTestId("settings-section-profileSectionTitle-content").props
+        .style,
+    );
+    const rowStyle = StyleSheet.flatten(
+      screen.getByTestId("account-manage-subscription-row").props.style,
+    );
+
+    expect(identityStyle.backgroundColor).toContain("0.72");
+    expect(identityStyle.borderColor).toContain("rgba");
+    expect(identityStyle.shadowOpacity).toBeUndefined();
+    expect(identityStyle.elevation).toBeUndefined();
+    expect(sectionStyle.backgroundColor).toContain("0.58");
+    expect(sectionStyle.borderColor).toContain("rgba");
+    expect(sectionStyle.shadowOpacity).toBeUndefined();
+    expect(sectionStyle.elevation).toBeUndefined();
+    expect(rowStyle.borderBottomColor).toContain("rgba");
   });
 });

@@ -44,6 +44,7 @@ type StateCardProps = {
   body: string;
   leading?: React.ReactNode;
   children?: React.ReactNode;
+  testID?: string;
 };
 
 type WeeklyReportAccessState =
@@ -366,7 +367,7 @@ function LoadingState({
 
   return (
     <View style={styles.content} testID="weekly-report-loading-state">
-      <View style={styles.loadingHero}>
+      <View style={styles.loadingHero} testID="weekly-report-loading-hero">
         <StatusPill
           label={`${t("weeklyReport.closedWeekPill")} · ${formatWeeklyPeriod(report.period, i18n.language)}`}
         />
@@ -386,7 +387,10 @@ function LoadingState({
         <View style={[styles.skeletonBar, styles.skeletonBarShort]} />
       </View>
 
-      <View style={styles.loadingSupportCard}>
+      <View
+        style={styles.loadingSupportCard}
+        testID="weekly-report-loading-support-card"
+      >
         <View style={[styles.skeletonBar, styles.skeletonMini]} />
         <View style={[styles.skeletonBar, styles.skeletonMedium]} />
         <View style={[styles.skeletonBar, styles.skeletonSupport]} />
@@ -399,12 +403,12 @@ function LoadingState({
   );
 }
 
-function StateCard({ title, body, leading, children }: StateCardProps) {
+function StateCard({ title, body, leading, children, testID }: StateCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View style={styles.stateCard}>
+    <View style={styles.stateCard} testID={testID ?? "weekly-report-state-card"}>
       {leading}
       <Text style={styles.stateTitle}>{title}</Text>
       <Text style={styles.stateBody}>{body}</Text>
@@ -825,8 +829,30 @@ export default function WeeklyReportScreen({ navigation }: Props) {
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof useTheme>) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useTheme>) => {
+  const quietSurface = theme.isDark
+    ? "rgba(255,253,248,0.04)"
+    : "rgba(255,253,248,0.54)";
+  const quietSurfaceStrong = theme.isDark
+    ? "rgba(255,253,248,0.055)"
+    : "rgba(255,249,240,0.70)";
+  const warmSurface = theme.isDark
+    ? "rgba(255,253,248,0.05)"
+    : "rgba(248,240,231,0.72)";
+  const neutralBorder = theme.isDark
+    ? "rgba(255,253,248,0.10)"
+    : "rgba(207,197,184,0.42)";
+  const warmBorder = theme.isDark
+    ? theme.borderSoft
+    : "rgba(199,126,97,0.16)";
+  const skeletonBase = theme.isDark
+    ? "rgba(255,253,248,0.11)"
+    : "rgba(234,223,210,0.76)";
+  const skeletonSoft = theme.isDark
+    ? "rgba(255,253,248,0.07)"
+    : "rgba(240,231,219,0.72)";
+
+  return StyleSheet.create({
     screen: {
       flex: 1,
     },
@@ -871,8 +897,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingBottom: 20,
       gap: 14,
       borderWidth: 1,
-      borderColor: theme.isDark ? theme.borderSoft : "rgba(207,197,184,0.58)",
-      backgroundColor: theme.isDark ? theme.surfaceElevated : "#FFF9F0",
+      borderColor: neutralBorder,
+      backgroundColor: quietSurfaceStrong,
     },
     heroTopRow: {
       flexDirection: "row",
@@ -889,7 +915,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       width: 92,
       height: 56,
       borderRadius: theme.rounded.lg,
-      backgroundColor: theme.isDark ? theme.backgroundSecondary : "#F2E8DA",
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.055)"
+        : "rgba(242,232,218,0.68)",
       paddingHorizontal: 12,
       paddingVertical: 10,
       overflow: "hidden",
@@ -920,7 +948,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: theme.rounded.full,
       borderWidth: 1,
       borderColor: theme.isDark ? theme.borderSoft : "rgba(111,138,105,0.22)",
-      backgroundColor: theme.isDark ? theme.backgroundSecondary : "#EDF2E8",
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.055)"
+        : "rgba(237,242,232,0.76)",
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
@@ -1014,8 +1044,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     carryCard: {
       borderRadius: theme.rounded.xl,
       borderWidth: 1,
-      borderColor: theme.isDark ? theme.borderSoft : "rgba(199,126,97,0.16)",
-      backgroundColor: theme.isDark ? theme.surfaceAlt : "#F8F0E7",
+      borderColor: warmBorder,
+      backgroundColor: warmSurface,
       paddingHorizontal: 16,
       paddingTop: 16,
       paddingBottom: 16,
@@ -1089,13 +1119,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     loadingHero: {
       borderRadius: theme.rounded.xxl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurfaceStrong,
       paddingHorizontal: 18,
       paddingTop: 16,
       paddingBottom: 18,
       gap: 12,
-      ...theme.depth.raised,
     },
     loadingHeadlineRow: {
       flexDirection: "row",
@@ -1140,7 +1169,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     skeletonBar: {
       borderRadius: theme.rounded.sm,
-      backgroundColor: "#EADFD2",
+      backgroundColor: skeletonBase,
     },
     skeletonBarLong: {
       width: 214,
@@ -1149,17 +1178,16 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     skeletonBarShort: {
       width: 176,
       height: 12,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     loadingSupportCard: {
       borderRadius: theme.rounded.xl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
       paddingHorizontal: 18,
       paddingVertical: 18,
       gap: 12,
-      ...theme.depth.raised,
     },
     skeletonMini: {
       width: 92,
@@ -1168,12 +1196,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     skeletonMedium: {
       width: 210,
       height: 12,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     skeletonSupport: {
       width: 168,
       height: 10,
-      backgroundColor: "#F0E7DB",
+      backgroundColor: skeletonSoft,
     },
     helperNote: {
       color: theme.textTertiary,
@@ -1184,13 +1212,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     stateCard: {
       borderRadius: theme.rounded.xxl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
       paddingHorizontal: 18,
       paddingTop: 18,
       paddingBottom: 16,
       gap: 12,
-      ...theme.depth.raised,
     },
     stateIconWrap: {
       alignSelf: "center",
@@ -1296,8 +1323,8 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     unavailableCard: {
       borderRadius: theme.rounded.xl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surface,
+      borderColor: neutralBorder,
+      backgroundColor: quietSurface,
       paddingHorizontal: 16,
       paddingTop: 16,
       paddingBottom: 15,
@@ -1347,3 +1374,4 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
   });
+};

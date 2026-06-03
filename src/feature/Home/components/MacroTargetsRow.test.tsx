@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { StyleSheet } from "react-native";
 import { MacroTargetsRow } from "@/feature/Home/components/MacroTargetsRow";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
@@ -12,6 +13,30 @@ jest.mock("react-i18next", () => ({
 }));
 
 describe("MacroTargetsRow", () => {
+  it("uses tint and border instead of local card depth", () => {
+    const { getByTestId } = renderWithTheme(
+      <MacroTargetsRow
+        macroTargets={{
+          proteinGrams: 150,
+          fatGrams: 60,
+          carbsGrams: 220,
+          proteinKcal: 600,
+          fatKcal: 540,
+          carbsKcal: 880,
+        }}
+        consumed={{ protein: 80, fat: 30, carbs: 110 }}
+      />,
+    );
+
+    const cardStyle = StyleSheet.flatten(
+      getByTestId("home-macro-targets-card").props.style,
+    );
+
+    expect(cardStyle.shadowOpacity).toBeUndefined();
+    expect(cardStyle.shadowRadius).toBeUndefined();
+    expect(cardStyle.elevation).toBeUndefined();
+  });
+
   it("renders nothing when all targets are zero", () => {
     const { toJSON } = renderWithTheme(
       <MacroTargetsRow

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StyleSheet } from "react-native";
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import DescribeMealScreen from "@/feature/Meals/screens/MealAdd/DescribeMealScreen";
@@ -284,6 +285,32 @@ describe("DescribeMealScreen", () => {
     expect(getByTestId("describe-meal-name-autocap").props.children).toBe("none");
     fireEvent.press(getByTestId("add-meal-text-details-toggle"));
     expect(getByTestId("describe-meal-description-autocap").props.children).toBe("none");
+  });
+
+  it("keeps the full-screen text entry shell transparent so Layout material remains visible", () => {
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId } = renderWithTheme(<DescribeMealScreen {...props} />);
+    const screenStyle = StyleSheet.flatten(
+      getByTestId("add-meal-text-screen").props.style,
+    );
+
+    expect(screenStyle?.backgroundColor).toBeUndefined();
   });
 
   it("starts with optional details collapsed", () => {

@@ -9,6 +9,8 @@ const mockText = Text;
 const mockView = View;
 const mockUseOnboardingFlow = jest.fn();
 const mockModal = jest.fn();
+type MockLayoutProps = { children: unknown; backgroundGradient?: unknown };
+const mockLayout = jest.fn<(_props: MockLayoutProps) => void>();
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -49,11 +51,12 @@ jest.mock("@/theme/useTheme", () => ({
 }));
 
 jest.mock("@/components", () => ({
-  Layout: ({ children }: { children: unknown }) => {
+  Layout: (props: MockLayoutProps) => {
+    mockLayout(props);
     return mockReact.createElement(
       mockView,
       null,
-      children as React.ReactNode,
+      props.children as React.ReactNode,
     );
   },
   Modal: (props: Record<string, unknown>) => {
@@ -142,8 +145,23 @@ function buildNavigation() {
 
 describe("OnboardingScreen navigation ownership", () => {
   beforeEach(() => {
+    mockLayout.mockReset();
     mockModal.mockReset();
     mockUseOnboardingFlow.mockReset().mockReturnValue(buildOnboardingState());
+  });
+
+  it("uses the global Layout material instead of a local onboarding background gradient", () => {
+    const navigation = buildNavigation();
+
+    render(
+      <OnboardingScreen
+        navigation={navigation as never}
+        route={{ params: { mode: "first" } } as never}
+      />,
+    );
+
+    expect(mockLayout).toHaveBeenCalled();
+    expect(mockLayout.mock.calls[0]?.[0]?.backgroundGradient).toBeUndefined();
   });
 
   it("does not imperatively replace to Home from the onboarding gate", async () => {

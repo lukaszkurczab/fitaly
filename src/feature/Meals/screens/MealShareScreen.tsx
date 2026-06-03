@@ -1231,7 +1231,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       ...styles.navIconButton,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.72)"
+        : "rgba(255,253,248,0.64)",
     },
     modeSwitch: {
       ...styles.modeSwitch,
@@ -1253,8 +1255,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     canvasFrame: {
       borderWidth: 1,
       borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceAlt,
-      ...theme.depth.floating,
+      backgroundColor: theme.isDark
+        ? "rgba(255,253,248,0.05)"
+        : "rgba(255,253,248,0.22)",
     },
     exportSuccess: {
       color: theme.success.text,
@@ -1265,9 +1268,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     invalidContainer: {
       borderRadius: theme.rounded.xxl,
       borderWidth: 1,
-      borderColor: theme.borderSoft,
-      backgroundColor: theme.surfaceElevated,
-      ...theme.depth.raised,
+      borderColor: theme.isDark
+        ? "rgba(255,253,248,0.14)"
+        : "rgba(79,104,75,0.14)",
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.52)"
+        : "rgba(255,253,248,0.46)",
     },
     invalidClose: {
       position: "absolute",
@@ -1284,6 +1290,5 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     invalidButton: {
       backgroundColor: theme.primary,
-      ...theme.depth.cta,
     },
   });

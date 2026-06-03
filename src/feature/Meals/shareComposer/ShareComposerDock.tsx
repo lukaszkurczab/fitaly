@@ -418,6 +418,7 @@ export default function ShareComposerDock({
       >
         {exportState.error ? (
           <View
+            testID="share-export-error-card"
             style={[
               stylesWithTheme.errorCard,
               failedExportAction === "share" ? stylesWithTheme.errorCardShare : null,
@@ -434,6 +435,7 @@ export default function ShareComposerDock({
       {!isSelectedLayerEditor ? (
         <BottomActionBar
           testID="share-composer-actions"
+          placement="inline"
           bottomInset={bottomSafeAreaPadding}
           primaryAction={{
             testID: "share-system-share-button",
@@ -474,7 +476,9 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       bottom: 0,
       alignSelf: "center",
       zIndex: 10,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.isDark
+        ? "rgba(30,34,30,0.72)"
+        : "rgba(255,253,248,0.62)",
       borderRadius: DOCK_LAYOUT.borderRadius,
       borderWidth: 1,
       borderColor: theme.isDark
@@ -484,11 +488,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingTop: DOCK_LAYOUT.paddingTop,
       paddingHorizontal: 10,
       paddingBottom: DOCK_LAYOUT.basePaddingBottom,
-      shadowColor: theme.shadow,
-      shadowOpacity: theme.isDark ? 0.5 : 0.12,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
       gap: DOCK_LAYOUT.itemGap,
     },
     quickDock: {
@@ -537,11 +536,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.isDark
-        ? "rgba(200,93,76,0.28)"
-        : "rgba(194,78,61,0.18)",
+        ? "rgba(209,106,88,0.46)"
+        : "rgba(194,78,61,0.42)",
       backgroundColor: theme.isDark
-        ? "rgba(200,93,76,0.06)"
-        : "rgba(194,78,61,0.045)",
+        ? "rgba(45,32,29,0.92)"
+        : "rgba(249,233,229,0.94)",
       paddingVertical: 3,
       paddingLeft: 11,
       paddingRight: 8,

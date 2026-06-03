@@ -248,7 +248,7 @@ export const PaywallModal: React.FC<Props> = ({
       }
       closeButtonTestID={showRestore ? undefined : "paywall-close-button"}
       closeButtonSize={44}
-      closeButtonBackgroundColor={theme.isDark ? "#242A24" : theme.surface}
+      closeButtonBackgroundColor={theme.surfaceElevated}
       closeButtonIconColor={theme.textSecondary}
       closeButtonContainerStyle={styles.closeButton}
       footer={
@@ -582,12 +582,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
         ? "rgba(166, 189, 160, 0.18)"
         : "rgba(207, 197, 184, 0.9)",
       borderRadius: theme.rounded.xxl,
-      backgroundColor: theme.isDark ? "#20261F" : theme.surface,
-      shadowColor: theme.isDark ? "#000000" : "#2F312B",
-      shadowOpacity: theme.isDark ? 0.36 : 0.16,
-      shadowRadius: theme.isDark ? 30 : 34,
-      shadowOffset: { width: 0, height: 18 },
-      elevation: 14,
+      backgroundColor: theme.surfaceElevated,
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
     },
     modalFooter: {
       marginTop: "auto",
@@ -611,7 +610,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderTopColor: theme.isDark
         ? "rgba(166, 189, 160, 0.2)"
         : "rgba(207, 197, 184, 0.72)",
-      backgroundColor: theme.isDark ? "#222820" : theme.surface,
+      backgroundColor: theme.surfaceElevated,
       gap: theme.spacing.xs,
       paddingTop: theme.spacing.md,
     },
@@ -625,7 +624,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       borderBottomRightRadius: theme.rounded.xxl,
     },
     footerLegal: {
-      gap: 2,
+      gap: theme.spacing.xxs,
       alignItems: "center",
       alignSelf: "stretch",
       borderWidth: theme.isDark ? StyleSheet.hairlineWidth : 0,
@@ -637,7 +636,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
         ? "rgba(255, 253, 248, 0.035)"
         : "transparent",
       paddingHorizontal: theme.isDark ? theme.spacing.sm : 0,
-      paddingVertical: 0,
+      paddingVertical: theme.spacing.xxs,
     },
     footerDisclosure: {
       color: theme.isDark ? "#BDB6AC" : theme.textTertiary,
@@ -682,7 +681,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
         : theme.borderSoft,
       alignItems: "center",
       justifyContent: "center",
-      ...theme.depth.inputFocus,
     },
     offerCopy: {
       flex: 1,
@@ -876,11 +874,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       padding: theme.spacing.xs,
       backgroundColor: theme.surfaceAlt,
       gap: theme.spacing.xs,
-      shadowColor: theme.isDark ? "#000000" : "#2F312B",
-      shadowOpacity: theme.isDark ? 0.22 : 0.1,
-      shadowRadius: theme.isDark ? 18 : 20,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 5,
     },
     planTopRow: {
       flexDirection: "row",
