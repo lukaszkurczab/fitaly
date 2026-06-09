@@ -304,9 +304,13 @@ export async function updateMyMealRemote(
   uid: string,
   mealId: string,
   payload: MyMealDoc | Partial<MyMealDoc> | Partial<MealDocument>,
+  clientMutationId: string,
 ): Promise<void> {
   void uid;
-  await post("/users/me/my-meals", toMealDocumentPayload(mealId, payload));
+  await post("/users/me/my-meals", {
+    ...toMealDocumentPayload(mealId, payload),
+    clientMutationId,
+  });
 }
 
 export async function uploadMyMealPhotoRemote(
@@ -336,11 +340,12 @@ export async function markMyMealDeletedRemote(
   uid: string,
   mealId: string,
   updatedAt: string,
-  syncState?: "synced",
+  options: { clientMutationId: string; syncState?: "synced" },
 ): Promise<void> {
   void uid;
-  void syncState;
+  void options.syncState;
   await post(`/users/me/my-meals/${encodeURIComponent(mealId)}/delete`, {
     updatedAt,
+    clientMutationId: options.clientMutationId,
   });
 }

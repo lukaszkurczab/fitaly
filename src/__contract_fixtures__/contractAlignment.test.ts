@@ -98,6 +98,79 @@ type SmartReminderTelemetryFixture = {
   disallowedEventNames: string[];
 };
 
+type AiRejectionsFixture = {
+  rejections: {
+    consentRequired: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent: {
+          required: boolean;
+          scope: string;
+        };
+      };
+    };
+    mealAnalysisDisabled: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    mealAnalysisIdempotencyConflict: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    providerUnavailable: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    providerTimeout: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    creditsExhausted: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+        credits: {
+          userId: string;
+          tier: string;
+          balance: number;
+          allocation: number;
+          periodStartAt: string;
+          periodEndAt: string;
+          costs: {
+            chat: number;
+            textMeal: number;
+            photo: number;
+          };
+          renewalAnchorSource?: string | null;
+          revenueCatEntitlementId?: string | null;
+          revenueCatExpirationAt?: string | null;
+          lastRevenueCatEventId?: string | null;
+        };
+      };
+    };
+  };
+};
+
 describe("Enum parity", () => {
   const enums = loadFixture<EnumsFixture>("enums.json");
   const MOBILE_MEAL_TYPES: MealType[] = [
@@ -119,7 +192,6 @@ describe("Enum parity", () => {
     "barcode",
     "text",
     "saved",
-    "quick_add",
   ];
   const MOBILE_MEAL_SOURCES: NonNullable<MealSource>[] = [
     "ai",
@@ -769,5 +841,104 @@ describe("Gateway reject contract", () => {
     expect(GATEWAY_REJECT_REASONS.has(fixture.detail.reason as string)).toBe(
       true,
     );
+  });
+});
+
+describe("AI rejection contract", () => {
+  const fixture = loadFixture<AiRejectionsFixture>("ai_rejections.json");
+
+  test("global consent rejection uses the canonical code and consent scope", () => {
+    const rejection = fixture.rejections.consentRequired;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(403);
+    expect(detail.code).toBe("AI_CONSENT_REQUIRED");
+    expect(detail.code).not.toBe(["AI", "CHAT", "CONSENT", "REQUIRED"].join("_"));
+    expect(detail.message).toBe("AI health data consent required.");
+    expect(detail.aiConsent.required).toBe(true);
+    expect(detail.aiConsent.scope).toBe("global_ai_health_data");
+  });
+
+  test("meal-analysis disabled rejection uses the canonical disabled code", () => {
+    const rejection = fixture.rejections.mealAnalysisDisabled;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(503);
+    expect(detail.code).toBe("AI_MEAL_ANALYSIS_DISABLED");
+    expect(detail.message).toBe("Meal analysis AI is temporarily disabled.");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("meal-analysis idempotency conflict uses the canonical Add Meal code", () => {
+    const rejection = fixture.rejections.mealAnalysisIdempotencyConflict;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(409);
+    expect(detail.code).toBe("AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT");
+    expect(detail.message).toBe(
+      "Meal analysis request is already in progress or completed.",
+    );
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("provider unavailable rejection uses the canonical provider code", () => {
+    const rejection = fixture.rejections.providerUnavailable;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(503);
+    expect(detail.code).toBe("AI_CHAT_PROVIDER_UNAVAILABLE");
+    expect(detail.message).toBe("AI provider is temporarily unavailable.");
+    expect(detail.message).not.toContain("OpenAI");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("provider timeout rejection uses the canonical timeout code", () => {
+    const rejection = fixture.rejections.providerTimeout;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(504);
+    expect(detail.code).toBe("AI_CHAT_TIMEOUT");
+    expect(detail.message).toBe(
+      "AI provider timed out before a response was generated.",
+    );
+    expect(detail.message).not.toContain("OpenAI");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("credits exhausted rejection uses the canonical credits payload shape", () => {
+    const rejection = fixture.rejections.creditsExhausted;
+    const { detail } = rejection;
+    const { credits } = detail;
+
+    expect(rejection.status).toBe(402);
+    expect(detail.code).toBe("AI_CREDITS_EXHAUSTED");
+    expect(detail.message).toBe("AI credits exhausted.");
+    expect(detail.aiConsent).toBeUndefined();
+    expect(Object.keys(credits).sort()).toEqual(
+      [
+        "allocation",
+        "balance",
+        "costs",
+        "lastRevenueCatEventId",
+        "periodEndAt",
+        "periodStartAt",
+        "renewalAnchorSource",
+        "revenueCatEntitlementId",
+        "revenueCatExpirationAt",
+        "tier",
+        "userId",
+      ].sort(),
+    );
+    expect(credits.userId).toBe("user-1");
+    expect(credits.tier).toBe("free");
+    expect(credits.balance).toBe(0);
+    expect(credits.allocation).toBe(100);
+    expect(credits.periodStartAt).toBe("2026-04-19T00:00:00Z");
+    expect(credits.periodEndAt).toBe("2026-05-19T00:00:00Z");
+    expect(credits.costs).toEqual({
+      chat: 1,
+      textMeal: 1,
+      photo: 5,
+    });
   });
 });

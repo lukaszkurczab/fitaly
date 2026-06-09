@@ -127,7 +127,9 @@ For each change-set, include:
 
 # Firebase
 
-Durign work with firebase check firebaseRules.md and if it is necessery suggerst changes
+During work with Firebase, check the canonical deployable rules in
+`../fitaly-backend/firestore.rules` and `../fitaly-backend/storage.rules`, and
+suggest changes when necessary.
 
 ## Backend sync
 

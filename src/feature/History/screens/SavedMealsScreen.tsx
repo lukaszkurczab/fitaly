@@ -2,8 +2,10 @@ import { useCallback, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
+  Text,
   View,
   Platform,
 } from "react-native";
@@ -27,12 +29,67 @@ import { FilterBadgeButton } from "../components/FilterBadgeButton";
 import { FilterPanel } from "../components/FilterPanel";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { useSavedMealsData } from "@/feature/History/hooks/useSavedMealsData";
+import { useSavedMealDeadLetterRecovery } from "@/feature/History/hooks/useSavedMealDeadLetterRecovery";
 import { syncMyMeals } from "@/services/meals/myMealService";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { buildSavedMealDraft } from "@/feature/Meals/utils/buildSavedMealDraft";
 
 type SavedMealsNavigation = StackNavigationProp<RootStackParamList, "SavedMeals">;
 const FOCUS_REFRESH_THROTTLE_MS = 30_000;
+
+type SavedMealsDeadLetterBannerProps = {
+  title: string;
+  description: string;
+  actionLabel: string;
+  retrying: boolean;
+  onRetry: () => void;
+  theme: ReturnType<typeof useTheme>;
+};
+
+const SavedMealsDeadLetterBanner = ({
+  title,
+  description,
+  actionLabel,
+  retrying,
+  onRetry,
+  theme,
+}: SavedMealsDeadLetterBannerProps) => {
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  return (
+    <View
+      style={styles.deadLetterBanner}
+      testID="saved-meals-dead-letter-banner"
+    >
+      <View style={styles.deadLetterCopy}>
+        <View style={styles.deadLetterDot} />
+        <Text style={styles.deadLetterTitle}>{title}</Text>
+      </View>
+      <View style={styles.deadLetterActions}>
+        <Text
+          style={styles.deadLetterDescription}
+          testID="saved-meals-dead-letter-description"
+        >
+          {description}
+        </Text>
+        <Pressable
+          onPress={onRetry}
+          disabled={retrying}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          testID="saved-meals-dead-letter-retry"
+          style={({ pressed }) => [
+            styles.deadLetterRetry,
+            retrying ? styles.deadLetterRetryDisabled : null,
+            pressed && !retrying ? styles.deadLetterRetryPressed : null,
+          ]}
+        >
+          <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 export default function SavedMealsScreen({
   navigation,
@@ -82,8 +139,52 @@ export default function SavedMealsScreen({
     isOnline,
     syncSavedMeals: () => syncMyMeals(uid),
   });
+  const {
+    diagnostics: savedMealDeadLetterDiagnostics,
+    retrying: retryingSavedMealDeadLetters,
+    retryDeadLetters: retrySavedMealDeadLetters,
+  } = useSavedMealDeadLetterRecovery(uid);
   const firstFocusRef = useRef(true);
   const lastFocusRefreshAtRef = useRef(0);
+
+  const deadLetterBanner = useMemo(() => {
+    if (savedMealDeadLetterDiagnostics.dead <= 0) return null;
+    const lastFailedKind = savedMealDeadLetterDiagnostics.lastFailedKind
+      ? t(
+          `history.deadLetterOperation.${savedMealDeadLetterDiagnostics.lastFailedKind}`,
+          { ns: "meals" },
+        )
+      : null;
+
+    return {
+      title: t("history.deadLetterTitle", {
+        ns: "meals",
+        count: savedMealDeadLetterDiagnostics.dead,
+      }),
+      description: lastFailedKind
+        ? t("history.deadLetterSubtitleWithLast", {
+            ns: "meals",
+            pending: savedMealDeadLetterDiagnostics.pending,
+            operation: lastFailedKind,
+          })
+        : t("history.deadLetterSubtitle", {
+            ns: "meals",
+            pending: savedMealDeadLetterDiagnostics.pending,
+          }),
+      actionLabel: t("common:retry"),
+    };
+  }, [savedMealDeadLetterDiagnostics, t]);
+
+  const deadLetterBannerElement = deadLetterBanner ? (
+    <SavedMealsDeadLetterBanner
+      title={deadLetterBanner.title}
+      description={deadLetterBanner.description}
+      actionLabel={deadLetterBanner.actionLabel}
+      retrying={retryingSavedMealDeadLetters}
+      onRetry={retrySavedMealDeadLetters}
+      theme={theme}
+    />
+  ) : null;
 
   useFocusEffect(
     useCallback(() => {
@@ -201,10 +302,20 @@ export default function SavedMealsScreen({
     return (
       <Layout disableScroll>
         {showFilters ? (
-          <FilterPanel scope="myMeals" />
+          <View style={styles.filtersWrap}>
+            {deadLetterBannerElement ? (
+              <View style={styles.filterBannerWrap}>
+                {deadLetterBannerElement}
+              </View>
+            ) : null}
+            <FilterPanel scope="myMeals" />
+          </View>
         ) : (
           <>
-            <SearchBox value={query} onChange={setQuery} />
+            <View style={styles.topBarWrap}>
+              {deadLetterBannerElement}
+              <SearchBox value={query} onChange={setQuery} />
+            </View>
             <EmptyState title={emptyTitle} description={emptyDescription} />
           </>
         )}
@@ -216,10 +327,16 @@ export default function SavedMealsScreen({
     <Layout disableScroll>
       {showFilters ? (
         <View style={styles.filtersWrap}>
+          {deadLetterBannerElement ? (
+            <View style={styles.filterBannerWrap}>
+              {deadLetterBannerElement}
+            </View>
+          ) : null}
           <FilterPanel scope="myMeals" />
         </View>
       ) : (
         <View style={styles.topBarWrap}>
+          {deadLetterBannerElement}
           <View style={styles.row}>
             <SearchBox value={query} onChange={setQuery} style={styles.searchBox} />
             <FilterBadgeButton
@@ -264,6 +381,10 @@ export default function SavedMealsScreen({
 const makeStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     filtersWrap: { height: "100%", paddingBottom: theme.spacing.nav },
+    filterBannerWrap: {
+      paddingHorizontal: theme.spacing.md,
+      paddingTop: theme.spacing.md,
+    },
     topBarWrap: { padding: theme.spacing.md, gap: theme.spacing.sm },
     row: { flexDirection: "row", gap: theme.spacing.sm },
     searchBox: { flex: 1 },
@@ -273,4 +394,62 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     listContent: { paddingBottom: theme.spacing.lg },
     listItemWrap: { marginBottom: theme.spacing.sm },
+    deadLetterBanner: {
+      borderRadius: theme.rounded.md,
+      borderWidth: 1,
+      borderColor: theme.warning.surface,
+      backgroundColor: theme.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.xs,
+    },
+    deadLetterCopy: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    deadLetterDot: {
+      width: 8,
+      height: 8,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.warning.main,
+    },
+    deadLetterTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    deadLetterActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+    },
+    deadLetterDescription: {
+      flex: 1,
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    deadLetterRetry: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs + 1,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.warning.surface,
+    },
+    deadLetterRetryPressed: {
+      opacity: 0.84,
+    },
+    deadLetterRetryDisabled: {
+      opacity: 0.6,
+    },
+    deadLetterRetryLabel: {
+      color: theme.warning.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
   });

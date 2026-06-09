@@ -12,7 +12,7 @@ import type { TelemetryProps } from "@/services/telemetry/telemetryTypes";
 import { track } from "@/services/telemetry/telemetryClient";
 import type { Meal } from "@/types/meal";
 
-type MealInputMethod = "manual" | "photo" | "barcode" | "text" | "saved" | "quick_add";
+type MealInputMethod = "manual" | "photo" | "barcode" | "text" | "saved";
 type NotificationTelemetryOrigin =
   | "user_notifications"
   | "system_notifications"

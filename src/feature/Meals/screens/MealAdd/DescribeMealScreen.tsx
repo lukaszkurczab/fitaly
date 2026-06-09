@@ -90,6 +90,7 @@ export default function DescribeMealScreen({
     submitError,
     analyzeDisabled,
     analysisState,
+    hasActiveAiConsent,
     creditAllocation,
     onNameChange,
     onQuickDescriptionChange,
@@ -98,6 +99,7 @@ export default function DescribeMealScreen({
     onUpdateTextIngredient,
     onRemoveTextIngredient,
     onAnalyze,
+    openPrivacyAiSettings,
     closeLimitModal,
     openPaywall,
   } = useMealTextAiState({
@@ -183,6 +185,14 @@ export default function DescribeMealScreen({
       });
     }
 
+    if (analysisState === "ai_consent_required") {
+      return t("text_ai_consent_required_note", {
+        ns: "meals",
+        defaultValue:
+          "Turn on Privacy & AI consent in Settings to use meal analysis.",
+      });
+    }
+
     if (analysisState === "insufficient_credits") {
       return t("text_ai_insufficient_credits_hard_stop", {
         ns: "meals",
@@ -194,12 +204,15 @@ export default function DescribeMealScreen({
   }, [analysisState, creditsNote, t]);
 
   const creditsNoteWarning =
+    analysisState === "ai_consent_required" ||
     analysisState === "insufficient_credits" ||
     (creditsBalance !== null &&
       (creditsBalance < textMealCost ||
         (remainingCreditsAfterAnalyze !== null &&
           remainingCreditsAfterAnalyze <= 2)));
   const showUpgradeLink = analysisState === "insufficient_credits";
+  const showAiConsentSettingsLink =
+    !hasActiveAiConsent && analysisState !== "missing_name";
   const canStepBack = flow.canGoBack();
   const hasUnsavedChanges =
     name.trim().length > 0 ||
@@ -283,6 +296,19 @@ export default function DescribeMealScreen({
           : []),
         ...(!isKeyboardVisible
           ? [
+              ...(showAiConsentSettingsLink
+                ? [
+                    {
+                      testID: "add-meal-text-ai-consent-settings-button",
+                      label: t("ai_consent_settings_cta", {
+                        ns: "meals",
+                        defaultValue: "Open Privacy & AI settings",
+                      }),
+                      onPress: openPrivacyAiSettings,
+                      disabled: loading,
+                    },
+                  ]
+                : []),
               {
                 testID: "add-meal-text-change-method-button",
                 label: t("change_method", { ns: "meals" }),

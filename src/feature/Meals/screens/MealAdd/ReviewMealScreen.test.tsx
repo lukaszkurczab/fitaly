@@ -11,7 +11,7 @@ import {
 import ReviewMealScreen from "@/feature/Meals/screens/MealAdd/ReviewMealScreen";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
-import type { Meal } from "@/types/meal";
+import type { Meal, UserAiConsent, UserData, UserReadiness } from "@/types";
 
 type ButtonProps = {
   label: string;
@@ -269,6 +269,56 @@ const buildDraftContext = (mealOverrides?: Partial<Meal>) => ({
   saveDraft: jest.fn(async (_uid: string, _draft?: Meal | null) => undefined),
   setLastScreen: jest.fn(async (_uid: string, _screen: string) => undefined),
   setPhotoUrl: jest.fn(),
+});
+
+const readyReadiness: UserReadiness = {
+  status: "ready",
+  onboardingCompletedAt: "2026-05-01T09:00:00Z",
+  readyAt: "2026-05-01T10:00:00Z",
+};
+
+const revokedAiConsent: UserAiConsent = {
+  status: "revoked",
+  grantedAt: "2026-05-01T10:00:00Z",
+  revokedAt: "2026-05-02T10:00:00Z",
+};
+
+const buildUserData = (
+  readiness: UserReadiness,
+  aiConsent: UserAiConsent,
+): UserData => ({
+  uid: "user-1",
+  email: "user@example.com",
+  username: "neo",
+  plan: "free",
+  createdAt: 1,
+  lastLogin: "2026-05-01T10:00:00Z",
+  syncState: "synced",
+  profile: {
+    language: "en",
+    nutritionProfile: {
+      unitsSystem: "metric",
+      age: "30",
+      sex: "female",
+      height: "170",
+      heightInch: "",
+      weight: "70",
+      preferences: [],
+      activityLevel: "moderate",
+      goal: "maintain",
+      chronicDiseases: [],
+      chronicDiseasesOther: "",
+      allergies: [],
+      allergiesOther: "",
+      lifestyle: "",
+      calorieTarget: 2200,
+    },
+    aiPreferences: {
+      stylePersona: "calm_guide",
+    },
+    aiConsent,
+    readiness,
+  },
 });
 
 const buildProps = () => {
@@ -598,6 +648,55 @@ describe("ReviewMealScreen", () => {
 
     await waitFor(() => {
       expect(saveMeal).toHaveBeenCalledTimes(1);
+      expect(ctx.clearMeal).toHaveBeenCalledWith("user-1");
+      expect(testProps.dispatch).toHaveBeenCalledWith({
+        type: "RESET",
+        payload: {
+          index: 0,
+          routes: [{ name: "Home" }],
+        },
+      });
+    });
+  });
+
+  it("saves a manual draft for a ready profile with revoked AI consent", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext({
+      source: "manual",
+      inputMethod: "manual",
+    });
+    const testProps = buildProps();
+    const userData = buildUserData(readyReadiness, revokedAiConsent);
+
+    expect(userData.profile.readiness.status).toBe("ready");
+    expect(userData.profile.aiConsent.status).toBe("revoked");
+
+    mockUseUserContext.mockReturnValue({ userData });
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal: expect.objectContaining({
+            userUid: "user-1",
+            mealId: "meal-1",
+            source: "manual",
+            inputMethod: "manual",
+            name: "Protein bowl",
+          }),
+          savedTemplate: { mode: "none" },
+        }),
+      );
       expect(ctx.clearMeal).toHaveBeenCalledWith("user-1");
       expect(testProps.dispatch).toHaveBeenCalledWith({
         type: "RESET",

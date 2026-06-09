@@ -23,17 +23,24 @@ import { ChatComposer } from "../components/ChatComposer";
 import { ChatHistorySheet } from "../components/ChatHistorySheet";
 import { ChatStatusBanner } from "../components/ChatStatusBanner";
 import { formatLocalDateTime } from "@/utils/formatLocalDateTime";
-import { acceptAiHealthDataConsentRemote } from "@/services/user/userProfileRepository";
 import { useProductReadiness } from "@/hooks/useProductReadiness";
-import type { ReadinessStatus } from "@/types";
+import type { UserAiConsent } from "@/types";
 
 const activeThreadStorageKey = (uid: string) => `chat-active-thread-${uid}`;
+
+function isAiConsentActive(aiConsent: UserAiConsent | null | undefined): boolean {
+  return (
+    aiConsent?.status === "granted" &&
+    Boolean(aiConsent.grantedAt) &&
+    aiConsent.revokedAt === null
+  );
+}
 
 export default function ChatScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { firebaseUser: user } = useAuthContext();
   const { userData, loadingUser, refreshUser } = useUserProfileContext();
-  const { isProductReady, canRenderProductStack } = useProductReadiness();
+  const { canRenderProductStack } = useProductReadiness();
   const { accessState } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const net = useNetInfo();
@@ -46,17 +53,8 @@ export default function ChatScreen() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [threadId, setThreadId] = useState<string>(() => `local-${uuidv4()}`);
-  const [readinessStatusOverride, setReadinessStatusOverride] =
-    useState<ReadinessStatus | null>(null);
-  const [legalAckSubmitting, setLegalAckSubmitting] = useState(false);
-  const [legalAckError, setLegalAckError] = useState(false);
-  const readinessStatus =
-    readinessStatusOverride ??
-    userData?.profile.readiness.status ??
-    "needs_profile";
-  const serverConfirmedReady =
-    isProductReady || readinessStatusOverride === "ready";
-  const chatUid = serverConfirmedReady ? uid : "";
+  const hasActiveAiConsent = isAiConsentActive(userData?.profile.aiConsent);
+  const chatUid = canRenderProductStack && hasActiveAiConsent ? uid : "";
 
   const {
     messages,
@@ -81,12 +79,10 @@ export default function ChatScreen() {
   const renewalDateLabel = formatLocalDateTime(credits?.periodEndAt, {
     locale: i18n?.language,
   });
-  const hasAiHealthDataConsent = readinessStatus === "ready";
-  const legalGateActive = !hasAiHealthDataConsent || legalAckSubmitting;
-  const profileReadyForAi =
-    !loadingUser && (canRenderProductStack || serverConfirmedReady);
-  const legalAckVisible =
-    Boolean(uid) && profileReadyForAi && readinessStatus === "needs_ai_consent";
+  const legalGateActive = !hasActiveAiConsent;
+  const profileReadyForAi = !loadingUser && canRenderProductStack;
+  const aiConsentLockVisible =
+    Boolean(uid) && profileReadyForAi && !hasActiveAiConsent;
   const chatDisabled = sendErrorType === "AI_CHAT_DISABLED";
   const composerDisabled =
     sending ||
@@ -99,16 +95,10 @@ export default function ChatScreen() {
     limitReached && !legalGateActive && !chatDisabled && profileReadyForAi;
 
   useEffect(() => {
-    setReadinessStatusOverride(null);
-    setLegalAckSubmitting(false);
-    setLegalAckError(false);
-  }, [uid]);
-
-  useEffect(() => {
     let cancelled = false;
 
     async function restoreActiveThread() {
-      if (!uid || !serverConfirmedReady) return;
+      if (!uid || !canRenderProductStack || !hasActiveAiConsent) return;
       const storedThreadId = await AsyncStorage.getItem(
         activeThreadStorageKey(uid),
       );
@@ -124,7 +114,7 @@ export default function ChatScreen() {
     return () => {
       cancelled = true;
     };
-  }, [serverConfirmedReady, uid]);
+  }, [canRenderProductStack, hasActiveAiConsent, uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -147,26 +137,9 @@ export default function ChatScreen() {
     navigation.navigate("LegalPrivacyHub");
   }, [navigation]);
 
-  const acknowledgeLegal = useCallback(async () => {
-    if (!uid || !canRenderProductStack) {
-      return;
-    }
-
-    setLegalAckSubmitting(true);
-    setLegalAckError(false);
-    try {
-      const response = await acceptAiHealthDataConsentRemote(uid);
-      const nextStatus =
-        response.consent.readiness.status ??
-        response.profile?.profile.readiness.status ??
-        null;
-      setReadinessStatusOverride(nextStatus);
-    } catch {
-      setLegalAckError(true);
-    } finally {
-      setLegalAckSubmitting(false);
-    }
-  }, [canRenderProductStack, uid]);
+  const openPrivacyAiSettings = useCallback(() => {
+    navigation.navigate("PrivacyAiSettings");
+  }, [navigation]);
 
   const starters = useMemo(
     () => [
@@ -187,7 +160,7 @@ export default function ChatScreen() {
     if (sendErrorType === "AI_CHAT_DISABLED") return t("errors.disabled");
     if (sendErrorType === "AI_CHAT_IDEMPOTENCY_CONFLICT")
       return t("errors.idempotencyConflict");
-    if (sendErrorType === "AI_CHAT_CONSENT_REQUIRED")
+    if (sendErrorType === "AI_CONSENT_REQUIRED")
       return t("errors.consentRequired");
     if (sendErrorType === "AI_CREDITS_EXHAUSTED") return undefined;
     if (sendErrorType === "auth") return t("errors.authRequired");
@@ -449,7 +422,7 @@ export default function ChatScreen() {
 
       <Modal
         testID="chat-legal-modal"
-        visible={legalAckVisible}
+        visible={aiConsentLockVisible}
         title={t("legal.title")}
         secondaryAction={{
           label: t("legal.back"),
@@ -458,12 +431,8 @@ export default function ChatScreen() {
           testID: "chat-legal-back",
         }}
         primaryAction={{
-          label: t("legal.accept"),
-          onPress: () => {
-            void acknowledgeLegal();
-          },
-          loading: legalAckSubmitting,
-          disabled: legalAckSubmitting || isOffline,
+          label: t("legal.manageConsent"),
+          onPress: openPrivacyAiSettings,
           testID: "chat-legal-accept",
         }}
         closeOnBackdropPress={false}
@@ -472,9 +441,6 @@ export default function ChatScreen() {
           <View testID="chat-legal-info" style={styles.legalInfo}>
             <Text style={styles.legalParagraph}>{t("legal.informational")}</Text>
             <Text style={styles.legalParagraph}>{t("legal.medical")}</Text>
-            {legalAckError ? (
-              <Text style={styles.legalError}>{t("legal.saveFailed")}</Text>
-            ) : null}
           </View>
 
           <View testID="chat-legal-links" style={styles.legalLinks}>
@@ -550,12 +516,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
       fontFamily: theme.typography.fontFamily.regular,
-    },
-    legalError: {
-      color: theme.error.text,
-      fontSize: theme.typography.size.bodyS,
-      lineHeight: theme.typography.lineHeight.bodyS,
-      fontFamily: theme.typography.fontFamily.medium,
     },
     legalLinks: {
       gap: theme.spacing.xs,

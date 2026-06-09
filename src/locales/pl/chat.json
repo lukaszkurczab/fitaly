@@ -126,15 +126,14 @@
     "renewalUnknown": "Brak danych"
   },
   "legal": {
-    "title": "Zanim uruchomisz czat AI",
-    "informational": "Ten czat daje ogólne wsparcie w tematach diety, żywienia i planowania posiłków.",
+    "title": "Wymagana zgoda na AI",
+    "informational": "Czat AI korzysta ze zgody na dane zdrowotne ustawionej w Ustawieniach.",
     "medical": "Nie zastępuje porady lekarskiej ani indywidualnej konsultacji medycznej.",
-    "accept": "Akceptuję",
+    "manageConsent": "Zarządzaj zgodą na AI",
     "moreInfo": "Sprawdź krótkie wyjaśnienia:",
     "learnMore": "Jak działają dane i AI",
     "privacy": "Prawo i prywatność",
-    "composerLocked": "Zaakceptuj zasady, aby odblokować czat",
-    "saveFailed": "Nie udało się zapisać zgody. Sprawdź połączenie i spróbuj ponownie.",
+    "composerLocked": "Zarządzaj zgodą na AI w Ustawieniach",
     "back": "Wróć"
   }
 }

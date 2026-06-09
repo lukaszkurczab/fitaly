@@ -159,7 +159,7 @@ function isBackendOwnedAiChatErrorCode(
   return (
     errorType === "AI_CHAT_DISABLED" ||
     errorType === "AI_CREDITS_EXHAUSTED" ||
-    errorType === "AI_CHAT_CONSENT_REQUIRED" ||
+    errorType === "AI_CONSENT_REQUIRED" ||
     errorType === "AI_CHAT_PROVIDER_UNAVAILABLE" ||
     errorType === "AI_CHAT_TIMEOUT" ||
     errorType === "AI_CHAT_CONTEXT_UNAVAILABLE" ||

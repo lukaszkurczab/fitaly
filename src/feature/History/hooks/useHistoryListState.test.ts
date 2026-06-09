@@ -4,7 +4,7 @@ import { useHistoryListState } from "@/feature/History/hooks/useHistoryListState
 
 const mockUseNetInfo = jest.fn<() => { isConnected: boolean }>();
 const mockUseAuthContext = jest.fn<() => { uid: string | null }>();
-const mockUsePremiumContext = jest.fn<() => { isPremium: boolean }>();
+const mockCanUseFeature = jest.fn<(feature: string) => boolean>();
 const mockUseFilters = jest.fn();
 const mockUseHistorySectionsData = jest.fn();
 const mockGetDeadLetterCount =
@@ -55,8 +55,10 @@ jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => mockUseAuthContext(),
 }));
 
-jest.mock("@/context/PremiumContext", () => ({
-  usePremiumContext: () => mockUsePremiumContext(),
+jest.mock("@/context/AccessContext", () => ({
+  useAccessContext: () => ({
+    canUseFeature: mockCanUseFeature,
+  }),
 }));
 
 jest.mock("@/context/HistoryContext", () => ({
@@ -93,7 +95,7 @@ describe("useHistoryListState dead-letter meal sync", () => {
     jest.clearAllMocks();
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
-    mockUsePremiumContext.mockReturnValue({ isPremium: true });
+    mockCanUseFeature.mockReturnValue(true);
     mockUseFilters.mockReturnValue({
       query: "",
       setQuery: jest.fn(),

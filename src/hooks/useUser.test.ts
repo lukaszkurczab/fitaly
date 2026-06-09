@@ -280,8 +280,10 @@ const createProfile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   aiPreferences: {
     stylePersona: "calm_guide",
   },
-  consents: {
-    aiHealthDataConsentAt: null,
+  aiConsent: {
+    status: "granted",
+    grantedAt: "2026-03-10T10:00:00.000Z",
+    revokedAt: null,
   },
   readiness: {
     status: "ready",
@@ -427,6 +429,114 @@ describe("useUser", () => {
 
     unmount();
     expect(mockUnsub).toHaveBeenCalled();
+  });
+
+  it("mirrors aiConsent snapshot updates into cache without refreshing the full profile", async () => {
+    const cached = createUser({
+      username: "cached-neo",
+      email: "cached@example.com",
+      profile: createProfile({
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-03-10T10:00:00.000Z",
+          revokedAt: null,
+        },
+      }),
+    });
+    const remote = createUser({
+      username: "remote-neo",
+      email: "remote@example.com",
+      lastLogin: "2026-03-11T10:00:00.000Z",
+      profile: createProfile({
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-03-10T10:00:00.000Z",
+          revokedAt: null,
+        },
+      }),
+    });
+    const updatedAiConsent = {
+      status: "revoked",
+      grantedAt: "2026-03-10T10:00:00.000Z",
+      revokedAt: "2026-03-12T10:00:00.000Z",
+    } as const;
+
+    mockAsyncStorageGetItem.mockResolvedValueOnce(JSON.stringify(cached));
+    mockFetchUserProfileRemote.mockResolvedValue(remote);
+
+    const { result } = renderHook(() => useUser("u1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mockFetchUserProfileRemote.mockClear();
+    mockAsyncStorageSetItem.mockClear();
+
+    await act(async () => {
+      emitSnapshot({
+        ...remote,
+        profile: {
+          ...remote.profile,
+          aiConsent: updatedAiConsent,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.userData?.profile.aiConsent).toEqual(
+        updatedAiConsent,
+      );
+    });
+
+    expect(result.current.userData).toEqual(
+      expect.objectContaining({
+        uid: remote.uid,
+        email: remote.email,
+        username: remote.username,
+        plan: remote.plan,
+        createdAt: remote.createdAt,
+        lastLogin: remote.lastLogin,
+        syncState: remote.syncState,
+        profile: expect.objectContaining({
+          language: remote.profile.language,
+          nutritionProfile: remote.profile.nutritionProfile,
+          aiPreferences: remote.profile.aiPreferences,
+          readiness: remote.profile.readiness,
+          aiConsent: updatedAiConsent,
+        }),
+      }),
+    );
+
+    expect(mockFetchUserProfileRemote).not.toHaveBeenCalled();
+
+    const lastCacheWrite = mockAsyncStorageSetItem.mock.calls.at(-1) as
+      | [string, string]
+      | undefined;
+    expect(lastCacheWrite).toBeDefined();
+    expect(lastCacheWrite?.[0]).toBe("user:profile:u1");
+
+    const parsedCacheWrite = JSON.parse(
+      lastCacheWrite?.[1] ?? "{}",
+    ) as Partial<UserData>;
+    expect(parsedCacheWrite).toEqual(
+      expect.objectContaining({
+        uid: remote.uid,
+        email: remote.email,
+        username: remote.username,
+        plan: remote.plan,
+        createdAt: remote.createdAt,
+        lastLogin: remote.lastLogin,
+        syncState: remote.syncState,
+        profile: expect.objectContaining({
+          language: remote.profile.language,
+          nutritionProfile: remote.profile.nutritionProfile,
+          aiPreferences: remote.profile.aiPreferences,
+          readiness: remote.profile.readiness,
+          aiConsent: updatedAiConsent,
+        }),
+      }),
+    );
   });
 
   it("marks authenticated bootstrap as profile missing when remote profile is absent", async () => {
@@ -1104,7 +1214,7 @@ describe("useUser", () => {
     expect(result.current.syncState).toBe("pending");
   });
 
-  it("marks profile sync as conflict when dead-letter ops exist", async () => {
+  it("marks profile sync as dead-letter when dead-letter ops exist", async () => {
     mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
 
     const { result } = renderHook(() => useUser("u1"));
@@ -1114,7 +1224,7 @@ describe("useUser", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.syncState).toBe("conflict");
+      expect(result.current.syncState).toBe("dead-letter");
     });
   });
 
@@ -1126,7 +1236,7 @@ describe("useUser", () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await waitFor(() => {
-      expect(result.current.syncState).toBe("conflict");
+      expect(result.current.syncState).toBe("dead-letter");
     });
 
     await act(async () => {

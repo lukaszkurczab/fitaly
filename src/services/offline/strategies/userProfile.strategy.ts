@@ -46,7 +46,9 @@ export const userProfileStrategy: SyncStrategy = {
       if (Object.keys(payload).length === 0) {
         pushLog.log("profile:update:empty", { uid, opId: op.id });
       } else {
-        await updateUserProfileRemote(payload as Partial<UserData>);
+        await updateUserProfileRemote(payload as Partial<UserData>, {
+          clientMutationId: op.client_mutation_id,
+        });
         pushLog.log("profile:update", {
           uid,
           keys: Object.keys(payload),

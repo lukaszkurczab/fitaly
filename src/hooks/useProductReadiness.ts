@@ -32,8 +32,7 @@ export function useProductReadiness(): ProductReadiness {
       bootstrapState,
       userData?.profile.readiness.status,
     );
-    const isProductReady =
-      canRenderProductStack && userData?.profile.readiness.status === "ready";
+    const isProductReady = canRenderProductStack;
 
     return {
       isProductReady,
@@ -41,7 +40,7 @@ export function useProductReadiness(): ProductReadiness {
       status: canRenderProductStack
         ? (userData?.profile.readiness.status ?? bootstrapState)
         : bootstrapState,
-      uid: isProductReady ? (userData?.uid ?? null) : null,
+      uid: canRenderProductStack ? (userData?.uid ?? null) : null,
       bootstrapState,
     };
   }, [

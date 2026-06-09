@@ -155,6 +155,27 @@ export default function LegalPrivacyHubScreen({
                   />
                 </View>
               }
+              title={t("privacyAiSettingsTitle", {
+                defaultValue: "Privacy & AI",
+              })}
+              subtitle={t("privacyAiSettingsHubSubtitle", {
+                defaultValue:
+                  "Global AI consent for Add Meal analysis and AI Chat.",
+              })}
+              subtitleNumberOfLines={3}
+              testID="legal-privacy-ai-settings-row"
+              onPress={() => navigation.navigate("PrivacyAiSettings")}
+            />
+            <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon
+                    name="assistant"
+                    size={20}
+                    color={theme.accentWarmStrong}
+                  />
+                </View>
+              }
               title={t("dataAiClarityTitle", {
                 defaultValue: "Data & AI clarity",
               })}

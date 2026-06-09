@@ -8,7 +8,10 @@ import React, {
 import { useAuthContext } from "./AuthContext";
 import { useUser } from "@hooks/useUser";
 import type { UserData } from "@/types";
-import type { UserProfileBootstrapState } from "@/hooks/useUserProfile";
+import type {
+  ProfileSyncState,
+  UserProfileBootstrapState,
+} from "@/hooks/useUserProfile";
 import { runMigrations } from "@/services/offline/db";
 import { startSyncLoop, stopSyncLoop } from "@/services/offline/sync.engine";
 import { cleanupTransientOfflineAssets } from "@/services/offline/fileCleanup";
@@ -20,7 +23,7 @@ export type UserProfileContextType = {
   loadingUser: boolean;
   profileBootstrapState: UserProfileBootstrapState;
   profileBootstrapError: unknown | null;
-  syncState: "synced" | "pending" | "conflict";
+  syncState: ProfileSyncState;
   retryingProfileSync: boolean;
   refreshUser: () => Promise<UserData | null>;
   getUserData: () => Promise<UserData | null>;

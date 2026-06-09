@@ -211,6 +211,7 @@ export const mealsStrategy: SyncStrategy = {
       }
       await saveMealRemote({
         uid,
+        clientMutationId: op.client_mutation_id,
         meal: {
           ...(payload as Meal),
           cloudId: id,
@@ -249,7 +250,9 @@ export const mealsStrategy: SyncStrategy = {
     }
 
     if (op.kind === "delete") {
-      await markMealDeletedRemote(uid, op.cloud_id, op.updated_at);
+      await markMealDeletedRemote(uid, op.cloud_id, op.updated_at, {
+        clientMutationId: op.client_mutation_id,
+      });
       pushLog.log("delete:ok", op.cloud_id);
       emit("meal:pushed", { uid, cloudId: op.cloud_id });
       return true;

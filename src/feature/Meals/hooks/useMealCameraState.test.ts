@@ -13,6 +13,7 @@ import { getSampleMealUri } from "@/utils/devSamples";
 
 const mockUseMealDraftContext = jest.fn();
 const mockUseAuthContext = jest.fn();
+const mockUseUserProfileContext = jest.fn();
 const mockUseAiCreditsContext = jest.fn();
 const mockCanAfford = jest.fn(() => true);
 const mockCanUseFeature = jest.fn((feature: string) => feature === "photoAnalysis");
@@ -32,6 +33,10 @@ jest.mock("@contexts/MealDraftContext", () => ({
 
 jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => mockUseAuthContext(),
+}));
+
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserProfileContext(),
 }));
 
 jest.mock("@/context/AiCreditsContext", () => ({
@@ -81,6 +86,12 @@ const baseMeal = (): Meal => ({
   photoUrl: null,
 });
 
+const activeAiConsent = {
+  status: "granted",
+  grantedAt: "2026-06-01T10:00:00.000Z",
+  revokedAt: null,
+};
+
 describe("useMealCameraState", () => {
   const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__;
   const mockedGetSampleMealUri = getSampleMealUri as jest.MockedFunction<
@@ -96,6 +107,13 @@ describe("useMealCameraState", () => {
     mockNormalizeImageOrientation.mockImplementation(async (uri: string) => uri);
 
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockUseUserProfileContext.mockReturnValue({
+      userData: {
+        profile: {
+          aiConsent: activeAiConsent,
+        },
+      },
+    });
     mockUseAiCreditsContext.mockReturnValue({
       credits: {
         userId: "user-1",
@@ -205,6 +223,231 @@ describe("useMealCameraState", () => {
     });
 
     expect(flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+  });
+
+  it("allows skipped detection photo attachment without active consent", async () => {
+    mockUseUserProfileContext.mockReturnValue({
+      userData: {
+        profile: {
+          aiConsent: { status: "revoked", grantedAt: null, revokedAt: null },
+        },
+      },
+    });
+    const flow = {
+      goTo: jest.fn(),
+      replace: jest.fn(),
+      goBack: jest.fn(),
+      canGoBack: jest.fn(() => false),
+    };
+    const navigation = {
+      addListener: jest.fn(() => () => undefined),
+      navigate: jest.fn(),
+    };
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: baseMeal(),
+      setMeal: jest.fn(),
+      updateMeal: jest.fn(),
+      setLastScreen: jest.fn(async () => undefined),
+      saveDraft: jest.fn(async () => undefined),
+    });
+
+    const { result } = renderHook(() =>
+      useMealCameraState({
+        navigation: navigation as never,
+        flow: flow as never,
+        params: { skipDetection: true },
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleAccept("file:///meal.jpg");
+    });
+
+    expect(flow.replace).toHaveBeenCalledWith("ReviewMeal", {});
+    expect(navigation.navigate).not.toHaveBeenCalledWith("PrivacyAiSettings");
+  });
+
+  it.each([
+    [
+      "not_granted",
+      { status: "not_granted", grantedAt: null, revokedAt: null },
+    ],
+    [
+      "revoked",
+      {
+        status: "revoked",
+        grantedAt: "2026-06-01T10:00:00.000Z",
+        revokedAt: "2026-06-02T10:00:00.000Z",
+      },
+    ],
+    [
+      "granted missing grantedAt",
+      { status: "granted", grantedAt: null, revokedAt: null },
+    ],
+    [
+      "granted with revokedAt",
+      {
+        status: "granted",
+        grantedAt: "2026-06-01T10:00:00.000Z",
+        revokedAt: "2026-06-02T10:00:00.000Z",
+      },
+    ],
+  ])(
+    "routes to Privacy & AI settings without capturing when consent is %s",
+    async (_label, aiConsent) => {
+      mockUseUserProfileContext.mockReturnValue({
+        userData: {
+          profile: {
+            aiConsent,
+          },
+        },
+      });
+      const flow = {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => false),
+      };
+      const navigation = {
+        addListener: jest.fn(() => () => undefined),
+        navigate: jest.fn(),
+      };
+      const takePictureAsync = jest.fn(async () => ({ uri: "file:///raw.jpg" }));
+
+      mockUseMealDraftContext.mockReturnValue({
+        meal: baseMeal(),
+        setMeal: jest.fn(),
+        updateMeal: jest.fn(),
+        setLastScreen: jest.fn(async () => undefined),
+        saveDraft: jest.fn(async () => undefined),
+      });
+
+      const { result } = renderHook(() =>
+        useMealCameraState({
+          navigation: navigation as never,
+          flow: flow as never,
+          params: {},
+        }),
+      );
+
+      act(() => {
+        result.current.setIsCameraReady(true);
+        result.current.cameraRef.current = {
+          takePictureAsync,
+        } as unknown as (typeof result.current.cameraRef)["current"];
+      });
+
+      await act(async () => {
+        await result.current.handleTakePicture();
+      });
+
+      expect(result.current.hasActiveAiConsent).toBe(false);
+      expect(takePictureAsync).not.toHaveBeenCalled();
+      expect(mockedGetSampleMealUri).not.toHaveBeenCalled();
+      expect(result.current.premiumModal).toBe(false);
+      expect(flow.goTo).not.toHaveBeenCalled();
+      expect(navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
+    },
+  );
+
+  it("does not start simulator sample photo AI without active consent", async () => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = true;
+    mockDevice.isDevice = false;
+    mockUseUserProfileContext.mockReturnValue({
+      userData: {
+        profile: {
+          aiConsent: { status: "not_granted", grantedAt: null, revokedAt: null },
+        },
+      },
+    });
+    const flow = {
+      goTo: jest.fn(),
+      replace: jest.fn(),
+      goBack: jest.fn(),
+      canGoBack: jest.fn(() => false),
+    };
+    const navigation = {
+      addListener: jest.fn(() => () => undefined),
+      navigate: jest.fn(),
+    };
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: baseMeal(),
+      setMeal: jest.fn(),
+      updateMeal: jest.fn(),
+      setLastScreen: jest.fn(async () => undefined),
+      saveDraft: jest.fn(async () => undefined),
+    });
+
+    const { result } = renderHook(() =>
+      useMealCameraState({
+        navigation: navigation as never,
+        flow: flow as never,
+        params: {},
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleTakePicture();
+    });
+
+    expect(mockedGetSampleMealUri).not.toHaveBeenCalled();
+    expect(flow.goTo).not.toHaveBeenCalled();
+    expect(result.current.premiumModal).toBe(false);
+    expect(navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
+  });
+
+  it("does not route accepted photos to preparing review without active consent", async () => {
+    mockUseUserProfileContext.mockReturnValue({
+      userData: {
+        profile: {
+          aiConsent: {
+            status: "granted",
+            grantedAt: "2026-06-01T10:00:00.000Z",
+            revokedAt: "2026-06-02T10:00:00.000Z",
+          },
+        },
+      },
+    });
+    const flow = {
+      goTo: jest.fn(),
+      replace: jest.fn(),
+      goBack: jest.fn(),
+      canGoBack: jest.fn(() => false),
+    };
+    const navigation = {
+      addListener: jest.fn(() => () => undefined),
+      navigate: jest.fn(),
+    };
+    const updateMeal = jest.fn();
+    const saveDraft = jest.fn(async () => undefined);
+
+    mockUseMealDraftContext.mockReturnValue({
+      meal: baseMeal(),
+      setMeal: jest.fn(),
+      updateMeal,
+      setLastScreen: jest.fn(async () => undefined),
+      saveDraft,
+    });
+
+    const { result } = renderHook(() =>
+      useMealCameraState({
+        navigation: navigation as never,
+        flow: flow as never,
+        params: {},
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleAccept("file:///meal.jpg");
+    });
+
+    expect(updateMeal).not.toHaveBeenCalled();
+    expect(saveDraft).not.toHaveBeenCalled();
+    expect(flow.goTo).not.toHaveBeenCalled();
+    expect(flow.replace).not.toHaveBeenCalled();
+    expect(navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
   });
 
   it("opens insufficient-credits modal when photo AI is not affordable", async () => {

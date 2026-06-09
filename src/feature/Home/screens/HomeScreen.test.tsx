@@ -5,7 +5,7 @@ import {
   Text as mockText,
   View as mockView,
 } from "react-native";
-import { fireEvent, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import HomeScreen from "@/feature/Home/screens/HomeScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -20,6 +20,30 @@ const mockUseAccessContext = jest.fn();
 const mockUseMealAddMethodState = jest.fn();
 const mockUseWeeklyReport = jest.fn();
 const mockUseCoach = jest.fn();
+const mockGetSyncCounts =
+  jest.fn<(...args: unknown[]) => Promise<{ dead: number; pending: number }>>();
+const mockGetDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
+const mockRetryDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockEmit = jest.fn<(...args: unknown[]) => void>();
+const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
+
+const HOME_MEAL_DEAD_LETTER_KINDS = [
+  "upsert",
+  "delete",
+  "upsert_mymeal",
+  "delete_mymeal",
+];
+
+function emitMockEvent(eventName: string, payload?: unknown) {
+  const handlers = mockEventHandlers.get(eventName);
+  if (!handlers) return;
+  for (const handler of Array.from(handlers)) {
+    handler(payload);
+  }
+}
 
 jest.mock("@/hooks/useMeals", () => ({
   useMeals: (uid: string | null | undefined) => mockUseMeals(uid),
@@ -53,6 +77,28 @@ jest.mock("@/hooks/useCoach", () => ({
   useCoach: (params: unknown) => mockUseCoach(params),
 }));
 
+jest.mock("@/services/offline/queue.repo", () => ({
+  getSyncCounts: (...args: unknown[]) => mockGetSyncCounts(...args),
+  getDeadLetterOps: (...args: unknown[]) => mockGetDeadLetterOps(...args),
+  retryDeadLetterOps: (...args: unknown[]) => mockRetryDeadLetterOps(...args),
+}));
+
+jest.mock("@/services/offline/sync.engine", () => ({
+  requestSync: (...args: unknown[]) => mockRequestSync(...args),
+}));
+
+jest.mock("@/services/core/events", () => ({
+  emit: (...args: unknown[]) => mockEmit(...args),
+  on: (eventName: string, handler: (payload?: unknown) => void) => {
+    const handlers = mockEventHandlers.get(eventName) ?? new Set();
+    handlers.add(handler);
+    mockEventHandlers.set(eventName, handlers);
+    return () => {
+      handlers.delete(handler);
+    };
+  },
+}));
+
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
@@ -60,7 +106,14 @@ jest.mock("react-i18next", () => ({
       key: string,
       options?:
         | string
-        | { count?: number; method?: string; defaultValue?: string; name?: string },
+        | {
+            count?: number;
+            method?: string;
+            defaultValue?: string;
+            name?: string;
+            pending?: number;
+            operation?: string;
+          },
     ) => {
       if (typeof options === "string") {
         return options;
@@ -91,6 +144,29 @@ jest.mock("react-i18next", () => ({
       if (key === "home:hero.methodCta.saved") return "Use saved meal";
       if (key === "home:hero.methodCta.manual") return "Enter manually";
       if (key === "home:hero.methodCta.default") return "Add meal";
+      if (key === "common:retry") return "Retry";
+      if (key === "common:unknownError") return "Something went wrong.";
+      if (key === "history.deadLetterTitle") {
+        return `${options?.count ?? 0} meal changes need retry.`;
+      }
+      if (key === "history.deadLetterSubtitle") {
+        return `Retry sends them back to sync. Pending meal changes: ${
+          options?.pending ?? 0
+        }.`;
+      }
+      if (key === "history.deadLetterSubtitleWithLast") {
+        return `Retry sends them back to sync. Pending meal changes: ${
+          options?.pending ?? 0
+        }. Last failed: ${options?.operation}.`;
+      }
+      if (key === "history.deadLetterOperation.upsert") return "meal update";
+      if (key === "history.deadLetterOperation.delete") return "meal delete";
+      if (key === "history.deadLetterOperation.upsert_mymeal") {
+        return "saved meal update";
+      }
+      if (key === "history.deadLetterOperation.delete_mymeal") {
+        return "saved meal delete";
+      }
       if (key === "home:hero.pastIncomplete.meta") return "You missed a meal log";
       if (key === "home:hero.pastIncomplete.cta") return "Add a missed meal";
       if (key === "home:hero.pastIncomplete.supportCopy") {
@@ -367,6 +443,11 @@ describe("HomeScreen", () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-03-18T08:00:00.000Z"));
     jest.clearAllMocks();
+    mockEventHandlers.clear();
+    mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([]);
+    mockRetryDeadLetterOps.mockResolvedValue(0);
+    mockRequestSync.mockResolvedValue(undefined);
 
     mockUseUserProfileContext.mockReturnValue({
       userData: {
@@ -386,8 +467,10 @@ describe("HomeScreen", () => {
           aiPreferences: {
             stylePersona: "calm_guide",
           },
-          consents: {
-            aiHealthDataConsentAt: null,
+          aiConsent: {
+            status: "not_granted",
+            grantedAt: null,
+            revokedAt: null,
           },
         },
       },
@@ -639,6 +722,191 @@ describe("HomeScreen", () => {
     });
 
     expect(getMeals).not.toHaveBeenCalled();
+  });
+
+  it("does not render the Home dead-letter recovery surface when there are no dead letters", async () => {
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledWith("user-1", {
+        kinds: HOME_MEAL_DEAD_LETTER_KINDS,
+      });
+    });
+
+    expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
+  });
+
+  it("renders Home dead-letter diagnostics with count, pending meal changes and retry action", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 2, pending: 3 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "upsert_mymeal" }]);
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+    });
+
+    expect(getByText("2 meal changes need retry.")).toBeTruthy();
+    expect(
+      getByText(
+        "Retry sends them back to sync. Pending meal changes: 3. Last failed: saved meal update.",
+      ),
+    ).toBeTruthy();
+    expect(getByTestId("home-dead-letter-retry-button")).toBeTruthy();
+    expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+      uid: "user-1",
+      kinds: HOME_MEAL_DEAD_LETTER_KINDS,
+      limit: 1,
+    });
+  });
+
+  it("keeps Home dead-letter diagnostics visible when a later diagnostic refresh fails", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 2 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "upsert_mymeal" }]);
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+    });
+    expect(getByText("1 meal changes need retry.")).toBeTruthy();
+
+    mockGetSyncCounts.mockRejectedValueOnce(new Error("diagnostic read failed"));
+    mockGetDeadLetterOps.mockResolvedValueOnce([{ kind: "delete" }]);
+
+    await act(async () => {
+      emitMockEvent("sync:op:dead", { uid: "user-1" });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(2);
+    });
+    expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+    expect(getByText("1 meal changes need retry.")).toBeTruthy();
+    expect(
+      getByText(
+        "Retry sends them back to sync. Pending meal changes: 2. Last failed: saved meal update.",
+      ),
+    ).toBeTruthy();
+    expect(mockEmit).not.toHaveBeenCalled();
+  });
+
+  it("retries Home dead-letter meal ops once and requests both retry domains", async () => {
+    let resolveRetry: (count: number) => void = () => undefined;
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "delete" }]);
+    mockRetryDeadLetterOps.mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          resolveRetry = resolve;
+        }),
+    );
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-dead-letter-retry-button"));
+    fireEvent.press(getByTestId("home-dead-letter-retry-button"));
+
+    expect(mockRetryDeadLetterOps).toHaveBeenCalledTimes(1);
+    expect(mockRetryDeadLetterOps).toHaveBeenCalledWith({
+      uid: "user-1",
+      kinds: HOME_MEAL_DEAD_LETTER_KINDS,
+    });
+
+    resolveRetry(1);
+
+    await waitFor(() => {
+      expect(mockRequestSync).toHaveBeenCalledTimes(2);
+    });
+    expect(mockRequestSync).toHaveBeenNthCalledWith(1, {
+      uid: "user-1",
+      domain: "meals",
+      reason: "retry",
+    });
+    expect(mockRequestSync).toHaveBeenNthCalledWith(2, {
+      uid: "user-1",
+      domain: "myMeals",
+      reason: "retry",
+    });
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "history.deadLetterRetryQueued",
+      ns: "meals",
+      options: { count: 1 },
+    });
+  });
+
+  it("refreshes Home dead-letter diagnostics for same-uid sync events", async () => {
+    mockGetSyncCounts
+      .mockResolvedValueOnce({ dead: 0, pending: 0 })
+      .mockResolvedValueOnce({ dead: 1, pending: 2 })
+      .mockResolvedValueOnce({ dead: 2, pending: 5 });
+    mockGetDeadLetterOps
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ kind: "upsert" }])
+      .mockResolvedValueOnce([{ kind: "delete_mymeal" }]);
+
+    const navigation = createNavigation();
+    const { getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+
+    emitMockEvent("sync:op:dead", { uid: "user-1" });
+
+    await waitFor(() => {
+      expect(getByText("1 meal changes need retry.")).toBeTruthy();
+    });
+    expect(
+      getByText(
+        "Retry sends them back to sync. Pending meal changes: 2. Last failed: meal update.",
+      ),
+    ).toBeTruthy();
+
+    emitMockEvent("sync:op:retried", { uid: "user-1" });
+
+    await waitFor(() => {
+      expect(getByText("2 meal changes need retry.")).toBeTruthy();
+    });
+    expect(
+      getByText(
+        "Retry sends them back to sync. Pending meal changes: 5. Last failed: saved meal delete.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("does not refresh Home dead-letter diagnostics for unrelated uid sync events", async () => {
+    const navigation = createNavigation();
+    renderWithTheme(<HomeScreen navigation={navigation as never} />);
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+    const callsAfterInitialRefresh = mockGetSyncCounts.mock.calls.length;
+
+    emitMockEvent("sync:op:dead", { uid: "other-user" });
+    emitMockEvent("sync:op:retried", { uid: "other-user" });
+
+    expect(mockGetSyncCounts).toHaveBeenCalledTimes(callsAfterInitialRefresh);
   });
 
   it("hides weekly report card for free users", () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { Meal } from "@/types/meal";
+import type { Meal, MealSyncState } from "@/types/meal";
 import {
   deleteSavedMeal,
   fetchSavedMealsPage,
@@ -242,4 +242,50 @@ describe("savedMealsService", () => {
     );
     expect(mockSyncMyMeals).toHaveBeenCalledWith("user-1");
   });
+
+  it.each(["conflict", "failed"] satisfies MealSyncState[])(
+    "persists reviewed %s saved meals as pending queued edits",
+    async (initialSyncState) => {
+      await updateSavedMeal({
+        uid: "user-2",
+        cloudId: "cloud-2",
+        meal: meal({
+          userUid: "stale-user",
+          mealId: "stale-meal-id",
+          cloudId: "stale-cloud-id",
+          name: "Remote conflict",
+          type: "lunch",
+          timestamp: "2026-03-01T08:00:00.000Z",
+          createdAt: "2026-03-01T08:00:00.000Z",
+          updatedAt: "2026-03-01T09:00:00.000Z",
+          syncState: initialSyncState,
+        }),
+        name: "Reviewed saved meal",
+        type: "snack",
+        timestampISO: "2026-03-03T12:00:00.000Z",
+        createdAtISO: "2026-03-01T08:00:00.000Z",
+        nowISO: "2026-03-03T12:30:00.000Z",
+      });
+
+      const expectedPayload = expect.objectContaining({
+        userUid: "user-2",
+        cloudId: "cloud-2",
+        mealId: "cloud-2",
+        source: "saved",
+        name: "Reviewed saved meal",
+        type: "snack",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        createdAt: "2026-03-01T08:00:00.000Z",
+        updatedAt: "2026-03-03T12:30:00.000Z",
+        syncState: "pending",
+      });
+
+      expect(mockUpsertMyMealLocal).toHaveBeenCalledWith(expectedPayload);
+      expect(mockEnqueueMyMealUpsert).toHaveBeenCalledWith(
+        "user-2",
+        expectedPayload,
+      );
+      expect(mockSyncMyMeals).toHaveBeenCalledWith("user-2");
+    },
+  );
 });

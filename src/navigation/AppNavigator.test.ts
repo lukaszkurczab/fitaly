@@ -1,11 +1,287 @@
+import React from "react";
+import { render } from "@testing-library/react-native";
 import {
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTES,
   resolveEffectiveBootstrapState,
   resolveInitialRouteName,
   shouldRenderProfileGateStack,
   shouldRenderProductStack,
 } from "@/navigation/appNavigatorState";
+import AppNavigator from "@/navigation/AppNavigator";
+import type { RootStackParamList } from "@/navigation/navigate";
+import type { UserAiConsent } from "@/types";
+
+type RegisteredStackScreen = {
+  name: keyof RootStackParamList;
+  component: unknown;
+  initialParams?: unknown;
+};
+
+const mockRegisteredStackScreens: RegisteredStackScreen[] = [];
+const mockNavigatorInitialRouteNames: Array<keyof RootStackParamList> = [];
+
+let mockAuthContext = {
+  authLoading: false,
+  isAuthenticated: true,
+  uid: "user-1",
+};
+
+let mockUserProfileContext = {
+  profileBootstrapState: "profileReady",
+  userData: {
+    uid: "user-1",
+    profile: {
+      readiness: {
+        status: "ready",
+      },
+    },
+  },
+};
+
+jest.mock("@react-navigation/stack", () => {
+  const ReactActual = jest.requireActual("react") as typeof import("react");
+
+  return {
+    createStackNavigator: jest.fn(() => ({
+      Navigator: ({
+        children,
+        initialRouteName,
+      }: {
+        children: React.ReactNode;
+        initialRouteName: keyof RootStackParamList;
+      }) => {
+        mockNavigatorInitialRouteNames.push(initialRouteName);
+        return ReactActual.createElement(
+          ReactActual.Fragment,
+          null,
+          children,
+        );
+      },
+      Screen: (props: RegisteredStackScreen) => {
+        mockRegisteredStackScreens.push(props);
+        return null;
+      },
+    })),
+  };
+});
+
+jest.mock("@/context/AuthContext", () => ({
+  useAuthContext: () => mockAuthContext,
+}));
+
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUserProfileContext,
+}));
+
+jest.mock("@/hooks/useSignupProfileBootstrapPending", () => ({
+  useSignupProfileBootstrapPending: () => false,
+}));
+
+jest.mock("@/services/e2e/config", () => ({
+  isE2EModeEnabled: () => false,
+}));
+
+jest.mock("@/services/gamification/streakService", () => ({
+  ensureStreakDoc: jest.fn(async () => undefined),
+  resetIfMissed: jest.fn(async () => undefined),
+}));
+
+jest.mock("@/services/gamification/badgeService", () => ({
+  primeBadges: jest.fn(async () => undefined),
+}));
+
+jest.mock("@/services/core/errorLogger", () => ({
+  logWarning: jest.fn(),
+}));
+
+jest.mock("@/feature/Auth/services/authService", () => ({
+  authLogout: jest.fn(async () => undefined),
+}));
+
+jest.mock("@/components/ErrorBoundary", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+jest.mock("@/feature/Home/screens/HomeScreen", () => ({
+  __esModule: true,
+  default: "HomeScreen",
+}));
+jest.mock("@/feature/Home/screens/WeeklyReportScreen", () => ({
+  __esModule: true,
+  default: "WeeklyReportScreen",
+}));
+jest.mock("@/feature/History/screens/HistoryListScreen", () => ({
+  __esModule: true,
+  default: "HistoryListScreen",
+}));
+jest.mock("@/feature/Statistics/screens/StatisticsScreen", () => ({
+  __esModule: true,
+  default: "StatisticsScreen",
+}));
+jest.mock("@/feature/Auth/screens/LoginScreen", () => ({
+  __esModule: true,
+  default: "LoginScreen",
+}));
+jest.mock("@/feature/Auth/screens/RegisterScreen", () => ({
+  __esModule: true,
+  default: "RegisterScreen",
+}));
+jest.mock("@/feature/Meals/screens/MealAddMethodScreen", () => ({
+  __esModule: true,
+  default: "MealAddMethodScreen",
+}));
+jest.mock("@feature/UserProfile/screens/UserProfileScreen", () => ({
+  __esModule: true,
+  default: "ProfileScreen",
+}));
+jest.mock("@/feature/Auth/screens/TermsScreen", () => ({
+  __esModule: true,
+  default: "TermsScreen",
+}));
+jest.mock("@/feature/Auth/screens/PrivacyScreen", () => ({
+  __esModule: true,
+  default: "PrivacyScreen",
+}));
+jest.mock("@/feature/Auth/screens/ResetPasswordScreen", () => ({
+  __esModule: true,
+  default: "ResetPasswordScreen",
+}));
+jest.mock("@/feature/Auth/screens/CheckMailboxScreen", () => ({
+  __esModule: true,
+  default: "CheckMailboxScreen",
+}));
+jest.mock("@/feature/Onboarding/screens/OnboardingScreen", () => ({
+  __esModule: true,
+  default: "OnboardingScreen",
+}));
+jest.mock("@/screens/LoadingScreen", () => ({
+  __esModule: true,
+  default: "LoadingScreen",
+}));
+jest.mock("@/feature/History/screens/MealDetailsScreen", () => ({
+  __esModule: true,
+  default: "MealDetailsScreen",
+}));
+jest.mock("@/feature/History/screens/EditHistoryMealDetailsScreen", () => ({
+  __esModule: true,
+  default: "EditHistoryMealDetailsScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/EditUserDataScreen", () => ({
+  __esModule: true,
+  default: "EditUserDataScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/ProfilePhotoPreviewScreen", () => ({
+  __esModule: true,
+  default: "ProfilePhotoPreviewScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/AvatarCameraScreen", () => ({
+  __esModule: true,
+  default: "AvatarCameraScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/UsernameChangeScreen", () => ({
+  __esModule: true,
+  default: "UsernameChangeScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/ChangeEmailScreen", () => ({
+  __esModule: true,
+  default: "ChangeEmailScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/ChangeEmailCheckMailboxScreen", () => ({
+  __esModule: true,
+  default: "ChangeEmailCheckMailboxScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/ChangePasswordScreen", () => ({
+  __esModule: true,
+  default: "ChangePasswordScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/LanguageScreen", () => ({
+  __esModule: true,
+  default: "LanguageScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/SendFeedbackScreen", () => ({
+  __esModule: true,
+  default: "SendFeedbackScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/LegalPrivacyHubScreen", () => ({
+  __esModule: true,
+  default: "LegalPrivacyHubScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/PrivacyAiSettingsScreen", () => ({
+  __esModule: true,
+  default: "PrivacyAiSettingsScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/DataAiClarityScreen", () => ({
+  __esModule: true,
+  default: "DataAiClarityScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/HelpFeedbackHubScreen", () => ({
+  __esModule: true,
+  default: "HelpFeedbackHubScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/ContactSupportScreen", () => ({
+  __esModule: true,
+  default: "ContactSupportScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/AppSettingsScreen", () => ({
+  __esModule: true,
+  default: "AppSettingsScreen",
+}));
+jest.mock("@/feature/Subscription/screens/ManageSubscriptionScreen", () => ({
+  __esModule: true,
+  default: "ManageSubscriptionScreen",
+}));
+jest.mock("@/feature/History/screens/SavedMealsScreen", () => ({
+  __esModule: true,
+  default: "SavedMealsScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/NotificationsScreen", () => ({
+  __esModule: true,
+  default: "NotificationsScreen",
+}));
+jest.mock("@/feature/UserProfile/screens/DeleteAccountScreen", () => ({
+  __esModule: true,
+  default: "DeleteAccountScreen",
+}));
+jest.mock("@/feature/Meals/screens/MealShareScreen", () => ({
+  __esModule: true,
+  default: "MealShareScreen",
+}));
+jest.mock("@/feature/AI/screens/ChatScreen", () => ({
+  __esModule: true,
+  default: "ChatScreen",
+}));
+jest.mock("@/feature/History/screens/SavedMealsCameraScreen", () => ({
+  __esModule: true,
+  default: "SavedMealsCameraScreen",
+}));
+jest.mock("@feature/Meals/screens/AddMealScreen", () => ({
+  __esModule: true,
+  default: "AddMealScreen",
+}));
 
 describe("AppNavigator onboarding gate", () => {
+  beforeEach(() => {
+    mockRegisteredStackScreens.length = 0;
+    mockNavigatorInitialRouteNames.length = 0;
+    mockAuthContext = {
+      authLoading: false,
+      isAuthenticated: true,
+      uid: "user-1",
+    };
+    mockUserProfileContext = {
+      profileBootstrapState: "profileReady",
+      userData: {
+        uid: "user-1",
+        profile: {
+          readiness: {
+            status: "ready",
+          },
+        },
+      },
+    };
+  });
+
   it("starts unauthenticated users on a registered auth screen", () => {
     expect(resolveInitialRouteName("unauthenticated", undefined)).toBe("Login");
   });
@@ -50,5 +326,43 @@ describe("AppNavigator onboarding gate", () => {
     expect(resolveInitialRouteName("profileReady", "ready")).toBe("Home");
     expect(shouldRenderProductStack("profileMissing", "ready")).toBe(false);
     expect(resolveInitialRouteName("profileMissing", "ready")).toBe("Login");
+  });
+
+  it("keeps required non-AI routes in the product stack contract for revoked AI consent profiles", () => {
+    const revokedAiConsent = {
+      status: "revoked",
+      grantedAt: "2026-05-01T10:00:00Z",
+      revokedAt: "2026-05-02T10:00:00Z",
+    } satisfies UserAiConsent;
+
+    expect(revokedAiConsent.status).toBe("revoked");
+    expect(shouldRenderProductStack("profileReady", "ready")).toBe(true);
+    expect(resolveInitialRouteName("profileReady", "ready")).toBe("Home");
+    expect(PRODUCT_STACK_NON_AI_SURFACE_ROUTES).toEqual([
+      "Home",
+      "HistoryList",
+      "AddMeal",
+      "Statistics",
+    ]);
+  });
+
+  it("registers Privacy & AI settings in the actual product stack", () => {
+    render(React.createElement(AppNavigator));
+
+    const registeredRouteNames = mockRegisteredStackScreens.map(
+      (screen) => screen.name,
+    );
+    const privacyAiSettingsRoute = mockRegisteredStackScreens.find(
+      (screen) => screen.name === "PrivacyAiSettings",
+    );
+
+    expect(mockNavigatorInitialRouteNames).toEqual(["Home"]);
+    expect(registeredRouteNames).toContain("LegalPrivacyHub");
+    expect(registeredRouteNames).toContain("PrivacyAiSettings");
+    expect(registeredRouteNames).toContain("DataAiClarity");
+    expect(privacyAiSettingsRoute?.component).toBe("PrivacyAiSettingsScreen");
+    expect(
+      registeredRouteNames.filter((name) => name === "PrivacyAiSettings"),
+    ).toHaveLength(1);
   });
 });

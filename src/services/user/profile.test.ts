@@ -90,6 +90,10 @@ jest.mock("react-native-zip-archive", () => ({
   zip: jest.fn(),
 }));
 
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "profile-uuid-1"),
+}));
+
 describe("user/profile", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -192,8 +196,10 @@ describe("user/profile", () => {
         aiPreferences: {
           stylePersona: "calm_guide",
         },
-        consents: {
-          aiHealthDataConsentAt: null,
+        aiConsent: {
+          status: "not_granted",
+          grantedAt: null,
+          revokedAt: null,
         },
         readiness: {
           status: "needs_profile",
@@ -212,13 +218,21 @@ describe("user/profile", () => {
     mockFetchUserProfileRemote.mockResolvedValue(profile);
     await updateUserLanguageInFirestore("pl");
 
-    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(1, profile);
-    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(2, {
-      profile: {
-        ...profile.profile,
-        language: "pl",
+    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(
+      1,
+      profile,
+      { clientMutationId: "profile-direct:upsert:u1:profile-uuid-1" },
+    );
+    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(
+      2,
+      {
+        profile: {
+          ...profile.profile,
+          language: "pl",
+        },
       },
-    });
+      { clientMutationId: "profile-direct:language:u1:profile-uuid-1" },
+    );
   });
 
   it("skips language update when the profile payload is missing", async () => {

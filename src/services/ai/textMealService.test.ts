@@ -156,6 +156,34 @@ describe("textMealService", () => {
     });
   });
 
+  it("maps structured backend consent rejection into explicit consent service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 403,
+      details: {
+        detail: {
+          code: "AI_CONSENT_REQUIRED",
+          message: "AI health data consent required.",
+          aiConsent: {
+            required: true,
+            scope: "global_ai_health_data",
+          },
+        },
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractIngredientsFromText } = require("@/services/ai/textMealService");
+
+    await expect(
+      extractIngredientsFromText("user-1", { name: "burger" }, { lang: "en" }),
+    ).rejects.toMatchObject({
+      code: "ai/consent-required",
+      source: "TextMealService",
+      retryable: false,
+      message: "AI health data consent required.",
+    });
+  });
+
   it("maps 503 into ai/unavailable service error", async () => {
     mockPost.mockRejectedValueOnce(Object.assign(new Error("unavailable"), { status: 503 }));
 
@@ -168,6 +196,114 @@ describe("textMealService", () => {
       code: "ai/unavailable",
       source: "TextMealService",
       retryable: true,
+    });
+  });
+
+  it("maps structured provider unavailable rejection to provider-unavailable UX", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 503,
+      details: {
+        detail: {
+          code: "AI_CHAT_PROVIDER_UNAVAILABLE",
+          message: "AI provider is temporarily unavailable.",
+        },
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractIngredientsFromText } = require("@/services/ai/textMealService");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getAiUxErrorType } = require("@/services/ai/uxError");
+
+    try {
+      await extractIngredientsFromText("user-1", { name: "burger" }, { lang: "en" });
+      throw new Error("Expected extractIngredientsFromText to reject");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "ai/unavailable",
+        source: "TextMealService",
+        retryable: true,
+        message: "AI provider is temporarily unavailable.",
+      });
+      expect(getAiUxErrorType(error)).toBe("AI_CHAT_PROVIDER_UNAVAILABLE");
+    }
+  });
+
+  it("maps structured provider timeout rejection to timeout UX", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 504,
+      details: {
+        detail: {
+          code: "AI_CHAT_TIMEOUT",
+          message: "AI provider timed out before a response was generated.",
+        },
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractIngredientsFromText } = require("@/services/ai/textMealService");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getAiUxErrorType } = require("@/services/ai/uxError");
+
+    try {
+      await extractIngredientsFromText("user-1", { name: "burger" }, { lang: "en" });
+      throw new Error("Expected extractIngredientsFromText to reject");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "api/timeout",
+        source: "TextMealService",
+        retryable: true,
+        message: "AI provider timed out before a response was generated.",
+      });
+      expect(getAiUxErrorType(error)).toBe("AI_CHAT_TIMEOUT");
+    }
+  });
+
+  it("maps structured meal-analysis disabled rejection into explicit disabled service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 503,
+      details: {
+        detail: {
+          code: "AI_MEAL_ANALYSIS_DISABLED",
+          message: "Meal analysis AI is temporarily disabled.",
+        },
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractIngredientsFromText } = require("@/services/ai/textMealService");
+
+    await expect(
+      extractIngredientsFromText("user-1", { name: "burger" }, { lang: "en" }),
+    ).rejects.toMatchObject({
+      code: "ai/meal-analysis-disabled",
+      source: "TextMealService",
+      retryable: false,
+      message: "Meal analysis AI is temporarily disabled.",
+    });
+  });
+
+  it("maps structured meal-analysis idempotency conflict into explicit service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 409,
+      details: {
+        detail: {
+          code: "AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT",
+          message: "Meal analysis request is already in progress or completed.",
+        },
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractIngredientsFromText } = require("@/services/ai/textMealService");
+
+    await expect(
+      extractIngredientsFromText("user-1", { name: "burger" }, { lang: "en" }),
+    ).rejects.toMatchObject({
+      code: "ai/meal-analysis-idempotency-conflict",
+      source: "TextMealService",
+      retryable: false,
+      message: "Meal analysis request is already in progress or completed.",
     });
   });
 

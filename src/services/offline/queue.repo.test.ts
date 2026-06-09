@@ -11,6 +11,7 @@ const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
 
 type QueuedOp = {
   id: number;
+  clientMutationId: string;
   cloudId: string;
   uid: string;
   kind: string;
@@ -67,17 +68,30 @@ function applyQueueMutation(sql: string, params: unknown[] = []) {
   }
 
   if (sql.includes("INSERT INTO op_queue")) {
-    const [cloudId, uid] = params as string[];
+    const hasClientMutationId = sql.includes("client_mutation_id");
+    const offset = hasClientMutationId ? 1 : 0;
+    const clientMutationId = hasClientMutationId
+      ? String(params[0])
+      : `legacy:${params[1]}:${params[2]}:${params[0]}`;
+    const cloudId = String(params[offset]);
+    const uid = String(params[offset + 1]);
+    const maybeKind = params[offset + 2];
     const kind =
-      typeof params[2] === "string" && !String(params[2]).startsWith("{")
-        ? params[2]
+      typeof maybeKind === "string" && !String(maybeKind).startsWith("{")
+        ? maybeKind
         : sql.includes("'upsert_mymeal'")
           ? "upsert_mymeal"
-          : "upsert";
-    const payloadIndex = params.length === 5 ? 3 : 2;
-    const updatedAtIndex = params.length === 5 ? 4 : 3;
+          : sql.includes("'update_user_profile'")
+            ? "update_user_profile"
+            : sql.includes("'upload_user_avatar'")
+              ? "upload_user_avatar"
+              : "upsert";
+    const kindIsParam = kind === maybeKind;
+    const payloadIndex = offset + (kindIsParam ? 3 : 2);
+    const updatedAtIndex = payloadIndex + 1;
     queuedOps.push({
       id: nextQueueId++,
+      clientMutationId,
       cloudId,
       uid,
       kind,
@@ -105,6 +119,7 @@ function selectDeadOps(_sql: string, params: unknown[] = []) {
     .map((op) => ({
       id: op.id,
       op_id: op.opId,
+      client_mutation_id: op.clientMutationId,
       cloud_id: op.cloudId,
       user_uid: op.uid,
       kind: op.kind,
@@ -120,6 +135,7 @@ function selectDeadOps(_sql: string, params: unknown[] = []) {
 function toQueueRow(op: QueuedOp) {
   return {
     id: op.id,
+    client_mutation_id: op.clientMutationId,
     cloud_id: op.cloudId,
     user_uid: op.uid,
     kind: op.kind,
@@ -231,6 +247,7 @@ const baseMeal = (overrides: Partial<Meal> = {}): Meal => ({
 function queuedOp(overrides: Partial<QueuedOp> = {}): QueuedOp {
   return {
     id: nextQueueId++,
+    clientMutationId: "mutation-queued",
     cloudId: "cloud-1",
     uid: "user-1",
     kind: "upsert",
@@ -245,6 +262,7 @@ function deadOp(overrides: Partial<DeadOp> = {}): DeadOp {
   return {
     id: nextDeadId++,
     opId: 10 + deadOps.length,
+    clientMutationId: "mutation-dead",
     cloudId: "cloud-1",
     uid: "user-1",
     kind: "upsert",
@@ -295,6 +313,7 @@ describe("queue.repo", () => {
       2,
       expect.stringContaining("INSERT INTO op_queue"),
       [
+        "meal-sync:upsert:user-1:cloud-1:uuid-generated",
         "cloud-1",
         "user-1",
         expect.stringContaining('"cloudId":"cloud-1"'),
@@ -334,6 +353,7 @@ describe("queue.repo", () => {
     expect(queuedOps).toHaveLength(1);
     expect(queuedOps[0]).toEqual(
       expect.objectContaining({
+        clientMutationId: "meal-sync:upsert:user-1:cloud-1:uuid-generated",
         cloudId: "cloud-1",
         kind: "upsert",
         updatedAt: "2026-02-25T10:30:00.000Z",
@@ -367,6 +387,7 @@ describe("queue.repo", () => {
       2,
       expect.stringContaining("INSERT INTO op_queue"),
       [
+        "meal-sync:upsert_mymeal:user-1:uuid-generated:uuid-generated",
         "uuid-generated",
         "user-1",
         expect.stringContaining('"source":"manual"'),
@@ -461,6 +482,7 @@ describe("queue.repo", () => {
       {
         id: 1,
         cloudId: "cloud-1",
+        clientMutationId: "mutation-dead-retry",
         uid: "user-1",
         kind: "upsert",
         payload: baseMeal({
@@ -476,6 +498,7 @@ describe("queue.repo", () => {
       {
         id: 10,
         opId: 1,
+        clientMutationId: "mutation-dead-retry",
         cloudId: "cloud-1",
         uid: "user-1",
         kind: "upsert",
@@ -514,6 +537,7 @@ describe("queue.repo", () => {
       expect.objectContaining({
         cloudId: "cloud-1",
         kind: "upsert",
+        clientMutationId: "mutation-dead-retry",
         attempts: 0,
         payload: expect.objectContaining({ syncState: "failed" }),
       }),

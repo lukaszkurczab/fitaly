@@ -9,6 +9,7 @@ import {
   updatePassword,
 } from "@react-native-firebase/auth";
 import { getApp } from "@react-native-firebase/app";
+import { v4 as uuidv4 } from "uuid";
 import { get, post } from "@/services/core/apiClient";
 import { parseUserData } from "./profile.dto";
 import { createServiceError } from "@/services/contracts/serviceError";
@@ -45,13 +46,19 @@ function normalizeInitialLanguage(language: string | null | undefined): "en" | "
   return "en";
 }
 
+function newProfileMutationId(kind: string, uid?: string | null): string {
+  return `profile-direct:${kind}:${uid || "unknown"}:${uuidv4()}`;
+}
+
 export async function getUserLocal(): Promise<UserData | null> {
   const data = await fetchUserProfileRemote();
   return data ? parseUserData(data) : null;
 }
 
 export async function upsertUserLocal(data: UserData): Promise<void> {
-  await mergeUserProfileRemote(data);
+  await mergeUserProfileRemote(data, {
+    clientMutationId: newProfileMutationId("upsert", data.uid),
+  });
 }
 
 export async function fetchUserFromCloud(): Promise<UserData | null> {
@@ -62,12 +69,17 @@ export async function fetchUserFromCloud(): Promise<UserData | null> {
 export async function updateUserLanguageInFirestore(language: string) {
   const current = await fetchUserProfileRemote();
   if (!current?.profile) return;
-  await mergeUserProfileRemote({
-    profile: {
-      ...current.profile,
-      language: normalizeLanguageCode(language),
+  await mergeUserProfileRemote(
+    {
+      profile: {
+        ...current.profile,
+        language: normalizeLanguageCode(language),
+      },
     },
-  });
+    {
+      clientMutationId: newProfileMutationId("language", current.uid),
+    },
+  );
 }
 
 export async function uploadAndSaveAvatar({

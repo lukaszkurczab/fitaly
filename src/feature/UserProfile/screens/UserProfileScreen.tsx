@@ -17,6 +17,7 @@ import AvatarBadge from "@/components/AvatarBadge";
 import { usePremiumContext } from "@/context/PremiumContext";
 import { AccountIdentityCard } from "@/feature/UserProfile/components/AccountIdentityCard";
 import { useUserProfileState } from "@/feature/UserProfile/hooks/useUserProfileState";
+import type { ProfileSyncState } from "@/hooks/useUserProfile";
 
 type ProfileNavigation = StackNavigationProp<RootStackParamList, "Profile">;
 
@@ -97,6 +98,10 @@ export default function UserProfileScreen({
     style: styles.accountRow,
     chevronSize: 20,
   };
+  const syncNotice =
+    state.syncState === "synced"
+      ? null
+      : getProfileSyncNotice(state.syncState, theme);
 
   return (
     <Layout>
@@ -142,34 +147,23 @@ export default function UserProfileScreen({
             onPress={() => navigation.navigate("EditUserData")}
           />
 
-          {state.syncState !== "synced" ? (
+          {syncNotice ? (
             <View style={styles.syncStack}>
               <InfoBlock
-                title={
-                  state.syncState === "pending"
-                    ? t("sync.pendingTitle")
-                    : t("sync.conflictTitle")
-                }
-                body={
-                  state.syncState === "pending"
-                    ? t("sync.pending")
-                    : t("sync.conflict")
-                }
-                tone={state.syncState === "pending" ? "info" : "warning"}
+                testID={`account-sync-${state.syncState}-notice`}
+                title={t(syncNotice.titleKey)}
+                body={t(syncNotice.bodyKey)}
+                tone={syncNotice.tone}
                 icon={
                   <AppIcon
-                    name={state.syncState === "pending" ? "info" : "refresh"}
+                    name={syncNotice.icon}
                     size={18}
-                    color={
-                      state.syncState === "pending"
-                        ? theme.info.text
-                        : theme.warning.text
-                    }
+                    color={syncNotice.iconColor}
                   />
                 }
               />
 
-              {state.syncState === "conflict" ? (
+              {state.syncState === "dead-letter" ? (
                 <Button
                   testID="account-sync-retry-button"
                   label={t("sync.retry")}
@@ -285,6 +279,35 @@ export default function UserProfileScreen({
       />
     </Layout>
   );
+}
+
+function getProfileSyncNotice(
+  syncState: Exclude<ProfileSyncState, "synced">,
+  theme: ReturnType<typeof useTheme>,
+): {
+  titleKey: string;
+  bodyKey: string;
+  tone: "info" | "warning";
+  icon: AppIconName;
+  iconColor: string;
+} {
+  if (syncState === "pending") {
+    return {
+      titleKey: "sync.pendingTitle",
+      bodyKey: "sync.pending",
+      tone: "info",
+      icon: "info",
+      iconColor: theme.info.text,
+    };
+  }
+
+  return {
+    titleKey: "sync.deadLetterTitle",
+    bodyKey: "sync.deadLetter",
+    tone: "warning",
+    icon: "refresh",
+    iconColor: theme.warning.text,
+  };
 }
 
 const renderRowIcon = (

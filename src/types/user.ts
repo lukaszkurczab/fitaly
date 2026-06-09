@@ -15,6 +15,7 @@ export type UserPlan = "free" | "premium";
 export type SyncState = "synced" | "pending" | "conflict";
 export type UserLanguage = "en" | "pl";
 export type ReadinessStatus = "needs_profile" | "needs_ai_consent" | "ready";
+export type AiConsentStatus = "not_granted" | "granted" | "revoked";
 
 export type UserReadiness = {
   status: ReadinessStatus;
@@ -44,15 +45,17 @@ export type UserAiPreferences = {
   stylePersona: AiPersona;
 };
 
-export type UserConsents = {
-  aiHealthDataConsentAt: string | null;
+export type UserAiConsent = {
+  status: AiConsentStatus;
+  grantedAt: string | null;
+  revokedAt: string | null;
 };
 
 export type UserProfile = {
   language: UserLanguage;
   nutritionProfile: UserNutritionProfile;
   aiPreferences: UserAiPreferences;
-  consents: UserConsents;
+  aiConsent: UserAiConsent;
   readiness: UserReadiness;
 };
 

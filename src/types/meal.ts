@@ -6,8 +6,7 @@ export type MealInputMethod =
   | "photo"
   | "barcode"
   | "text"
-  | "saved"
-  | "quick_add";
+  | "saved";
 
 export type MealAiMeta = {
   model?: string | null;

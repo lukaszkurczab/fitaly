@@ -65,6 +65,7 @@ describe("meals strategy", () => {
 
     const handled = await mealsStrategy.handlePushOp("user-1", {
       id: 2,
+      client_mutation_id: "mutation-upsert-1",
       cloud_id: "meal-1",
       user_uid: "user-1",
       kind: "upsert",
@@ -86,6 +87,7 @@ describe("meals strategy", () => {
     expect(handled).toBe(true);
     expect(mockSaveMealRemote).toHaveBeenCalledWith({
       uid: "user-1",
+      clientMutationId: "mutation-upsert-1",
       meal: expect.objectContaining({
         cloudId: "meal-1",
         mealId: "meal-1",
@@ -99,6 +101,30 @@ describe("meals strategy", () => {
         cloudId: "meal-1",
         syncState: "synced",
       }),
+    );
+  });
+
+  it("handles meal delete push ops with the queued clientMutationId", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    const handled = await mealsStrategy.handlePushOp("user-1", {
+      id: 3,
+      client_mutation_id: "mutation-delete-1",
+      cloud_id: "meal-1",
+      user_uid: "user-1",
+      kind: "delete",
+      payload: { cloudId: "meal-1", deleted: true },
+      updated_at: "2026-03-03T12:30:00.000Z",
+      attempts: 0,
+    });
+
+    expect(handled).toBe(true);
+    expect(mockMarkMealDeletedRemote).toHaveBeenCalledWith(
+      "user-1",
+      "meal-1",
+      "2026-03-03T12:30:00.000Z",
+      { clientMutationId: "mutation-delete-1" },
     );
   });
 

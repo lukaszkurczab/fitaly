@@ -162,6 +162,33 @@ describe("saveMealTransaction", () => {
     );
   });
 
+  it("turns conflict review updates into pending queued mutations", async () => {
+    const { meal } = await saveMealTransaction({
+      uid: "user-1",
+      operation: "update",
+      nowISO: "2026-02-25T12:30:00.000Z",
+      meal: baseMeal({
+        name: "Reviewed conflict meal",
+        updatedAt: "2026-02-25T10:00:00.000Z",
+        syncState: "conflict",
+      }),
+    });
+
+    expect(meal).toEqual(
+      expect.objectContaining({
+        userUid: "user-1",
+        cloudId: "cloud-1",
+        mealId: "meal-1",
+        name: "Reviewed conflict meal",
+        updatedAt: "2026-02-25T12:30:00.000Z",
+        syncState: "pending",
+      }),
+    );
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(meal);
+    expect(mockEnqueueUpsert).toHaveBeenCalledWith("user-1", meal);
+    expect(mockEmit).toHaveBeenCalledWith("meal:updated", { uid: "user-1", meal });
+  });
+
   it("derives dayKey and local timing metadata from the final timestamp", async () => {
     const finalTimestamp = "2026-03-20T08:30:00.000Z";
     const expectedDate = new Date(finalTimestamp);

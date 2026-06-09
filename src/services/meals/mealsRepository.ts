@@ -284,15 +284,24 @@ function toMealDocumentPayload(meal: Meal): MealDocument {
 export async function saveMealRemote(params: {
   uid: string;
   meal: Meal;
+  clientMutationId: string;
   alsoSaveToMyMeals?: boolean;
 }): Promise<void> {
-  const payload = toMealDocumentPayload(params.meal);
+  const payload = {
+    ...toMealDocumentPayload(params.meal),
+    clientMutationId: params.clientMutationId,
+  };
   await post("/users/me/meals", payload);
   if (params.alsoSaveToMyMeals) {
-    await updateMyMealRemote(params.uid, params.meal.mealId, {
-      ...payload,
-      source: "saved",
-    });
+    await updateMyMealRemote(
+      params.uid,
+      params.meal.mealId,
+      {
+        ...payload,
+        source: "saved",
+      },
+      `${params.clientMutationId}:my-meal-upsert`,
+    );
   }
 }
 
@@ -300,9 +309,11 @@ export async function markMealDeletedRemote(
   uid: string,
   cloudId: string,
   updatedAt: string,
+  options: { clientMutationId: string },
 ): Promise<void> {
   void uid;
   await post(`/users/me/meals/${encodeURIComponent(cloudId)}/delete`, {
     updatedAt,
+    clientMutationId: options.clientMutationId,
   });
 }

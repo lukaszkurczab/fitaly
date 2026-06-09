@@ -1,6 +1,20 @@
 import type { RootStackParamList } from "@/navigation/navigate";
 import type { ReadinessStatus } from "@/types";
 
+export const PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES = {
+  home: "Home",
+  historyList: "HistoryList",
+  addMeal: "AddMeal",
+  statistics: "Statistics",
+} as const satisfies Record<string, keyof RootStackParamList>;
+
+export const PRODUCT_STACK_NON_AI_SURFACE_ROUTES = [
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.home,
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.historyList,
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.addMeal,
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.statistics,
+] as const satisfies readonly (keyof RootStackParamList)[];
+
 export type AppBootstrapState =
   | "authLoading"
   | "unauthenticated"

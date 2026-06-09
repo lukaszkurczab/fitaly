@@ -157,7 +157,7 @@ async function resolveExistingAvatarPath(
   return "";
 }
 
-type SyncState = "synced" | "pending" | "conflict";
+export type ProfileSyncState = "synced" | "pending" | "dead-letter";
 export type UserProfileBootstrapState =
   | "profileLoading"
   | "profileReady"
@@ -170,7 +170,7 @@ type UseUserProfileResult = {
   loading: boolean;
   profileBootstrapState: UserProfileBootstrapState;
   profileBootstrapError: unknown | null;
-  syncState: SyncState;
+  syncState: ProfileSyncState;
   retryingProfileSync: boolean;
   language: string;
   getUserProfile: () => Promise<UserData | null>;
@@ -192,7 +192,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     useState<UserProfileBootstrapState>("profileLoading");
   const [profileBootstrapError, setProfileBootstrapError] =
     useState<unknown | null>(null);
-  const [syncState, setSyncState] = useState<SyncState>("synced");
+  const [syncState, setSyncState] = useState<ProfileSyncState>("synced");
   const [retryingProfileSync, setRetryingProfileSync] = useState(false);
   const language = normalizeLanguageCode(
     userData?.profile?.language ?? i18n.resolvedLanguage ?? i18n.language,
@@ -315,7 +315,9 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       const { dead, pending } = await getSyncCounts(uid, {
         kinds: PROFILE_SYNC_KINDS,
       });
-      setSyncState(dead > 0 ? "conflict" : pending > 0 ? "pending" : "synced");
+      setSyncState(
+        dead > 0 ? "dead-letter" : pending > 0 ? "pending" : "synced",
+      );
     } catch (error) {
       logWarning("profile sync state refresh failed", null, error);
     }

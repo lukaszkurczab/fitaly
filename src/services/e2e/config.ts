@@ -46,7 +46,7 @@ export function buildE2EProfileSeed(uid: string, email: string): Partial<UserDat
         calorieTarget: 2200,
       },
       aiPreferences: { stylePersona: "calm_guide" },
-      consents: { aiHealthDataConsentAt: nowIso },
+      aiConsent: { status: "granted", grantedAt: nowIso, revokedAt: null },
       readiness: {
         status: "ready",
         onboardingCompletedAt: nowIso,

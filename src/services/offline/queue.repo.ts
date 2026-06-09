@@ -13,6 +13,10 @@ export type DeadLetterOp = Omit<DeadLetterRow, "payload"> & {
 };
 export const MAX_QUEUE_ATTEMPTS = 10;
 
+function newClientMutationId(kind: QueueKind, uid: string, cloudId: string): string {
+  return `meal-sync:${kind}:${uid}:${cloudId}:${uuidv4()}`;
+}
+
 function safeParse(payload: string): unknown {
   try {
     return JSON.parse(payload);
@@ -25,6 +29,7 @@ export async function enqueueUpsert(uid: string, meal: Meal): Promise<void> {
   const db = getDB();
   const cloudId = meal.cloudId ?? meal.mealId;
   const payload = meal.cloudId ? meal : { ...meal, cloudId };
+  const clientMutationId = newClientMutationId("upsert", uid, cloudId);
   db.execSync("BEGIN");
   try {
     db.runSync(
@@ -33,9 +38,10 @@ export async function enqueueUpsert(uid: string, meal: Meal): Promise<void> {
       [cloudId, uid],
     );
     db.runSync(
-      `INSERT INTO op_queue (cloud_id, user_uid, kind, payload, updated_at)
-       VALUES (?, ?, 'upsert', ?, ?)`,
-      [cloudId, uid, JSON.stringify(payload), meal.updatedAt],
+      `INSERT INTO op_queue (
+         client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+       ) VALUES (?, ?, ?, 'upsert', ?, ?)`,
+      [clientMutationId, cloudId, uid, JSON.stringify(payload), meal.updatedAt],
     );
     db.execSync("COMMIT");
   } catch (error) {
@@ -56,6 +62,7 @@ export async function enqueueMyMealUpsert(
     cloudId: docId,
     source: meal.source ?? "saved",
   };
+  const clientMutationId = newClientMutationId("upsert_mymeal", uid, docId);
   db.execSync("BEGIN");
   try {
     db.runSync(
@@ -64,9 +71,10 @@ export async function enqueueMyMealUpsert(
       [docId, uid],
     );
     db.runSync(
-      `INSERT INTO op_queue (cloud_id, user_uid, kind, payload, updated_at)
-       VALUES (?, ?, 'upsert_mymeal', ?, ?)`,
-      [docId, uid, JSON.stringify(payload), meal.updatedAt],
+      `INSERT INTO op_queue (
+         client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+       ) VALUES (?, ?, ?, 'upsert_mymeal', ?, ?)`,
+      [clientMutationId, docId, uid, JSON.stringify(payload), meal.updatedAt],
     );
     db.execSync("COMMIT");
   } catch (error) {
@@ -105,6 +113,7 @@ async function enqueueDeleteOp(
   supersededKinds: QueueKind[],
 ): Promise<void> {
   const db = getDB();
+  const clientMutationId = newClientMutationId(kind, uid, cloudId);
   db.execSync("BEGIN");
   try {
     db.runSync(
@@ -115,9 +124,11 @@ async function enqueueDeleteOp(
       [cloudId, uid, ...supersededKinds],
     );
     db.runSync(
-      `INSERT INTO op_queue (cloud_id, user_uid, kind, payload, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO op_queue (
+         client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
       [
+        clientMutationId,
         cloudId,
         uid,
         kind,
@@ -140,6 +151,7 @@ export async function enqueueUserProfileUpdate(
   if (!uid) return;
   const db = getDB();
   const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newClientMutationId("update_user_profile", uid, "user_profile");
   db.execSync("BEGIN");
   try {
     const existing = db.getFirstSync<{ payload: string }>(
@@ -166,9 +178,11 @@ export async function enqueueUserProfileUpdate(
       [uid],
     );
     db.runSync(
-      `INSERT INTO op_queue (cloud_id, user_uid, kind, payload, updated_at)
-       VALUES (?, ?, 'update_user_profile', ?, ?)`,
+      `INSERT INTO op_queue (
+         client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+       ) VALUES (?, ?, ?, 'update_user_profile', ?, ?)`,
       [
+        clientMutationId,
         "user_profile",
         uid,
         JSON.stringify(mergedPayload),
@@ -191,6 +205,7 @@ export async function enqueueUserAvatarUpload(
 ): Promise<void> {
   const db = getDB();
   const updatedAt = payload.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newClientMutationId("upload_user_avatar", uid, "profile_avatar");
   db.execSync("BEGIN");
   try {
     db.runSync(
@@ -199,9 +214,11 @@ export async function enqueueUserAvatarUpload(
       [uid],
     );
     db.runSync(
-      `INSERT INTO op_queue (cloud_id, user_uid, kind, payload, updated_at)
-       VALUES (?, ?, 'upload_user_avatar', ?, ?)`,
+      `INSERT INTO op_queue (
+         client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+       ) VALUES (?, ?, ?, 'upload_user_avatar', ?, ?)`,
       [
+        clientMutationId,
         "profile_avatar",
         uid,
         JSON.stringify({
@@ -253,11 +270,12 @@ export async function moveToDeadLetter(
   try {
     db.runSync(
       `INSERT INTO op_queue_dead (
-         op_id, cloud_id, user_uid, kind, payload, updated_at, attempts,
-         failed_at, last_error_code, last_error_message
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         op_id, client_mutation_id, cloud_id, user_uid, kind, payload,
+         updated_at, attempts, failed_at, last_error_code, last_error_message
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         op.id,
+        op.client_mutation_id,
         op.cloud_id,
         op.user_uid,
         op.kind,
@@ -451,9 +469,16 @@ export async function retryDeadLetterOps(params: {
       );
       db.runSync(
         `INSERT INTO op_queue (
-           cloud_id, user_uid, kind, payload, updated_at, attempts
-         ) VALUES (?, ?, ?, ?, ?, 0)`,
-        [row.cloud_id, row.user_uid, row.kind, row.payload, row.updated_at],
+           client_mutation_id, cloud_id, user_uid, kind, payload, updated_at, attempts
+         ) VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        [
+          row.client_mutation_id,
+          row.cloud_id,
+          row.user_uid,
+          row.kind,
+          row.payload,
+          row.updated_at,
+        ],
       );
       retriedCount++;
 

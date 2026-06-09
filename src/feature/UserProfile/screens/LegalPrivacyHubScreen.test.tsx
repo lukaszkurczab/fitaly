@@ -177,6 +177,7 @@ describe("LegalPrivacyHubScreen", () => {
     expect(screen.getByText("Data transparency")).toBeTruthy();
     expect(screen.getByTestId("legal-privacy-policy-row")).toBeTruthy();
     expect(screen.getByTestId("legal-terms-row")).toBeTruthy();
+    expect(screen.getByTestId("legal-privacy-ai-settings-row")).toBeTruthy();
     expect(screen.getByTestId("legal-data-ai-row")).toBeTruthy();
     expect(screen.getByTestId("legal-download-data-row")).toBeTruthy();
   });
@@ -198,6 +199,9 @@ describe("LegalPrivacyHubScreen", () => {
 
     fireEvent.press(screen.getByTestId("legal-data-ai-row"));
     expect(navigation.navigate).toHaveBeenCalledWith("DataAiClarity");
+
+    fireEvent.press(screen.getByTestId("legal-privacy-ai-settings-row"));
+    expect(navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
 
     mockGetTermsUrl.mockReturnValue("https://example.com/terms");
     const { screen: externalTermsScreen } = renderScreen();

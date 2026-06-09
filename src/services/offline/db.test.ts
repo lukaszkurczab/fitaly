@@ -100,8 +100,36 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
     expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 11;");
   });
 
+  it("adds durable queue mutation identity columns during v12 migration", () => {
+    mockGetFirstSync.mockReturnValue({ user_version: 11 });
+    mockGetAllSync.mockImplementation((sql: string) => {
+      if (sql === "PRAGMA table_info(op_queue)") {
+        return [{ name: "id" }];
+      }
+      if (sql === "PRAGMA table_info(op_queue_dead)") {
+        return [{ name: "id" }, { name: "op_id" }];
+      }
+      return [];
+    });
+
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.runMigrations();
+
+    expect(mockExecSync).toHaveBeenCalledWith(
+      "ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(mockExecSync).toHaveBeenCalledWith(
+      "ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 12;");
+  });
+
   it("skips v8 column adds when schema is already current", () => {
-    mockGetFirstSync.mockReturnValue({ user_version: 8 });
+    mockGetFirstSync.mockReturnValue({ user_version: 12 });
 
     const module =
       jest.requireActual<typeof import("@/services/offline/db")>(

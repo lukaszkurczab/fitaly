@@ -30,6 +30,7 @@ describe("user profile strategy", () => {
 
     const handled = await userProfileStrategy.handlePushOp("user-1", {
       id: 40,
+      client_mutation_id: "profile-mutation-1",
       cloud_id: "user_profile",
       user_uid: "user-1",
       kind: "update_user_profile",
@@ -42,10 +43,13 @@ describe("user profile strategy", () => {
     });
 
     expect(handled).toBe(true);
-    expect(mockUpdateUserProfileRemote).toHaveBeenCalledWith({
-      age: "31",
-      calorieTarget: 2300,
-    });
+    expect(mockUpdateUserProfileRemote).toHaveBeenCalledWith(
+      {
+        age: "31",
+        calorieTarget: 2300,
+      },
+      { clientMutationId: "profile-mutation-1" },
+    );
   });
 
   it("handles queued avatar uploads", async () => {
@@ -54,6 +58,7 @@ describe("user profile strategy", () => {
 
     const handled = await userProfileStrategy.handlePushOp("user-1", {
       id: 4,
+      client_mutation_id: "avatar-mutation-1",
       cloud_id: "profile_avatar",
       user_uid: "user-1",
       kind: "upload_user_avatar",

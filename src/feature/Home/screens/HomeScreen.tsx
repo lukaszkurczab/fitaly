@@ -19,6 +19,7 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { useMealAddMethodState } from "@/feature/Meals/hooks/useMealAddMethodState";
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
+import { useHomeMealDeadLetterRecovery } from "@/feature/Home/hooks/useHomeMealDeadLetterRecovery";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
 import { buildHomeHeroModel } from "@/feature/Home/services/homeHeroPresenter";
 import type { AppIconName } from "@/components/AppIcon";
@@ -56,6 +57,61 @@ type HomeAddMethodPresentation = {
   ctaKey: string;
 };
 
+type HomeDeadLetterRecoveryBannerProps = {
+  title: string;
+  description: string;
+  actionLabel: string;
+  retrying: boolean;
+  onRetry: () => void;
+  styles: ReturnType<typeof makeStyles>;
+};
+
+function HomeDeadLetterRecoveryBanner({
+  title,
+  description,
+  actionLabel,
+  retrying,
+  onRetry,
+  styles,
+}: HomeDeadLetterRecoveryBannerProps) {
+  return (
+    <View
+      testID="home-dead-letter-recovery"
+      style={styles.deadLetterBanner}
+    >
+      <View style={styles.deadLetterCopy}>
+        <View style={styles.deadLetterDot} />
+        <Text testID="home-dead-letter-title" style={styles.deadLetterTitle}>
+          {title}
+        </Text>
+      </View>
+      <View style={styles.deadLetterActions}>
+        <Text
+          testID="home-dead-letter-description"
+          style={styles.deadLetterDescription}
+        >
+          {description}
+        </Text>
+        <Pressable
+          testID="home-dead-letter-retry-button"
+          onPress={onRetry}
+          disabled={retrying}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: retrying }}
+          accessibilityLabel={actionLabel}
+          style={({ pressed }) => [
+            styles.deadLetterRetry,
+            retrying ? styles.deadLetterRetryDisabled : null,
+            pressed && !retrying ? styles.deadLetterRetryPressed : null,
+          ]}
+        >
+          <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function getHomeAddMethodPresentation(
   key: string | undefined,
 ): HomeAddMethodPresentation {
@@ -92,6 +148,7 @@ export default function HomeScreen({ navigation }: Props) {
     selectedDayKey,
     nutritionProfile: userData?.profile?.nutritionProfile,
   });
+  const mealDeadLetterRecovery = useHomeMealDeadLetterRecovery(uid);
   const last7Days = useMemo(buildLast7Days, []);
   const mealAddEntry = useMealAddMethodState({
     navigation,
@@ -220,6 +277,37 @@ export default function HomeScreen({ navigation }: Props) {
           defaultValue: heroModel.ctaLabel,
         })
       : heroModel.ctaLabel;
+  const deadLetterBanner = useMemo(() => {
+    const failedSyncCount = mealDeadLetterRecovery.diagnostics.dead;
+    if (failedSyncCount <= 0) return null;
+
+    const lastFailedKind = mealDeadLetterRecovery.diagnostics.lastFailedKind
+      ? t(
+          `history.deadLetterOperation.${mealDeadLetterRecovery.diagnostics.lastFailedKind}`,
+          {
+            ns: "meals",
+          },
+        )
+      : null;
+
+    return {
+      title: t("history.deadLetterTitle", {
+        ns: "meals",
+        count: failedSyncCount,
+      }),
+      description: lastFailedKind
+        ? t("history.deadLetterSubtitleWithLast", {
+            ns: "meals",
+            pending: mealDeadLetterRecovery.diagnostics.pending,
+            operation: lastFailedKind,
+          })
+        : t("history.deadLetterSubtitle", {
+            ns: "meals",
+            pending: mealDeadLetterRecovery.diagnostics.pending,
+          }),
+      actionLabel: t("common:retry"),
+    };
+  }, [mealDeadLetterRecovery.diagnostics, t]);
 
   const handleCoachCta = useCallback(() => {
     if (retentionSurface.type !== "coach_insight") {
@@ -301,6 +389,17 @@ export default function HomeScreen({ navigation }: Props) {
           }
           tone={heroModel.tone}
         />
+
+        {deadLetterBanner ? (
+          <HomeDeadLetterRecoveryBanner
+            title={deadLetterBanner.title}
+            description={deadLetterBanner.description}
+            actionLabel={deadLetterBanner.actionLabel}
+            retrying={mealDeadLetterRecovery.retrying}
+            onRetry={mealDeadLetterRecovery.retryDeadLetters}
+            styles={styles}
+          />
+        ) : null}
 
         {macroTargets ? (
           <MacroTargetsRow
@@ -434,6 +533,64 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textTertiary,
       fontSize: theme.typography.size.bodyM,
       lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    deadLetterBanner: {
+      borderRadius: theme.rounded.md,
+      borderWidth: 1,
+      borderColor: theme.warning.surface,
+      backgroundColor: theme.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.xs,
+    },
+    deadLetterCopy: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    deadLetterDot: {
+      width: 8,
+      height: 8,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.warning.main,
+    },
+    deadLetterTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    deadLetterActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+    },
+    deadLetterDescription: {
+      flex: 1,
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    deadLetterRetry: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs + 1,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.warning.surface,
+    },
+    deadLetterRetryPressed: {
+      opacity: 0.84,
+    },
+    deadLetterRetryDisabled: {
+      opacity: 0.6,
+    },
+    deadLetterRetryLabel: {
+      color: theme.warning.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
     },
   });

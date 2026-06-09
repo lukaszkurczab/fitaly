@@ -47,6 +47,7 @@ export type RootStackParamList = {
   Privacy: undefined;
   ManageSubscription: undefined;
   LegalPrivacyHub: undefined;
+  PrivacyAiSettings: undefined;
   DataAiClarity: undefined;
   HelpFeedback: undefined;
   ContactSupport: undefined;

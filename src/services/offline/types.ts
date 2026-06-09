@@ -50,6 +50,7 @@ export type ImageRow = {
 
 export type QueueRow = {
   id: number;
+  client_mutation_id: string;
   cloud_id: string;
   user_uid: string;
   kind: QueueKind;
@@ -61,6 +62,7 @@ export type QueueRow = {
 export type DeadLetterRow = {
   id: number;
   op_id: number;
+  client_mutation_id: string;
   cloud_id: string;
   user_uid: string;
   kind: QueueKind;

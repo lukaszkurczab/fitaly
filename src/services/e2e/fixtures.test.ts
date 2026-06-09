@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
   __resetE2EFixturesForTests,
   applyE2ESeedCommand,
+  getE2EFixtureState,
   getE2EAccessState,
   parseE2ESeedCommand,
   resolveE2EBarcodeLookup,
   resolveE2EBillingPurchaseResult,
   resolveE2EChatRun,
+  resolveE2EAiConsentGrant,
+  resolveE2EAiConsentRevoke,
   resolveE2ENotificationPermission,
   resolveE2EPhotoAnalysis,
   resolveE2EReminderDecision,
@@ -89,6 +92,9 @@ describe("E2E fixtures", () => {
         notificationPermission: "allowed",
         reminder: "send",
         weeklyReport: "available",
+        aiConsent: "revoked",
+        aiConsentGrant: "success",
+        aiConsentRevoke: "failureOnce",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -101,6 +107,9 @@ describe("E2E fixtures", () => {
       notificationPermission: "allowed",
       reminder: "send",
       weeklyReport: "available",
+      aiConsent: "revoked",
+      aiConsentGrant: "success",
+      aiConsentRevoke: "failureOnce",
     });
 
     expect(
@@ -115,6 +124,9 @@ describe("E2E fixtures", () => {
         notificationPermission: "bad",
         reminder: "bad",
         weeklyReport: "bad",
+        aiConsent: "bad",
+        aiConsentGrant: "bad",
+        aiConsentRevoke: "bad",
       }),
     ).toEqual({});
   });
@@ -134,6 +146,137 @@ describe("E2E fixtures", () => {
     expect(getE2EAccessState("user-1")).toBeNull();
     expect(resolveE2EBarcodeLookup()).toBeNull();
     expect(resolveE2ENotificationPermission()).toBeNull();
+  });
+
+  it("applies explicit AI consent seed state with uid-scoped readiness markers", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: {
+        aiConsent: "revoked",
+        aiConsentGrant: "success",
+        aiConsentRevoke: "failureOnce",
+      },
+    });
+
+    expect(markers).toEqual([
+      "aiConsent-revoked",
+      "aiConsentGrant-success",
+      "aiConsentRevoke-failureOnce",
+    ]);
+    expect(getE2EFixtureState()).toEqual(
+      expect.objectContaining({
+        aiConsent: "revoked",
+        aiConsentGrant: "success",
+        aiConsentRevoke: "failureOnce",
+      }),
+    );
+    expect(mockEmit).toHaveBeenCalledWith("e2e:aiConsentSeeded", {
+      uid: "user-1",
+      aiConsent: {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-05-02T10:00:00.000Z",
+      },
+    });
+  });
+
+  it("does not mark profile AI consent seed ready without a uid", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: null,
+      command: { aiConsent: "granted" },
+    });
+
+    expect(markers).toEqual([]);
+    expect(getE2EFixtureState()).toEqual({});
+    expect(mockEmit).not.toHaveBeenCalledWith(
+      "e2e:aiConsentSeeded",
+      expect.anything(),
+    );
+  });
+
+  it("resolves deterministic AI consent grant and revoke mutation modes", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { aiConsentGrant: "success", aiConsentRevoke: "failureOnce" },
+    });
+
+    expect(
+      resolveE2EAiConsentGrant("user-1", {
+        status: "not_granted",
+        grantedAt: null,
+        revokedAt: null,
+      }),
+    ).toEqual({
+      aiConsent: {
+        status: "granted",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: null,
+      },
+    });
+
+    expect(
+      resolveE2EAiConsentRevoke("user-1", {
+        status: "granted",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: null,
+      }),
+    ).toEqual({ error: expect.any(Error) });
+    expect(
+      resolveE2EAiConsentRevoke("user-1", {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-06-01T10:00:00.000Z",
+      }),
+    ).toEqual({
+      aiConsent: {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-06-01T10:00:00.000Z",
+      },
+    });
+  });
+
+  it("re-arms failureOnce on explicit aiConsentRevoke reseed per uid", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { aiConsentRevoke: "failureOnce" },
+    });
+
+    const grantedConsent = {
+      status: "granted" as const,
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: null,
+    };
+
+    expect(resolveE2EAiConsentRevoke("user-1", grantedConsent)).toEqual({
+      error: expect.any(Error),
+    });
+    expect(resolveE2EAiConsentRevoke("user-2", grantedConsent)).toEqual({
+      error: expect.any(Error),
+    });
+    expect(resolveE2EAiConsentRevoke("user-1", grantedConsent)).toEqual({
+      aiConsent: {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-05-02T10:00:00.000Z",
+      },
+    });
+    expect(resolveE2EAiConsentRevoke("user-2", grantedConsent)).toEqual({
+      aiConsent: {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-05-02T10:00:00.000Z",
+      },
+    });
+
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { aiConsentRevoke: "failureOnce" },
+    });
+
+    expect(resolveE2EAiConsentRevoke("user-1", grantedConsent)).toEqual({
+      error: expect.any(Error),
+    });
   });
 
   it("seeds a logged meal through the canonical save transaction", async () => {

@@ -5,6 +5,8 @@ import { INITIAL_FORM } from "@/feature/Onboarding/constants";
 import {
   PROFILE_ACTIVITY_LEVELS,
   PROFILE_AI_PERSONAS,
+  PROFILE_AI_CONSENT_FIELDS,
+  PROFILE_AI_CONSENT_STATUSES,
   PROFILE_AI_PERSONA_FIELDS,
   PROFILE_AI_PERSONA_NORMALIZATION_EXAMPLES,
   PROFILE_AI_PERSONA_STYLE_LABELS,
@@ -99,6 +101,7 @@ describe("Profile/onboarding contract parity", () => {
       ...PROFILE_ONBOARDING_DOCUMENT_FIELDS,
     ]);
     expect(contract.profilePatch.editableFields).toEqual([
+      "clientMutationId",
       ...PROFILE_EDITABLE_REMOTE_FIELDS,
     ]);
   });
@@ -106,6 +109,7 @@ describe("Profile/onboarding contract parity", () => {
   test("critical field groups match backend fixture", () => {
     expect(contract.criticalFieldGroups).toEqual({
       readiness: [...PROFILE_READINESS_FIELDS],
+      aiConsent: [...PROFILE_AI_CONSENT_FIELDS],
       language: ["profile.language"],
       aiPersona: [...PROFILE_AI_PERSONA_FIELDS],
       aiStyle: [...PROFILE_AI_STYLE_FIELDS],
@@ -120,6 +124,7 @@ describe("Profile/onboarding contract parity", () => {
       activityLevel: [...PROFILE_ACTIVITY_LEVELS],
       goal: [...PROFILE_GOALS],
       language: [...PROFILE_LANGUAGES],
+      aiConsentStatus: [...PROFILE_AI_CONSENT_STATUSES],
       preferences: [...PROFILE_PREFERENCES],
       chronicDiseases: [...PROFILE_DISEASES],
       allergies: [...PROFILE_ALLERGIES],
@@ -200,8 +205,10 @@ describe("Profile/onboarding contract parity", () => {
         aiPreferences: {
           stylePersona: "focused_coach",
         },
-        consents: {
-          aiHealthDataConsentAt: "2026-05-03T10:00:00Z",
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-05-03T10:00:00Z",
+          revokedAt: null,
         },
         readiness: {
           status: "ready",
@@ -237,7 +244,7 @@ describe("Profile/onboarding contract parity", () => {
     });
   });
 
-  test("profile patch sanitizer excludes server-owned readiness", () => {
+  test("profile patch sanitizer excludes backend-owned consent and server-owned readiness", () => {
     const patch = sanitizeUserProfilePatch({
       profile: {
         ...PROFILE_DEFAULTS,
@@ -259,7 +266,6 @@ describe("Profile/onboarding contract parity", () => {
 
     expect(patch).toEqual({
       profile: {
-        ...PROFILE_DEFAULTS,
         language: "pl",
         aiPreferences: { stylePersona: "mediterranean_friend" },
         nutritionProfile: {
@@ -267,11 +273,6 @@ describe("Profile/onboarding contract parity", () => {
           goal: "increase",
           calorieTarget: 2500,
           preferences: ["mediterranean"],
-        },
-        readiness: {
-          status: "needs_ai_consent",
-          onboardingCompletedAt: "2026-05-02T10:00:00Z",
-          readyAt: null,
         },
       },
     });

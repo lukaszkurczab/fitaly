@@ -101,6 +101,7 @@ export default function MealCameraScreen({
     photoUri,
     premiumModal,
     canUsePhotoAi,
+    hasActiveAiConsent,
     credits,
     skipDetection,
     setIsCameraReady,
@@ -109,6 +110,7 @@ export default function MealCameraScreen({
     handleRetake,
     closePremiumModal,
     goManagePremium,
+    openPrivacyAiSettings,
   } = useMealCameraState({ navigation, flow, params });
 
   const handleTopLeftPress = () => {
@@ -186,8 +188,10 @@ export default function MealCameraScreen({
         : 0
     : remainingAfterPhoto;
   const showNoCreditsState = !skipDetection && cameraCreditsState === "none";
+  const showAiConsentRequiredState = !skipDetection && !hasActiveAiConsent;
   const isLowCredits = !skipDetection && cameraCreditsState === "low";
-  const canUseFullscreenCamera = !showNoCreditsState;
+  const canUseFullscreenCamera =
+    !showNoCreditsState && !showAiConsentRequiredState;
   const showFullscreenCamera = isCameraFullscreen && canUseFullscreenCamera;
   const fullscreenBottomInset = Math.max(
     insets.bottom + theme.spacing.lg,
@@ -247,14 +251,23 @@ export default function MealCameraScreen({
     [handleExitFullscreenCamera, showFullscreenCamera],
   );
 
-  const title = showNoCreditsState
+  const title = showAiConsentRequiredState
+    ? tMeals("camera_ai_consent_required_title", {
+        defaultValue: "AI consent required",
+      })
+    : showNoCreditsState
     ? tMeals("camera_no_credits_title", {
         defaultValue: "No credits left for photo",
       })
     : tMeals("camera_default_title", {
         defaultValue: "Take a clear photo",
       });
-  const description = showNoCreditsState
+  const description = showAiConsentRequiredState
+    ? tMeals("camera_ai_consent_required_subtitle", {
+        defaultValue:
+          "Turn on Privacy & AI consent in Settings before photo analysis.",
+      })
+    : showNoCreditsState
     ? tMeals("camera_no_credits_subtitle", {
         defaultValue:
           "You need 1 credit to continue. Choose another path below.",
@@ -267,7 +280,11 @@ export default function MealCameraScreen({
           defaultValue:
             "Center the full meal in the frame. One photo is enough to start.",
         });
-  const footerNote = showNoCreditsState
+  const footerNote = showAiConsentRequiredState
+    ? tMeals("camera_ai_consent_required_note", {
+        defaultValue: "Manual, barcode, and saved meals still work.",
+      })
+    : showNoCreditsState
     ? tMeals("camera_no_credits_note", {
         defaultValue: "0 left. Manual, barcode, and saved still work.",
       })
@@ -480,7 +497,7 @@ export default function MealCameraScreen({
                     </Pressable>
                   ) : null}
 
-                  {!showNoCreditsState ? (
+                  {!showNoCreditsState && !showAiConsentRequiredState ? (
                     <Pressable
                       testID="add-meal-photo-fullscreen-capture-button"
                       accessibilityRole="button"
@@ -532,9 +549,20 @@ export default function MealCameraScreen({
           <BottomActionBar
             bottomInset={footerBottomInset}
             helperText={footerNote}
-            helperTone={isLowCredits ? "warning" : "default"}
+            helperTone={
+              showAiConsentRequiredState || isLowCredits ? "warning" : "default"
+            }
             primaryAction={
-              !showNoCreditsState
+              showAiConsentRequiredState
+                ? {
+                    testID: "add-meal-photo-ai-consent-settings-button",
+                    label: tMeals("ai_consent_settings_cta", {
+                      defaultValue: "Open Privacy & AI settings",
+                    }),
+                    onPress: openPrivacyAiSettings,
+                    disabled: isTakingPhoto,
+                  }
+                : !showNoCreditsState
                 ? {
                     testID: "add-meal-photo-capture-button",
                     label: tCommon("camera_take_photo", {

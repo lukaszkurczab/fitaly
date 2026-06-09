@@ -11,14 +11,15 @@ import type { ChatMessage } from "@/types";
 import type { ReactNode } from "react";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import ChatScreen from "@/feature/AI/screens/ChatScreen";
-import type { UserData, UserReadiness } from "@/types";
+import type { UserAiConsent, UserData, UserReadiness } from "@/types";
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockUseNetInfo = jest.fn<() => { isConnected: boolean | null }>();
 const mockPullChatChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockRefreshUser = jest.fn<() => Promise<unknown>>();
-const mockAcceptAiHealthDataConsentRemote = jest.fn<(uid: string) => Promise<unknown>>();
+const mockConsentRepositoryMutation =
+  jest.fn<(propertyKey: string | symbol, ...args: unknown[]) => Promise<unknown>>();
 const mockUseChatHistory = jest.fn();
 let mockKeyboardInset = 0;
 const focusEffectCallbacks: Array<() => void | (() => void)> = [];
@@ -32,8 +33,36 @@ const needsAiConsentReadiness: UserReadiness = {
   onboardingCompletedAt: "2026-05-01T09:00:00Z",
   readyAt: null,
 };
+const grantedAiConsent: UserAiConsent = {
+  status: "granted",
+  grantedAt: readyReadiness.readyAt,
+  revokedAt: null,
+};
+const notGrantedAiConsent: UserAiConsent = {
+  status: "not_granted",
+  grantedAt: null,
+  revokedAt: null,
+};
+const revokedAiConsent: UserAiConsent = {
+  status: "revoked",
+  grantedAt: readyReadiness.readyAt,
+  revokedAt: "2026-05-02T10:00:00Z",
+};
+const malformedGrantedMissingGrantedAt: UserAiConsent = {
+  status: "granted",
+  grantedAt: null,
+  revokedAt: null,
+};
+const malformedGrantedWithRevokedAt: UserAiConsent = {
+  status: "granted",
+  grantedAt: readyReadiness.readyAt,
+  revokedAt: "2026-05-02T10:00:00Z",
+};
 
-const buildUserData = (readiness: UserReadiness): UserData =>
+const buildUserData = (
+  readiness: UserReadiness,
+  options: { aiConsent?: UserAiConsent } = {},
+): UserData =>
   ({
     uid: "user-1",
     email: "user@example.com",
@@ -64,10 +93,9 @@ const buildUserData = (readiness: UserReadiness): UserData =>
       aiPreferences: {
         stylePersona: "calm_guide",
       },
-      consents: {
-        aiHealthDataConsentAt:
-          readiness.status === "ready" ? readiness.readyAt : null,
-      },
+      aiConsent:
+        options.aiConsent ??
+        (readiness.status === "ready" ? grantedAiConsent : notGrantedAiConsent),
       readiness,
     },
   }) as UserData;
@@ -104,7 +132,7 @@ let mockChatHistoryState: {
     | "unknown"
     | "AI_CHAT_DISABLED"
     | "AI_CREDITS_EXHAUSTED"
-    | "AI_CHAT_CONSENT_REQUIRED"
+    | "AI_CONSENT_REQUIRED"
     | "AI_CHAT_PROVIDER_UNAVAILABLE"
     | "AI_CHAT_TIMEOUT"
     | "AI_CHAT_CONTEXT_UNAVAILABLE"
@@ -228,10 +256,22 @@ jest.mock("@/context/AccessContext", () => ({
   }),
 }));
 
-jest.mock("@/services/user/userProfileRepository", () => ({
-  acceptAiHealthDataConsentRemote: (uid: string) =>
-    mockAcceptAiHealthDataConsentRemote(uid),
-}));
+jest.mock(
+  "@/services/user/userProfileRepository",
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (target, propertyKey) => {
+          if (propertyKey in target) {
+            return target[propertyKey as keyof typeof target];
+          }
+          return (...args: unknown[]) =>
+            mockConsentRepositoryMutation(propertyKey, ...args);
+        },
+      },
+    ),
+);
 
 jest.mock("@/hooks/useProductReadiness", () => ({
   useProductReadiness: () => ({
@@ -276,7 +316,19 @@ jest.mock("react-i18next", () => ({
 }));
 
 jest.mock("@/feature/AI/components/ChatHistorySheet", () => ({
-  ChatHistorySheet: () => null,
+  ChatHistorySheet: ({
+    open,
+    userUid,
+  }: {
+    open: boolean;
+    userUid: string;
+  }) => {
+    const { Text } =
+      jest.requireActual<typeof import("react-native")>("react-native");
+    return open ? (
+      <Text testID="chat-history-sheet-uid">{userUid}</Text>
+    ) : null;
+  },
 }));
 
 jest.mock("../components/ChatMessageList", () => ({
@@ -336,14 +388,7 @@ describe("ChatScreen", () => {
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockPullChatChanges.mockResolvedValue(undefined);
     mockRefreshUser.mockResolvedValue(null);
-    mockAcceptAiHealthDataConsentRemote.mockResolvedValue({
-      updated: true,
-      profile: buildUserData(readyReadiness),
-      consent: {
-        aiHealthDataConsentAt: readyReadiness.readyAt,
-        readiness: readyReadiness,
-      },
-    });
+    mockConsentRepositoryMutation.mockResolvedValue(null);
     mockUserData = buildUserData(readyReadiness);
     mockLoadingUser = false;
     mockIsProductReady = true;
@@ -413,7 +458,7 @@ describe("ChatScreen", () => {
     expect(screen.getByTestId("chat-input").props.editable).toBe(false);
   });
 
-  it("shows legal modal hierarchy and blocks the composer until acceptance", async () => {
+  it("shows consent lock hierarchy and blocks the composer until settings changes consent", async () => {
     mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
@@ -429,7 +474,86 @@ describe("ChatScreen", () => {
     expect(screen.getByTestId("chat-input").props.editable).toBe(false);
   });
 
-  it("accepts legal consent through the backend and unlocks the composer", async () => {
+  it("keeps product-ready users gated when profile AI consent is not active", async () => {
+    mockUserData = buildUserData(readyReadiness, {
+      aiConsent: notGrantedAiConsent,
+    });
+
+    const notGrantedScreen = renderWithTheme(<ChatScreen />);
+
+    expect(await notGrantedScreen.findByText("legal.title")).toBeTruthy();
+    expect(mockUseChatHistory).toHaveBeenLastCalledWith("", expect.any(String));
+    expect(
+      notGrantedScreen.getByPlaceholderText("legal.composerLocked"),
+    ).toBeTruthy();
+    expect(notGrantedScreen.getByTestId("chat-input").props.editable).toBe(
+      false,
+    );
+
+    notGrantedScreen.unmount();
+    mockUseChatHistory.mockClear();
+    mockUserData = buildUserData(readyReadiness, {
+      aiConsent: revokedAiConsent,
+    });
+
+    const revokedScreen = renderWithTheme(<ChatScreen />);
+
+    expect(await revokedScreen.findByText("legal.title")).toBeTruthy();
+    expect(mockUseChatHistory).toHaveBeenLastCalledWith("", expect.any(String));
+    expect(
+      revokedScreen.getByPlaceholderText("legal.composerLocked"),
+    ).toBeTruthy();
+    expect(revokedScreen.getByTestId("chat-input").props.editable).toBe(false);
+  });
+
+  it("keeps malformed granted profile AI consent locked", async () => {
+    mockUserData = buildUserData(readyReadiness, {
+      aiConsent: malformedGrantedMissingGrantedAt,
+    });
+
+    const missingGrantedAtScreen = renderWithTheme(<ChatScreen />);
+
+    expect(await missingGrantedAtScreen.findByText("legal.title")).toBeTruthy();
+    expect(mockUseChatHistory).toHaveBeenLastCalledWith("", expect.any(String));
+    expect(
+      missingGrantedAtScreen.getByPlaceholderText("legal.composerLocked"),
+    ).toBeTruthy();
+    expect(missingGrantedAtScreen.getByTestId("chat-input").props.editable).toBe(
+      false,
+    );
+
+    missingGrantedAtScreen.unmount();
+    mockUseChatHistory.mockClear();
+    mockUserData = buildUserData(readyReadiness, {
+      aiConsent: malformedGrantedWithRevokedAt,
+    });
+
+    const revokedAtScreen = renderWithTheme(<ChatScreen />);
+
+    expect(await revokedAtScreen.findByText("legal.title")).toBeTruthy();
+    expect(mockUseChatHistory).toHaveBeenLastCalledWith("", expect.any(String));
+    expect(
+      revokedAtScreen.getByPlaceholderText("legal.composerLocked"),
+    ).toBeTruthy();
+    expect(revokedAtScreen.getByTestId("chat-input").props.editable).toBe(
+      false,
+    );
+  });
+
+  it("unlocks chat with active profile AI consent without deriving consent from readiness", async () => {
+    mockUserData = buildUserData(needsAiConsentReadiness, {
+      aiConsent: grantedAiConsent,
+    });
+
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(screen.queryByText("legal.title")).toBeNull();
+    expect(mockUseChatHistory).toHaveBeenCalledWith("user-1", expect.any(String));
+    expect(await screen.findByPlaceholderText("composer.placeholder")).toBeTruthy();
+    expect(screen.getByTestId("chat-input").props.editable).toBe(true);
+  });
+
+  it("routes the primary consent lock action to Privacy & AI settings without mutating consent", async () => {
     mockUserData = buildUserData(needsAiConsentReadiness);
 
     const screen = renderWithTheme(<ChatScreen />);
@@ -438,15 +562,27 @@ describe("ChatScreen", () => {
 
     fireEvent.press(screen.getByTestId("chat-legal-accept"));
 
-    await waitFor(() => {
-      expect(mockAcceptAiHealthDataConsentRemote).toHaveBeenCalledWith("user-1");
+    expect(mockNavigate).toHaveBeenCalledWith("PrivacyAiSettings");
+    expect(mockConsentRepositoryMutation).not.toHaveBeenCalled();
+    expect(screen.getByText("legal.title")).toBeTruthy();
+    expect(screen.getByPlaceholderText("legal.composerLocked")).toBeTruthy();
+    expect(screen.getByTestId("chat-input").props.editable).toBe(false);
+  });
+
+  it("guards history and send paths while profile AI consent is inactive", async () => {
+    mockUserData = buildUserData(readyReadiness, {
+      aiConsent: notGrantedAiConsent,
     });
 
-    await waitFor(() => {
-      expect(screen.queryByText("legal.title")).toBeNull();
-    });
-    expect(screen.getByPlaceholderText("composer.placeholder")).toBeTruthy();
-    expect(screen.getByTestId("chat-input").props.editable).toBe(true);
+    const screen = renderWithTheme(<ChatScreen />);
+
+    expect(await screen.findByText("legal.title")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("chat-history-button"));
+    expect(screen.queryByTestId("chat-history-sheet-uid")).toBeNull();
+
+    fireEvent.changeText(screen.getByTestId("chat-input"), "locked question");
+    fireEvent.press(screen.getByTestId("chat-send-button"));
+    expect(mockChatHistoryState.send).not.toHaveBeenCalled();
   });
 
   it("goes back when legal back action is pressed", async () => {

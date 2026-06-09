@@ -136,4 +136,18 @@ DELETE FROM op_queue_dead WHERE kind = 'persist_chat_message';
 PRAGMA user_version=11;
 `,
   },
+  {
+    version: 3,
+    up: `
+ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';
+UPDATE op_queue
+SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
+WHERE client_mutation_id IS NULL OR client_mutation_id = '';
+UPDATE op_queue_dead
+SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
+WHERE client_mutation_id IS NULL OR client_mutation_id = '';
+PRAGMA user_version=12;
+`,
+  },
 ];
