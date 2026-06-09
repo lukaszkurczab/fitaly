@@ -70,6 +70,24 @@ import {
   WEEKLY_REPORT_STATUSES,
   isWeeklyReportDayKey,
 } from "@/services/weeklyReport/weeklyReportContract";
+import {
+  MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+  MEDIA_ASSET_DOMAIN_OWNED_FIELDS_BY_SURFACE,
+  MEDIA_ASSET_DOMAIN_OWNER_BY_SURFACE,
+  MEDIA_ASSET_LIFECYCLE_OWNED_FIELDS,
+  MEDIA_ASSET_LIFECYCLE_OWNER,
+  MEDIA_ASSET_STATES,
+  MEDIA_ASSET_SURFACES,
+  type MediaAssetSurface,
+} from "@/services/media/assetLifecycle";
+
+const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
+  "avatarUrl",
+  "attachmentUrl",
+  "downloadUrl",
+  "publicUrl",
+  "resolvedDownloadUrl",
+] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
 
@@ -169,6 +187,22 @@ type AiRejectionsFixture = {
       };
     };
   };
+};
+
+type MediaAssetLifecycleFixture = {
+  contract: "media_asset_lifecycle_v1";
+  assetStates: string[];
+  lifecycleOwner: string;
+  assetLifecycleOwns: string[];
+  surfaces: Record<
+    MediaAssetSurface,
+    {
+      usesAssetStates: "assetStates";
+      domainOwner: string;
+      domainDocumentOwns: string[];
+      domainDocumentMustNotOwn: string[];
+    }
+  >;
 };
 
 describe("Enum parity", () => {
@@ -940,5 +974,59 @@ describe("AI rejection contract", () => {
       textMeal: 1,
       photo: 5,
     });
+  });
+});
+
+describe("Media asset lifecycle contract", () => {
+  const fixture = loadFixture<MediaAssetLifecycleFixture>(
+    "media_asset_lifecycle_v1.json",
+  );
+
+  test("state vocabulary matches mobile constants exactly", () => {
+    expect(fixture.assetStates).toEqual([...MEDIA_ASSET_STATES]);
+  });
+
+  test("release media surfaces match mobile constants exactly", () => {
+    expect(Object.keys(fixture.surfaces).sort()).toEqual(
+      [...MEDIA_ASSET_SURFACES].sort(),
+    );
+  });
+
+  test("fixture declares one shared lifecycle owner and owned fields", () => {
+    expect(fixture.lifecycleOwner).toBe(MEDIA_ASSET_LIFECYCLE_OWNER);
+    expect(fixture.assetLifecycleOwns).toEqual([
+      ...MEDIA_ASSET_LIFECYCLE_OWNED_FIELDS,
+    ]);
+    expect(fixture.assetLifecycleOwns).toEqual(
+      expect.arrayContaining(["opId", "clientMutationId"]),
+    );
+  });
+
+  test("every surface uses canonical states and explicit owner boundaries", () => {
+    for (const surface of MEDIA_ASSET_SURFACES) {
+      const contract = fixture.surfaces[surface];
+
+      expect(contract.usesAssetStates).toBe("assetStates");
+      expect(contract.domainOwner).toBe(
+        MEDIA_ASSET_DOMAIN_OWNER_BY_SURFACE[surface],
+      );
+      expect(contract.domainDocumentOwns).toEqual([
+        ...MEDIA_ASSET_DOMAIN_OWNED_FIELDS_BY_SURFACE[surface],
+      ]);
+      expect(contract.domainDocumentMustNotOwn).toEqual([
+        ...MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+      ]);
+      expect(contract.domainDocumentMustNotOwn).toEqual([
+        ...fixture.assetLifecycleOwns,
+      ]);
+      expect(contract.domainDocumentOwns).not.toEqual(
+        expect.arrayContaining([
+          ...MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN,
+        ]),
+      );
+      for (const field of contract.domainDocumentOwns) {
+        expect(field).not.toMatch(/(?:Url|URL)$/);
+      }
+    }
   });
 });
