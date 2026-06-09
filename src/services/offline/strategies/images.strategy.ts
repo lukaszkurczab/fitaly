@@ -85,7 +85,6 @@ export async function processImageUploads(uid: string): Promise<void> {
         local_path: row.local_path,
       });
       const up = await processAndUpload(uid, row.local_path);
-      await markUploaded(row.image_id, up.cloudUrl);
 
       const now = nowISO();
       sql.runSync(
@@ -99,6 +98,18 @@ export async function processImageUploads(uid: string): Promise<void> {
         `SELECT * FROM meals WHERE user_uid=? AND image_local=?`,
         [uid, row.local_path]
       ) as MealRow[];
+
+      if (!meals.length) {
+        upLog.warn("upload:meal_attach_missing", {
+          image_id: row.image_id,
+          local_path: row.local_path,
+          remote_image_id: up.imageId,
+          cloud_url: up.cloudUrl,
+        });
+        throw new Error(
+          "uploaded image has no matching local meals for image_local"
+        );
+      }
 
       for (const m of meals) {
         const tags = safeParseJSON(m.tags) ?? [];
@@ -133,6 +144,8 @@ export async function processImageUploads(uid: string): Promise<void> {
         await enqueueUpsert(uid, normalized);
         upLog.log("meal_enqueued", m.cloud_id);
       }
+
+      await markUploaded(row.image_id, up.cloudUrl);
       ok++;
     } catch (e: unknown) {
       fail++;

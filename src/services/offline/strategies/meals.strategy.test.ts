@@ -9,6 +9,9 @@ const mockMarkMealDeletedRemote = jest.fn<(...args: unknown[]) => Promise<void>>
 const mockUpsertMealLocal = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetMealByCloudIdLocal = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockSetMealSyncStateLocal = jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockCleanupConfirmedLoggedMealPhoto = jest.fn<
+  (...args: unknown[]) => Promise<unknown>
+>();
 const mockEmit = jest.fn();
 
 jest.mock("@react-native-community/netinfo", () => ({
@@ -38,6 +41,11 @@ jest.mock("@/services/offline/meals.repo", () => ({
   setMealSyncStateLocal: (...args: unknown[]) => mockSetMealSyncStateLocal(...args),
 }));
 
+jest.mock("@/services/offline/images.repo", () => ({
+  cleanupConfirmedLoggedMealPhoto: (...args: unknown[]) =>
+    mockCleanupConfirmedLoggedMealPhoto(...args),
+}));
+
 jest.mock("@/services/core/events", () => ({
   emit: (...args: unknown[]) => mockEmit(...args),
 }));
@@ -57,9 +65,14 @@ describe("meals strategy", () => {
     mockUpsertMealLocal.mockResolvedValue();
     mockGetMealByCloudIdLocal.mockResolvedValue(null);
     mockSetMealSyncStateLocal.mockResolvedValue();
+    mockCleanupConfirmedLoggedMealPhoto.mockResolvedValue({
+      cleaned: false,
+      cloudId: "meal-1",
+      reason: "local-path-missing",
+    });
   });
 
-  it("handles meal upsert push ops and marks local record synced", async () => {
+  it("handles meal upsert push ops, runs confirmed photo cleanup, and marks local record synced", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
 
@@ -78,6 +91,8 @@ describe("meals strategy", () => {
         ingredients: [],
         createdAt: "2026-03-03T12:00:00.000Z",
         updatedAt: "2026-03-03T12:00:00.000Z",
+        imageId: "remote-image-1",
+        photoUrl: "https://cdn.example/meal-photo.jpg",
         totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
       },
       updated_at: "2026-03-03T12:00:00.000Z",
@@ -93,8 +108,144 @@ describe("meals strategy", () => {
         mealId: "meal-1",
         userUid: "user-1",
         type: "lunch",
+        imageId: "remote-image-1",
+        photoUrl: "https://cdn.example/meal-photo.jpg",
       }),
     });
+    expect(mockCleanupConfirmedLoggedMealPhoto).toHaveBeenCalledWith({
+      uid: "user-1",
+      cloudId: "meal-1",
+      confirmedImageId: "remote-image-1",
+      confirmedPhotoUrl: "https://cdn.example/meal-photo.jpg",
+    });
+    expect(
+      mockSaveMealRemote.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockCleanupConfirmedLoggedMealPhoto.mock.invocationCallOrder[0]);
+    expect(mockSetMealSyncStateLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        cloudId: "meal-1",
+        syncState: "synced",
+      }),
+    );
+  });
+
+  it("does not run confirmed photo cleanup after a successful stale image-less meal upsert", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    const handled = await mealsStrategy.handlePushOp("user-1", {
+      id: 2,
+      client_mutation_id: "mutation-upsert-stale-no-image",
+      cloud_id: "meal-1",
+      user_uid: "user-1",
+      kind: "upsert",
+      payload: {
+        cloudId: "meal-1",
+        mealId: "meal-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:00:00.000Z",
+        imageId: null,
+        photoUrl: null,
+        totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+      },
+      updated_at: "2026-03-03T12:00:00.000Z",
+      attempts: 0,
+    });
+
+    expect(handled).toBe(true);
+    expect(mockSaveMealRemote).toHaveBeenCalledWith({
+      uid: "user-1",
+      clientMutationId: "mutation-upsert-stale-no-image",
+      meal: expect.objectContaining({
+        cloudId: "meal-1",
+        imageId: null,
+        photoUrl: null,
+      }),
+    });
+    expect(mockCleanupConfirmedLoggedMealPhoto).not.toHaveBeenCalled();
+    expect(mockSetMealSyncStateLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        cloudId: "meal-1",
+        syncState: "synced",
+      }),
+    );
+  });
+
+  it("does not run confirmed photo cleanup when remote meal upsert fails", async () => {
+    mockSaveMealRemote.mockRejectedValueOnce(new Error("remote unavailable"));
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    await expect(
+      mealsStrategy.handlePushOp("user-1", {
+        id: 2,
+        client_mutation_id: "mutation-upsert-1",
+        cloud_id: "meal-1",
+        user_uid: "user-1",
+        kind: "upsert",
+        payload: {
+          cloudId: "meal-1",
+          mealId: "meal-1",
+          userUid: "user-1",
+          timestamp: "2026-03-03T12:00:00.000Z",
+          type: "lunch",
+          ingredients: [],
+          createdAt: "2026-03-03T12:00:00.000Z",
+          updatedAt: "2026-03-03T12:00:00.000Z",
+          totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+        },
+        updated_at: "2026-03-03T12:00:00.000Z",
+        attempts: 0,
+      }),
+    ).rejects.toThrow("remote unavailable");
+
+    expect(mockCleanupConfirmedLoggedMealPhoto).not.toHaveBeenCalled();
+    expect(mockSetMealSyncStateLocal).not.toHaveBeenCalled();
+  });
+
+  it("keeps meal upsert successful when confirmed photo cleanup reports deletion failure", async () => {
+    mockCleanupConfirmedLoggedMealPhoto.mockResolvedValueOnce({
+      cleaned: false,
+      cloudId: "meal-1",
+      localPath: "file:///local-meal-photo.jpg",
+      reason: "delete-failed",
+      message: "permission denied",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    const handled = await mealsStrategy.handlePushOp("user-1", {
+      id: 2,
+      client_mutation_id: "mutation-upsert-1",
+      cloud_id: "meal-1",
+      user_uid: "user-1",
+      kind: "upsert",
+      payload: {
+        cloudId: "meal-1",
+        mealId: "meal-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:00:00.000Z",
+        imageId: "remote-image-1",
+        photoUrl: "https://cdn.example/meal-photo.jpg",
+        totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+      },
+      updated_at: "2026-03-03T12:00:00.000Z",
+      attempts: 0,
+    });
+
+    expect(handled).toBe(true);
     expect(mockSetMealSyncStateLocal).toHaveBeenCalledWith(
       expect.objectContaining({
         uid: "user-1",
