@@ -2,6 +2,7 @@ import NetInfo from "@react-native-community/netinfo";
 import type { Meal } from "@/types/meal";
 import { emit } from "@/services/core/events";
 import { isOfflineNetState } from "@/services/core/networkState";
+import { Sync } from "@/utils/debug";
 import {
   enqueueMyMealDelete,
   enqueueMyMealUpsert,
@@ -15,6 +16,14 @@ import { requestSync } from "@/services/offline/sync.engine";
 type MyMealDoc = Meal & {
   uploadState?: "pending" | "done";
   localPhotoUri?: string | null;
+};
+
+type MyMealSyncFailureEvent = {
+  uid: string;
+  cloudId: string;
+  domain: "myMeals";
+  reason: "local-change";
+  error: unknown;
 };
 
 const isLocalPhoto = (uri?: string | null) =>
@@ -78,7 +87,20 @@ export async function upsertMyMealWithPhoto(
 
   const net = await NetInfo.fetch();
   if (!isOfflineNetState(net)) {
-    await requestMyMealSync(userUid);
+    void requestMyMealSync(userUid).catch((error) => {
+      Sync.warn("saved meal sync request failed", {
+        uid: userUid,
+        cloudId: docId,
+        error,
+      });
+      emit("mymeal:sync:failed", {
+        uid: userUid,
+        cloudId: docId,
+        domain: "myMeals",
+        reason: "local-change",
+        error,
+      } satisfies MyMealSyncFailureEvent);
+    });
   }
 }
 
