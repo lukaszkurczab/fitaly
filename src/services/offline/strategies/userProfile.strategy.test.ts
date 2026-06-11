@@ -118,6 +118,66 @@ describe("user profile strategy", () => {
     );
   });
 
+  it("emits avatar sync metadata only after a successful retry of the same queued upload", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { userProfileStrategy } = require("@/services/offline/strategies/userProfile.strategy");
+    const uploadError = new Error("first upload rejected");
+    const queuedAvatarOp = {
+      id: 4,
+      client_mutation_id: "avatar-mutation-1",
+      cloud_id: "profile_avatar",
+      user_uid: "user-1",
+      kind: "upload_user_avatar",
+      payload: {
+        localPath: "file://avatar.jpg",
+        updatedAt: "2026-03-03T12:10:00.000Z",
+      },
+      updated_at: "2026-03-03T12:10:00.000Z",
+      attempts: 0,
+    };
+    mockUploadUserAvatarRemote
+      .mockRejectedValueOnce(uploadError)
+      .mockResolvedValueOnce({
+        avatarUrl: "https://cdn/retry-avatar.jpg",
+        avatarlastSyncedAt: "2026-03-03T12:15:00.000Z",
+        avatarRef: { storagePath: "avatars/user-1/avatar.retry123" },
+      });
+
+    await expect(
+      userProfileStrategy.handlePushOp("user-1", queuedAvatarOp),
+    ).rejects.toBe(uploadError);
+
+    expect(mockUploadUserAvatarRemote).toHaveBeenCalledWith(
+      "file://avatar.jpg",
+      { clientMutationId: "avatar-mutation-1" },
+    );
+    expect(mockEmit).not.toHaveBeenCalledWith(
+      "user:avatar:synced",
+      expect.anything(),
+    );
+
+    const handled = await userProfileStrategy.handlePushOp(
+      "user-1",
+      queuedAvatarOp,
+    );
+
+    expect(handled).toBe(true);
+    expect(mockUploadUserAvatarRemote).toHaveBeenCalledTimes(2);
+    expect(mockUploadUserAvatarRemote).toHaveBeenLastCalledWith(
+      "file://avatar.jpg",
+      { clientMutationId: "avatar-mutation-1" },
+    );
+    expect(mockEmit).toHaveBeenCalledTimes(1);
+    expect(mockEmit).toHaveBeenCalledWith("user:avatar:synced", {
+      uid: "user-1",
+      avatarUrl: "https://cdn/retry-avatar.jpg",
+      avatarLocalPath: "file://avatar.jpg",
+      avatarlastSyncedAt: "2026-03-03T12:15:00.000Z",
+      avatarRef: { storagePath: "avatars/user-1/avatar.retry123" },
+      updatedAt: "2026-03-03T12:10:00.000Z",
+    });
+  });
+
   it("has no pull behavior", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { userProfileStrategy } = require("@/services/offline/strategies/userProfile.strategy");

@@ -553,6 +553,104 @@ describe("queue.repo", () => {
     ).resolves.toEqual({ dead: 0, pending: 0 });
   });
 
+  it("retries a dead avatar upload with the same durable identity and clears the dead row", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { retryDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    deadOps = [
+      deadOp({
+        id: 44,
+        opId: 12,
+        clientMutationId: "avatar-mutation-1",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-new.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 10,
+        failedAt: "2026-03-03T12:12:00.000Z",
+        lastErrorCode: "storage/upload-failed",
+        lastErrorMessage: "Upload failed",
+      }),
+    ];
+
+    await expect(
+      retryDeadLetterOps({ uid: "user-1", kinds: ["upload_user_avatar"] }),
+    ).resolves.toBe(1);
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        clientMutationId: "avatar-mutation-1",
+        cloudId: "profile_avatar",
+        uid: "user-1",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-new.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 0,
+      }),
+    ]);
+    expect(deadOps).toEqual([]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:retried", {
+      uid: "user-1",
+      count: 1,
+    });
+  });
+
+  it("replaces an existing pending avatar upload when retrying the same dead avatar reference", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { retryDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    queuedOps = [
+      queuedOp({
+        clientMutationId: "avatar-pending-old",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-stale.jpg",
+          updatedAt: "2026-03-03T12:00:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:00:00.000Z",
+      }),
+    ];
+    deadOps = [
+      deadOp({
+        clientMutationId: "avatar-mutation-retry",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-retry.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+      }),
+    ];
+
+    await expect(
+      retryDeadLetterOps({ uid: "user-1", kinds: ["upload_user_avatar"] }),
+    ).resolves.toBe(1);
+
+    expect(familyOps("user-1", "profile_avatar", ["upload_user_avatar"])).toEqual([
+      expect.objectContaining({
+        clientMutationId: "avatar-mutation-retry",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-retry.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 0,
+      }),
+    ]);
+    expect(deadOps).toEqual([]);
+  });
+
   it("skips a dead meal upsert when a newer pending delete exists", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { retryDeadLetterOps } = require("@/services/offline/queue.repo") as
