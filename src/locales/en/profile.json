@@ -205,11 +205,15 @@
   "sync": {
     "pendingTitle": "Sync in progress",
     "deadLetterTitle": "Profile sync failed",
+    "avatarDeadLetterTitle": "Profile photo upload failed",
     "conflictTitle": "Sync issue",
     "pending": "Profile changes are waiting to sync.",
     "deadLetter": "Some profile or avatar changes could not sync. Retry when your connection is stable.",
+    "avatarDeadLetter": "Your profile photo could not upload. Retry when your connection is stable.",
     "conflict": "Profile sync failed. We will retry automatically.",
-    "retry": "Retry now"
+    "retry": "Retry now",
+    "discardAvatarUpload": "Stop retrying",
+    "avatarUploadDiscarded": "{{count}} failed profile photo upload will no longer retry."
   },
   "changeUsername": "Change username",
   "changeEmail": "Change email",
@@ -396,6 +400,10 @@
   "feedbackReplaceAttachment": "Replace attachment",
   "feedbackAttachmentErrorTitle": "Couldn’t open your photo library",
   "feedbackAttachmentErrorBody": "Please try again if you want to attach a screenshot.",
+  "feedbackAttachmentPreviewFailedTitle": "Attachment preview could not load",
+  "feedbackAttachmentPreviewFailedBody": "Your screenshot is still attached. You can send it anyway, replace it, or remove it.",
+  "feedbackAttachmentSendFailedTitle": "Attachment was not sent",
+  "feedbackAttachmentSendFailedBody": "Your message and screenshot are still here. Try sending again, or remove the attachment and send the message without it.",
   "feedbackPlaceholder": "Type your message here...",
   "addAttachment": "Add attachment",
   "addAttachmentDescription": "Optional: attach a screenshot to help us understand the issue",

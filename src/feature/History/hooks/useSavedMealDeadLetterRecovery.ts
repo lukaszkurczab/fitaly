@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emit, on } from "@/services/core/events";
 import {
+  discardDeadLetterOps,
   getDeadLetterOps,
   getSyncCounts,
   retryDeadLetterOps,
+  type DeadLetterOp,
   type QueueKind,
 } from "@/services/offline/queue.repo";
 import { requestSync } from "@/services/offline/sync.engine";
@@ -13,16 +15,20 @@ const SAVED_MEAL_DEAD_LETTER_KINDS: QueueKind[] = [
   "delete_mymeal",
 ];
 
+const SAVED_MEAL_DEAD_LETTER_DIAGNOSTIC_LIMIT = 500;
+
 export type SavedMealDeadLetterDiagnostics = {
   dead: number;
   pending: number;
   lastFailedKind: QueueKind | null;
+  hasFailedLocalPhotoUpload: boolean;
 };
 
 const EMPTY_DIAGNOSTICS: SavedMealDeadLetterDiagnostics = {
   dead: 0,
   pending: 0,
   lastFailedKind: null,
+  hasFailedLocalPhotoUpload: false,
 };
 
 type SyncQueueEvent = {
@@ -33,6 +39,30 @@ type SyncQueueEvent = {
 
 function isSavedMealKind(kind: string | undefined): boolean {
   return kind === "upsert_mymeal" || kind === "delete_mymeal";
+}
+
+function isLocalPhotoReference(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (value.startsWith("file:") || value.startsWith("content:"))
+  );
+}
+
+function hasLocalPhotoPayloadEvidence(op: DeadLetterOp): boolean {
+  if (op.kind !== "upsert_mymeal") return false;
+  if (!op.payload || typeof op.payload !== "object") return false;
+
+  const payload = op.payload as {
+    photoLocalPath?: unknown;
+    localPhotoUri?: unknown;
+    photoUrl?: unknown;
+  };
+
+  return (
+    isLocalPhotoReference(payload.photoLocalPath) ||
+    isLocalPhotoReference(payload.localPhotoUri) ||
+    isLocalPhotoReference(payload.photoUrl)
+  );
 }
 
 function isRelevantSyncEvent(
@@ -54,7 +84,8 @@ function areDiagnosticsEqual(
   return (
     left.dead === right.dead &&
     left.pending === right.pending &&
-    left.lastFailedKind === right.lastFailedKind
+    left.lastFailedKind === right.lastFailedKind &&
+    left.hasFailedLocalPhotoUpload === right.hasFailedLocalPhotoUpload
   );
 }
 
@@ -111,7 +142,7 @@ export function useSavedMealDeadLetterRecovery(
         getDeadLetterOps({
           uid: targetUid,
           kinds: SAVED_MEAL_DEAD_LETTER_KINDS,
-          limit: 1,
+          limit: SAVED_MEAL_DEAD_LETTER_DIAGNOSTIC_LIMIT,
         }),
       ]);
 
@@ -124,6 +155,9 @@ export function useSavedMealDeadLetterRecovery(
           dead: syncCounts.dead,
           pending: syncCounts.pending,
           lastFailedKind: latestDeadOps[0]?.kind ?? null,
+          hasFailedLocalPhotoUpload: latestDeadOps.some(
+            hasLocalPhotoPayloadEvidence,
+          ),
         },
         targetUid,
       );
@@ -153,6 +187,7 @@ export function useSavedMealDeadLetterRecovery(
     const unsubs = [
       on<SyncQueueEvent>("sync:op:dead", refreshForUid),
       on<SyncQueueEvent>("sync:op:retried", refreshForUid),
+      on<SyncQueueEvent>("sync:op:discarded", refreshForUid),
       on<SyncQueueEvent>("sync:op:retry_skipped", refreshForUid),
     ];
 
@@ -199,10 +234,52 @@ export function useSavedMealDeadLetterRecovery(
     }
   }, [refreshDiagnostics, uid]);
 
+  const discardPhotoDeadLetters = useCallback(async () => {
+    const targetUid = uid;
+    if (!targetUid || retryInFlightRef.current) return;
+
+    retryInFlightRef.current = true;
+    setRetrying(true);
+
+    try {
+      const deadLetterOps = await getDeadLetterOps({
+        uid: targetUid,
+        kinds: ["upsert_mymeal"],
+        limit: SAVED_MEAL_DEAD_LETTER_DIAGNOSTIC_LIMIT,
+      });
+      const photoDeadLetterIds = deadLetterOps
+        .filter(hasLocalPhotoPayloadEvidence)
+        .map((op) => op.id);
+      const discarded = await discardDeadLetterOps({
+        uid: targetUid,
+        ids: photoDeadLetterIds,
+        kinds: ["upsert_mymeal"],
+      });
+      await refreshDiagnostics();
+
+      if (discarded > 0) {
+        emit("ui:toast", {
+          key: "history.savedMealPhotoUploadDiscarded",
+          ns: "meals",
+          options: { count: discarded },
+        });
+      }
+    } catch {
+      emit("ui:toast", {
+        key: "unknownError",
+        ns: "common",
+      });
+    } finally {
+      retryInFlightRef.current = false;
+      setRetrying(false);
+    }
+  }, [refreshDiagnostics, uid]);
+
   return {
     diagnostics,
     retrying,
     retryDeadLetters,
+    discardPhotoDeadLetters,
     refreshDiagnostics,
   };
 }

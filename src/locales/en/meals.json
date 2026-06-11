@@ -283,6 +283,10 @@
     "photoUploadRetryQueued": "{{count}} failed photo upload queued for retry.",
     "photoUploadDiscardAction": "Stop retrying",
     "photoUploadDiscarded": "{{count}} failed photo upload will no longer retry.",
+    "savedMealPhotoUploadRecoveryTitle": "Saved meal photo needs retry.",
+    "savedMealPhotoUploadRecoverySubtitle": "Your saved meal change includes a local photo that did not upload. Retry sends the whole saved-meal change back to sync. Pending saved meal changes: {{pending}}.",
+    "savedMealPhotoUploadDiscardAction": "Discard saved-meal change",
+    "savedMealPhotoUploadDiscarded": "{{count}} saved-meal change with a failed local photo was discarded and will no longer retry.",
     "deadLetterOperation": {
       "upsert": "meal update",
       "delete": "meal delete",

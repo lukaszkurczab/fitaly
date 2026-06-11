@@ -402,6 +402,40 @@ export async function getDeadLetterOps(params: {
   }));
 }
 
+export async function discardDeadLetterOps(params: {
+  uid: string;
+  ids: number[];
+  kinds?: QueueKind[];
+}): Promise<number> {
+  if (!params.uid) return 0;
+  const ids = Array.from(
+    new Set(
+      params.ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  );
+  if (!ids.length) return 0;
+
+  const db = getDB();
+  const kindsClause = buildKindsClause(params.kinds);
+  const result = db.runSync(
+    `DELETE FROM op_queue_dead
+     WHERE user_uid=? AND id IN (${ids.map(() => "?").join(",")})${kindsClause.sql}`,
+    [params.uid, ...ids, ...kindsClause.args],
+  ) as { changes?: number };
+  const discarded = Number(result.changes ?? 0);
+  if (discarded <= 0) return 0;
+
+  emit("sync:op:discarded", {
+    uid: params.uid,
+    count: discarded,
+    ids,
+    kinds: params.kinds,
+  });
+  return discarded;
+}
+
 export async function retryDeadLetterOps(params: {
   uid: string;
   kinds?: QueueKind[];

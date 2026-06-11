@@ -19,7 +19,9 @@ import {
   writeProfileCache,
 } from "@/services/user/profileCache";
 import {
+  discardDeadLetterOps,
   getSyncCounts,
+  getDeadLetterOps,
   enqueueUserProfileUpdate,
   retryDeadLetterOps,
 } from "@/services/offline/queue.repo";
@@ -42,6 +44,7 @@ const PROFILE_SYNC_KINDS: QueueKind[] = [
   "update_user_profile",
   "upload_user_avatar",
 ];
+const PROFILE_SYNC_DEAD_LETTER_DIAGNOSTIC_LIMIT = 500;
 
 export function normalizeLanguageCode(
   language: string | null | undefined
@@ -112,6 +115,19 @@ function avatarCachePath(uid: string): string {
   return `${FileSystem.documentDirectory}users/${uid}/images/avatar.jpg`;
 }
 
+async function deleteAvatarCacheStrict(uid: string): Promise<void> {
+  const path = avatarCachePath(uid);
+  const info = await FileSystem.getInfoAsync(path);
+  if (!info.exists) return;
+
+  try {
+    await FileSystem.deleteAsync(path, { idempotent: true });
+  } catch (error) {
+    logError("avatar cache delete failed", { uid, path }, error);
+    throw error;
+  }
+}
+
 async function mergeProfileCache(
   uid: string,
   patch: Record<string, unknown>
@@ -171,6 +187,7 @@ type UseUserProfileResult = {
   profileBootstrapState: UserProfileBootstrapState;
   profileBootstrapError: unknown | null;
   syncState: ProfileSyncState;
+  hasAvatarUploadDeadLetter: boolean;
   retryingProfileSync: boolean;
   language: string;
   getUserProfile: () => Promise<UserData | null>;
@@ -179,6 +196,7 @@ type UseUserProfileResult = {
   applyServerProfile: (profile: UserData) => Promise<UserData | null>;
   syncUserProfile: () => Promise<void>;
   retryProfileSync: () => Promise<void>;
+  discardAvatarUploadDeadLetter: () => Promise<void>;
   mirrorProfileLocally: (patch: Partial<UserData>) => Promise<void>;
   refreshProfileSyncState: () => Promise<void>;
   pushPendingChanges: () => Promise<void>;
@@ -193,6 +211,8 @@ export function useUserProfile(uid: string): UseUserProfileResult {
   const [profileBootstrapError, setProfileBootstrapError] =
     useState<unknown | null>(null);
   const [syncState, setSyncState] = useState<ProfileSyncState>("synced");
+  const [hasAvatarUploadDeadLetter, setHasAvatarUploadDeadLetter] =
+    useState(false);
   const [retryingProfileSync, setRetryingProfileSync] = useState(false);
   const language = normalizeLanguageCode(
     userData?.profile?.language ?? i18n.resolvedLanguage ?? i18n.language,
@@ -201,6 +221,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
   const mountedRef = useRef(true);
   const latestUidRef = useRef(uid);
   const bootstrapRunIdRef = useRef(0);
+  const refreshProfileSyncStateSeqRef = useRef(0);
 
   useEffect(() => {
     latestUidRef.current = uid;
@@ -216,6 +237,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
   useEffect(() => {
     if (!uid) {
       setSyncState("synced");
+      setHasAvatarUploadDeadLetter(false);
     }
   }, [uid]);
 
@@ -307,14 +329,38 @@ export function useUserProfile(uid: string): UseUserProfileResult {
   );
 
   const refreshProfileSyncState = useCallback(async () => {
+    const seq = ++refreshProfileSyncStateSeqRef.current;
     if (!uid) {
       setSyncState("synced");
+      setHasAvatarUploadDeadLetter(false);
       return;
     }
+    const requestUid = uid;
+    const isCurrent = () =>
+      mountedRef.current &&
+      latestUidRef.current === requestUid &&
+      refreshProfileSyncStateSeqRef.current === seq;
+
     try {
-      const { dead, pending } = await getSyncCounts(uid, {
+      const { dead, pending } = await getSyncCounts(requestUid, {
         kinds: PROFILE_SYNC_KINDS,
       });
+      if (!isCurrent()) return;
+      if (dead > 0) {
+        const deadLetterOps = await getDeadLetterOps({
+          uid: requestUid,
+          kinds: PROFILE_SYNC_KINDS,
+          limit: PROFILE_SYNC_DEAD_LETTER_DIAGNOSTIC_LIMIT,
+        });
+        if (!isCurrent()) return;
+        setHasAvatarUploadDeadLetter(
+          deadLetterOps.some((op) => op.kind === "upload_user_avatar"),
+        );
+      } else {
+        if (!isCurrent()) return;
+        setHasAvatarUploadDeadLetter(false);
+      }
+      if (!isCurrent()) return;
       setSyncState(
         dead > 0 ? "dead-letter" : pending > 0 ? "pending" : "synced",
       );
@@ -507,6 +553,52 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     }
   }, [retryingProfileSync, uid, refreshProfileSyncState]);
 
+  const discardAvatarUploadDeadLetter = useCallback(async () => {
+    if (!uid || retryingProfileSync) return;
+    setRetryingProfileSync(true);
+    try {
+      const avatarDeadLetterOps = await getDeadLetterOps({
+        uid,
+        kinds: ["upload_user_avatar"],
+        limit: PROFILE_SYNC_DEAD_LETTER_DIAGNOSTIC_LIMIT,
+      });
+
+      if (avatarDeadLetterOps.length === 0) {
+        await refreshProfileSyncState();
+        return;
+      }
+
+      await deleteAvatarCacheStrict(uid);
+
+      const discarded = await discardDeadLetterOps({
+        uid,
+        ids: avatarDeadLetterOps.map((op) => op.id),
+        kinds: ["upload_user_avatar"],
+      });
+
+      if (discarded > 0) {
+        await mirrorProfileLocally({ avatarLocalPath: "" });
+      }
+
+      await refreshProfileSyncState();
+
+      if (discarded > 0) {
+        emit("ui:toast", {
+          key: "sync.avatarUploadDiscarded",
+          ns: "profile",
+          options: { count: discarded },
+        });
+      }
+    } catch (error) {
+      logError("profile avatar upload discard failed", null, error);
+      emit("ui:toast", {
+        text: i18n.t("common:unknownError"),
+      });
+    } finally {
+      setRetryingProfileSync(false);
+    }
+  }, [retryingProfileSync, uid, mirrorProfileLocally, refreshProfileSyncState]);
+
   const syncUserProfile = useCallback(async () => {
     await fetchUserFromCloud();
   }, [fetchUserFromCloud]);
@@ -594,6 +686,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       "user:profile:failed",
       "user:avatar:failed",
       "sync:op:retried",
+      "sync:op:discarded",
     ] as const).map((event) => on<{ uid?: string }>(event, handler));
     return () => {
       unsubs.forEach((u) => u());
@@ -607,6 +700,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       profileBootstrapState,
       profileBootstrapError,
       syncState,
+      hasAvatarUploadDeadLetter,
       retryingProfileSync,
       language,
       getUserProfile,
@@ -615,6 +709,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       applyServerProfile,
       syncUserProfile,
       retryProfileSync,
+      discardAvatarUploadDeadLetter,
       mirrorProfileLocally,
       refreshProfileSyncState,
       pushPendingChanges,
@@ -626,6 +721,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       profileBootstrapState,
       profileBootstrapError,
       syncState,
+      hasAvatarUploadDeadLetter,
       retryingProfileSync,
       language,
       getUserProfile,
@@ -634,6 +730,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
       applyServerProfile,
       syncUserProfile,
       retryProfileSync,
+      discardAvatarUploadDeadLetter,
       mirrorProfileLocally,
       refreshProfileSyncState,
       pushPendingChanges,

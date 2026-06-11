@@ -205,11 +205,15 @@
   "sync": {
     "pendingTitle": "Synchronizacja w toku",
     "deadLetterTitle": "Synchronizacja profilu nie powiodła się",
+    "avatarDeadLetterTitle": "Nie udało się przesłać zdjęcia profilowego",
     "conflictTitle": "Problem z synchronizacją",
     "pending": "Zmiany profilu oczekują na synchronizację.",
     "deadLetter": "Niektórych zmian profilu lub awatara nie udało się zsynchronizować. Ponów próbę, gdy połączenie będzie stabilne.",
+    "avatarDeadLetter": "Nie udało się przesłać Twojego zdjęcia profilowego. Ponów próbę, gdy połączenie będzie stabilne.",
     "conflict": "Synchronizacja profilu nie powiodła się. Spróbujemy ponownie automatycznie.",
-    "retry": "Ponów teraz"
+    "retry": "Ponów teraz",
+    "discardAvatarUpload": "Przestań ponawiać",
+    "avatarUploadDiscarded": "{{count}} nieudane przesłanie zdjęcia profilowego nie będzie już ponawiane."
   },
   "changeUsername": "Zmień nazwę użytkownika",
   "changeEmail": "Zmień e-mail",
@@ -397,6 +401,10 @@
   "feedbackReplaceAttachment": "Zamień załącznik",
   "feedbackAttachmentErrorTitle": "Nie udało się otworzyć galerii",
   "feedbackAttachmentErrorBody": "Spróbuj ponownie, jeśli chcesz dołączyć zrzut ekranu.",
+  "feedbackAttachmentPreviewFailedTitle": "Nie udało się wczytać podglądu załącznika",
+  "feedbackAttachmentPreviewFailedBody": "Twój zrzut ekranu nadal jest dołączony. Możesz go wysłać mimo to, zamienić albo usunąć.",
+  "feedbackAttachmentSendFailedTitle": "Załącznik nie został wysłany",
+  "feedbackAttachmentSendFailedBody": "Twoja wiadomość i zrzut ekranu nadal są w formularzu. Spróbuj wysłać ponownie albo usuń załącznik i wyślij samą wiadomość.",
   "feedbackPlaceholder": "Wpisz tutaj swoją wiadomość...",
   "addAttachment": "Dodaj załącznik",
   "addAttachmentDescription": "Opcjonalnie: dołącz zrzut ekranu, aby pomóc nam zrozumieć problem",

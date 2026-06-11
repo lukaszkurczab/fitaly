@@ -101,7 +101,11 @@ export default function UserProfileScreen({
   const syncNotice =
     state.syncState === "synced"
       ? null
-      : getProfileSyncNotice(state.syncState, theme);
+      : getProfileSyncNotice({
+          syncState: state.syncState,
+          hasAvatarUploadDeadLetter: state.hasAvatarUploadDeadLetter,
+          theme,
+        });
 
   return (
     <Layout>
@@ -164,16 +168,30 @@ export default function UserProfileScreen({
               />
 
               {state.syncState === "dead-letter" ? (
-                <Button
-                  testID="account-sync-retry-button"
-                  label={t("sync.retry")}
-                  variant="secondary"
-                  fullWidth={false}
-                  loading={state.retryingProfileSync}
-                  onPress={() => {
-                    void state.retryProfileSync();
-                  }}
-                />
+                <View style={styles.syncActionRow}>
+                  {state.hasAvatarUploadDeadLetter ? (
+                    <Button
+                      testID="account-sync-avatar-discard-button"
+                      label={t("sync.discardAvatarUpload")}
+                      variant="secondary"
+                      fullWidth={false}
+                      loading={state.retryingProfileSync}
+                      onPress={() => {
+                        void state.discardAvatarUploadDeadLetter();
+                      }}
+                    />
+                  ) : null}
+                  <Button
+                    testID="account-sync-retry-button"
+                    label={t("sync.retry")}
+                    variant="secondary"
+                    fullWidth={false}
+                    loading={state.retryingProfileSync}
+                    onPress={() => {
+                      void state.retryProfileSync();
+                    }}
+                  />
+                </View>
               ) : null}
             </View>
           ) : null}
@@ -281,32 +299,37 @@ export default function UserProfileScreen({
   );
 }
 
-function getProfileSyncNotice(
-  syncState: Exclude<ProfileSyncState, "synced">,
-  theme: ReturnType<typeof useTheme>,
-): {
+function getProfileSyncNotice(params: {
+  syncState: Exclude<ProfileSyncState, "synced">;
+  hasAvatarUploadDeadLetter: boolean;
+  theme: ReturnType<typeof useTheme>;
+}): {
   titleKey: string;
   bodyKey: string;
   tone: "info" | "warning";
   icon: AppIconName;
   iconColor: string;
 } {
-  if (syncState === "pending") {
+  if (params.syncState === "pending") {
     return {
       titleKey: "sync.pendingTitle",
       bodyKey: "sync.pending",
       tone: "info",
       icon: "info",
-      iconColor: theme.info.text,
+      iconColor: params.theme.info.text,
     };
   }
 
   return {
-    titleKey: "sync.deadLetterTitle",
-    bodyKey: "sync.deadLetter",
+    titleKey: params.hasAvatarUploadDeadLetter
+      ? "sync.avatarDeadLetterTitle"
+      : "sync.deadLetterTitle",
+    bodyKey: params.hasAvatarUploadDeadLetter
+      ? "sync.avatarDeadLetter"
+      : "sync.deadLetter",
     tone: "warning",
     icon: "refresh",
-    iconColor: theme.warning.text,
+    iconColor: params.theme.warning.text,
   };
 }
 
@@ -415,6 +438,11 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.caption,
     },
     syncStack: {
+      gap: theme.spacing.sm,
+    },
+    syncActionRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
       gap: theme.spacing.sm,
     },
     version: {

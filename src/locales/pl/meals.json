@@ -290,6 +290,10 @@
     "photoUploadRetryQueued": "Dodano {{count}} nieudane przesłanie zdjęcia do ponowienia.",
     "photoUploadDiscardAction": "Przestań ponawiać",
     "photoUploadDiscarded": "{{count}} nieudane przesłanie zdjęcia nie będzie już ponawiane.",
+    "savedMealPhotoUploadRecoveryTitle": "Zdjęcie zapisanego posiłku wymaga ponowienia.",
+    "savedMealPhotoUploadRecoverySubtitle": "Zmiana zapisanego posiłku zawiera lokalne zdjęcie, którego nie udało się przesłać. Ponowienie przywróci całą zmianę zapisanego posiłku do synchronizacji. Oczekujące zmiany zapisanych posiłków: {{pending}}.",
+    "savedMealPhotoUploadDiscardAction": "Odrzuć zmianę zapisanego posiłku",
+    "savedMealPhotoUploadDiscarded": "{{count}} zmiana zapisanego posiłku z nieudanym lokalnym zdjęciem została odrzucona i nie będzie już ponawiana.",
     "deadLetterOperation": {
       "upsert": "aktualizacja posiłku",
       "delete": "usunięcie posiłku",

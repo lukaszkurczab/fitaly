@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Meal } from "@/types/meal";
 
-const mockRunSync = jest.fn<(sql: string, params?: unknown[]) => void>();
+const mockRunSync = jest.fn<
+  (sql: string, params?: unknown[]) => { changes?: number } | void
+>();
 const mockExecSync = jest.fn<(sql: string) => void>();
 const mockGetAllSync = jest.fn<(sql: string, params?: unknown[]) => unknown[]>();
 const mockGetFirstSync = jest.fn<
@@ -34,9 +36,35 @@ let deadOps: DeadOp[] = [];
 
 function applyQueueMutation(sql: string, params: unknown[] = []) {
   if (sql.includes("DELETE FROM op_queue_dead")) {
+    if (sql.includes("user_uid=?")) {
+      const uid = String(params[0] ?? "");
+      const ids = new Set(
+        params
+          .slice(1)
+          .filter((value): value is number => typeof value === "number")
+          .map(Number),
+      );
+      const kinds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string"),
+      );
+      const before = deadOps.length;
+      deadOps = deadOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            ids.has(op.id) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - deadOps.length };
+    }
+
     const ids = new Set((params as number[]).map(Number));
+    const before = deadOps.length;
     deadOps = deadOps.filter((op) => !ids.has(op.id));
-    return;
+    return { changes: before - deadOps.length };
   }
 
   if (sql.includes("DELETE FROM op_queue")) {
@@ -600,6 +628,97 @@ describe("queue.repo", () => {
       uid: "user-1",
       count: 1,
     });
+  });
+
+  it("discards only selected dead-letter rows for the requested uid and kind", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { discardDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    queuedOps = [
+      queuedOp({
+        id: 44,
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+    deadOps = [
+      deadOp({
+        id: 10,
+        uid: "user-1",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+      deadOp({
+        id: 11,
+        uid: "user-1",
+        cloudId: "user_profile",
+        kind: "update_user_profile",
+      }),
+      deadOp({
+        id: 12,
+        uid: "other-user",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+
+    await expect(
+      discardDeadLetterOps({
+        uid: "user-1",
+        ids: [10, 11, 12],
+        kinds: ["upload_user_avatar"],
+      }),
+    ).resolves.toBe(1);
+
+    expect(deadOps).toEqual([
+      expect.objectContaining({ id: 11, uid: "user-1" }),
+      expect.objectContaining({ id: 12, uid: "other-user" }),
+    ]);
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        id: 44,
+        uid: "user-1",
+        kind: "upload_user_avatar",
+      }),
+    ]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:discarded", {
+      uid: "user-1",
+      count: 1,
+      ids: [10, 11, 12],
+      kinds: ["upload_user_avatar"],
+    });
+  });
+
+  it("does not emit a discard event when no dead-letter rows are removed", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { discardDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    deadOps = [
+      deadOp({
+        id: 10,
+        uid: "other-user",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+
+    await expect(
+      discardDeadLetterOps({
+        uid: "user-1",
+        ids: [10],
+        kinds: ["upload_user_avatar"],
+      }),
+    ).resolves.toBe(0);
+
+    expect(deadOps).toEqual([
+      expect.objectContaining({ id: 10, uid: "other-user" }),
+    ]);
+    expect(mockEmit).not.toHaveBeenCalledWith(
+      "sync:op:discarded",
+      expect.anything(),
+    );
   });
 
   it("replaces an existing pending avatar upload when retrying the same dead avatar reference", async () => {

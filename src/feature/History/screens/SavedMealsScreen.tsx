@@ -41,8 +41,10 @@ type SavedMealsDeadLetterBannerProps = {
   title: string;
   description: string;
   actionLabel: string;
+  secondaryActionLabel?: string;
   retrying: boolean;
   onRetry: () => void;
+  onSecondaryAction?: () => void;
   theme: ReturnType<typeof useTheme>;
 };
 
@@ -50,8 +52,10 @@ const SavedMealsDeadLetterBanner = ({
   title,
   description,
   actionLabel,
+  secondaryActionLabel,
   retrying,
   onRetry,
+  onSecondaryAction,
   theme,
 }: SavedMealsDeadLetterBannerProps) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -72,20 +76,40 @@ const SavedMealsDeadLetterBanner = ({
         >
           {description}
         </Text>
-        <Pressable
-          onPress={onRetry}
-          disabled={retrying}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          testID="saved-meals-dead-letter-retry"
-          style={({ pressed }) => [
-            styles.deadLetterRetry,
-            retrying ? styles.deadLetterRetryDisabled : null,
-            pressed && !retrying ? styles.deadLetterRetryPressed : null,
-          ]}
-        >
-          <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
-        </Pressable>
+        <View style={styles.deadLetterButtonRow}>
+          {secondaryActionLabel && onSecondaryAction ? (
+            <Pressable
+              onPress={onSecondaryAction}
+              disabled={retrying}
+              accessibilityRole="button"
+              accessibilityLabel={secondaryActionLabel}
+              testID="saved-meals-photo-upload-discard-button"
+              style={({ pressed }) => [
+                styles.deadLetterSecondary,
+                retrying ? styles.deadLetterRetryDisabled : null,
+                pressed && !retrying ? styles.deadLetterRetryPressed : null,
+              ]}
+            >
+              <Text style={styles.deadLetterSecondaryLabel}>
+                {secondaryActionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onRetry}
+            disabled={retrying}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+            testID="saved-meals-dead-letter-retry"
+            style={({ pressed }) => [
+              styles.deadLetterRetry,
+              retrying ? styles.deadLetterRetryDisabled : null,
+              pressed && !retrying ? styles.deadLetterRetryPressed : null,
+            ]}
+          >
+            <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -143,12 +167,30 @@ export default function SavedMealsScreen({
     diagnostics: savedMealDeadLetterDiagnostics,
     retrying: retryingSavedMealDeadLetters,
     retryDeadLetters: retrySavedMealDeadLetters,
+    discardPhotoDeadLetters: discardSavedMealPhotoDeadLetters,
   } = useSavedMealDeadLetterRecovery(uid);
   const firstFocusRef = useRef(true);
   const lastFocusRefreshAtRef = useRef(0);
 
   const deadLetterBanner = useMemo(() => {
     if (savedMealDeadLetterDiagnostics.dead <= 0) return null;
+    if (savedMealDeadLetterDiagnostics.hasFailedLocalPhotoUpload) {
+      return {
+        title: t("history.savedMealPhotoUploadRecoveryTitle", {
+          ns: "meals",
+          count: savedMealDeadLetterDiagnostics.dead,
+        }),
+        description: t("history.savedMealPhotoUploadRecoverySubtitle", {
+          ns: "meals",
+          pending: savedMealDeadLetterDiagnostics.pending,
+        }),
+        actionLabel: t("common:retry"),
+        secondaryActionLabel: t("history.savedMealPhotoUploadDiscardAction", {
+          ns: "meals",
+        }),
+      };
+    }
+
     const lastFailedKind = savedMealDeadLetterDiagnostics.lastFailedKind
       ? t(
           `history.deadLetterOperation.${savedMealDeadLetterDiagnostics.lastFailedKind}`,
@@ -180,8 +222,14 @@ export default function SavedMealsScreen({
       title={deadLetterBanner.title}
       description={deadLetterBanner.description}
       actionLabel={deadLetterBanner.actionLabel}
+      secondaryActionLabel={deadLetterBanner.secondaryActionLabel}
       retrying={retryingSavedMealDeadLetters}
       onRetry={retrySavedMealDeadLetters}
+      onSecondaryAction={
+        deadLetterBanner.secondaryActionLabel
+          ? discardSavedMealPhotoDeadLetters
+          : undefined
+      }
       theme={theme}
     />
   ) : null;
@@ -434,6 +482,20 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    deadLetterButtonRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "flex-end",
+      gap: theme.spacing.xs,
+    },
+    deadLetterSecondary: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs + 1,
+      borderRadius: theme.rounded.full,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.warning.surface,
+      backgroundColor: theme.surface,
+    },
     deadLetterRetry: {
       paddingHorizontal: theme.spacing.sm,
       paddingVertical: theme.spacing.xxs + 1,
@@ -448,6 +510,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     deadLetterRetryLabel: {
       color: theme.warning.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    deadLetterSecondaryLabel: {
+      color: theme.textSecondary,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
