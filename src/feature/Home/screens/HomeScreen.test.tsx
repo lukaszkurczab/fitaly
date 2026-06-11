@@ -1,4 +1,5 @@
 import React from "react";
+import type { ReactTestInstance } from "react-test-renderer";
 import {
   Pressable as mockPressable,
   StyleSheet,
@@ -30,6 +31,8 @@ const mockGetFailedUploadCount =
   jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRetryFailedUploads =
   jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockDiscardFailedUploads =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
@@ -40,6 +43,22 @@ const HOME_MEAL_DEAD_LETTER_KINDS = [
   "upsert_mymeal",
   "delete_mymeal",
 ];
+const HOME_RECOVERY_TEST_IDS = [
+  "home-dead-letter-recovery",
+  "home-photo-upload-recovery",
+];
+
+function getVisibleRecoveryTestIds(
+  views: ReactTestInstance[],
+): string[] {
+  return views
+    .map((view) => view.props.testID)
+    .filter(
+      (testID): testID is string =>
+        typeof testID === "string" &&
+        HOME_RECOVERY_TEST_IDS.includes(testID),
+    );
+}
 
 function emitMockEvent(eventName: string, payload?: unknown) {
   const handlers = mockEventHandlers.get(eventName);
@@ -88,6 +107,8 @@ jest.mock("@/services/offline/queue.repo", () => ({
 }));
 
 jest.mock("@/services/offline/images.repo", () => ({
+  discardFailedUploads: (...args: unknown[]) =>
+    mockDiscardFailedUploads(...args),
   getFailedUploadCount: (...args: unknown[]) => mockGetFailedUploadCount(...args),
   retryFailedUploads: (...args: unknown[]) => mockRetryFailedUploads(...args),
 }));
@@ -176,6 +197,10 @@ jest.mock("react-i18next", () => ({
       }
       if (key === "history.photoUploadRetryQueued") {
         return `${options?.count ?? 0} failed photo upload queued for retry.`;
+      }
+      if (key === "history.photoUploadDiscardAction") return "Stop retrying";
+      if (key === "history.photoUploadDiscarded") {
+        return `${options?.count ?? 0} failed photo upload will no longer retry.`;
       }
       if (key === "history.deadLetterOperation.upsert") return "meal update";
       if (key === "history.deadLetterOperation.delete") return "meal delete";
@@ -467,6 +492,7 @@ describe("HomeScreen", () => {
     mockRetryDeadLetterOps.mockResolvedValue(0);
     mockGetFailedUploadCount.mockResolvedValue(0);
     mockRetryFailedUploads.mockResolvedValue(0);
+    mockDiscardFailedUploads.mockResolvedValue(0);
     mockRequestSync.mockResolvedValue(undefined);
 
     mockUseUserProfileContext.mockReturnValue({
@@ -757,6 +783,7 @@ describe("HomeScreen", () => {
     });
 
     expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
+    expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
   });
 
   it("renders Home photo upload recovery when failed photos exist without meal dead letters", async () => {
@@ -777,6 +804,8 @@ describe("HomeScreen", () => {
         "Your meal is saved, but the photo upload needs recovery before it can appear on synced devices.",
       ),
     ).toBeTruthy();
+    expect(getByText("Stop retrying")).toBeTruthy();
+    expect(getByTestId("home-photo-upload-discard-button")).toBeTruthy();
     expect(queryByText(/successful sync/i)).toBeNull();
     expect(mockGetFailedUploadCount).toHaveBeenCalledWith("user-1");
   });
@@ -894,7 +923,32 @@ describe("HomeScreen", () => {
     });
   });
 
-  it("does not retry hidden photo uploads from the visible dead-letter banner", async () => {
+  it("renders both recovery surfaces when meal dead letters and failed photos coexist", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "delete" }]);
+    mockGetFailedUploadCount.mockResolvedValue(1);
+
+    const navigation = createNavigation();
+    const { UNSAFE_getAllByType, getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    expect(
+      getVisibleRecoveryTestIds(UNSAFE_getAllByType(mockView)),
+    ).toEqual([
+      "home-dead-letter-recovery",
+      "home-photo-upload-recovery",
+    ]);
+    expect(getByText("1 meal changes need retry.")).toBeTruthy();
+    expect(getByText("1 meal photo upload needs retry.")).toBeTruthy();
+  });
+
+  it("retries only meal dead letters from the visible dead-letter banner when failed photos coexist", async () => {
     mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
     mockGetDeadLetterOps.mockResolvedValue([{ kind: "delete" }]);
     mockGetFailedUploadCount.mockResolvedValue(1);
@@ -902,14 +956,14 @@ describe("HomeScreen", () => {
     mockRetryFailedUploads.mockResolvedValue(1);
 
     const navigation = createNavigation();
-    const { getByTestId, queryByTestId } = renderWithTheme(
+    const { getByTestId } = renderWithTheme(
       <HomeScreen navigation={navigation as never} />,
     );
 
     await waitFor(() => {
       expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
     });
-    expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
 
     fireEvent.press(getByTestId("home-dead-letter-retry-button"));
 
@@ -930,6 +984,48 @@ describe("HomeScreen", () => {
     expect(mockRequestSync).not.toHaveBeenCalledWith({
       uid: "user-1",
       domain: "images",
+      reason: "retry",
+    });
+  });
+
+  it("retries only failed photo uploads from the visible photo banner when meal dead letters coexist", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "delete" }]);
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockRetryDeadLetterOps.mockResolvedValue(1);
+    mockRetryFailedUploads.mockResolvedValue(1);
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-photo-upload-retry-button"));
+
+    await waitFor(() => {
+      expect(mockRetryFailedUploads).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRetryFailedUploads).toHaveBeenCalledWith("user-1");
+    expect(mockRetryDeadLetterOps).not.toHaveBeenCalled();
+    expect(mockRequestSync).toHaveBeenCalledTimes(1);
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "images",
+      reason: "retry",
+    });
+    expect(mockRequestSync).not.toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "meals",
+      reason: "retry",
+    });
+    expect(mockRequestSync).not.toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "myMeals",
       reason: "retry",
     });
   });
@@ -996,6 +1092,71 @@ describe("HomeScreen", () => {
       expect(mockRetryFailedUploads).toHaveBeenCalledWith("user-1");
     });
     expect(mockRequestSync).not.toHaveBeenCalled();
+  });
+
+  it("discards failed photo uploads once without requesting image sync", async () => {
+    let resolveDiscard: (count: number) => void = () => undefined;
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockDiscardFailedUploads.mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          resolveDiscard = resolve;
+        }),
+    );
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-photo-upload-discard-button"));
+    fireEvent.press(getByTestId("home-photo-upload-discard-button"));
+
+    expect(mockDiscardFailedUploads).toHaveBeenCalledTimes(1);
+    expect(mockDiscardFailedUploads).toHaveBeenCalledWith("user-1");
+    expect(mockRetryFailedUploads).not.toHaveBeenCalled();
+    expect(mockRequestSync).not.toHaveBeenCalled();
+
+    resolveDiscard(1);
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+        key: "history.photoUploadDiscarded",
+        ns: "meals",
+        options: { count: 1 },
+      });
+    });
+    expect(mockRequestSync).not.toHaveBeenCalled();
+  });
+
+  it("does not show discard toast or request sync when no failed photo rows were discarded", async () => {
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockDiscardFailedUploads.mockResolvedValue(0);
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-photo-upload-discard-button"));
+
+    await waitFor(() => {
+      expect(mockDiscardFailedUploads).toHaveBeenCalledWith("user-1");
+    });
+    expect(mockRequestSync).not.toHaveBeenCalled();
+    expect(mockEmit).not.toHaveBeenCalledWith("ui:toast", {
+      key: "history.photoUploadDiscarded",
+      ns: "meals",
+      options: expect.anything(),
+    });
   });
 
   it("refreshes Home dead-letter diagnostics for same-uid sync events", async () => {
@@ -1070,6 +1231,26 @@ describe("HomeScreen", () => {
     });
   });
 
+  it("refreshes Home photo diagnostics for same-uid discard events", async () => {
+    mockGetFailedUploadCount.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    emitMockEvent("image:upload:discarded", { uid: "user-1" });
+
+    await waitFor(() => {
+      expect(mockGetFailedUploadCount).toHaveBeenCalledTimes(2);
+      expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+    });
+  });
+
   it("does not refresh Home dead-letter diagnostics for unrelated uid sync events", async () => {
     const navigation = createNavigation();
     renderWithTheme(<HomeScreen navigation={navigation as never} />);
@@ -1083,6 +1264,7 @@ describe("HomeScreen", () => {
     emitMockEvent("sync:op:retried", { uid: "other-user" });
     emitMockEvent("image:upload:failed", { uid: "other-user" });
     emitMockEvent("image:upload:retried", { uid: "other-user" });
+    emitMockEvent("image:upload:discarded", { uid: "other-user" });
 
     expect(mockGetSyncCounts).toHaveBeenCalledTimes(callsAfterInitialRefresh);
     expect(mockGetFailedUploadCount).toHaveBeenCalledTimes(

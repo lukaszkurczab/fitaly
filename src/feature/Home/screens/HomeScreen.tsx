@@ -62,11 +62,14 @@ type HomeDeadLetterRecoveryBannerProps = {
   titleTestID?: string;
   descriptionTestID?: string;
   retryButtonTestID?: string;
+  secondaryButtonTestID?: string;
   title: string;
   description: string;
   actionLabel: string;
+  secondaryActionLabel?: string;
   retrying: boolean;
   onRetry: () => void;
+  onSecondaryAction?: () => void;
   styles: ReturnType<typeof makeStyles>;
 };
 
@@ -75,11 +78,14 @@ function HomeDeadLetterRecoveryBanner({
   titleTestID = "home-dead-letter-title",
   descriptionTestID = "home-dead-letter-description",
   retryButtonTestID = "home-dead-letter-retry-button",
+  secondaryButtonTestID,
   title,
   description,
   actionLabel,
+  secondaryActionLabel,
   retrying,
   onRetry,
+  onSecondaryAction,
   styles,
 }: HomeDeadLetterRecoveryBannerProps) {
   return (
@@ -100,21 +106,42 @@ function HomeDeadLetterRecoveryBanner({
         >
           {description}
         </Text>
-        <Pressable
-          testID={retryButtonTestID}
-          onPress={onRetry}
-          disabled={retrying}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: retrying }}
-          accessibilityLabel={actionLabel}
-          style={({ pressed }) => [
-            styles.deadLetterRetry,
-            retrying ? styles.deadLetterRetryDisabled : null,
-            pressed && !retrying ? styles.deadLetterRetryPressed : null,
-          ]}
-        >
-          <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
-        </Pressable>
+        <View style={styles.deadLetterButtonRow}>
+          {secondaryActionLabel && onSecondaryAction ? (
+            <Pressable
+              testID={secondaryButtonTestID}
+              onPress={onSecondaryAction}
+              disabled={retrying}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: retrying }}
+              accessibilityLabel={secondaryActionLabel}
+              style={({ pressed }) => [
+                styles.deadLetterSecondary,
+                retrying ? styles.deadLetterRetryDisabled : null,
+                pressed && !retrying ? styles.deadLetterRetryPressed : null,
+              ]}
+            >
+              <Text style={styles.deadLetterSecondaryLabel}>
+                {secondaryActionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            testID={retryButtonTestID}
+            onPress={onRetry}
+            disabled={retrying}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: retrying }}
+            accessibilityLabel={actionLabel}
+            style={({ pressed }) => [
+              styles.deadLetterRetry,
+              retrying ? styles.deadLetterRetryDisabled : null,
+              pressed && !retrying ? styles.deadLetterRetryPressed : null,
+            ]}
+          >
+            <Text style={styles.deadLetterRetryLabel}>{actionLabel}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -285,7 +312,10 @@ export default function HomeScreen({ navigation }: Props) {
           defaultValue: heroModel.ctaLabel,
         })
       : heroModel.ctaLabel;
-  const deadLetterBanner = useMemo(() => {
+  const recoveryBanners = useMemo(() => {
+    const banners: Array<
+      Omit<HomeDeadLetterRecoveryBannerProps, "retrying" | "styles">
+    > = [];
     const failedSyncCount = mealDeadLetterRecovery.diagnostics.dead;
     if (failedSyncCount > 0) {
       const lastFailedKind = mealDeadLetterRecovery.diagnostics.lastFailedKind
@@ -297,7 +327,7 @@ export default function HomeScreen({ navigation }: Props) {
           )
         : null;
 
-      return {
+      banners.push({
         testID: "home-dead-letter-recovery",
         titleTestID: "home-dead-letter-title",
         descriptionTestID: "home-dead-letter-description",
@@ -313,35 +343,43 @@ export default function HomeScreen({ navigation }: Props) {
               operation: lastFailedKind,
             })
           : t("history.deadLetterSubtitle", {
-            ns: "meals",
-            pending: mealDeadLetterRecovery.diagnostics.pending,
-          }),
+              ns: "meals",
+              pending: mealDeadLetterRecovery.diagnostics.pending,
+            }),
         actionLabel: t("common:retry"),
         onRetry: mealDeadLetterRecovery.retryDeadLetters,
-      };
+      });
     }
 
     const failedPhotoUploads =
       mealDeadLetterRecovery.diagnostics.failedPhotoUploads;
-    if (failedPhotoUploads <= 0) return null;
+    if (failedPhotoUploads > 0) {
+      banners.push({
+        testID: "home-photo-upload-recovery",
+        titleTestID: "home-photo-upload-title",
+        descriptionTestID: "home-photo-upload-description",
+        retryButtonTestID: "home-photo-upload-retry-button",
+        secondaryButtonTestID: "home-photo-upload-discard-button",
+        title: t("history.photoUploadRecoveryTitle", {
+          ns: "meals",
+          count: failedPhotoUploads,
+        }),
+        description: t("history.photoUploadRecoverySubtitle", {
+          ns: "meals",
+        }),
+        actionLabel: t("common:retry"),
+        secondaryActionLabel: t("history.photoUploadDiscardAction", {
+          ns: "meals",
+        }),
+        onRetry: mealDeadLetterRecovery.retryPhotoUploads,
+        onSecondaryAction: mealDeadLetterRecovery.discardPhotoUploads,
+      });
+    }
 
-    return {
-      testID: "home-photo-upload-recovery",
-      titleTestID: "home-photo-upload-title",
-      descriptionTestID: "home-photo-upload-description",
-      retryButtonTestID: "home-photo-upload-retry-button",
-      title: t("history.photoUploadRecoveryTitle", {
-        ns: "meals",
-        count: failedPhotoUploads,
-      }),
-      description: t("history.photoUploadRecoverySubtitle", {
-        ns: "meals",
-      }),
-      actionLabel: t("common:retry"),
-      onRetry: mealDeadLetterRecovery.retryPhotoUploads,
-    };
+    return banners;
   }, [
     mealDeadLetterRecovery.diagnostics,
+    mealDeadLetterRecovery.discardPhotoUploads,
     mealDeadLetterRecovery.retryDeadLetters,
     mealDeadLetterRecovery.retryPhotoUploads,
     t,
@@ -428,20 +466,24 @@ export default function HomeScreen({ navigation }: Props) {
           tone={heroModel.tone}
         />
 
-        {deadLetterBanner ? (
+        {recoveryBanners.map((banner) => (
           <HomeDeadLetterRecoveryBanner
-            testID={deadLetterBanner.testID}
-            titleTestID={deadLetterBanner.titleTestID}
-            descriptionTestID={deadLetterBanner.descriptionTestID}
-            retryButtonTestID={deadLetterBanner.retryButtonTestID}
-            title={deadLetterBanner.title}
-            description={deadLetterBanner.description}
-            actionLabel={deadLetterBanner.actionLabel}
+            key={banner.testID}
+            testID={banner.testID}
+            titleTestID={banner.titleTestID}
+            descriptionTestID={banner.descriptionTestID}
+            retryButtonTestID={banner.retryButtonTestID}
+            secondaryButtonTestID={banner.secondaryButtonTestID}
+            title={banner.title}
+            description={banner.description}
+            actionLabel={banner.actionLabel}
+            secondaryActionLabel={banner.secondaryActionLabel}
             retrying={mealDeadLetterRecovery.retrying}
-            onRetry={deadLetterBanner.onRetry}
+            onRetry={banner.onRetry}
+            onSecondaryAction={banner.onSecondaryAction}
             styles={styles}
           />
-        ) : null}
+        ))}
 
         {macroTargets ? (
           <MacroTargetsRow
@@ -605,9 +647,6 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
     },
     deadLetterActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
       gap: theme.spacing.sm,
     },
     deadLetterDescription: {
@@ -617,11 +656,26 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.regular,
     },
+    deadLetterButtonRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      flexWrap: "wrap",
+      gap: theme.spacing.xs,
+    },
     deadLetterRetry: {
       paddingHorizontal: theme.spacing.sm,
       paddingVertical: theme.spacing.xxs + 1,
       borderRadius: theme.rounded.full,
       backgroundColor: theme.warning.surface,
+    },
+    deadLetterSecondary: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs + 1,
+      borderRadius: theme.rounded.full,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.warning.surface,
+      backgroundColor: "transparent",
     },
     deadLetterRetryPressed: {
       opacity: 0.84,
@@ -631,6 +685,12 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     deadLetterRetryLabel: {
       color: theme.warning.text,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    deadLetterSecondaryLabel: {
+      color: theme.textSecondary,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,

@@ -184,6 +184,23 @@ export async function retryFailedUploads(uid: string): Promise<number> {
   return retried;
 }
 
+export async function discardFailedUploads(uid: string): Promise<number> {
+  const db = getDB();
+  const result = db.runSync(
+    `DELETE FROM images
+     WHERE user_uid=? AND status='failed'`,
+    [uid]
+  ) as { changes?: number };
+  const discarded = Number(result.changes ?? 0);
+  if (discarded <= 0) return 0;
+
+  emit("image:upload:discarded", {
+    uid,
+    count: discarded,
+  });
+  return discarded;
+}
+
 export async function cleanupConfirmedLoggedMealPhoto(params: {
   uid: string;
   cloudId: string;

@@ -7,6 +7,7 @@ import {
   type QueueKind,
 } from "@/services/offline/queue.repo";
 import {
+  discardFailedUploads,
   getFailedUploadCount,
   retryFailedUploads,
 } from "@/services/offline/images.repo";
@@ -143,6 +144,7 @@ export function useHomeMealDeadLetterRecovery(
       on<{ uid?: string }>("sync:op:retried", refreshForUid),
       on<{ uid?: string }>("image:upload:failed", refreshForUid),
       on<{ uid?: string }>("image:upload:retried", refreshForUid),
+      on<{ uid?: string }>("image:upload:discarded", refreshForUid),
     ];
 
     return () => {
@@ -234,10 +236,42 @@ export function useHomeMealDeadLetterRecovery(
     }
   }, [refreshDiagnostics, uid]);
 
+  const discardPhotoUploads = useCallback(async () => {
+    if (!uid || retryInFlightRef.current) return;
+
+    retryInFlightRef.current = true;
+    setRetrying(true);
+
+    try {
+      const discardedPhotos =
+        diagnosticsRef.current.failedPhotoUploads > 0
+          ? await discardFailedUploads(uid)
+          : 0;
+      await refreshDiagnostics();
+
+      if (discardedPhotos > 0) {
+        emit("ui:toast", {
+          key: "history.photoUploadDiscarded",
+          ns: "meals",
+          options: { count: discardedPhotos },
+        });
+      }
+    } catch {
+      emit("ui:toast", {
+        key: "unknownError",
+        ns: "common",
+      });
+    } finally {
+      retryInFlightRef.current = false;
+      setRetrying(false);
+    }
+  }, [refreshDiagnostics, uid]);
+
   return {
     diagnostics,
     retrying,
     retryDeadLetters,
     retryPhotoUploads,
+    discardPhotoUploads,
   };
 }

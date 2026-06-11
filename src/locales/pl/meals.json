@@ -288,6 +288,8 @@
     "photoUploadRecoveryTitle": "{{count}} przesłanie zdjęcia posiłku wymaga ponowienia.",
     "photoUploadRecoverySubtitle": "Posiłek jest zapisany, ale przesłanie zdjęcia wymaga odzyskania, zanim pojawi się na zsynchronizowanych urządzeniach.",
     "photoUploadRetryQueued": "Dodano {{count}} nieudane przesłanie zdjęcia do ponowienia.",
+    "photoUploadDiscardAction": "Przestań ponawiać",
+    "photoUploadDiscarded": "{{count}} nieudane przesłanie zdjęcia nie będzie już ponawiane.",
     "deadLetterOperation": {
       "upsert": "aktualizacja posiłku",
       "delete": "usunięcie posiłku",

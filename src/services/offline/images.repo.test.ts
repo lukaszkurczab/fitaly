@@ -120,4 +120,45 @@ describe("images repo failed upload recovery", () => {
     );
     expect(mockEmit).not.toHaveBeenCalled();
   });
+
+  it("discards failed same-user image rows and returns the discarded count", async () => {
+    mockRunSync.mockReturnValueOnce({ changes: 2 });
+    const { discardFailedUploads } = loadImagesRepo();
+
+    await expect(discardFailedUploads("user-1")).resolves.toBe(2);
+
+    expect(mockRunSync).toHaveBeenCalledWith(
+      expect.stringContaining("DELETE FROM images"),
+      ["user-1"],
+    );
+    expect(mockRunSync).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE user_uid=? AND status='failed'"),
+      expect.any(Array),
+    );
+    expect(mockRunSync).not.toHaveBeenCalledWith(
+      expect.stringContaining("status='uploaded'"),
+      expect.any(Array),
+    );
+    expect(mockRunSync).not.toHaveBeenCalledWith(
+      expect.stringContaining("status='pending'"),
+      expect.any(Array),
+    );
+    expect(mockEmit).toHaveBeenCalledWith("image:upload:discarded", {
+      uid: "user-1",
+      count: 2,
+    });
+  });
+
+  it("does not emit when no failed uploads were discarded", async () => {
+    mockRunSync.mockReturnValueOnce({ changes: 0 });
+    const { discardFailedUploads } = loadImagesRepo();
+
+    await expect(discardFailedUploads("user-1")).resolves.toBe(0);
+
+    expect(mockRunSync).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE user_uid=? AND status='failed'"),
+      ["user-1"],
+    );
+    expect(mockEmit).not.toHaveBeenCalled();
+  });
 });
