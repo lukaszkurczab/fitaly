@@ -22,20 +22,23 @@ describe("myMealsRepository mutation identity", () => {
     mockGet.mockResolvedValue({
       items: [
         {
-          id: "saved-1",
-          loggedAt: "2026-03-03T12:00:00.000Z",
-          type: "lunch",
-          name: "Saved lunch",
-          ingredients: [],
+          templateId: "saved-1",
+          ownerUserId: "user-1",
+          templateVersion: 1,
+          mealTypeHint: "lunch",
+          displayName: "Saved lunch",
+          description: null,
+          draftItems: [],
           createdAt: "2026-03-03T12:00:00.000Z",
           updatedAt: "2026-03-03T12:30:00.000Z",
-          source: "saved",
           imageRef: {
             imageId: "image-1",
             storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
             downloadUrl: "https://cdn/saved.jpg",
           },
-          totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          draftTotals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          nutritionSnapshot: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          deleted: false,
         },
       ],
       nextCursor: null,
@@ -53,6 +56,10 @@ describe("myMealsRepository mutation identity", () => {
     expect(result.items[0]).toEqual(
       expect.objectContaining({
         cloudId: "saved-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        name: "Saved lunch",
+        source: "saved",
         imageId: "image-1",
         photoUrl: "https://cdn/saved.jpg",
         imageRef: {
@@ -64,7 +71,7 @@ describe("myMealsRepository mutation identity", () => {
     );
   });
 
-  it("sends clientMutationId in saved meal upsert body", async () => {
+  it("sends template-shaped saved meal upsert body", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { updateMyMealRemote } = require("@/services/meals/myMealsRepository") as
       typeof import("@/services/meals/myMealsRepository");
@@ -90,9 +97,29 @@ describe("myMealsRepository mutation identity", () => {
     expect(mockPost).toHaveBeenCalledWith(
       "/users/me/meal-templates",
       expect.objectContaining({
-        id: "saved-1",
-        source: "saved",
+        templateId: "saved-1",
+        ownerUserId: "user-1",
+        templateVersion: 1,
+        displayName: null,
+        description: null,
+        mealTypeHint: "lunch",
+        draftItems: [],
+        draftTotals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+        nutritionSnapshot: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
         clientMutationId: "mutation-saved-upsert-1",
+      }),
+    );
+    expect(mockPost.mock.calls[0]?.[1]).not.toEqual(
+      expect.objectContaining({
+        loggedAt: expect.anything(),
+        timestamp: expect.anything(),
+        dayKey: expect.anything(),
+        loggedAtLocalMin: expect.anything(),
+        tzOffsetMin: expect.anything(),
+        source: expect.anything(),
+        inputMethod: expect.anything(),
+        savedMealRefId: expect.anything(),
+        syncState: expect.anything(),
       }),
     );
   });
@@ -136,9 +163,12 @@ describe("myMealsRepository mutation identity", () => {
         },
       }),
     );
+    expect(mockPost.mock.calls[0]?.[1]).not.toEqual(
+      expect.objectContaining({ source: expect.anything(), inputMethod: expect.anything() }),
+    );
   });
 
-  it("drops old saved meal imageRef storagePath during remote parse", async () => {
+  it("drops logged-meal-shaped saved meal items during remote parse", async () => {
     mockGet.mockResolvedValue({
       items: [
         {
@@ -155,6 +185,44 @@ describe("myMealsRepository mutation identity", () => {
             downloadUrl: "https://cdn/saved.jpg",
           },
           totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+        },
+      ],
+      nextCursor: null,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { fetchMyMealChangesRemote } = require("@/services/meals/myMealsRepository") as
+      typeof import("@/services/meals/myMealsRepository");
+
+    const result = await fetchMyMealChangesRemote({
+      uid: "user-1",
+      pageSize: 100,
+      cursor: null,
+    });
+
+    expect(result.items).toEqual([]);
+  });
+
+  it("drops old saved meal imageRef storagePath from template-shaped remote items", async () => {
+    mockGet.mockResolvedValue({
+      items: [
+        {
+          templateId: "saved-1",
+          ownerUserId: "user-1",
+          templateVersion: 1,
+          displayName: "Saved lunch",
+          description: null,
+          mealTypeHint: "lunch",
+          draftItems: [],
+          createdAt: "2026-03-03T12:00:00.000Z",
+          updatedAt: "2026-03-03T12:30:00.000Z",
+          imageRef: {
+            imageId: "image-1",
+            storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+            downloadUrl: "https://cdn/saved.jpg",
+          },
+          draftTotals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          nutritionSnapshot: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          deleted: false,
         },
       ],
       nextCursor: null,
@@ -312,9 +380,9 @@ describe("myMealsRepository mutation identity", () => {
     });
   });
 
-  it("exposes saved meal photo upload storagePath with legacy return fields", async () => {
+  it("exposes saved meal photo upload storagePath with template response fields", async () => {
     mockUpload.mockResolvedValue({
-      mealId: "saved-1",
+      templateId: "saved-1",
       imageId: "image-1",
       storagePath: "mealTemplates/user-1/saved-1-image-1.jpg",
       photoUrl: "https://cdn/saved-1.jpg",
@@ -338,7 +406,7 @@ describe("myMealsRepository mutation identity", () => {
 
   it("keeps saved meal photo upload return compatible when storagePath is missing", async () => {
     mockUpload.mockResolvedValue({
-      mealId: "saved-1",
+      templateId: "saved-1",
       imageId: "image-1",
       photoUrl: "https://cdn/saved-1.jpg",
     });
@@ -356,7 +424,7 @@ describe("myMealsRepository mutation identity", () => {
 
   it("drops old saved meal photo upload storagePath", async () => {
     mockUpload.mockResolvedValue({
-      mealId: "saved-1",
+      templateId: "saved-1",
       imageId: "image-1",
       storagePath: "myMeals/user-1/saved-1-image-1.jpg",
       photoUrl: "https://cdn/saved-1.jpg",

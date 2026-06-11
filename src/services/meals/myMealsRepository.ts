@@ -6,10 +6,6 @@ import {
   getAllMyMealsLocal,
   getMyMealsPageLocal,
 } from "@/services/offline/myMeals.repo";
-import {
-  normalizeMealAiMeta,
-  normalizeMealInputMethod,
-} from "@/services/meals/mealMetadata";
 
 export type MyMealDoc = Meal & {
   uploadState?: "pending" | "done";
@@ -30,11 +26,52 @@ type MyMealsRemoteResponse = {
 };
 
 type UploadPhotoResponse = {
-  mealId?: string;
+  templateId?: string;
   imageId?: string;
   storagePath?: string;
   photoUrl?: string;
 };
+
+type MealTemplatePayload = {
+  templateId: string;
+  ownerUserId?: string;
+  templateVersion: number;
+  displayName: string | null;
+  description: string | null;
+  mealTypeHint: Meal["type"];
+  draftItems: Meal["ingredients"];
+  draftTotals: Meal["totals"];
+  nutritionSnapshot: Meal["totals"];
+  imageRef: MealImageRef | null;
+  createdAt?: string;
+  updatedAt?: string;
+  deleted: boolean;
+};
+
+const LOGGED_MEAL_ONLY_TEMPLATE_RESPONSE_FIELDS = [
+  "id",
+  "mealId",
+  "cloudId",
+  "loggedAt",
+  "timestamp",
+  "dayKey",
+  "loggedAtLocalMin",
+  "tzOffsetMin",
+  "type",
+  "name",
+  "ingredients",
+  "syncState",
+  "source",
+  "inputMethod",
+  "aiMeta",
+  "notes",
+  "tags",
+  "totals",
+  "userUid",
+  "imageId",
+  "photoUrl",
+  "savedMealRefId",
+] as const;
 
 function toFiniteNumber(value: unknown): number {
   const parsed = Number(value);
@@ -44,6 +81,34 @@ function toFiniteNumber(value: unknown): number {
 function asMap(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
   return value as Record<string, unknown>;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function isMealType(value: unknown): value is Meal["type"] {
+  return (
+    value === "breakfast" ||
+    value === "lunch" ||
+    value === "dinner" ||
+    value === "snack" ||
+    value === "other"
+  );
+}
+
+function hasOwnField(record: Record<string, unknown>, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, field);
+}
+
+function hasLoggedMealOnlyTemplateResponseField(
+  record: Record<string, unknown>,
+): boolean {
+  return LOGGED_MEAL_ONLY_TEMPLATE_RESPONSE_FIELDS.some((field) =>
+    hasOwnField(record, field),
+  );
 }
 
 function parseImageRef(raw: unknown): MealImageRef | null {
@@ -71,25 +136,60 @@ function isUserScopedSavedMealStoragePath(
 }
 
 function normalizeMeal(raw: unknown, uid: string): Meal | null {
-  const doc = raw as Partial<MealDocument> & Partial<Meal>;
-  const id = String(doc.id || doc.cloudId || doc.mealId || "").trim();
-  const loggedAt = String(doc.loggedAt || doc.timestamp || "").trim();
-  const updatedAt = String(doc.updatedAt || "").trim();
-  if (!id || !loggedAt || !updatedAt) {
+  const doc = asMap(raw);
+  if (!doc) {
+    return null;
+  }
+  if (hasLoggedMealOnlyTemplateResponseField(doc)) {
     return null;
   }
 
-  const imageRef =
-    parseImageRef(doc.imageRef) ||
-    (typeof doc.imageId === "string" && doc.imageId.trim().length > 0
-      ? {
-          imageId: doc.imageId.trim(),
-          downloadUrl:
-            typeof doc.photoUrl === "string" && doc.photoUrl.trim().length > 0
-              ? doc.photoUrl.trim()
-              : null,
-        }
-      : null);
+  const id = asNonEmptyString(doc.templateId);
+  const ownerUserId = asNonEmptyString(doc.ownerUserId);
+  const templateVersion =
+    typeof doc.templateVersion === "number" && doc.templateVersion >= 1
+      ? doc.templateVersion
+      : null;
+  const createdAt = asNonEmptyString(doc.createdAt);
+  const updatedAt = asNonEmptyString(doc.updatedAt);
+  const mealType = isMealType(doc.mealTypeHint) ? doc.mealTypeHint : null;
+  const draftItems = Array.isArray(doc.draftItems)
+    ? (doc.draftItems as Meal["ingredients"])
+    : null;
+  const draftTotals = asMap(doc.draftTotals) || asMap(doc.nutritionSnapshot);
+  const nutritionSnapshot = asMap(doc.nutritionSnapshot);
+  const displayName =
+    doc.displayName === null || typeof doc.displayName === "string"
+      ? doc.displayName
+      : undefined;
+  const description =
+    doc.description === null || typeof doc.description === "string"
+      ? doc.description
+      : undefined;
+  const hasImageRefField = hasOwnField(doc, "imageRef");
+  const deleted = typeof doc.deleted === "boolean" ? doc.deleted : null;
+  if (
+    !id ||
+    !ownerUserId ||
+    !templateVersion ||
+    !createdAt ||
+    !updatedAt ||
+    !mealType ||
+    !draftItems ||
+    !draftTotals ||
+    !nutritionSnapshot ||
+    displayName === undefined ||
+    description === undefined ||
+    !hasImageRefField ||
+    deleted === null
+  ) {
+    return null;
+  }
+
+  const imageRef = parseImageRef(doc.imageRef);
+  if (doc.imageRef !== null && imageRef === null) {
+    return null;
+  }
   const sanitizedImageRef =
     imageRef && isUserScopedSavedMealStoragePath(imageRef.storagePath, uid)
       ? imageRef
@@ -104,36 +204,27 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
     userUid: uid,
     mealId: id,
     cloudId: id,
-    timestamp: loggedAt,
-    type:
-      doc.type === "breakfast" ||
-      doc.type === "lunch" ||
-      doc.type === "dinner" ||
-      doc.type === "snack" ||
-      doc.type === "other"
-        ? doc.type
-        : "other",
-    name: typeof doc.name === "string" ? doc.name : null,
-    ingredients: Array.isArray(doc.ingredients) ? doc.ingredients : [],
-    createdAt: String(doc.createdAt || loggedAt),
+    timestamp: createdAt,
+    type: mealType,
+    name: displayName,
+    ingredients: draftItems,
+    createdAt,
     updatedAt,
     syncState: "synced",
     source: "saved",
-    inputMethod: normalizeMealInputMethod(doc.inputMethod),
-    aiMeta: normalizeMealAiMeta(doc.aiMeta),
+    inputMethod: null,
+    aiMeta: null,
     imageRef: sanitizedImageRef,
     imageId: sanitizedImageRef?.imageId ?? null,
     photoUrl: sanitizedImageRef?.downloadUrl ?? null,
-    notes: typeof doc.notes === "string" ? doc.notes : null,
-    tags: Array.isArray(doc.tags)
-      ? doc.tags.filter((tag): tag is string => typeof tag === "string")
-      : [],
-    deleted: Boolean(doc.deleted),
+    notes: description,
+    tags: [],
+    deleted,
     totals: {
-      kcal: toFiniteNumber(doc.totals?.kcal),
-      protein: toFiniteNumber(doc.totals?.protein),
-      carbs: toFiniteNumber(doc.totals?.carbs),
-      fat: toFiniteNumber(doc.totals?.fat),
+      kcal: toFiniteNumber(draftTotals?.kcal),
+      protein: toFiniteNumber(draftTotals?.protein),
+      carbs: toFiniteNumber(draftTotals?.carbs),
+      fat: toFiniteNumber(draftTotals?.fat),
     },
   };
 }
@@ -272,11 +363,11 @@ export async function fetchMyMealChangesRemote(params: {
   return toRemotePage(response, params.uid);
 }
 
-function toMealDocumentPayload(
+function toMealTemplatePayload(
   mealId: string,
   payload: MyMealDoc | Partial<MyMealDoc> | Partial<MealDocument>,
   ownerUid: string,
-): Partial<MealDocument> {
+): MealTemplatePayload {
   const incomingImageRef = parseImageRef((payload as Partial<MealDocument>).imageRef);
   const id = String(payload.cloudId || payload.mealId || mealId || "").trim();
   const imageId =
@@ -293,23 +384,33 @@ function toMealDocumentPayload(
       ? incomingImageRef.storagePath
       : null;
 
+  const mealType =
+    payload.type === "breakfast" ||
+    payload.type === "lunch" ||
+    payload.type === "dinner" ||
+    payload.type === "snack" ||
+    payload.type === "other"
+      ? payload.type
+      : "other";
+  const totals = {
+    kcal: toFiniteNumber(payload.totals?.kcal),
+    protein: toFiniteNumber(payload.totals?.protein),
+    carbs: toFiniteNumber(payload.totals?.carbs),
+    fat: toFiniteNumber(payload.totals?.fat),
+  };
+
   return {
-    id,
-    loggedAt:
-      typeof payload.timestamp === "string" && payload.timestamp.trim().length > 0
-        ? payload.timestamp
-        : undefined,
-    dayKey: payload.dayKey,
-    loggedAtLocalMin: payload.loggedAtLocalMin,
-    tzOffsetMin: payload.tzOffsetMin,
-    type: payload.type,
-    name: payload.name,
-    ingredients: payload.ingredients,
+    templateId: id,
+    ...(uid ? { ownerUserId: uid } : {}),
+    templateVersion: 1,
+    displayName: typeof payload.name === "string" ? payload.name : null,
+    description: typeof payload.notes === "string" ? payload.notes : null,
+    mealTypeHint: mealType,
+    draftItems: Array.isArray(payload.ingredients) ? payload.ingredients : [],
+    draftTotals: totals,
+    nutritionSnapshot: totals,
     createdAt: payload.createdAt,
     updatedAt: payload.updatedAt,
-    source: "saved",
-    inputMethod: normalizeMealInputMethod(payload.inputMethod),
-    aiMeta: normalizeMealAiMeta(payload.aiMeta),
     imageRef: imageId
       ? {
           imageId,
@@ -317,10 +418,7 @@ function toMealDocumentPayload(
           downloadUrl,
         }
       : null,
-    notes: payload.notes,
-    tags: payload.tags,
-    deleted: payload.deleted,
-    totals: payload.totals,
+    deleted: Boolean(payload.deleted),
   };
 }
 
@@ -331,7 +429,7 @@ export async function updateMyMealRemote(
   clientMutationId: string,
 ): Promise<void> {
   await post("/users/me/meal-templates", {
-    ...toMealDocumentPayload(mealId, payload, uid),
+    ...toMealTemplatePayload(mealId, payload, uid),
     clientMutationId,
   });
 }
