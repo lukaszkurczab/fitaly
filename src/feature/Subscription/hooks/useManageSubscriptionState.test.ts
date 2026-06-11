@@ -19,9 +19,14 @@ jest.mock("@/services/billing/revenuecat", () => ({
   isBillingDisabled: () => false,
 }));
 
-jest.mock("@/services/core/events", () => ({
-  emit: (...args: unknown[]) => mockEmit(...args),
-}));
+jest.mock("@/services/core/events", () => {
+  const on = jest.fn(() => jest.fn());
+
+  return {
+    emit: (...args: unknown[]) => mockEmit(...args),
+    on,
+  };
+});
 
 jest.mock("@/utils/legalUrls", () => ({
   getTermsUrl: () => "https://example.com/terms",
