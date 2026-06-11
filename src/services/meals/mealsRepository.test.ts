@@ -62,6 +62,60 @@ describe("mealsRepository mutation identity", () => {
     );
   });
 
+  it("uses owner context for meal imageRef storagePath when available", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { saveMealRemote } = require("@/services/meals/mealsRepository") as
+      typeof import("@/services/meals/mealsRepository");
+
+    await saveMealRemote({
+      uid: "user-1",
+      meal: baseMeal({
+        userUid: "",
+        imageId: "image-1",
+        photoUrl: "https://cdn/meal.jpg",
+      }),
+      clientMutationId: "mutation-upsert-image-1",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/users/me/meals",
+      expect.objectContaining({
+        imageRef: {
+          imageId: "image-1",
+          storagePath: "meals/user-1/image-1.jpg",
+          downloadUrl: "https://cdn/meal.jpg",
+        },
+      }),
+    );
+  });
+
+  it("does not synthesize unknown meal imageRef storagePath", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { saveMealRemote } = require("@/services/meals/mealsRepository") as
+      typeof import("@/services/meals/mealsRepository");
+
+    await saveMealRemote({
+      uid: "",
+      meal: baseMeal({
+        userUid: "",
+        imageId: "image-1",
+        photoUrl: "https://cdn/meal.jpg",
+      }),
+      clientMutationId: "mutation-upsert-image-missing-owner",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/users/me/meals",
+      expect.objectContaining({
+        imageRef: {
+          imageId: "image-1",
+          downloadUrl: "https://cdn/meal.jpg",
+        },
+      }),
+    );
+    expect(JSON.stringify(mockPost.mock.calls[0]?.[1])).not.toContain("unknown");
+  });
+
   it("sends clientMutationId in core meal delete body", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { markMealDeletedRemote } = require("@/services/meals/mealsRepository") as

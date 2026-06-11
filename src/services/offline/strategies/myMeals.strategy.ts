@@ -79,6 +79,13 @@ function isLocalUri(value?: string | null): value is string {
   return value.startsWith("file:") || value.startsWith("content:");
 }
 
+function isUserScopedSavedMealStoragePath(
+  storagePath: string | null | undefined,
+  uid: string,
+): storagePath is string {
+  return Boolean(storagePath && uid && storagePath.startsWith(`myMeals/${uid}/`));
+}
+
 function normalizeChangesCursor(cursor: string | null): string | null {
   const normalized = cursor?.trim();
   return normalized && normalized.includes("|") ? normalized : null;
@@ -233,22 +240,45 @@ export const myMealsStrategy: SyncStrategy = {
         typeof payload?.photoUrl === "string" && !isLocalUri(payload.photoUrl)
           ? payload.photoUrl
           : null;
+      let uploadedStoragePath: string | null = null;
 
       if (localPhotoPath) {
         const uploaded = await uploadMyMealPhotoRemote(uid, docId, localPhotoPath);
         imageId = uploaded.imageId;
         photoUrl = uploaded.photoUrl;
+        uploadedStoragePath = isUserScopedSavedMealStoragePath(
+          uploaded.storagePath,
+          uid,
+        )
+          ? uploaded.storagePath
+          : null;
       }
 
-      await updateMyMealRemote(uid, docId, {
-        ...payload,
-        mealId: docId,
-        cloudId: docId,
-        source: "saved",
-        updatedAt: payload?.updatedAt || nowISO(),
-        imageId,
-        photoUrl,
-      }, op.client_mutation_id);
+      await updateMyMealRemote(
+        uid,
+        docId,
+        {
+          ...payload,
+          mealId: docId,
+          cloudId: docId,
+          source: "saved",
+          updatedAt: payload?.updatedAt || nowISO(),
+          imageId,
+          photoUrl,
+          ...(localPhotoPath && imageId
+            ? {
+                imageRef: {
+                  imageId,
+                  ...(uploadedStoragePath
+                    ? { storagePath: uploadedStoragePath }
+                    : {}),
+                  downloadUrl: photoUrl,
+                },
+              }
+            : {}),
+        },
+        op.client_mutation_id,
+      );
       await upsertMyMealLocal({
         userUid: String(payload?.userUid || uid),
         mealId: docId,

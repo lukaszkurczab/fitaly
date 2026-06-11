@@ -10,7 +10,7 @@ import type {
 
 export type MealImageRef = {
   imageId: string;
-  storagePath: string;
+  storagePath?: string;
   downloadUrl?: string | null;
 };
 

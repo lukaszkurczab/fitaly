@@ -32,6 +32,7 @@ type MyMealsRemoteResponse = {
 type UploadPhotoResponse = {
   mealId?: string;
   imageId?: string;
+  storagePath?: string;
   photoUrl?: string;
 };
 
@@ -50,16 +51,23 @@ function parseImageRef(raw: unknown): MealImageRef | null {
   if (!imageRef) return null;
   const imageId = String(imageRef.imageId || "").trim();
   const storagePath = String(imageRef.storagePath || "").trim();
-  if (!imageId || !storagePath) return null;
+  if (!imageId) return null;
   const downloadUrl =
     typeof imageRef.downloadUrl === "string" && imageRef.downloadUrl.trim().length > 0
       ? imageRef.downloadUrl.trim()
       : null;
   return {
     imageId,
-    storagePath,
+    ...(storagePath ? { storagePath } : {}),
     downloadUrl,
   };
+}
+
+function isUserScopedSavedMealStoragePath(
+  storagePath: string | null | undefined,
+  uid: string,
+): storagePath is string {
+  return Boolean(storagePath && uid && storagePath.startsWith(`myMeals/${uid}/`));
 }
 
 function normalizeMeal(raw: unknown, uid: string): Meal | null {
@@ -76,7 +84,6 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
     (typeof doc.imageId === "string" && doc.imageId.trim().length > 0
       ? {
           imageId: doc.imageId.trim(),
-          storagePath: `myMeals/${uid}/${doc.imageId.trim()}.jpg`,
           downloadUrl:
             typeof doc.photoUrl === "string" && doc.photoUrl.trim().length > 0
               ? doc.photoUrl.trim()
@@ -258,15 +265,22 @@ export async function fetchMyMealChangesRemote(params: {
 function toMealDocumentPayload(
   mealId: string,
   payload: MyMealDoc | Partial<MyMealDoc> | Partial<MealDocument>,
+  ownerUid: string,
 ): Partial<MealDocument> {
+  const incomingImageRef = parseImageRef((payload as Partial<MealDocument>).imageRef);
   const id = String(payload.cloudId || payload.mealId || mealId || "").trim();
   const imageId =
     typeof payload.imageId === "string" && payload.imageId.trim().length > 0
       ? payload.imageId.trim()
-      : null;
+      : incomingImageRef?.imageId ?? null;
+  const uid = String(ownerUid || payload.userUid || "").trim();
   const downloadUrl =
     typeof payload.photoUrl === "string" && /^https?:\/\//i.test(payload.photoUrl)
       ? payload.photoUrl
+      : incomingImageRef?.downloadUrl || null;
+  const storagePath =
+    incomingImageRef && isUserScopedSavedMealStoragePath(incomingImageRef.storagePath, uid)
+      ? incomingImageRef.storagePath
       : null;
 
   return {
@@ -289,7 +303,7 @@ function toMealDocumentPayload(
     imageRef: imageId
       ? {
           imageId,
-          storagePath: `myMeals/${payload.userUid || "unknown"}/${imageId}.jpg`,
+          ...(storagePath ? { storagePath } : {}),
           downloadUrl,
         }
       : null,
@@ -306,9 +320,8 @@ export async function updateMyMealRemote(
   payload: MyMealDoc | Partial<MyMealDoc> | Partial<MealDocument>,
   clientMutationId: string,
 ): Promise<void> {
-  void uid;
   await post("/users/me/my-meals", {
-    ...toMealDocumentPayload(mealId, payload),
+    ...toMealDocumentPayload(mealId, payload, uid),
     clientMutationId,
   });
 }
@@ -317,7 +330,7 @@ export async function uploadMyMealPhotoRemote(
   uid: string,
   mealId: string,
   photoUri: string,
-): Promise<{ imageId: string; photoUrl: string }> {
+): Promise<{ imageId: string; photoUrl: string; storagePath?: string }> {
   void uid;
   const formData = new FormData();
   formData.append("file", {
@@ -333,6 +346,9 @@ export async function uploadMyMealPhotoRemote(
   return {
     imageId: String(response.imageId || ""),
     photoUrl: String(response.photoUrl || ""),
+    ...(typeof response.storagePath === "string" && response.storagePath.trim()
+      ? { storagePath: response.storagePath.trim() }
+      : {}),
   };
 }
 

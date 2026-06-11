@@ -148,6 +148,134 @@ describe("myMeals strategy", () => {
     );
   });
 
+  it("attaches uploaded saved meal storagePath to the immediate upsert payload", async () => {
+    mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
+      imageId: "image-1",
+      photoUrl: "https://cdn/mymeal.jpg",
+      storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
+
+    await myMealsStrategy.handlePushOp("user-1", {
+      id: 3,
+      cloud_id: "saved-1",
+      user_uid: "user-1",
+      kind: "upsert_mymeal",
+      payload: {
+        cloudId: "saved-1",
+        mealId: "saved-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        source: "saved",
+        photoUrl: "file://saved.jpg",
+      },
+      updated_at: "2026-03-03T12:10:00.000Z",
+      attempts: 0,
+      client_mutation_id: "mutation-saved-upsert-1",
+    });
+
+    expect(mockUpdateMyMealRemote).toHaveBeenCalledWith(
+      "user-1",
+      "saved-1",
+      expect.objectContaining({
+        imageId: "image-1",
+        photoUrl: "https://cdn/mymeal.jpg",
+        imageRef: {
+          imageId: "image-1",
+          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          downloadUrl: "https://cdn/mymeal.jpg",
+        },
+      }),
+      "mutation-saved-upsert-1",
+    );
+  });
+
+  it("omits uploaded saved meal storagePath when the upload response lacks one", async () => {
+    mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
+      imageId: "image-1",
+      photoUrl: "https://cdn/mymeal.jpg",
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
+
+    await myMealsStrategy.handlePushOp("user-1", {
+      id: 3,
+      cloud_id: "saved-1",
+      user_uid: "user-1",
+      kind: "upsert_mymeal",
+      payload: {
+        cloudId: "saved-1",
+        mealId: "saved-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        source: "saved",
+        photoUrl: "file://saved.jpg",
+      },
+      updated_at: "2026-03-03T12:10:00.000Z",
+      attempts: 0,
+      client_mutation_id: "mutation-saved-upsert-1",
+    });
+
+    const updatePayload = mockUpdateMyMealRemote.mock.calls[0]?.[2] as {
+      imageRef?: Record<string, unknown>;
+    };
+    expect(updatePayload.imageRef).toEqual({
+      imageId: "image-1",
+      downloadUrl: "https://cdn/mymeal.jpg",
+    });
+    expect(updatePayload.imageRef).not.toHaveProperty("storagePath");
+  });
+
+  it("omits uploaded saved meal storagePath when it is outside the active user scope", async () => {
+    mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
+      imageId: "image-1",
+      photoUrl: "https://cdn/mymeal.jpg",
+      storagePath: "myMeals/other-user/saved-1-uploaded-image-1.jpg",
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
+
+    await myMealsStrategy.handlePushOp("user-1", {
+      id: 3,
+      cloud_id: "saved-1",
+      user_uid: "user-1",
+      kind: "upsert_mymeal",
+      payload: {
+        cloudId: "saved-1",
+        mealId: "saved-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        source: "saved",
+        photoUrl: "file://saved.jpg",
+      },
+      updated_at: "2026-03-03T12:10:00.000Z",
+      attempts: 0,
+      client_mutation_id: "mutation-saved-upsert-1",
+    });
+
+    const updatePayload = mockUpdateMyMealRemote.mock.calls[0]?.[2] as {
+      imageRef?: Record<string, unknown>;
+    };
+    expect(updatePayload.imageRef).toEqual({
+      imageId: "image-1",
+      downloadUrl: "https://cdn/mymeal.jpg",
+    });
+    expect(updatePayload.imageRef).not.toHaveProperty("storagePath");
+  });
+
   it("passes client mutation id to saved meal delete push ops", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
