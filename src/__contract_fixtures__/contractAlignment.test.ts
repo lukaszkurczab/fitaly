@@ -88,6 +88,36 @@ const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
   "publicUrl",
   "resolvedDownloadUrl",
 ] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_BRIDGE_DOMAINS = [
+  "MealTemplate",
+  "Recipe",
+] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_NON_MIGRATION_TARGETS = [
+  {
+    domain: "Ingredient/Product",
+    boundaryMechanism: "excluded_from_saved_meal_photo_media_bridge",
+    reason:
+      "product_media_is_product_owned_not_derived_from_saved_meal_photo_asset",
+  },
+  {
+    domain: "ShoppingList",
+    boundaryMechanism: "excluded_from_saved_meal_photo_media_bridge",
+    reason:
+      "shopping_list_references_items_without_transforming_saved_meal_photo_assets",
+  },
+] as const;
+const SAVED_MEAL_PHOTO_STABLE_MEDIA_IDENTITY = [
+  "imageRef",
+  "imageRef.storagePath",
+] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN = [
+  "recipeLifecycleState",
+  "productLifecycleState",
+  "shoppingListLifecycleState",
+  "recipeMediaLifecycle",
+  "productMediaLifecycle",
+  "shoppingListMediaLifecycle",
+] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
 
@@ -201,6 +231,20 @@ type MediaAssetLifecycleFixture = {
       domainOwner: string;
       domainDocumentOwns: string[];
       domainDocumentMustNotOwn: string[];
+      futureLibraryBridge?: {
+        currentDomain: "saved_meal";
+        stableMediaIdentity: string[];
+        bridgesToDomains: string[];
+        bridgeMechanism: string;
+        requiresSeparateMediaMigration: boolean;
+        nonMigrationTargets: {
+          domain: string;
+          boundaryMechanism: string;
+          reason: string;
+        }[];
+        loggedMealMustRemainNarrow: boolean;
+        currentSavedMealMustNotExpandWith: string[];
+      };
     }
   >;
 };
@@ -1028,5 +1072,56 @@ describe("Media asset lifecycle contract", () => {
         expect(field).not.toMatch(/(?:Url|URL)$/);
       }
     }
+  });
+
+  test("saved-meal photo media bridges to future library domains by stable imageRef identity", () => {
+    const bridge = fixture.surfaces.saved_meal_photo.futureLibraryBridge;
+
+    expect(bridge).toBeDefined();
+    expect(bridge?.currentDomain).toBe("saved_meal");
+    expect(bridge?.stableMediaIdentity).toEqual([
+      ...SAVED_MEAL_PHOTO_STABLE_MEDIA_IDENTITY,
+    ]);
+    expect(bridge?.bridgesToDomains).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_BRIDGE_DOMAINS,
+    ]);
+    expect(bridge?.bridgeMechanism).toBe(
+      "reuse_imageRef_storagePath_without_storage_rewrite",
+    );
+    expect(bridge?.requiresSeparateMediaMigration).toBe(false);
+  });
+
+  test("saved-meal bridge explicitly excludes product and shopping-list media migration targets", () => {
+    const bridge = fixture.surfaces.saved_meal_photo.futureLibraryBridge;
+
+    expect(bridge?.nonMigrationTargets).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_NON_MIGRATION_TARGETS,
+    ]);
+    expect(bridge?.bridgesToDomains).not.toEqual(
+      expect.arrayContaining(["Ingredient/Product", "ShoppingList"]),
+    );
+  });
+
+  test("saved-meal bridge does not widen logged Meal or current saved-meal documents", () => {
+    const savedMealPhoto = fixture.surfaces.saved_meal_photo;
+    const bridge = savedMealPhoto.futureLibraryBridge;
+
+    expect(bridge?.loggedMealMustRemainNarrow).toBe(true);
+    expect(savedMealPhoto.domainDocumentOwns).toEqual([
+      "imageRef",
+      "displayMetadata",
+      "savedMealDomainMetadata",
+    ]);
+    expect(savedMealPhoto.domainDocumentOwns).not.toEqual(
+      expect.arrayContaining([
+        ...SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN,
+      ]),
+    );
+    expect(savedMealPhoto.domainDocumentMustNotOwn).toEqual([
+      ...MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+    ]);
+    expect(bridge?.currentSavedMealMustNotExpandWith).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN,
+    ]);
   });
 });
