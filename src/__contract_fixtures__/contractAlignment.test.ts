@@ -20,6 +20,18 @@ import type {
   MealSource,
 } from "@/types/meal";
 import type { MealDocument } from "@/types/mealDocument";
+import {
+  FOOD_LIBRARY_BARCODE_RESULT_OWNERS,
+  FOOD_LIBRARY_CURRENT_SAVED_MEAL_NAMES,
+  FOOD_LIBRARY_DOMAIN_CONTRACTS,
+  FOOD_LIBRARY_DOMAINS,
+  FOOD_LIBRARY_LEGACY_MARKERS_NOT_CANONICAL,
+  FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+  FOOD_LIBRARY_LOGGED_MEAL_OWNER,
+  FOOD_LIBRARY_LOGGED_MEAL_SCHEMA,
+  FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS,
+  type FoodLibraryDomainsContract,
+} from "@/types/foodLibrary";
 import type {
   CoachActionType,
   CoachEmptyReason,
@@ -124,6 +136,28 @@ const FIXTURES_DIR = path.join(__dirname);
 function loadFixture<T = unknown>(name: string): T {
   const raw = fs.readFileSync(path.join(FIXTURES_DIR, name), "utf-8");
   return JSON.parse(raw) as T;
+}
+
+function collectObjectKeys(value: unknown, keys = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectObjectKeys(item, keys);
+    }
+    return keys;
+  }
+
+  if (value !== null && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      keys.add(key);
+      collectObjectKeys(child, keys);
+    }
+  }
+
+  return keys;
+}
+
+function expectExactKeys(value: Record<string, unknown>, expectedKeys: string[]): void {
+  expect(Object.keys(value).sort()).toEqual([...expectedKeys].sort());
 }
 
 type EnumsFixture = {
@@ -1123,5 +1157,158 @@ describe("Media asset lifecycle contract", () => {
     expect(bridge?.currentSavedMealMustNotExpandWith).toEqual([
       ...SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN,
     ]);
+  });
+});
+
+describe("Food library domains contract", () => {
+  const fixture = loadFixture<FoodLibraryDomainsContract>(
+    "food_library_domains_v1.json",
+  );
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "food_library_domains_v1.json",
+    );
+
+    expectExactKeys(rawFixture, [
+      "contract",
+      "libraryDomains",
+      "domainContracts",
+      "loggedMealBoundary",
+      "currentSavedMealsBoundary",
+      "barcodeBoundary",
+    ]);
+    expectExactKeys(rawFixture.loggedMealBoundary as Record<string, unknown>, [
+      "owner",
+      "schemaName",
+      "mustRemainNarrow",
+      "mustNotServeAsLibraryCatchAll",
+      "mustNotGainFields",
+      "rationale",
+    ]);
+    expectExactKeys(
+      rawFixture.currentSavedMealsBoundary as Record<string, unknown>,
+      [
+        "currentNames",
+        "isFinalLibraryFoundation",
+        "laterTargetDomain",
+        "compatibilityFallbackToOldShapeAccepted",
+        "legacyMarkersNotCanonicalLibraryFoundation",
+        "mustNotExpandWith",
+        "rationale",
+      ],
+    );
+    expectExactKeys(rawFixture.barcodeBoundary as Record<string, unknown>, [
+      "resultOwnership",
+      "addMealDraftSourceOnly",
+      "createsFirstPartyProductCatalogInThisSlice",
+      "mustNotWriteLibraryDomains",
+      "rationale",
+    ]);
+
+    const domainContracts = rawFixture.domainContracts as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expectExactKeys(domainContracts, [...FOOD_LIBRARY_DOMAINS]);
+    for (const domain of FOOD_LIBRARY_DOMAINS) {
+      expectExactKeys(domainContracts[domain], [
+        "owner",
+        "identityFields",
+        "ownedFields",
+      ]);
+    }
+  });
+
+  test("declares exact CH-06 library domains", () => {
+    expect(fixture.contract).toBe("food_library_domains_v1");
+    expect(fixture.libraryDomains).toEqual([...FOOD_LIBRARY_DOMAINS]);
+    expect(fixture.libraryDomains).toEqual([
+      "MealTemplate",
+      "Recipe",
+      "Ingredient/Product",
+      "ShoppingList",
+    ]);
+  });
+
+  test("declares exact field-level contracts for all library domains", () => {
+    expect(Object.keys(fixture.domainContracts)).toEqual([...FOOD_LIBRARY_DOMAINS]);
+
+    for (const domain of FOOD_LIBRARY_DOMAINS) {
+      expect(fixture.domainContracts[domain].owner).toBe(
+        FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].owner,
+      );
+      expect(fixture.domainContracts[domain].identityFields).toEqual([
+        ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].identityFields,
+      ]);
+      expect(fixture.domainContracts[domain].ownedFields).toEqual([
+        ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].ownedFields,
+      ]);
+    }
+  });
+
+  test("MealTemplate excludes logged-meal-only persistence fields", () => {
+    const templateContract = fixture.domainContracts.MealTemplate;
+    const templateFields = new Set<string>([
+      ...templateContract.identityFields,
+      ...templateContract.ownedFields,
+    ]);
+
+    for (const field of FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS) {
+      expect(templateFields.has(field)).toBe(false);
+    }
+  });
+
+  test("logged Meal remains narrow and not the library catch-all", () => {
+    const boundary = fixture.loggedMealBoundary;
+
+    expect(boundary.owner).toBe(FOOD_LIBRARY_LOGGED_MEAL_OWNER);
+    expect(boundary.schemaName).toBe(FOOD_LIBRARY_LOGGED_MEAL_SCHEMA);
+    expect(boundary.mustRemainNarrow).toBe(true);
+    expect(boundary.mustNotServeAsLibraryCatchAll).toBe(true);
+    expect(boundary.mustNotGainFields).toEqual([
+      ...FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+    ]);
+    expect(boundary.rationale).toContain("persisted eaten-meal schema");
+  });
+
+  test("current saved meals are explicitly not final library foundation", () => {
+    const boundary = fixture.currentSavedMealsBoundary;
+
+    expect(boundary.currentNames).toEqual([
+      ...FOOD_LIBRARY_CURRENT_SAVED_MEAL_NAMES,
+    ]);
+    expect(boundary.isFinalLibraryFoundation).toBe(false);
+    expect(boundary.laterTargetDomain).toBe("MealTemplate");
+    expect(boundary.compatibilityFallbackToOldShapeAccepted).toBe(false);
+    expect(boundary.legacyMarkersNotCanonicalLibraryFoundation).toEqual([
+      ...FOOD_LIBRARY_LEGACY_MARKERS_NOT_CANONICAL,
+    ]);
+    expect(boundary.mustNotExpandWith).toEqual([
+      ...FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+    ]);
+  });
+
+  test("barcode result stays backend-adapter and Add Meal draft owned", () => {
+    const boundary = fixture.barcodeBoundary;
+
+    expect(boundary.resultOwnership).toEqual([
+      ...FOOD_LIBRARY_BARCODE_RESULT_OWNERS,
+    ]);
+    expect(boundary.addMealDraftSourceOnly).toBe(true);
+    expect(boundary.createsFirstPartyProductCatalogInThisSlice).toBe(false);
+    expect(boundary.mustNotWriteLibraryDomains).toEqual(["Ingredient/Product"]);
+    expect(fixture.domainContracts["Ingredient/Product"].owner).toBe(
+      "ingredient_product_library",
+    );
+  });
+
+  test("existing logged meal fixture does not include library-only fields", () => {
+    const meal = loadFixture<MealDocument>("meal_item.json");
+    const mealKeys = collectObjectKeys(meal);
+
+    for (const field of fixture.loggedMealBoundary.mustNotGainFields) {
+      expect(mealKeys.has(field)).toBe(false);
+    }
   });
 });
