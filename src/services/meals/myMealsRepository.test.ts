@@ -88,7 +88,7 @@ describe("myMealsRepository mutation identity", () => {
     );
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/users/me/my-meals",
+      "/users/me/meal-templates",
       expect.objectContaining({
         id: "saved-1",
         source: "saved",
@@ -127,7 +127,7 @@ describe("myMealsRepository mutation identity", () => {
     );
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/users/me/my-meals",
+      "/users/me/meal-templates",
       expect.objectContaining({
         imageRef: {
           imageId: "image-1",
@@ -165,7 +165,7 @@ describe("myMealsRepository mutation identity", () => {
     );
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/users/me/my-meals",
+      "/users/me/meal-templates",
       expect.objectContaining({
         imageRef: {
           imageId: "image-1",
@@ -205,7 +205,7 @@ describe("myMealsRepository mutation identity", () => {
     );
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/users/me/my-meals",
+      "/users/me/meal-templates",
       expect.objectContaining({
         imageRef: {
           imageId: "image-1",
@@ -228,7 +228,7 @@ describe("myMealsRepository mutation identity", () => {
       { clientMutationId: "mutation-saved-delete-1" },
     );
 
-    expect(mockPost).toHaveBeenCalledWith("/users/me/my-meals/saved-1/delete", {
+    expect(mockPost).toHaveBeenCalledWith("/users/me/meal-templates/saved-1/delete", {
       updatedAt: "2026-03-03T12:30:00.000Z",
       clientMutationId: "mutation-saved-delete-1",
     });
@@ -248,7 +248,7 @@ describe("myMealsRepository mutation identity", () => {
     const result = await uploadMyMealPhotoRemote("user-1", "saved-1", "file:///saved.jpg");
 
     expect(mockUpload).toHaveBeenCalledWith(
-      "/users/me/my-meals/saved-1/photo",
+      "/users/me/meal-templates/saved-1/photo",
       expect.any(FormData),
     );
     expect(result).toEqual({

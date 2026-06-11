@@ -258,7 +258,7 @@ export async function fetchMyMealChangesRemote(params: {
   }
 
   const response = await get<MyMealsRemoteResponse>(
-    `/users/me/my-meals/changes?${query.toString()}`,
+    `/users/me/meal-templates/changes?${query.toString()}`,
   );
   return toRemotePage(response, params.uid);
 }
@@ -321,7 +321,7 @@ export async function updateMyMealRemote(
   payload: MyMealDoc | Partial<MyMealDoc> | Partial<MealDocument>,
   clientMutationId: string,
 ): Promise<void> {
-  await post("/users/me/my-meals", {
+  await post("/users/me/meal-templates", {
     ...toMealDocumentPayload(mealId, payload, uid),
     clientMutationId,
   });
@@ -341,7 +341,7 @@ export async function uploadMyMealPhotoRemote(
   } as unknown as Blob);
 
   const response = await upload<UploadPhotoResponse>(
-    `/users/me/my-meals/${encodeURIComponent(mealId)}/photo`,
+    `/users/me/meal-templates/${encodeURIComponent(mealId)}/photo`,
     formData,
   );
   return {
@@ -361,7 +361,7 @@ export async function markMyMealDeletedRemote(
 ): Promise<void> {
   void uid;
   void options.syncState;
-  await post(`/users/me/my-meals/${encodeURIComponent(mealId)}/delete`, {
+  await post(`/users/me/meal-templates/${encodeURIComponent(mealId)}/delete`, {
     updatedAt,
     clientMutationId: options.clientMutationId,
   });
