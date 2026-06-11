@@ -1,4 +1,24 @@
-export type Migration = { version: number; up: string };
+export type MigrationDatabase = {
+  execAsync: (sql: string) => Promise<void>;
+  getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
+};
+
+export type Migration = {
+  version: number;
+  up: string | ((db: MigrationDatabase) => Promise<void>);
+};
+
+async function columnExists(
+  db: MigrationDatabase,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  const existing = await db.getFirstAsync<{ name: string }>(
+    `SELECT name FROM pragma_table_info('${table}') WHERE lower(name) = lower(?) LIMIT 1`,
+    [column],
+  );
+  return Boolean(existing);
+}
 
 export const migrations: Migration[] = [
   {
@@ -44,6 +64,7 @@ CREATE TABLE IF NOT EXISTS my_meals (
   photo_url TEXT,
   image_local TEXT,
   image_id TEXT,
+  image_ref TEXT,
   totals_kcal REAL DEFAULT 0,
   totals_protein REAL DEFAULT 0,
   totals_carbs REAL DEFAULT 0,
@@ -138,9 +159,18 @@ PRAGMA user_version=11;
   },
   {
     version: 3,
-    up: `
-ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';
-ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';
+    up: async (db) => {
+      if (!(await columnExists(db, "op_queue", "client_mutation_id"))) {
+        await db.execAsync(
+          "ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+        );
+      }
+      if (!(await columnExists(db, "op_queue_dead", "client_mutation_id"))) {
+        await db.execAsync(
+          "ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+        );
+      }
+      await db.execAsync(`
 UPDATE op_queue
 SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
 WHERE client_mutation_id IS NULL OR client_mutation_id = '';
@@ -148,6 +178,16 @@ UPDATE op_queue_dead
 SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
 WHERE client_mutation_id IS NULL OR client_mutation_id = '';
 PRAGMA user_version=12;
-`,
+`);
+    },
+  },
+  {
+    version: 4,
+    up: async (db) => {
+      if (!(await columnExists(db, "my_meals", "image_ref"))) {
+        await db.execAsync("ALTER TABLE my_meals ADD COLUMN image_ref TEXT;");
+      }
+      await db.execAsync("PRAGMA user_version=13;");
+    },
   },
 ];

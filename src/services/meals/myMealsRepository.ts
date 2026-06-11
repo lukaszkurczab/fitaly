@@ -1,5 +1,5 @@
-import type { Meal } from "@/types/meal";
-import type { MealDocument, MealImageRef } from "@/types/mealDocument";
+import type { Meal, MealImageRef } from "@/types/meal";
+import type { MealDocument } from "@/types/mealDocument";
 import { get, post, upload } from "@/services/core/apiClient";
 import { on } from "@/services/core/events";
 import {
@@ -112,6 +112,7 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
     source: "saved",
     inputMethod: normalizeMealInputMethod(doc.inputMethod),
     aiMeta: normalizeMealAiMeta(doc.aiMeta),
+    imageRef,
     imageId: imageRef?.imageId ?? null,
     photoUrl: imageRef?.downloadUrl ?? null,
     notes: typeof doc.notes === "string" ? doc.notes : null,

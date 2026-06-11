@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockUpload = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock("@/services/core/apiClient", () => ({
-  get: jest.fn(),
+  get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
   upload: (...args: unknown[]) => mockUpload(...args),
 }));
@@ -12,8 +13,55 @@ jest.mock("@/services/core/apiClient", () => ({
 describe("myMealsRepository mutation identity", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGet.mockResolvedValue({});
     mockPost.mockResolvedValue({});
     mockUpload.mockResolvedValue({});
+  });
+
+  it("preserves backend saved meal imageRef storagePath during remote parse", async () => {
+    mockGet.mockResolvedValue({
+      items: [
+        {
+          id: "saved-1",
+          loggedAt: "2026-03-03T12:00:00.000Z",
+          type: "lunch",
+          name: "Saved lunch",
+          ingredients: [],
+          createdAt: "2026-03-03T12:00:00.000Z",
+          updatedAt: "2026-03-03T12:30:00.000Z",
+          source: "saved",
+          imageRef: {
+            imageId: "image-1",
+            storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+            downloadUrl: "https://cdn/saved.jpg",
+          },
+          totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+        },
+      ],
+      nextCursor: null,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { fetchMyMealChangesRemote } = require("@/services/meals/myMealsRepository") as
+      typeof import("@/services/meals/myMealsRepository");
+
+    const result = await fetchMyMealChangesRemote({
+      uid: "user-1",
+      pageSize: 100,
+      cursor: null,
+    });
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        cloudId: "saved-1",
+        imageId: "image-1",
+        photoUrl: "https://cdn/saved.jpg",
+        imageRef: {
+          imageId: "image-1",
+          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          downloadUrl: "https://cdn/saved.jpg",
+        },
+      }),
+    );
   });
 
   it("sends clientMutationId in saved meal upsert body", async () => {

@@ -21,6 +21,7 @@ export type MealRow = {
   photo_url: string | null;
   image_local: string | null;
   image_id: string | null;
+  image_ref?: string | null;
   totals_kcal: number | null;
   totals_protein: number | null;
   totals_carbs: number | null;

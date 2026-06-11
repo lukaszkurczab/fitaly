@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS my_meals (
   photo_url TEXT,
   image_local TEXT,
   image_id TEXT,
+  image_ref TEXT,
   totals_kcal REAL DEFAULT 0,
   totals_protein REAL DEFAULT 0,
   totals_carbs REAL DEFAULT 0,
@@ -121,4 +122,4 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created
   ON chat_messages(user_uid, thread_id, created_at DESC);
 
-PRAGMA user_version=12;
+PRAGMA user_version=13;

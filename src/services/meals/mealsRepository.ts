@@ -1,5 +1,5 @@
-import type { Meal } from "@/types/meal";
-import type { MealDocument, MealImageRef } from "@/types/mealDocument";
+import type { Meal, MealImageRef } from "@/types/meal";
+import type { MealDocument } from "@/types/mealDocument";
 import { get, post } from "@/services/core/apiClient";
 import { updateMyMealRemote } from "@/services/meals/myMealsRepository";
 import {

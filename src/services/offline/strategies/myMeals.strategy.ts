@@ -293,6 +293,14 @@ export const myMealsStrategy: SyncStrategy = {
         updatedAt: String(payload?.updatedAt || nowISO()),
         syncState: "synced",
         source: "saved",
+        imageRef:
+          imageId && uploadedStoragePath
+            ? {
+                imageId,
+                storagePath: uploadedStoragePath,
+                downloadUrl: photoUrl,
+              }
+            : payload?.imageRef ?? null,
         imageId,
         photoUrl: localPhotoPath || photoUrl,
         photoLocalPath: localPhotoPath,

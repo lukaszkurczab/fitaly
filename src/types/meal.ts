@@ -15,6 +15,12 @@ export type MealAiMeta = {
   warnings?: string[] | null;
 };
 
+export type MealImageRef = {
+  imageId: string;
+  storagePath?: string;
+  downloadUrl?: string | null;
+};
+
 export type Ingredient = {
   id: string;
   name: string;
@@ -51,6 +57,7 @@ export interface Meal {
   source: MealSource;
   inputMethod?: MealInputMethod | null;
   aiMeta?: MealAiMeta | null;
+  imageRef?: MealImageRef | null;
   imageId?: string | null;
   photoLocalPath?: string | null;
   photoUrl?: string | null;

@@ -269,6 +269,7 @@ export function runMigrations() {
           photo_url TEXT,
           image_local TEXT,
           image_id TEXT,
+          image_ref TEXT,
           totals_kcal REAL DEFAULT 0,
           totals_protein REAL DEFAULT 0,
           totals_carbs REAL DEFAULT 0,
@@ -629,6 +630,21 @@ export function runMigrations() {
       setUserVersion(d, 12);
       d.execSync("COMMIT");
       v = 12;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
+  if (v < 13) {
+    d.execSync("BEGIN");
+    try {
+      if (!columnExists(d, "my_meals", "image_ref")) {
+        d.execSync(`ALTER TABLE my_meals ADD COLUMN image_ref TEXT;`);
+      }
+      setUserVersion(d, 13);
+      d.execSync("COMMIT");
+      v = 13;
     } catch (e) {
       d.execSync("ROLLBACK");
       throw e;

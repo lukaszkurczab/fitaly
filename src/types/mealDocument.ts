@@ -2,17 +2,12 @@ import type {
   Ingredient,
   MealAiMeta,
   MealInputMethod,
+  MealImageRef,
   MealSource,
   MealSyncState,
   MealType,
   Nutrients,
 } from "@/types/meal";
-
-export type MealImageRef = {
-  imageId: string;
-  storagePath?: string;
-  downloadUrl?: string | null;
-};
 
 export interface MealDocument {
   id: string;

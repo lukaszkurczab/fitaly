@@ -193,6 +193,16 @@ describe("myMeals strategy", () => {
       }),
       "mutation-saved-upsert-1",
     );
+    expect(mockUpsertMyMealLocal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloudId: "saved-1",
+        imageRef: {
+          imageId: "image-1",
+          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          downloadUrl: "https://cdn/mymeal.jpg",
+        },
+      }),
+    );
   });
 
   it("omits uploaded saved meal storagePath when the upload response lacks one", async () => {
