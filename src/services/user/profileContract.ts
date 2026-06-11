@@ -124,7 +124,6 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "syncState",
   "lastSyncedAt",
   "avatarUrl",
-  "avatarLocalPath",
   "avatarlastSyncedAt",
 ] as const satisfies readonly (keyof UserData)[];
 

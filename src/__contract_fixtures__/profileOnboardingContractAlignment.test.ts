@@ -219,7 +219,6 @@ describe("Profile/onboarding contract parity", () => {
       syncState: "pending",
       lastSyncedAt: "2026-05-02T10:00:00Z",
       avatarUrl: "https://cdn/avatar.jpg",
-      avatarLocalPath: "file:///avatar.jpg",
       avatarlastSyncedAt: "2026-05-02T10:00:00Z",
     });
 
@@ -242,6 +241,17 @@ describe("Profile/onboarding contract parity", () => {
         },
       },
     });
+  });
+
+  test("profile parser preserves mobile local avatar cache path outside backend onboarding contract", () => {
+    const parsed = parseUserData({
+      uid: "user-1",
+      email: "user@example.com",
+      username: "neo",
+      avatarLocalPath: "file:///avatar.jpg",
+    });
+
+    expect(parsed?.avatarLocalPath).toBe("file:///avatar.jpg");
   });
 
   test("profile patch sanitizer excludes backend-owned consent and server-owned readiness", () => {
