@@ -200,7 +200,7 @@ describe("saveMealTransaction", () => {
         mealId: "saved-draft-1",
         savedMealRefId: "template-1",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         timestamp: finalTimestamp,
         dayKey: "2026-01-10",
         loggedAtLocalMin: 780,
@@ -213,7 +213,7 @@ describe("saveMealTransaction", () => {
         cloudId: "saved-draft-1",
         mealId: "saved-draft-1",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         timestamp: finalTimestamp,
         dayKey: "2026-03-20",
         loggedAtLocalMin:
@@ -224,6 +224,61 @@ describe("saveMealTransaction", () => {
     expect(meal).toEqual(
       expect.not.objectContaining({ savedMealRefId: expect.anything() }),
     );
+    expect(meal.inputMethod).not.toBe("saved");
+  });
+
+  it("preserves a valid non-saved input method when creating a saved template", async () => {
+    await saveMealTransaction({
+      uid: "user-1",
+      savedTemplate: { mode: "create" },
+      nowISO: "2026-02-25T12:00:00.000Z",
+      meal: baseMeal({
+        mealId: "logged-meal-1",
+        cloudId: "logged-meal-1",
+        source: "manual",
+        inputMethod: "barcode",
+      }),
+    });
+
+    expect(mockUpsertMyMealWithPhoto).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        mealId: "logged-meal-1",
+        cloudId: "logged-meal-1",
+        source: "saved",
+        inputMethod: "barcode",
+      }),
+      null,
+    );
+    const [, templatePayload] = mockUpsertMyMealWithPhoto.mock.calls[0];
+    expect(templatePayload.inputMethod).not.toBe("saved");
+  });
+
+  it("defaults saved template updates to manual when no input method is present", async () => {
+    await saveMealTransaction({
+      uid: "user-1",
+      savedTemplate: { mode: "update", templateId: "template-1" },
+      nowISO: "2026-02-25T12:00:00.000Z",
+      meal: baseMeal({
+        mealId: "logged-meal-1",
+        cloudId: "logged-meal-1",
+        source: "saved",
+        inputMethod: undefined,
+      }),
+    });
+
+    expect(mockUpsertMyMealWithPhoto).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        mealId: "template-1",
+        cloudId: "template-1",
+        source: "saved",
+        inputMethod: "manual",
+      }),
+      null,
+    );
+    const [, templatePayload] = mockUpsertMyMealWithPhoto.mock.calls[0];
+    expect(templatePayload.inputMethod).not.toBe("saved");
   });
 
   it("leaves one queued upsert after several updates of the same meal", async () => {

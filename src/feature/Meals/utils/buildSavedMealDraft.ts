@@ -49,7 +49,7 @@ export function buildSavedMealDraft(params: {
     loggedAtLocalMin: timing.loggedAtLocalMin,
     tzOffsetMin: timing.tzOffsetMin,
     source: "saved",
-    inputMethod: "saved",
+    inputMethod: "manual",
     aiMeta: null,
     totals: picked.totals ? { ...picked.totals } : undefined,
   };

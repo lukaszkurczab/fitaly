@@ -416,7 +416,7 @@ async function seedSavedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
     ...fixtureMeal,
     userUid: uid,
     source: "saved",
-    inputMethod: "saved",
+    inputMethod: fixtureMeal.inputMethod ?? "manual",
   });
 }
 
@@ -658,7 +658,7 @@ async function applyNamedFixture(
         id: "e2e-saved-meal-1",
         name: "Miska z kaszą i warzywami",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         ingredients: [
           ingredient({
             id: "e2e-saved-bulgur",
@@ -697,7 +697,7 @@ async function applyNamedFixture(
         id: "e2e-saved-meal-2",
         name: "Koktajl białkowy z owocami",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         ingredients: [
           ingredient({
             id: "e2e-smoothie-yogurt",

@@ -361,7 +361,7 @@ describe("E2E fixtures", () => {
       expect.objectContaining({
         name: "Miska z kaszą i warzywami",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
       }),
     );
   });

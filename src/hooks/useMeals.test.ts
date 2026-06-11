@@ -866,7 +866,7 @@ describe("useMeals", () => {
         mealId: "draft-meal-id",
         cloudId: expect.any(String),
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         dayKey: "2026-03-20",
         loggedAtLocalMin:
           expectedDate.getHours() * 60 + expectedDate.getMinutes(),
@@ -902,7 +902,7 @@ describe("useMeals", () => {
       cloudId: undefined,
       savedMealRefId: "saved-template-1",
       source: "saved",
-      inputMethod: "saved",
+      inputMethod: "manual",
     });
 
     await act(async () => {
@@ -956,6 +956,7 @@ describe("useMeals", () => {
         cloudId: "draft-logged-meal",
         mealId: "draft-logged-meal",
         source: "saved",
+        inputMethod: "manual",
       }),
     );
     expect(mockUpsertMyMealWithPhoto).toHaveBeenCalledWith(
@@ -964,9 +965,45 @@ describe("useMeals", () => {
         mealId: "saved-template-42",
         cloudId: "saved-template-42",
         source: "saved",
+        inputMethod: "manual",
       }),
       "file://template-update.jpg",
     );
+    const [, templatePayload] = mockUpsertMyMealWithPhoto.mock.calls[0];
+    expect(templatePayload.inputMethod).not.toBe("saved");
+  });
+
+  it("creates a saved template preserving a valid non-saved input method", async () => {
+    const { result } = renderHook(() => useMeals("user-1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.createSavedMealTemplate(
+        baseMeal({
+          mealId: "template-source-1",
+          cloudId: "template-source-1",
+          source: "manual",
+          inputMethod: "text",
+          photoUrl: "file://template-create.jpg",
+        }),
+      );
+    });
+
+    expect(mockUpsertMyMealWithPhoto).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        mealId: "template-source-1",
+        cloudId: "template-source-1",
+        source: "saved",
+        inputMethod: "text",
+      }),
+      "file://template-create.jpg",
+    );
+    const [, templatePayload] = mockUpsertMyMealWithPhoto.mock.calls[0];
+    expect(templatePayload.inputMethod).not.toBe("saved");
   });
 
   it("updates an existing saved template by id without creating a duplicate", async () => {
@@ -984,6 +1021,7 @@ describe("useMeals", () => {
           cloudId: "logged-meal-1",
           source: "saved",
           savedMealRefId: "saved-template-42",
+          inputMethod: undefined,
           photoUrl: "file://template-update.jpg",
         }),
       );
@@ -995,9 +1033,12 @@ describe("useMeals", () => {
         mealId: "saved-template-42",
         cloudId: "saved-template-42",
         source: "saved",
+        inputMethod: "manual",
       }),
       "file://template-update.jpg",
     );
+    const [, templatePayload] = mockUpsertMyMealWithPhoto.mock.calls[0];
+    expect(templatePayload.inputMethod).not.toBe("saved");
     expect(mockUpsertMealLocal).not.toHaveBeenCalled();
     expect(mockEnqueueUpsert).not.toHaveBeenCalled();
   });

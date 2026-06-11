@@ -5,7 +5,6 @@ export const MEAL_INPUT_METHODS = [
   "photo",
   "barcode",
   "text",
-  "saved",
 ] as const satisfies readonly MealInputMethod[];
 
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;

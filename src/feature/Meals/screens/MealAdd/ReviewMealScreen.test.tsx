@@ -762,7 +762,7 @@ describe("ReviewMealScreen", () => {
     const expectedDate = new Date(finalTimestamp);
     const ctx = buildDraftContext({
       source: "saved",
-      inputMethod: "saved",
+      inputMethod: "manual",
       savedMealRefId: "saved-template-1",
       timestamp: finalTimestamp,
       dayKey: "2026-01-10",
@@ -787,7 +787,7 @@ describe("ReviewMealScreen", () => {
         expect.objectContaining({
           meal: expect.objectContaining({
             source: "saved",
-            inputMethod: "saved",
+            inputMethod: "manual",
             timestamp: finalTimestamp,
             dayKey: "2026-03-20",
             loggedAtLocalMin:

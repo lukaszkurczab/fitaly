@@ -304,7 +304,7 @@ describe("telemetryInstrumentation", () => {
     expect(mockTrack).toHaveBeenNthCalledWith(1, "meal_logged", {
       ingredientCount: 0,
       source: "saved",
-      mealInputMethod: "saved",
+      mealInputMethod: "manual",
     });
     expect(mockTrack).toHaveBeenNthCalledWith(2, "meal_logged", {
       ingredientCount: 0,

@@ -164,7 +164,7 @@ describe("useSelectSavedMealsState", () => {
         cloudId: undefined,
         savedMealRefId: "meal-1",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         name: "Chicken pasta",
         timestamp: "2026-03-20T08:30:00.000Z",
         dayKey: "2026-03-20",

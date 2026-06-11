@@ -34,7 +34,7 @@ const savedTemplate = (overrides: Partial<Meal> = {}): Meal => ({
   updatedAt: "2026-01-10T12:00:00.000Z",
   syncState: "synced",
   source: "saved",
-  inputMethod: "saved",
+  inputMethod: "manual",
   ...overrides,
 });
 
@@ -62,7 +62,7 @@ describe("buildSavedMealDraft", () => {
         cloudId: undefined,
         savedMealRefId: "template-cloud-id",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         timestamp: "2026-03-20T08:30:00.000Z",
         dayKey: "2026-03-20",
       }),

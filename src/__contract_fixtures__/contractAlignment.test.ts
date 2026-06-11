@@ -303,7 +303,6 @@ describe("Enum parity", () => {
     "photo",
     "barcode",
     "text",
-    "saved",
   ];
   const MOBILE_MEAL_SOURCES: NonNullable<MealSource>[] = [
     "ai",

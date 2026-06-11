@@ -201,7 +201,7 @@ export function useMeals(userUid: string | null) {
         mealId: docId,
         cloudId: docId,
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: persistableMeal.inputMethod ?? "manual",
         updatedAt: now,
       };
       await upsertMyMealWithPhoto(userUid, toSave, localPhoto);
@@ -223,7 +223,7 @@ export function useMeals(userUid: string | null) {
         mealId: templateId,
         cloudId: templateId,
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: persistableMeal.inputMethod ?? "manual",
         updatedAt: now,
       };
       await upsertMyMealWithPhoto(userUid, toSave, localPhoto);

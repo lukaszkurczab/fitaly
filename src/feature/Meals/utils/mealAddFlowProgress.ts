@@ -27,6 +27,7 @@ const FLOW_STEPS: Record<MealAddFlowPath, MealAddScreenName[]> = {
 export function resolveMealAddFlowPath(
   stepName: MealAddScreenName,
   inputMethod?: MealInputMethod | null,
+  isSavedFlow = false,
 ): MealAddFlowPath {
   if (stepName === "CameraDefault" || stepName === "PreparingReviewPhoto") {
     return "photo";
@@ -41,13 +42,13 @@ export function resolveMealAddFlowPath(
     return "saved";
   }
   if (stepName === "EditMealDetails") {
-    return inputMethod === "saved" ? "saved" : "manual";
+    return isSavedFlow ? "saved" : "manual";
   }
+  if (isSavedFlow) return "saved";
   if (inputMethod === "photo") return "photo";
   if (inputMethod === "text") return "text";
   if (inputMethod === "manual") return "manual";
   if (inputMethod === "barcode") return "barcode";
-  if (inputMethod === "saved") return "saved";
   return "review";
 }
 
