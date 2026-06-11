@@ -285,6 +285,9 @@
     "deadLetterSubtitle": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}.",
     "deadLetterSubtitleWithLast": "Ponowienie przywróci je do synchronizacji. Oczekujące zmiany posiłków: {{pending}}. Ostatnia nieudana operacja: {{operation}}.",
     "deadLetterRetryQueued": "Dodano {{count}} nieudanych zmian do ponownej synchronizacji.",
+    "photoUploadRecoveryTitle": "{{count}} przesłanie zdjęcia posiłku wymaga ponowienia.",
+    "photoUploadRecoverySubtitle": "Posiłek jest zapisany, ale przesłanie zdjęcia wymaga odzyskania, zanim pojawi się na zsynchronizowanych urządzeniach.",
+    "photoUploadRetryQueued": "Dodano {{count}} nieudane przesłanie zdjęcia do ponowienia.",
     "deadLetterOperation": {
       "upsert": "aktualizacja posiłku",
       "delete": "usunięcie posiłku",

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 const mockNetInfoFetch = jest.fn<() => Promise<{ isConnected: boolean }>>();
 const mockGetPendingUploads = jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
 const mockMarkUploaded = jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockMarkUploadFailed = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockProcessAndUpload = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockEnqueueUpsert = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockRunSync = jest.fn<(...args: unknown[]) => void>();
@@ -35,6 +36,7 @@ jest.mock("@/services/meals/mealService.images", () => ({
 jest.mock("@/services/offline/images.repo", () => ({
   getPendingUploads: (...args: unknown[]) => mockGetPendingUploads(...args),
   markUploaded: (...args: unknown[]) => mockMarkUploaded(...args),
+  markUploadFailed: (...args: unknown[]) => mockMarkUploadFailed(...args),
 }));
 
 jest.mock("@/services/offline/queue.repo", () => ({
@@ -112,6 +114,7 @@ describe("processImageUploads", () => {
     mockNetInfoFetch.mockResolvedValue({ isConnected: true });
     mockGetPendingUploads.mockResolvedValue([pendingImageRow]);
     mockMarkUploaded.mockResolvedValue();
+    mockMarkUploadFailed.mockResolvedValue();
     mockProcessAndUpload.mockResolvedValue({
       imageId: "remote-image-1",
       cloudUrl: "https://cdn.example/meal-photo.jpg",
@@ -125,7 +128,7 @@ describe("processImageUploads", () => {
     jest.useRealTimers();
   });
 
-  it("leaves a failed pending logged-meal image retryable without mutating meal state", async () => {
+  it("marks a failed logged-meal image upload as failed without mutating meal state", async () => {
     mockProcessAndUpload.mockRejectedValueOnce(new Error("temporary upload outage"));
 
     await loadProcessImageUploads()("user-1");
@@ -136,12 +139,16 @@ describe("processImageUploads", () => {
       pendingImageRow.local_path,
     );
     expect(mockMarkUploaded).not.toHaveBeenCalled();
+    expect(mockMarkUploadFailed).toHaveBeenCalledWith({
+      uid: "user-1",
+      imageId: pendingImageRow.image_id,
+    });
     expect(mockRunSync).not.toHaveBeenCalled();
     expect(mockGetAllSync).not.toHaveBeenCalled();
     expect(mockEnqueueUpsert).not.toHaveBeenCalled();
   });
 
-  it("can retry the same pending local image row after restart and attach remote metadata", async () => {
+  it("attaches remote metadata when an explicitly retried image row is pending again", async () => {
     mockGetPendingUploads
       .mockResolvedValueOnce([pendingImageRow])
       .mockResolvedValueOnce([pendingImageRow]);
@@ -158,6 +165,10 @@ describe("processImageUploads", () => {
     await processImageUploads("user-1");
 
     expect(mockMarkUploaded).not.toHaveBeenCalled();
+    expect(mockMarkUploadFailed).toHaveBeenCalledWith({
+      uid: "user-1",
+      imageId: pendingImageRow.image_id,
+    });
     expect(mockRunSync).not.toHaveBeenCalled();
     expect(mockEnqueueUpsert).not.toHaveBeenCalled();
 
@@ -174,6 +185,7 @@ describe("processImageUploads", () => {
       pendingImageRow.image_id,
       "https://cdn.example/meal-photo.jpg",
     );
+    expect(mockMarkUploadFailed).toHaveBeenCalledTimes(1);
     expect(mockRunSync).toHaveBeenCalledWith(
       expect.stringContaining("WHERE user_uid=? AND image_local=?"),
       [

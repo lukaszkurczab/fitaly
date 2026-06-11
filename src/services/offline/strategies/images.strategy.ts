@@ -4,7 +4,11 @@ import { Sync } from "@/utils/debug";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { normalizeServiceError } from "@/services/contracts/serviceError";
 import { processAndUpload } from "@/services/meals/mealService.images";
-import { getPendingUploads, markUploaded } from "../images.repo";
+import {
+  getPendingUploads,
+  markUploaded,
+  markUploadFailed,
+} from "../images.repo";
 import { enqueueUpsert } from "../queue.repo";
 import { getDB } from "../db";
 import type { MealRow } from "../types";
@@ -160,6 +164,20 @@ export async function processImageUploads(uid: string): Promise<void> {
         upLog.warn("upload:retryable_fail", payload);
       } else {
         upLog.error("upload:fail", payload);
+      }
+      try {
+        await markUploadFailed({
+          uid,
+          imageId: row.image_id,
+        });
+      } catch (markError) {
+        const markErr = toSyncError(markError);
+        upLog.error("upload:mark_failed_error", {
+          image_id: row.image_id,
+          code: markErr.code,
+          message: markErr.message,
+          retryable: markErr.retryable,
+        });
       }
     }
   }

@@ -6,6 +6,10 @@ import {
   retryDeadLetterOps,
   type QueueKind,
 } from "@/services/offline/queue.repo";
+import {
+  getFailedUploadCount,
+  retryFailedUploads,
+} from "@/services/offline/images.repo";
 import { requestSync } from "@/services/offline/sync.engine";
 
 const HOME_MEAL_DEAD_LETTER_KINDS: QueueKind[] = [
@@ -19,12 +23,14 @@ type HomeMealDeadLetterDiagnostics = {
   dead: number;
   pending: number;
   lastFailedKind: QueueKind | null;
+  failedPhotoUploads: number;
 };
 
 const EMPTY_DIAGNOSTICS: HomeMealDeadLetterDiagnostics = {
   dead: 0,
   pending: 0,
   lastFailedKind: null,
+  failedPhotoUploads: 0,
 };
 
 function areDiagnosticsEqual(
@@ -34,7 +40,8 @@ function areDiagnosticsEqual(
   return (
     left.dead === right.dead &&
     left.pending === right.pending &&
-    left.lastFailedKind === right.lastFailedKind
+    left.lastFailedKind === right.lastFailedKind &&
+    left.failedPhotoUploads === right.failedPhotoUploads
   );
 }
 
@@ -82,7 +89,7 @@ export function useHomeMealDeadLetterRecovery(
     }
 
     try {
-      const [syncCounts, latestDeadOps] = await Promise.all([
+      const [syncCounts, latestDeadOps, failedPhotoUploads] = await Promise.all([
         getSyncCounts(targetUid, {
           kinds: HOME_MEAL_DEAD_LETTER_KINDS,
         }),
@@ -91,6 +98,7 @@ export function useHomeMealDeadLetterRecovery(
           kinds: HOME_MEAL_DEAD_LETTER_KINDS,
           limit: 1,
         }),
+        getFailedUploadCount(targetUid),
       ]);
 
       if (currentUidRef.current !== targetUid || refreshSeqRef.current !== seq) {
@@ -102,6 +110,7 @@ export function useHomeMealDeadLetterRecovery(
           dead: syncCounts.dead,
           pending: syncCounts.pending,
           lastFailedKind: latestDeadOps[0]?.kind ?? null,
+          failedPhotoUploads,
         },
         targetUid,
       );
@@ -132,6 +141,8 @@ export function useHomeMealDeadLetterRecovery(
     const unsubs = [
       on<{ uid?: string }>("sync:op:dead", refreshForUid),
       on<{ uid?: string }>("sync:op:retried", refreshForUid),
+      on<{ uid?: string }>("image:upload:failed", refreshForUid),
+      on<{ uid?: string }>("image:upload:retried", refreshForUid),
     ];
 
     return () => {
@@ -146,10 +157,13 @@ export function useHomeMealDeadLetterRecovery(
     setRetrying(true);
 
     try {
-      const retried = await retryDeadLetterOps({
-        uid,
-        kinds: HOME_MEAL_DEAD_LETTER_KINDS,
-      });
+      const retried =
+        diagnosticsRef.current.dead > 0
+          ? await retryDeadLetterOps({
+              uid,
+              kinds: HOME_MEAL_DEAD_LETTER_KINDS,
+            })
+          : 0;
       await refreshDiagnostics();
 
       if (retried > 0) {
@@ -183,9 +197,47 @@ export function useHomeMealDeadLetterRecovery(
     }
   }, [refreshDiagnostics, uid]);
 
+  const retryPhotoUploads = useCallback(async () => {
+    if (!uid || retryInFlightRef.current) return;
+
+    retryInFlightRef.current = true;
+    setRetrying(true);
+
+    try {
+      const retriedPhotos =
+        diagnosticsRef.current.failedPhotoUploads > 0
+          ? await retryFailedUploads(uid)
+          : 0;
+      await refreshDiagnostics();
+
+      if (retriedPhotos > 0) {
+        emit("ui:toast", {
+          key: "history.photoUploadRetryQueued",
+          ns: "meals",
+          options: { count: retriedPhotos },
+        });
+        await requestSync({
+          uid,
+          domain: "images",
+          reason: "retry",
+        });
+        await refreshDiagnostics();
+      }
+    } catch {
+      emit("ui:toast", {
+        key: "unknownError",
+        ns: "common",
+      });
+    } finally {
+      retryInFlightRef.current = false;
+      setRetrying(false);
+    }
+  }, [refreshDiagnostics, uid]);
+
   return {
     diagnostics,
     retrying,
     retryDeadLetters,
+    retryPhotoUploads,
   };
 }

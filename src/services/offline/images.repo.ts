@@ -1,6 +1,7 @@
 import { getDB } from "./db";
 import type { ImageRow, ImageStatus, MealRow } from "./types";
 import * as FileSystem from "@/services/core/fileSystem";
+import { emit } from "@/services/core/events";
 
 export type ConfirmedLoggedMealPhotoCleanupResult =
   | {
@@ -123,6 +124,17 @@ export async function getPendingUploads(uid: string): Promise<ImageRow[]> {
   return rows as ImageRow[];
 }
 
+export async function getFailedUploadCount(uid: string): Promise<number> {
+  const db = getDB();
+  const row = db.getFirstSync(
+    `SELECT COUNT(1) AS count
+     FROM images
+     WHERE user_uid=? AND status='failed'`,
+    [uid]
+  ) as { count?: number } | null;
+  return Number(row?.count ?? 0);
+}
+
 export async function markUploaded(
   imageId: string,
   cloudUrl: string
@@ -132,6 +144,44 @@ export async function markUploaded(
     `UPDATE images SET status='uploaded', cloud_url=?, updated_at=? WHERE image_id=?`,
     [cloudUrl, new Date().toISOString(), imageId]
   );
+}
+
+export async function markUploadFailed(params: {
+  uid: string;
+  imageId: string;
+}): Promise<boolean> {
+  const db = getDB();
+  const result = db.runSync(
+    `UPDATE images
+     SET status='failed', cloud_url=NULL, updated_at=?
+     WHERE user_uid=? AND image_id=? AND status='pending'`,
+    [new Date().toISOString(), params.uid, params.imageId]
+  ) as { changes?: number };
+  if (Number(result.changes ?? 0) <= 0) return false;
+
+  emit("image:upload:failed", {
+    uid: params.uid,
+    imageId: params.imageId,
+  });
+  return true;
+}
+
+export async function retryFailedUploads(uid: string): Promise<number> {
+  const db = getDB();
+  const result = db.runSync(
+    `UPDATE images
+     SET status='pending', cloud_url=NULL, updated_at=?
+     WHERE user_uid=? AND status='failed'`,
+    [new Date().toISOString(), uid]
+  ) as { changes?: number };
+  const retried = Number(result.changes ?? 0);
+  if (retried <= 0) return 0;
+
+  emit("image:upload:retried", {
+    uid,
+    count: retried,
+  });
+  return retried;
 }
 
 export async function cleanupConfirmedLoggedMealPhoto(params: {

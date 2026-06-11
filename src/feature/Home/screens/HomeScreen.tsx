@@ -58,6 +58,10 @@ type HomeAddMethodPresentation = {
 };
 
 type HomeDeadLetterRecoveryBannerProps = {
+  testID?: string;
+  titleTestID?: string;
+  descriptionTestID?: string;
+  retryButtonTestID?: string;
   title: string;
   description: string;
   actionLabel: string;
@@ -67,6 +71,10 @@ type HomeDeadLetterRecoveryBannerProps = {
 };
 
 function HomeDeadLetterRecoveryBanner({
+  testID = "home-dead-letter-recovery",
+  titleTestID = "home-dead-letter-title",
+  descriptionTestID = "home-dead-letter-description",
+  retryButtonTestID = "home-dead-letter-retry-button",
   title,
   description,
   actionLabel,
@@ -76,24 +84,24 @@ function HomeDeadLetterRecoveryBanner({
 }: HomeDeadLetterRecoveryBannerProps) {
   return (
     <View
-      testID="home-dead-letter-recovery"
+      testID={testID}
       style={styles.deadLetterBanner}
     >
       <View style={styles.deadLetterCopy}>
         <View style={styles.deadLetterDot} />
-        <Text testID="home-dead-letter-title" style={styles.deadLetterTitle}>
+        <Text testID={titleTestID} style={styles.deadLetterTitle}>
           {title}
         </Text>
       </View>
       <View style={styles.deadLetterActions}>
         <Text
-          testID="home-dead-letter-description"
+          testID={descriptionTestID}
           style={styles.deadLetterDescription}
         >
           {description}
         </Text>
         <Pressable
-          testID="home-dead-letter-retry-button"
+          testID={retryButtonTestID}
           onPress={onRetry}
           disabled={retrying}
           accessibilityRole="button"
@@ -279,35 +287,65 @@ export default function HomeScreen({ navigation }: Props) {
       : heroModel.ctaLabel;
   const deadLetterBanner = useMemo(() => {
     const failedSyncCount = mealDeadLetterRecovery.diagnostics.dead;
-    if (failedSyncCount <= 0) return null;
+    if (failedSyncCount > 0) {
+      const lastFailedKind = mealDeadLetterRecovery.diagnostics.lastFailedKind
+        ? t(
+            `history.deadLetterOperation.${mealDeadLetterRecovery.diagnostics.lastFailedKind}`,
+            {
+              ns: "meals",
+            },
+          )
+        : null;
 
-    const lastFailedKind = mealDeadLetterRecovery.diagnostics.lastFailedKind
-      ? t(
-          `history.deadLetterOperation.${mealDeadLetterRecovery.diagnostics.lastFailedKind}`,
-          {
-            ns: "meals",
-          },
-        )
-      : null;
-
-    return {
-      title: t("history.deadLetterTitle", {
-        ns: "meals",
-        count: failedSyncCount,
-      }),
-      description: lastFailedKind
-        ? t("history.deadLetterSubtitleWithLast", {
-            ns: "meals",
-            pending: mealDeadLetterRecovery.diagnostics.pending,
-            operation: lastFailedKind,
-          })
-        : t("history.deadLetterSubtitle", {
+      return {
+        testID: "home-dead-letter-recovery",
+        titleTestID: "home-dead-letter-title",
+        descriptionTestID: "home-dead-letter-description",
+        retryButtonTestID: "home-dead-letter-retry-button",
+        title: t("history.deadLetterTitle", {
+          ns: "meals",
+          count: failedSyncCount,
+        }),
+        description: lastFailedKind
+          ? t("history.deadLetterSubtitleWithLast", {
+              ns: "meals",
+              pending: mealDeadLetterRecovery.diagnostics.pending,
+              operation: lastFailedKind,
+            })
+          : t("history.deadLetterSubtitle", {
             ns: "meals",
             pending: mealDeadLetterRecovery.diagnostics.pending,
           }),
+        actionLabel: t("common:retry"),
+        onRetry: mealDeadLetterRecovery.retryDeadLetters,
+      };
+    }
+
+    const failedPhotoUploads =
+      mealDeadLetterRecovery.diagnostics.failedPhotoUploads;
+    if (failedPhotoUploads <= 0) return null;
+
+    return {
+      testID: "home-photo-upload-recovery",
+      titleTestID: "home-photo-upload-title",
+      descriptionTestID: "home-photo-upload-description",
+      retryButtonTestID: "home-photo-upload-retry-button",
+      title: t("history.photoUploadRecoveryTitle", {
+        ns: "meals",
+        count: failedPhotoUploads,
+      }),
+      description: t("history.photoUploadRecoverySubtitle", {
+        ns: "meals",
+      }),
       actionLabel: t("common:retry"),
+      onRetry: mealDeadLetterRecovery.retryPhotoUploads,
     };
-  }, [mealDeadLetterRecovery.diagnostics, t]);
+  }, [
+    mealDeadLetterRecovery.diagnostics,
+    mealDeadLetterRecovery.retryDeadLetters,
+    mealDeadLetterRecovery.retryPhotoUploads,
+    t,
+  ]);
 
   const handleCoachCta = useCallback(() => {
     if (retentionSurface.type !== "coach_insight") {
@@ -392,11 +430,15 @@ export default function HomeScreen({ navigation }: Props) {
 
         {deadLetterBanner ? (
           <HomeDeadLetterRecoveryBanner
+            testID={deadLetterBanner.testID}
+            titleTestID={deadLetterBanner.titleTestID}
+            descriptionTestID={deadLetterBanner.descriptionTestID}
+            retryButtonTestID={deadLetterBanner.retryButtonTestID}
             title={deadLetterBanner.title}
             description={deadLetterBanner.description}
             actionLabel={deadLetterBanner.actionLabel}
             retrying={mealDeadLetterRecovery.retrying}
-            onRetry={mealDeadLetterRecovery.retryDeadLetters}
+            onRetry={deadLetterBanner.onRetry}
             styles={styles}
           />
         ) : null}

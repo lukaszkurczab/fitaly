@@ -26,6 +26,10 @@ const mockGetDeadLetterOps =
   jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
 const mockRetryDeadLetterOps =
   jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockGetFailedUploadCount =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockRetryFailedUploads =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
@@ -81,6 +85,11 @@ jest.mock("@/services/offline/queue.repo", () => ({
   getSyncCounts: (...args: unknown[]) => mockGetSyncCounts(...args),
   getDeadLetterOps: (...args: unknown[]) => mockGetDeadLetterOps(...args),
   retryDeadLetterOps: (...args: unknown[]) => mockRetryDeadLetterOps(...args),
+}));
+
+jest.mock("@/services/offline/images.repo", () => ({
+  getFailedUploadCount: (...args: unknown[]) => mockGetFailedUploadCount(...args),
+  retryFailedUploads: (...args: unknown[]) => mockRetryFailedUploads(...args),
 }));
 
 jest.mock("@/services/offline/sync.engine", () => ({
@@ -158,6 +167,15 @@ jest.mock("react-i18next", () => ({
         return `Retry sends them back to sync. Pending meal changes: ${
           options?.pending ?? 0
         }. Last failed: ${options?.operation}.`;
+      }
+      if (key === "history.photoUploadRecoveryTitle") {
+        return `${options?.count ?? 0} meal photo upload needs retry.`;
+      }
+      if (key === "history.photoUploadRecoverySubtitle") {
+        return "Your meal is saved, but the photo upload needs recovery before it can appear on synced devices.";
+      }
+      if (key === "history.photoUploadRetryQueued") {
+        return `${options?.count ?? 0} failed photo upload queued for retry.`;
       }
       if (key === "history.deadLetterOperation.upsert") return "meal update";
       if (key === "history.deadLetterOperation.delete") return "meal delete";
@@ -447,6 +465,8 @@ describe("HomeScreen", () => {
     mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
     mockGetDeadLetterOps.mockResolvedValue([]);
     mockRetryDeadLetterOps.mockResolvedValue(0);
+    mockGetFailedUploadCount.mockResolvedValue(0);
+    mockRetryFailedUploads.mockResolvedValue(0);
     mockRequestSync.mockResolvedValue(undefined);
 
     mockUseUserProfileContext.mockReturnValue({
@@ -739,6 +759,28 @@ describe("HomeScreen", () => {
     expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
   });
 
+  it("renders Home photo upload recovery when failed photos exist without meal dead letters", async () => {
+    mockGetFailedUploadCount.mockResolvedValue(1);
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByTestId, queryByText } =
+      renderWithTheme(<HomeScreen navigation={navigation as never} />);
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
+    expect(getByText("1 meal photo upload needs retry.")).toBeTruthy();
+    expect(
+      getByText(
+        "Your meal is saved, but the photo upload needs recovery before it can appear on synced devices.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText(/successful sync/i)).toBeNull();
+    expect(mockGetFailedUploadCount).toHaveBeenCalledWith("user-1");
+  });
+
   it("renders Home dead-letter diagnostics with count, pending meal changes and retry action", async () => {
     mockGetSyncCounts.mockResolvedValue({ dead: 2, pending: 3 });
     mockGetDeadLetterOps.mockResolvedValue([{ kind: "upsert_mymeal" }]);
@@ -852,6 +894,110 @@ describe("HomeScreen", () => {
     });
   });
 
+  it("does not retry hidden photo uploads from the visible dead-letter banner", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "delete" }]);
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockRetryDeadLetterOps.mockResolvedValue(1);
+    mockRetryFailedUploads.mockResolvedValue(1);
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+    });
+    expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+
+    fireEvent.press(getByTestId("home-dead-letter-retry-button"));
+
+    await waitFor(() => {
+      expect(mockRetryDeadLetterOps).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRetryFailedUploads).not.toHaveBeenCalled();
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "meals",
+      reason: "retry",
+    });
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "myMeals",
+      reason: "retry",
+    });
+    expect(mockRequestSync).not.toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "images",
+      reason: "retry",
+    });
+  });
+
+  it("retries failed photo uploads once and requests image sync only after rows are requeued", async () => {
+    let resolveRetry: (count: number) => void = () => undefined;
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockRetryFailedUploads.mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          resolveRetry = resolve;
+        }),
+    );
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-photo-upload-retry-button"));
+    fireEvent.press(getByTestId("home-photo-upload-retry-button"));
+
+    expect(mockRetryFailedUploads).toHaveBeenCalledTimes(1);
+    expect(mockRetryFailedUploads).toHaveBeenCalledWith("user-1");
+    expect(mockRequestSync).not.toHaveBeenCalled();
+
+    resolveRetry(1);
+
+    await waitFor(() => {
+      expect(mockRequestSync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "images",
+      reason: "retry",
+    });
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "history.photoUploadRetryQueued",
+      ns: "meals",
+      options: { count: 1 },
+    });
+  });
+
+  it("does not request image sync when failed photo retry requeues no rows", async () => {
+    mockGetFailedUploadCount.mockResolvedValue(1);
+    mockRetryFailedUploads.mockResolvedValue(0);
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-photo-upload-recovery")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-photo-upload-retry-button"));
+
+    await waitFor(() => {
+      expect(mockRetryFailedUploads).toHaveBeenCalledWith("user-1");
+    });
+    expect(mockRequestSync).not.toHaveBeenCalled();
+  });
+
   it("refreshes Home dead-letter diagnostics for same-uid sync events", async () => {
     mockGetSyncCounts
       .mockResolvedValueOnce({ dead: 0, pending: 0 })
@@ -894,6 +1040,36 @@ describe("HomeScreen", () => {
     ).toBeTruthy();
   });
 
+  it("refreshes Home photo diagnostics for same-uid image upload events", async () => {
+    mockGetFailedUploadCount
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+
+    const navigation = createNavigation();
+    const { getByText, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockGetFailedUploadCount).toHaveBeenCalledTimes(1);
+    });
+    expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+
+    emitMockEvent("image:upload:failed", { uid: "user-1" });
+
+    await waitFor(() => {
+      expect(getByText("1 meal photo upload needs retry.")).toBeTruthy();
+    });
+
+    emitMockEvent("image:upload:retried", { uid: "user-1" });
+
+    await waitFor(() => {
+      expect(mockGetFailedUploadCount).toHaveBeenCalledTimes(3);
+      expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+    });
+  });
+
   it("does not refresh Home dead-letter diagnostics for unrelated uid sync events", async () => {
     const navigation = createNavigation();
     renderWithTheme(<HomeScreen navigation={navigation as never} />);
@@ -905,8 +1081,13 @@ describe("HomeScreen", () => {
 
     emitMockEvent("sync:op:dead", { uid: "other-user" });
     emitMockEvent("sync:op:retried", { uid: "other-user" });
+    emitMockEvent("image:upload:failed", { uid: "other-user" });
+    emitMockEvent("image:upload:retried", { uid: "other-user" });
 
     expect(mockGetSyncCounts).toHaveBeenCalledTimes(callsAfterInitialRefresh);
+    expect(mockGetFailedUploadCount).toHaveBeenCalledTimes(
+      callsAfterInitialRefresh,
+    );
   });
 
   it("hides weekly report card for free users", () => {

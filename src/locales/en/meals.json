@@ -278,6 +278,9 @@
     "deadLetterSubtitle": "Retry sends them back to sync. Pending meal changes: {{pending}}.",
     "deadLetterSubtitleWithLast": "Retry sends them back to sync. Pending meal changes: {{pending}}. Last failed: {{operation}}.",
     "deadLetterRetryQueued": "{{count}} failed changes queued for retry.",
+    "photoUploadRecoveryTitle": "{{count}} meal photo upload needs retry.",
+    "photoUploadRecoverySubtitle": "Your meal is saved, but the photo upload needs recovery before it can appear on synced devices.",
+    "photoUploadRetryQueued": "{{count}} failed photo upload queued for retry.",
     "deadLetterOperation": {
       "upsert": "meal update",
       "delete": "meal delete",
