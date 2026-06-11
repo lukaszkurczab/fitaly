@@ -152,7 +152,7 @@ describe("myMeals strategy", () => {
     mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
       imageId: "image-1",
       photoUrl: "https://cdn/mymeal.jpg",
-      storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+      storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
@@ -187,7 +187,7 @@ describe("myMeals strategy", () => {
         photoUrl: "https://cdn/mymeal.jpg",
         imageRef: {
           imageId: "image-1",
-          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
           downloadUrl: "https://cdn/mymeal.jpg",
         },
       }),
@@ -198,7 +198,7 @@ describe("myMeals strategy", () => {
         cloudId: "saved-1",
         imageRef: {
           imageId: "image-1",
-          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
           downloadUrl: "https://cdn/mymeal.jpg",
         },
       }),
@@ -249,7 +249,48 @@ describe("myMeals strategy", () => {
     mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
       imageId: "image-1",
       photoUrl: "https://cdn/mymeal.jpg",
-      storagePath: "myMeals/other-user/saved-1-uploaded-image-1.jpg",
+      storagePath: "mealTemplates/other-user/saved-1-uploaded-image-1.jpg",
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");
+
+    await myMealsStrategy.handlePushOp("user-1", {
+      id: 3,
+      cloud_id: "saved-1",
+      user_uid: "user-1",
+      kind: "upsert_mymeal",
+      payload: {
+        cloudId: "saved-1",
+        mealId: "saved-1",
+        userUid: "user-1",
+        timestamp: "2026-03-03T12:00:00.000Z",
+        type: "lunch",
+        ingredients: [],
+        createdAt: "2026-03-03T12:00:00.000Z",
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        source: "saved",
+        photoUrl: "file://saved.jpg",
+      },
+      updated_at: "2026-03-03T12:10:00.000Z",
+      attempts: 0,
+      client_mutation_id: "mutation-saved-upsert-1",
+    });
+
+    const updatePayload = mockUpdateMyMealRemote.mock.calls[0]?.[2] as {
+      imageRef?: Record<string, unknown>;
+    };
+    expect(updatePayload.imageRef).toEqual({
+      imageId: "image-1",
+      downloadUrl: "https://cdn/mymeal.jpg",
+    });
+    expect(updatePayload.imageRef).not.toHaveProperty("storagePath");
+  });
+
+  it("omits uploaded saved meal storagePath when it uses the old namespace", async () => {
+    mockUploadMyMealPhotoRemote.mockResolvedValueOnce({
+      imageId: "image-1",
+      photoUrl: "https://cdn/mymeal.jpg",
+      storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
     });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { myMealsStrategy } = require("@/services/offline/strategies/myMeals.strategy");

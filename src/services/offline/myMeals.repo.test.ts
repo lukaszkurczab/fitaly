@@ -53,7 +53,7 @@ describe("myMeals.repo imageRef persistence", () => {
       baseMeal({
         imageRef: {
           imageId: "image-1",
-          storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+          storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
           downloadUrl: "https://cdn/saved.jpg",
         },
         imageId: "image-1",
@@ -65,7 +65,7 @@ describe("myMeals.repo imageRef persistence", () => {
     expect(params).toContain(
       JSON.stringify({
         imageId: "image-1",
-        storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
+        storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
         downloadUrl: "https://cdn/saved.jpg",
       }),
     );
@@ -96,7 +96,7 @@ describe("myMeals.repo imageRef persistence", () => {
       }),
     );
     expect(serializedImageRef).not.toContain("storagePath");
-    expect(serializedImageRef).not.toContain("myMeals/user-1/image-1.jpg");
+    expect(serializedImageRef).not.toContain("mealTemplates/user-1/image-1.jpg");
   });
 
   it("round-trips persisted imageRef storagePath from local reads", async () => {
@@ -115,6 +115,110 @@ describe("myMeals.repo imageRef persistence", () => {
       photo_url: "https://cdn/saved.jpg",
       image_local: null,
       image_id: "image-1",
+      image_ref: JSON.stringify({
+        imageId: "image-1",
+        storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
+        downloadUrl: "https://cdn/saved.jpg",
+      }),
+      totals_kcal: 200,
+      totals_protein: 30,
+      totals_carbs: 0,
+      totals_fat: 5,
+      deleted: 0,
+      created_at: "2026-03-03T12:00:00.000Z",
+      updated_at: "2026-03-03T12:30:00.000Z",
+      last_synced_at: 0,
+      sync_state: "synced",
+      source: "saved",
+      input_method: null,
+      ai_meta: null,
+      notes: null,
+      tags: "[]",
+    });
+    const { getMyMealByCloudIdLocal } =
+      jest.requireActual<typeof import("@/services/offline/myMeals.repo")>(
+        "@/services/offline/myMeals.repo",
+      );
+
+    const meal = await getMyMealByCloudIdLocal("user-1", "saved-1");
+
+    expect(meal?.imageRef).toEqual({
+      imageId: "image-1",
+      storagePath: "mealTemplates/user-1/saved-1-uploaded-image-1.jpg",
+      downloadUrl: "https://cdn/saved.jpg",
+    });
+    expect(meal?.imageId).toBe("image-1");
+    expect(meal?.photoUrl).toBe("https://cdn/saved.jpg");
+  });
+
+  it("omits foreign persisted imageRef storagePath from local reads", async () => {
+    mockGetFirstSync.mockReturnValue({
+      cloud_id: "saved-1",
+      meal_id: "saved-1",
+      user_uid: "user-1",
+      timestamp: "2026-03-03T12:00:00.000Z",
+      day_key: "2026-03-03",
+      logged_at_local_min: null,
+      tz_offset_min: null,
+      type: "lunch",
+      name: "Saved lunch",
+      ingredients: "[]",
+      photo_local_path: null,
+      photo_url: "https://cdn/fallback.jpg",
+      image_local: null,
+      image_id: "legacy-image-1",
+      image_ref: JSON.stringify({
+        imageId: "image-1",
+        storagePath: "mealTemplates/other-user/saved-1-uploaded-image-1.jpg",
+        downloadUrl: "https://cdn/saved.jpg",
+      }),
+      totals_kcal: 200,
+      totals_protein: 30,
+      totals_carbs: 0,
+      totals_fat: 5,
+      deleted: 0,
+      created_at: "2026-03-03T12:00:00.000Z",
+      updated_at: "2026-03-03T12:30:00.000Z",
+      last_synced_at: 0,
+      sync_state: "synced",
+      source: "saved",
+      input_method: null,
+      ai_meta: null,
+      notes: null,
+      tags: "[]",
+    });
+    const { getMyMealByCloudIdLocal } =
+      jest.requireActual<typeof import("@/services/offline/myMeals.repo")>(
+        "@/services/offline/myMeals.repo",
+      );
+
+    const meal = await getMyMealByCloudIdLocal("user-1", "saved-1");
+
+    expect(meal?.imageRef).toEqual({
+      imageId: "image-1",
+      downloadUrl: "https://cdn/saved.jpg",
+    });
+    expect(meal?.imageId).toBe("image-1");
+    expect(meal?.photoUrl).toBe("https://cdn/saved.jpg");
+    expect(JSON.stringify(meal)).not.toContain("mealTemplates/other-user/");
+  });
+
+  it("omits old persisted imageRef storagePath from local reads", async () => {
+    mockGetFirstSync.mockReturnValue({
+      cloud_id: "saved-1",
+      meal_id: "saved-1",
+      user_uid: "user-1",
+      timestamp: "2026-03-03T12:00:00.000Z",
+      day_key: "2026-03-03",
+      logged_at_local_min: null,
+      tz_offset_min: null,
+      type: "lunch",
+      name: "Saved lunch",
+      ingredients: "[]",
+      photo_local_path: null,
+      photo_url: "https://cdn/fallback.jpg",
+      image_local: null,
+      image_id: "legacy-image-1",
       image_ref: JSON.stringify({
         imageId: "image-1",
         storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
@@ -144,63 +248,9 @@ describe("myMeals.repo imageRef persistence", () => {
 
     expect(meal?.imageRef).toEqual({
       imageId: "image-1",
-      storagePath: "myMeals/user-1/saved-1-uploaded-image-1.jpg",
       downloadUrl: "https://cdn/saved.jpg",
     });
-    expect(meal?.imageId).toBe("image-1");
-    expect(meal?.photoUrl).toBe("https://cdn/saved.jpg");
-  });
-
-  it("omits foreign persisted imageRef storagePath from local reads", async () => {
-    mockGetFirstSync.mockReturnValue({
-      cloud_id: "saved-1",
-      meal_id: "saved-1",
-      user_uid: "user-1",
-      timestamp: "2026-03-03T12:00:00.000Z",
-      day_key: "2026-03-03",
-      logged_at_local_min: null,
-      tz_offset_min: null,
-      type: "lunch",
-      name: "Saved lunch",
-      ingredients: "[]",
-      photo_local_path: null,
-      photo_url: "https://cdn/fallback.jpg",
-      image_local: null,
-      image_id: "legacy-image-1",
-      image_ref: JSON.stringify({
-        imageId: "image-1",
-        storagePath: "myMeals/other-user/saved-1-uploaded-image-1.jpg",
-        downloadUrl: "https://cdn/saved.jpg",
-      }),
-      totals_kcal: 200,
-      totals_protein: 30,
-      totals_carbs: 0,
-      totals_fat: 5,
-      deleted: 0,
-      created_at: "2026-03-03T12:00:00.000Z",
-      updated_at: "2026-03-03T12:30:00.000Z",
-      last_synced_at: 0,
-      sync_state: "synced",
-      source: "saved",
-      input_method: null,
-      ai_meta: null,
-      notes: null,
-      tags: "[]",
-    });
-    const { getMyMealByCloudIdLocal } =
-      jest.requireActual<typeof import("@/services/offline/myMeals.repo")>(
-        "@/services/offline/myMeals.repo",
-      );
-
-    const meal = await getMyMealByCloudIdLocal("user-1", "saved-1");
-
-    expect(meal?.imageRef).toEqual({
-      imageId: "image-1",
-      downloadUrl: "https://cdn/saved.jpg",
-    });
-    expect(meal?.imageId).toBe("image-1");
-    expect(meal?.photoUrl).toBe("https://cdn/saved.jpg");
-    expect(JSON.stringify(meal)).not.toContain("myMeals/other-user/");
+    expect(JSON.stringify(meal)).not.toContain("myMeals/user-1/");
   });
 
   it("does not fabricate imageRef storagePath for legacy-only rows", async () => {
@@ -245,6 +295,6 @@ describe("myMeals.repo imageRef persistence", () => {
     expect(meal?.imageRef).toBeNull();
     expect(meal?.imageId).toBe("image-1");
     expect(meal?.photoUrl).toBe("https://cdn/saved.jpg");
-    expect(JSON.stringify(meal)).not.toContain("myMeals/user-1/image-1.jpg");
+    expect(JSON.stringify(meal)).not.toContain("mealTemplates/user-1/image-1.jpg");
   });
 });

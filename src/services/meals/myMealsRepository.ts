@@ -67,7 +67,7 @@ function isUserScopedSavedMealStoragePath(
   storagePath: string | null | undefined,
   uid: string,
 ): storagePath is string {
-  return Boolean(storagePath && uid && storagePath.startsWith(`myMeals/${uid}/`));
+  return Boolean(storagePath && uid && storagePath.startsWith(`mealTemplates/${uid}/`));
 }
 
 function normalizeMeal(raw: unknown, uid: string): Meal | null {
@@ -90,6 +90,15 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
               : null,
         }
       : null);
+  const sanitizedImageRef =
+    imageRef && isUserScopedSavedMealStoragePath(imageRef.storagePath, uid)
+      ? imageRef
+      : imageRef
+        ? {
+            imageId: imageRef.imageId,
+            downloadUrl: imageRef.downloadUrl,
+          }
+        : null;
 
   return {
     userUid: uid,
@@ -112,9 +121,9 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
     source: "saved",
     inputMethod: normalizeMealInputMethod(doc.inputMethod),
     aiMeta: normalizeMealAiMeta(doc.aiMeta),
-    imageRef,
-    imageId: imageRef?.imageId ?? null,
-    photoUrl: imageRef?.downloadUrl ?? null,
+    imageRef: sanitizedImageRef,
+    imageId: sanitizedImageRef?.imageId ?? null,
+    photoUrl: sanitizedImageRef?.downloadUrl ?? null,
     notes: typeof doc.notes === "string" ? doc.notes : null,
     tags: Array.isArray(doc.tags)
       ? doc.tags.filter((tag): tag is string => typeof tag === "string")
@@ -332,7 +341,6 @@ export async function uploadMyMealPhotoRemote(
   mealId: string,
   photoUri: string,
 ): Promise<{ imageId: string; photoUrl: string; storagePath?: string }> {
-  void uid;
   const formData = new FormData();
   formData.append("file", {
     uri: photoUri,
@@ -344,11 +352,13 @@ export async function uploadMyMealPhotoRemote(
     `/users/me/meal-templates/${encodeURIComponent(mealId)}/photo`,
     formData,
   );
+  const responseStoragePath =
+    typeof response.storagePath === "string" ? response.storagePath.trim() : null;
   return {
     imageId: String(response.imageId || ""),
     photoUrl: String(response.photoUrl || ""),
-    ...(typeof response.storagePath === "string" && response.storagePath.trim()
-      ? { storagePath: response.storagePath.trim() }
+    ...(isUserScopedSavedMealStoragePath(responseStoragePath, uid)
+      ? { storagePath: responseStoragePath }
       : {}),
   };
 }

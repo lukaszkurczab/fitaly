@@ -83,7 +83,7 @@ function isUserScopedSavedMealStoragePath(
   storagePath: string | null | undefined,
   uid: string,
 ): storagePath is string {
-  return Boolean(storagePath && uid && storagePath.startsWith(`myMeals/${uid}/`));
+  return Boolean(storagePath && uid && storagePath.startsWith(`mealTemplates/${uid}/`));
 }
 
 function normalizeChangesCursor(cursor: string | null): string | null {
