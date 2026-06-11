@@ -27,6 +27,7 @@ CONTRACT_FILES=(
   "smart_reminders_v1.contract.json"
   "profile_onboarding_v1.contract.json"
   "food_library_domains_v1.json"
+  "barcode_lookup_v1.json"
 )
 
 # Resolve backend repo location

@@ -19,6 +19,7 @@ import type {
   MealInputMethod,
   MealSource,
 } from "@/types/meal";
+import type { Ingredient } from "@/types";
 import type { MealDocument } from "@/types/mealDocument";
 import {
   FOOD_LIBRARY_BARCODE_RESULT_OWNERS,
@@ -281,6 +282,38 @@ type MediaAssetLifecycleFixture = {
       };
     }
   >;
+};
+
+type BarcodeLookupFixture = {
+  contract: "barcode_lookup_v1";
+  route: {
+    method: "GET";
+    path: "/users/me/barcode/lookup";
+    query: { barcode: string };
+  };
+  found: {
+    kind: "found";
+    name: string;
+    ingredient: Ingredient;
+  };
+  errors: {
+    invalid: {
+      status: 400;
+      detail: { code: "BARCODE_INVALID"; message: string };
+    };
+    not_found: {
+      status: 404;
+      detail: { code: "BARCODE_NOT_FOUND"; message: string };
+    };
+    timeout: {
+      status: 504;
+      detail: { code: "BARCODE_PROVIDER_TIMEOUT"; message: string };
+    };
+    provider_error: {
+      status: 502;
+      detail: { code: "BARCODE_PROVIDER_FAILURE"; message: string };
+    };
+  };
 };
 
 describe("Enum parity", () => {
@@ -1309,5 +1342,93 @@ describe("Food library domains contract", () => {
     for (const field of fixture.loggedMealBoundary.mustNotGainFields) {
       expect(mealKeys.has(field)).toBe(false);
     }
+  });
+});
+
+describe("Barcode lookup contract", () => {
+  const fixture = loadFixture<BarcodeLookupFixture>("barcode_lookup_v1.json");
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "barcode_lookup_v1.json",
+    );
+
+    expectExactKeys(rawFixture, ["contract", "route", "found", "errors"]);
+    expectExactKeys(rawFixture.route as Record<string, unknown>, [
+      "method",
+      "path",
+      "query",
+    ]);
+    expectExactKeys(rawFixture.found as Record<string, unknown>, [
+      "kind",
+      "name",
+      "ingredient",
+    ]);
+    expectExactKeys(
+      (rawFixture.found as { ingredient: Record<string, unknown> }).ingredient,
+      ["id", "name", "amount", "unit", "kcal", "protein", "fat", "carbs"],
+    );
+    expectExactKeys(rawFixture.errors as Record<string, unknown>, [
+      "invalid",
+      "not_found",
+      "timeout",
+      "provider_error",
+    ]);
+  });
+
+  test("declares exact route and found response shape", () => {
+    expect(fixture.contract).toBe("barcode_lookup_v1");
+    expect(fixture.route).toEqual({
+      method: "GET",
+      path: "/users/me/barcode/lookup",
+      query: { barcode: "5901234123457" },
+    });
+    expect(fixture.found).toEqual({
+      kind: "found",
+      name: "Greek yogurt",
+      ingredient: {
+        id: "5901234123457",
+        name: "Greek yogurt",
+        amount: 100,
+        unit: "g",
+        kcal: 120,
+        protein: 12,
+        fat: 4,
+        carbs: 8,
+      },
+    });
+  });
+
+  test("declares exact backend error status and code mapping", () => {
+    expect(fixture.errors).toEqual({
+      invalid: {
+        status: 400,
+        detail: {
+          code: "BARCODE_INVALID",
+          message: "Barcode must be 8, 12, or 13 digits",
+        },
+      },
+      not_found: {
+        status: 404,
+        detail: {
+          code: "BARCODE_NOT_FOUND",
+          message: "Barcode product not found",
+        },
+      },
+      timeout: {
+        status: 504,
+        detail: {
+          code: "BARCODE_PROVIDER_TIMEOUT",
+          message: "Barcode provider timed out",
+        },
+      },
+      provider_error: {
+        status: 502,
+        detail: {
+          code: "BARCODE_PROVIDER_FAILURE",
+          message: "Barcode provider unavailable",
+        },
+      },
+    });
   });
 });
