@@ -2,6 +2,19 @@ name: CI
 
 on:
   workflow_call:
+    inputs:
+      backend_contract_ref:
+        description: Optional fitaly-backend ref for paired cross-repo contract PRs.
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      backend_contract_ref:
+        description: Optional fitaly-backend ref for paired cross-repo contract PRs.
+        required: false
+        type: string
+        default: ""
   pull_request:
   push:
     branches:
@@ -96,11 +109,19 @@ jobs:
       - name: Checkout mobile repo
         uses: actions/checkout@v5
 
+      - name: Resolve backend contract ref
+        id: backend-contract-ref
+        run: ./scripts/resolve-backend-contract-ref.sh
+        env:
+          BACKEND_CONTRACT_REF_INPUT: ${{ inputs.backend_contract_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+
       - name: Checkout backend repo (canonical contract source)
         uses: actions/checkout@v5
         with:
           repository: ${{ github.repository_owner }}/fitaly-backend
           path: _backend
+          ref: ${{ steps.backend-contract-ref.outputs.ref }}
 
       - name: Verify contract sync
         run: BACKEND_REPO=_backend ./scripts/verify-backend-contract.sh
