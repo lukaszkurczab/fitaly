@@ -104,6 +104,7 @@ describe("user/profile", () => {
     mockUploadUserAvatarRemote.mockResolvedValue({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
     mockClaimUsername.mockResolvedValue("neo");
     mockGet.mockResolvedValue({
@@ -245,14 +246,19 @@ describe("user/profile", () => {
 
   it("uploads avatar via repository and persists synced metadata", async () => {
     const result = await uploadAndSaveAvatar({
+      uid: "u1",
       localUri: "file:///avatar.jpg",
     });
 
-    expect(mockUploadUserAvatarRemote).toHaveBeenCalledWith("file:///avatar.jpg");
+    expect(mockUploadUserAvatarRemote).toHaveBeenCalledWith(
+      "file:///avatar.jpg",
+      { clientMutationId: "profile-direct:avatar:u1:profile-uuid-1" },
+    );
     expect(result).toEqual({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarLocalPath: "file:///avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
   });
 

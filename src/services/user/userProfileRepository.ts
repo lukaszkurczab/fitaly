@@ -21,6 +21,9 @@ import { sanitizeUserProfilePatch } from "./profilePatch";
 type AvatarUploadResponse = {
   avatarUrl: string;
   avatarlastSyncedAt: string;
+  avatarRef?: {
+    storagePath?: string;
+  };
 };
 
 type UserOnboardingResponse = {
@@ -319,8 +322,11 @@ export async function revokeAiConsentRemote(
 
 export async function uploadUserAvatarRemote(
   localPath: string,
+  options: ProfileMutationOptions,
 ): Promise<AvatarUploadResponse> {
+  const clientMutationId = requireClientMutationId(options);
   const data = new FormData();
+  data.append("clientMutationId", clientMutationId);
   data.append("file", {
     uri: localPath,
     name: "avatar.jpg",

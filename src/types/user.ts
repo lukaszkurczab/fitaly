@@ -72,6 +72,9 @@ export interface UserData {
   avatarUrl?: string;
   avatarLocalPath?: string;
   avatarlastSyncedAt?: string;
+  avatarRef?: {
+    storagePath?: string;
+  };
 }
 
 export type ExportedUserData = {

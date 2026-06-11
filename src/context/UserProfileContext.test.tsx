@@ -1,4 +1,3 @@
-import React from "react";
 import { render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Text } from "react-native";

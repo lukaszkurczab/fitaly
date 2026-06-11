@@ -982,18 +982,38 @@ describe("services/user/userProfileRepository", () => {
     mockUpload.mockResolvedValue({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { uploadUserAvatarRemote } = require("@/services/user/userProfileRepository");
+    const appendSpy = jest.spyOn(FormData.prototype, "append");
 
     await expect(
-      uploadUserAvatarRemote("file:///avatar.jpg"),
+      uploadUserAvatarRemote("file:///avatar.jpg", {
+        clientMutationId: " avatar-mutation-1 ",
+      }),
     ).resolves.toEqual({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
     expect(mockUpload).toHaveBeenCalledWith("/users/me/avatar", expect.any(FormData));
+    expect(appendSpy).toHaveBeenCalledWith(
+      "clientMutationId",
+      "avatar-mutation-1",
+    );
+    appendSpy.mockRestore();
+  });
+
+  it("requires explicit client mutation identity for avatar uploads", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { uploadUserAvatarRemote } = require("@/services/user/userProfileRepository");
+
+    await expect(
+      uploadUserAvatarRemote("file:///avatar.jpg", { clientMutationId: "   " }),
+    ).rejects.toThrow("profile/client-mutation-id-required");
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 
   it("initializes onboarding through the backend-owned endpoint", async () => {

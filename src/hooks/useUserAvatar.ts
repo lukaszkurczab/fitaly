@@ -273,6 +273,7 @@ export function useUserAvatar({
       avatarUrl?: string;
       avatarLocalPath?: string;
       avatarlastSyncedAt?: string;
+      avatarRef?: UserData["avatarRef"];
     }>("user:avatar:synced", (payload) => {
       if (!payload || payload.uid !== uid) return;
       if (payload.avatarUrl) {
@@ -282,6 +283,7 @@ export function useUserAvatar({
         avatarUrl: payload.avatarUrl || "",
         avatarLocalPath: payload.avatarLocalPath || "",
         avatarlastSyncedAt: payload.avatarlastSyncedAt || "",
+        avatarRef: payload.avatarRef,
       });
       void refreshProfileSyncState();
     });

@@ -60,6 +60,12 @@ function pickEnumArray<T extends string>(raw: unknown, allowed: readonly T[]): T
   return input.filter((item): item is T => allowed.includes(item as T));
 }
 
+function parseAvatarRef(raw: unknown): UserData["avatarRef"] {
+  if (!isRecord(raw)) return undefined;
+  const storagePath = asString(raw.storagePath);
+  return storagePath ? { storagePath } : undefined;
+}
+
 function parseReadiness(raw: unknown): UserReadiness {
   if (!isRecord(raw)) {
     return {
@@ -155,6 +161,7 @@ export function parseUserData(payload: unknown): UserData | null {
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
+    avatarRef: parseAvatarRef(payload.avatarRef),
   };
 
   return data;

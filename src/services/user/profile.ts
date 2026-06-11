@@ -83,15 +83,20 @@ export async function updateUserLanguageInFirestore(language: string) {
 }
 
 export async function uploadAndSaveAvatar({
+  uid,
   localUri,
 }: {
+  uid: string;
   localUri: string;
 }) {
-  const response = await uploadUserAvatarRemote(localUri);
+  const response = await uploadUserAvatarRemote(localUri, {
+    clientMutationId: newProfileMutationId("avatar", uid),
+  });
   return {
     avatarUrl: response.avatarUrl,
     avatarLocalPath: localUri,
     avatarlastSyncedAt: response.avatarlastSyncedAt,
+    avatarRef: response.avatarRef,
   };
 }
 

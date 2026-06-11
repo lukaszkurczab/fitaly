@@ -69,12 +69,15 @@ export const userProfileStrategy: SyncStrategy = {
           retryable: false,
         });
       }
-      const uploaded = await uploadUserAvatarRemote(localPath);
+      const uploaded = await uploadUserAvatarRemote(localPath, {
+        clientMutationId: op.client_mutation_id,
+      });
       emit("user:avatar:synced", {
         uid,
         avatarUrl: uploaded.avatarUrl,
         avatarLocalPath: localPath,
         avatarlastSyncedAt: uploaded.avatarlastSyncedAt,
+        avatarRef: uploaded.avatarRef,
         updatedAt: String(payload?.updatedAt || op.updated_at || nowISO()),
       });
       pushLog.log("avatar:upload", {
