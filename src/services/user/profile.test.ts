@@ -120,6 +120,15 @@ describe("user/profile", () => {
       mealMutationDedupe: [
         { clientMutationId: "profile-mutation-1", kind: "profile_update" },
       ],
+      billing: [{ id: "main", status: "active" }],
+      aiCredits: [{ id: "current", billingId: "main", balance: 8 }],
+      aiCreditTransactions: [{ id: "tx-1", billingId: "main", amount: -1 }],
+      aiCreditIdempotency: [
+        { id: "idem-1", billingId: "main", state: "deducted" },
+      ],
+      badges: [{ id: "streak_7", type: "streak" }],
+      streak: [{ id: "main", current: 7 }],
+      reminderDailyStats: [{ id: "2026-03-03", sendCount: 2 }],
       telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
     mockPost.mockResolvedValue(undefined);
@@ -285,6 +294,15 @@ describe("user/profile", () => {
       mealMutationDedupe: [
         { clientMutationId: "profile-mutation-1", kind: "profile_update" },
       ],
+      billing: [{ id: "main", status: "active" }],
+      aiCredits: [{ id: "current", billingId: "main", balance: 8 }],
+      aiCreditTransactions: [{ id: "tx-1", billingId: "main", amount: -1 }],
+      aiCreditIdempotency: [
+        { id: "idem-1", billingId: "main", state: "deducted" },
+      ],
+      badges: [{ id: "streak_7", type: "streak" }],
+      streak: [{ id: "main", current: 7 }],
+      reminderDailyStats: [{ id: "2026-03-03", sendCount: 2 }],
       telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
 

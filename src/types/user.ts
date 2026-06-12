@@ -90,5 +90,12 @@ export type ExportedUserData = {
   notificationPrefs: ExportedRecord;
   feedback: ExportedRecord[];
   mealMutationDedupe: ExportedRecord[];
+  billing: ExportedRecord[];
+  aiCredits: ExportedRecord[];
+  aiCreditTransactions: ExportedRecord[];
+  aiCreditIdempotency: ExportedRecord[];
+  badges: ExportedRecord[];
+  streak: ExportedRecord[];
+  reminderDailyStats: ExportedRecord[];
   telemetryEvents: ExportedRecord[];
 };
