@@ -223,6 +223,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           }}
           onBlur={() => setTouched((prev) => ({ ...prev, username: true }))}
           error={usernameError}
+          errorTestID="register-username-error"
           accessibilityLabel={t("username")}
           editable={!loading}
           style={styles.field}

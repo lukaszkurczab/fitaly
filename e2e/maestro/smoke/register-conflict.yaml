@@ -53,6 +53,7 @@ env:
 - tapOn:
     id: register-submit-button
 
-- assertVisible: "Ta nazwa użytkownika jest już zajęta."
+- assertVisible:
+    id: register-username-error
 - assertVisible:
     id: register-username-input
