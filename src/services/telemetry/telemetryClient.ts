@@ -47,6 +47,9 @@ let initialized = false;
 let initPromise: Promise<void> | null = null;
 let flushPromise: Promise<void> | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
+let activeFlushAbortController: AbortController | null = null;
+let runtimeGeneration = 0;
+let resetRuntimePromise: Promise<void> | null = null;
 let sessionId = "";
 let anonymousId = "";
 let currentUserId: string | null = null;
@@ -111,6 +114,13 @@ function shouldDropFailedBatch(error: unknown): boolean {
     error.status >= 400 &&
     error.status < 500 &&
     error.status !== 429
+  );
+}
+
+function isAbortedTelemetryRequest(error: unknown): boolean {
+  return (
+    isRecord(error) &&
+    (error.code === "api/aborted" || error.name === "AbortError")
   );
 }
 
@@ -292,39 +302,83 @@ function buildBatchPayload(events: TelemetryEvent[]): TelemetryBatchPayload {
   };
 }
 
-async function persistQueue(): Promise<void> {
+function createGenerationSnapshot(): number {
+  return runtimeGeneration;
+}
+
+function isCurrentGeneration(generation: number): boolean {
+  return generation === runtimeGeneration;
+}
+
+function waitForTelemetryReset(): Promise<void> {
+  return resetRuntimePromise ?? Promise.resolve();
+}
+
+async function waitForTelemetryResetBarrier(): Promise<void> {
+  await waitForTelemetryReset();
+
+  const activeResetPromise = resetRuntimePromise;
+  if (activeResetPromise) {
+    await activeResetPromise;
+  }
+}
+
+async function persistQueueForGeneration(generation: number): Promise<void> {
+  if (!isCurrentGeneration(generation)) {
+    return;
+  }
+
   const state: BufferedTelemetryState = {
     sessionId,
     events: queue,
   };
 
   try {
-    if (state.events.length === 0) {
-      await AsyncStorage.removeItem(TELEMETRY_BUFFER_STORAGE_KEY);
+    if (!isCurrentGeneration(generation)) {
       return;
     }
 
-    await AsyncStorage.setItem(
-      TELEMETRY_BUFFER_STORAGE_KEY,
-      JSON.stringify(state),
-    );
+    if (state.events.length === 0) {
+      await AsyncStorage.removeItem(TELEMETRY_BUFFER_STORAGE_KEY);
+    } else {
+      await AsyncStorage.setItem(
+        TELEMETRY_BUFFER_STORAGE_KEY,
+        JSON.stringify(state),
+      );
+    }
+
+    if (!isCurrentGeneration(generation)) {
+      await AsyncStorage.removeItem(TELEMETRY_BUFFER_STORAGE_KEY);
+    }
   } catch {
     // Telemetry buffering is best-effort.
   }
 }
 
-async function restoreQueue(): Promise<void> {
+async function restoreQueue(generation: number): Promise<void> {
   try {
     const storedAnonymousId = await AsyncStorage.getItem(
       TELEMETRY_ANONYMOUS_ID_STORAGE_KEY,
     );
+    if (!isCurrentGeneration(generation)) {
+      return;
+    }
     anonymousId =
       storedAnonymousId && storedAnonymousId.trim()
         ? storedAnonymousId.trim()
         : createAnonymousId();
+    if (!isCurrentGeneration(generation)) {
+      return;
+    }
     await AsyncStorage.setItem(TELEMETRY_ANONYMOUS_ID_STORAGE_KEY, anonymousId);
 
+    if (!isCurrentGeneration(generation)) {
+      return;
+    }
     const raw = await AsyncStorage.getItem(TELEMETRY_BUFFER_STORAGE_KEY);
+    if (!isCurrentGeneration(generation)) {
+      return;
+    }
     if (!raw) {
       sessionId = createSessionId();
       queue = [];
@@ -338,6 +392,9 @@ async function restoreQueue(): Promise<void> {
     queue = (restored?.events || []).map(enrichEventContext);
     queuedEventIds = new Set(queue.map((event) => event.eventId));
   } catch {
+    if (!isCurrentGeneration(generation)) {
+      return;
+    }
     sessionId = createSessionId();
     anonymousId = anonymousId || createAnonymousId();
     queue = [];
@@ -353,6 +410,28 @@ function startFlushLoop(): void {
   flushTimer = setInterval(() => {
     void flush();
   }, flushIntervalMs);
+}
+
+function invalidateTelemetryRuntimeState(): void {
+  runtimeGeneration += 1;
+  initialized = false;
+  initPromise = null;
+  flushPromise = null;
+  if (activeFlushAbortController) {
+    activeFlushAbortController.abort();
+  }
+  activeFlushAbortController = null;
+}
+
+function resetTelemetryRuntimeState(): void {
+  invalidateTelemetryRuntimeState();
+  sessionId = "";
+  anonymousId = "";
+  currentUserId = null;
+  queue = [];
+  queuedEventIds = new Set<string>();
+  retryAttempt = 0;
+  nextAllowedFlushAt = 0;
 }
 
 function scheduleRetry(): void {
@@ -405,19 +484,29 @@ export async function initTelemetryClient(): Promise<void> {
     return;
   }
 
+  await waitForTelemetryResetBarrier();
   if (initialized) {
     return;
   }
 
   if (!initPromise) {
-    initPromise = (async () => {
-      await restoreQueue();
+    const generation = createGenerationSnapshot();
+    const currentInitPromise = (async () => {
+      await restoreQueue(generation);
+      if (!isCurrentGeneration(generation)) {
+        return;
+      }
       startFlushLoop();
       initialized = true;
       void flush();
-    })().finally(() => {
-      initPromise = null;
+    })();
+
+    const trackedInitPromise = currentInitPromise.finally(() => {
+      if (initPromise === trackedInitPromise) {
+        initPromise = null;
+      }
     });
+    initPromise = trackedInitPromise;
   }
 
   await initPromise;
@@ -439,7 +528,12 @@ export async function track(
     return;
   }
 
+  await waitForTelemetryResetBarrier();
+  const generation = createGenerationSnapshot();
   await ensureInitialized();
+  if (!isCurrentGeneration(generation)) {
+    return;
+  }
 
   const occurredAt = new Date().toISOString();
   const requestId = getRequestId(props);
@@ -465,7 +559,11 @@ export async function track(
     return;
   }
 
-  await persistQueue();
+  await persistQueueForGeneration(generation);
+
+  if (!isCurrentGeneration(generation)) {
+    return;
+  }
 
   if (queue.length >= maxBatchSize) {
     await flush();
@@ -477,7 +575,12 @@ export async function flush(): Promise<void> {
     return;
   }
 
+  await waitForTelemetryResetBarrier();
+  const generation = createGenerationSnapshot();
   await ensureInitialized();
+  if (!isCurrentGeneration(generation)) {
+    return;
+  }
 
   if (queue.length === 0) {
     return;
@@ -492,44 +595,74 @@ export async function flush(): Promise<void> {
     return;
   }
 
-  flushPromise = (async () => {
+  const currentFlushPromise = (async () => {
     while (queue.length > 0) {
+      if (!isCurrentGeneration(generation)) {
+        return;
+      }
+
       if (Date.now() < nextAllowedFlushAt) {
         return;
       }
 
       if (!(await isOnline())) {
+        if (!isCurrentGeneration(generation)) {
+          return;
+        }
         scheduleRetry();
-        await persistQueue();
+        await persistQueueForGeneration(generation);
+        return;
+      }
+
+      if (!isCurrentGeneration(generation)) {
         return;
       }
 
       const batch = queue.slice(0, maxBatchSize);
+      const controller = new AbortController();
+      activeFlushAbortController = controller;
 
       try {
         await apiClient.post(TELEMETRY_ENDPOINT, buildBatchPayload(batch), {
           timeout: 15_000,
           retryMode: "none",
+          signal: controller.signal,
         });
+        if (!isCurrentGeneration(generation)) {
+          return;
+        }
         dropBatch(batch);
         resetRetryState();
-        await persistQueue();
+        await persistQueueForGeneration(generation);
       } catch (error) {
+        if (!isCurrentGeneration(generation) || isAbortedTelemetryRequest(error)) {
+          return;
+        }
+
         if (shouldDropFailedBatch(error)) {
           dropBatch(batch);
           resetRetryState();
-          await persistQueue();
+          await persistQueueForGeneration(generation);
           continue;
         }
 
         scheduleRetry();
-        await persistQueue();
+        await persistQueueForGeneration(generation);
         return;
+      } finally {
+        if (activeFlushAbortController === controller) {
+          activeFlushAbortController = null;
+        }
       }
     }
-  })().finally(() => {
-    flushPromise = null;
+  })();
+
+  const trackedFlushPromise = currentFlushPromise.finally(() => {
+    if (flushPromise === trackedFlushPromise) {
+      flushPromise = null;
+    }
   });
+  flushPromise = trackedFlushPromise;
 
   await flushPromise;
 }
@@ -542,6 +675,49 @@ export function stopTelemetryClient(): void {
   initialized = false;
 }
 
+export async function resetTelemetryClientRuntime(): Promise<void> {
+  if (resetRuntimePromise) {
+    await resetRuntimePromise;
+    return;
+  }
+
+  stopTelemetryClient();
+
+  const initWork = initPromise;
+  const flushWork = flushPromise;
+
+  const cleanupPromise = (async () => {
+    invalidateTelemetryRuntimeState();
+    sessionId = "";
+    anonymousId = "";
+    currentUserId = null;
+    queue = [];
+    queuedEventIds = new Set<string>();
+    retryAttempt = 0;
+    nextAllowedFlushAt = 0;
+
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(TELEMETRY_BUFFER_STORAGE_KEY),
+        AsyncStorage.removeItem(TELEMETRY_ANONYMOUS_ID_STORAGE_KEY),
+      ]);
+      await Promise.allSettled([initWork, flushWork]);
+      await Promise.all([
+        AsyncStorage.removeItem(TELEMETRY_BUFFER_STORAGE_KEY),
+        AsyncStorage.removeItem(TELEMETRY_ANONYMOUS_ID_STORAGE_KEY),
+      ]);
+    } finally {
+      resetTelemetryRuntimeState();
+    }
+  })();
+
+  resetRuntimePromise = cleanupPromise.finally(() => {
+    resetRuntimePromise = null;
+  });
+
+  await resetRuntimePromise;
+}
+
 export function setTelemetryUserId(userId: string | null): void {
   const normalizedUserId = userId?.trim() || null;
   currentUserId = normalizedUserId;
@@ -549,16 +725,8 @@ export function setTelemetryUserId(userId: string | null): void {
 
 export function __resetTelemetryClientForTests(): void {
   stopTelemetryClient();
-  initialized = false;
-  initPromise = null;
-  flushPromise = null;
-  sessionId = "";
-  anonymousId = "";
-  currentUserId = null;
-  queue = [];
-  queuedEventIds = new Set<string>();
-  retryAttempt = 0;
-  nextAllowedFlushAt = 0;
+  resetTelemetryRuntimeState();
+  resetRuntimePromise = null;
   flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS;
   maxBatchSize = DEFAULT_MAX_BATCH_SIZE;
   retryBaseMs = DEFAULT_RETRY_BASE_MS;

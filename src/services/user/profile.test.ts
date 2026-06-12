@@ -112,6 +112,15 @@ describe("user/profile", () => {
       meals: [{ id: "meal-1" }],
       myMeals: [{ id: "saved-1" }],
       chatMessages: [{ id: "chat-1" }],
+      chatMemory: [{ id: "memory-1" }],
+      aiRuns: [{ id: "run-1" }],
+      notifications: [{ id: "notif-1" }],
+      notificationPrefs: { motivationEnabled: true },
+      feedback: [{ id: "feedback-1" }],
+      mealMutationDedupe: [
+        { clientMutationId: "profile-mutation-1", kind: "profile_update" },
+      ],
+      telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
     mockPost.mockResolvedValue(undefined);
     mockResetUserRuntime.mockResolvedValue(undefined);
@@ -268,6 +277,15 @@ describe("user/profile", () => {
       meals: [{ id: "meal-1" }],
       myMeals: [{ id: "saved-1" }],
       chatMessages: [{ id: "chat-1" }],
+      chatMemory: [{ id: "memory-1" }],
+      aiRuns: [{ id: "run-1" }],
+      notifications: [{ id: "notif-1" }],
+      notificationPrefs: { motivationEnabled: true },
+      feedback: [{ id: "feedback-1" }],
+      mealMutationDedupe: [
+        { clientMutationId: "profile-mutation-1", kind: "profile_update" },
+      ],
+      telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
 
     expect(mockGet).toHaveBeenCalledWith("/users/me/export");

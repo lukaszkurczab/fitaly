@@ -14,6 +14,7 @@ const mockResetOfflineStorage = jest.fn<() => void>();
 const mockCleanupUserOfflineAssets = jest.fn<
   (uid: string | null) => Promise<void>
 >();
+const mockResetTelemetryClientRuntime = jest.fn<() => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
 const mockLogWarning = jest.fn<(...args: unknown[]) => void>();
 const mockClearCachedUserProfile = jest.fn<(uid: string) => void>();
@@ -48,6 +49,10 @@ jest.mock("@/services/user/userProfileRepository", () => ({
   clearCachedUserProfile: (uid: string) => mockClearCachedUserProfile(uid),
 }));
 
+jest.mock("@/services/telemetry/telemetryClient", () => ({
+  resetTelemetryClientRuntime: () => mockResetTelemetryClientRuntime(),
+}));
+
 jest.mock("@/services/core/events", () => ({
   emit: (...args: unknown[]) => mockEmit(...args),
 }));
@@ -73,6 +78,7 @@ describe("resetUserRuntime", () => {
     mockMultiRemove.mockResolvedValue(undefined);
     mockCancelAllReminderScheduling.mockResolvedValue(undefined);
     mockCleanupUserOfflineAssets.mockResolvedValue(undefined);
+    mockResetTelemetryClientRuntime.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -86,6 +92,7 @@ describe("resetUserRuntime", () => {
     expect(mockCancelAllReminderScheduling).toHaveBeenCalledWith("user-1");
     expect(mockClearCachedUserProfile).toHaveBeenCalledWith("user-1");
     expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
+    expect(mockResetTelemetryClientRuntime).toHaveBeenCalledTimes(1);
     expect(mockCleanupUserOfflineAssets).toHaveBeenCalledWith("user-1");
     expect(mockMultiRemove).toHaveBeenCalledWith([
       "user:profile:user-1",
@@ -164,5 +171,6 @@ describe("resetUserRuntime", () => {
     });
     expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
     expect(mockMultiRemove).toHaveBeenCalled();
+    expect(mockResetTelemetryClientRuntime).toHaveBeenCalledTimes(1);
   });
 });

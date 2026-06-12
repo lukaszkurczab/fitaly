@@ -51,6 +51,8 @@ export type UserAiConsent = {
   revokedAt: string | null;
 };
 
+export type ExportedRecord = Record<string, unknown>;
+
 export type UserProfile = {
   language: UserLanguage;
   nutritionProfile: UserNutritionProfile;
@@ -80,9 +82,13 @@ export interface UserData {
 export type ExportedUserData = {
   profile: UserData;
   meals: Meal[];
-  myMeals?: Meal[];
+  myMeals: Meal[];
   chatMessages: ChatMessage[];
-  notifications?: Record<string, unknown>[];
-  notificationPrefs?: Record<string, unknown>;
-  feedback?: Record<string, unknown>[];
+  chatMemory: ExportedRecord[];
+  aiRuns: ExportedRecord[];
+  notifications: ExportedRecord[];
+  notificationPrefs: ExportedRecord;
+  feedback: ExportedRecord[];
+  mealMutationDedupe: ExportedRecord[];
+  telemetryEvents: ExportedRecord[];
 };

@@ -5,6 +5,7 @@ import { resetOfflineStorage } from "@/services/offline/db";
 import { cleanupUserOfflineAssets } from "@/services/offline/fileCleanup";
 import { stopSyncLoop } from "@/services/offline/sync.engine";
 import { cancelAllReminderScheduling } from "@/services/reminders/reminderScheduling";
+import { resetTelemetryClientRuntime } from "@/services/telemetry/telemetryClient";
 import { clearCachedUserProfile } from "@/services/user/userProfileRepository";
 
 export type ResetUserRuntimeReason =
@@ -19,6 +20,7 @@ type ResetUserRuntimeStage =
   | "clear_profile_cache"
   | "reset_offline_storage"
   | "clear_async_storage"
+  | "reset_telemetry_runtime"
   | "cleanup_offline_assets";
 
 type ResetUserRuntimeFailure = {
@@ -156,6 +158,10 @@ async function runUserRuntimeReset(
 
   await runCleanupStage("clear_async_storage", uid, options.reason, () =>
     clearScopedAsyncStorage(uid),
+  );
+
+  await runCleanupStage("reset_telemetry_runtime", uid, options.reason, () =>
+    resetTelemetryClientRuntime(),
   );
 
   if (uid) {
