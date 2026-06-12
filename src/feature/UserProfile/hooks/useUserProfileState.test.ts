@@ -4,6 +4,8 @@ import { useUserProfileState } from "@/feature/UserProfile/hooks/useUserProfileS
 import type { Badge } from "@/types/badge";
 
 const mockRetryProfileSync = jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockDiscardAvatarUploadDeadLetter =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockRefreshUser = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEnsurePremiumBadges = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockAuthLogout = jest.fn<() => Promise<void>>();
@@ -11,6 +13,8 @@ const mockUseAuthContext = jest.fn(() => ({ uid: "u1" }));
 const mockUseNetInfo = jest.fn(() => ({ isConnected: true }));
 let mockIsPremium: boolean | null = false;
 let mockBadges: Badge[] = [];
+let mockSyncState: "synced" | "pending" | "dead-letter" = "synced";
+let mockHasAvatarUploadDeadLetter = false;
 
 let mockUserData: Record<string, unknown> | null = {
   uid: "u1",
@@ -31,9 +35,12 @@ jest.mock("@/context/UserProfileContext", () => ({
     userData: mockUserData,
     loadingUser: mockLoadingUser,
     refreshUser: (...args: unknown[]) => mockRefreshUser(...args),
-    syncState: "synced",
+    syncState: mockSyncState,
+    hasAvatarUploadDeadLetter: mockHasAvatarUploadDeadLetter,
     retryingProfileSync: false,
     retryProfileSync: (...args: unknown[]) => mockRetryProfileSync(...args),
+    discardAvatarUploadDeadLetter: (...args: unknown[]) =>
+      mockDiscardAvatarUploadDeadLetter(...args),
   }),
 }));
 
@@ -74,8 +81,11 @@ describe("feature/UserProfile/useUserProfileState", () => {
       language: "en",
     };
     mockLoadingUser = false;
+    mockSyncState = "synced";
+    mockHasAvatarUploadDeadLetter = false;
     mockAuthLogout.mockResolvedValue(undefined);
     mockRetryProfileSync.mockResolvedValue(undefined);
+    mockDiscardAvatarUploadDeadLetter.mockResolvedValue(undefined);
     mockRefreshUser.mockResolvedValue(undefined);
     mockEnsurePremiumBadges.mockResolvedValue(undefined);
     mockIsPremium = false;
@@ -128,6 +138,24 @@ describe("feature/UserProfile/useUserProfileState", () => {
     });
 
     expect(mockRefreshUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes avatar upload dead-letter marker and discard action from profile context", async () => {
+    mockSyncState = "dead-letter";
+    mockHasAvatarUploadDeadLetter = true;
+    const navigation = { reset: jest.fn() };
+    const { result } = renderHook(() =>
+      useUserProfileState({ navigation: navigation as never }),
+    );
+
+    expect(result.current.syncState).toBe("dead-letter");
+    expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+
+    await act(async () => {
+      await result.current.discardAvatarUploadDeadLetter();
+    });
+
+    expect(mockDiscardAvatarUploadDeadLetter).toHaveBeenCalledTimes(1);
   });
 
   it("hides premium badges when account is not premium", () => {

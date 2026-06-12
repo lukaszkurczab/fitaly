@@ -14,9 +14,25 @@ const mockResetOfflineStorage = jest.fn<() => void>();
 const mockCleanupUserOfflineAssets = jest.fn<
   (uid: string | null) => Promise<void>
 >();
+const mockResetTelemetryClientRuntime = jest.fn<() => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
 const mockLogWarning = jest.fn<(...args: unknown[]) => void>();
 const mockClearCachedUserProfile = jest.fn<(uid: string) => void>();
+const mockClearLocalMealsRuntime = jest.fn<
+  (uid: string | null | undefined) => void
+>();
+const mockClearStreakRuntime = jest.fn<
+  (uid: string | null | undefined) => void
+>();
+const mockClearBadgeRuntime = jest.fn<
+  (uid: string | null | undefined) => void
+>();
+const mockInvalidateCoachCache = jest.fn<
+  (uid: string | null | undefined) => Promise<void>
+>();
+const mockInvalidateNutritionStateCache = jest.fn<
+  (uid: string | null | undefined) => Promise<void>
+>();
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
@@ -48,6 +64,35 @@ jest.mock("@/services/user/userProfileRepository", () => ({
   clearCachedUserProfile: (uid: string) => mockClearCachedUserProfile(uid),
 }));
 
+jest.mock("@/services/meals/localMealsStore", () => ({
+  clearLocalMealsRuntime: (uid: string | null | undefined) =>
+    mockClearLocalMealsRuntime(uid),
+}));
+
+jest.mock("@/services/gamification/streakService", () => ({
+  clearStreakRuntime: (uid: string | null | undefined) =>
+    mockClearStreakRuntime(uid),
+}));
+
+jest.mock("@/services/gamification/badgeService", () => ({
+  clearBadgeRuntime: (uid: string | null | undefined) =>
+    mockClearBadgeRuntime(uid),
+}));
+
+jest.mock("@/services/coach/coachService", () => ({
+  invalidateCoachCache: (uid: string | null | undefined) =>
+    mockInvalidateCoachCache(uid),
+}));
+
+jest.mock("@/services/nutritionState/nutritionStateService", () => ({
+  invalidateNutritionStateCache: (uid: string | null | undefined) =>
+    mockInvalidateNutritionStateCache(uid),
+}));
+
+jest.mock("@/services/telemetry/telemetryClient", () => ({
+  resetTelemetryClientRuntime: () => mockResetTelemetryClientRuntime(),
+}));
+
 jest.mock("@/services/core/events", () => ({
   emit: (...args: unknown[]) => mockEmit(...args),
 }));
@@ -68,11 +113,17 @@ describe("resetUserRuntime", () => {
       "notif:sys:ids:user-1:stats",
       "notif:ids:user-1:smart-reminders:2026-04-24",
       "current_meal_draft_user-1",
+      "chat-active-thread-user-1",
+      "chat-active-thread-alt-user-1",
       "theme:mode",
+      "chat-active-thread-user-10",
     ]);
     mockMultiRemove.mockResolvedValue(undefined);
     mockCancelAllReminderScheduling.mockResolvedValue(undefined);
     mockCleanupUserOfflineAssets.mockResolvedValue(undefined);
+    mockResetTelemetryClientRuntime.mockResolvedValue(undefined);
+    mockInvalidateCoachCache.mockResolvedValue(undefined);
+    mockInvalidateNutritionStateCache.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -85,7 +136,13 @@ describe("resetUserRuntime", () => {
     expect(mockStopSyncLoop).toHaveBeenCalledTimes(1);
     expect(mockCancelAllReminderScheduling).toHaveBeenCalledWith("user-1");
     expect(mockClearCachedUserProfile).toHaveBeenCalledWith("user-1");
+    expect(mockClearLocalMealsRuntime).toHaveBeenCalledWith("user-1");
+    expect(mockClearStreakRuntime).toHaveBeenCalledWith("user-1");
+    expect(mockClearBadgeRuntime).toHaveBeenCalledWith("user-1");
+    expect(mockInvalidateCoachCache).toHaveBeenCalledWith("user-1");
+    expect(mockInvalidateNutritionStateCache).toHaveBeenCalledWith("user-1");
     expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
+    expect(mockResetTelemetryClientRuntime).toHaveBeenCalledTimes(1);
     expect(mockCleanupUserOfflineAssets).toHaveBeenCalledWith("user-1");
     expect(mockMultiRemove).toHaveBeenCalledWith([
       "user:profile:user-1",
@@ -95,7 +152,31 @@ describe("resetUserRuntime", () => {
       "notif:sys:ids:user-1:stats",
       "notif:ids:user-1:smart-reminders:2026-04-24",
       "current_meal_draft_user-1",
+      "chat-active-thread-user-1",
     ]);
+    expect(mockMultiRemove.mock.calls[0]?.[0]).toEqual(
+      expect.not.arrayContaining([
+        "theme:mode",
+        "chat-active-thread-alt-user-1",
+        "chat-active-thread-user-10",
+      ]),
+    );
+  });
+
+  it("preserves chat active thread keys whose uid only suffix-collides", async () => {
+    mockGetAllKeys.mockResolvedValueOnce([
+      "chat-active-thread-user-1",
+      "chat-active-thread-alt-user-1",
+    ]);
+
+    await resetUserRuntime("user-1", { reason: "logout" });
+
+    expect(mockMultiRemove).toHaveBeenCalledWith([
+      "chat-active-thread-user-1",
+    ]);
+    expect(mockMultiRemove).not.toHaveBeenCalledWith(
+      expect.arrayContaining(["chat-active-thread-alt-user-1"]),
+    );
   });
 
   it("logs and emits non-fatal cleanup failures per stage", async () => {
@@ -164,5 +245,6 @@ describe("resetUserRuntime", () => {
     });
     expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
     expect(mockMultiRemove).toHaveBeenCalled();
+    expect(mockResetTelemetryClientRuntime).toHaveBeenCalledTimes(1);
   });
 });

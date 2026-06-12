@@ -385,6 +385,10 @@ describe("services/mealService", () => {
       "u1",
       "cloud-1",
       "2026-03-03T12:00:00.000Z",
+      {
+        clientMutationId:
+          "direct-delete:u1:cloud-1:2026-03-03T12:00:00.000Z",
+      },
     );
   });
 });

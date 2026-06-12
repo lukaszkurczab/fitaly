@@ -47,6 +47,30 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
     expect(mockExecSync).toHaveBeenCalledWith("PRAGMA foreign_keys = ON;");
   });
 
+  it("resets offline storage by deleting current runtime tables in one transaction", () => {
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.getDB();
+    mockExecSync.mockClear();
+
+    module.resetOfflineStorage();
+
+    expect(mockExecSync.mock.calls.map(([sql]) => sql)).toEqual([
+      "BEGIN",
+      "DELETE FROM op_queue;",
+      "DELETE FROM op_queue_dead;",
+      "DELETE FROM images;",
+      "DELETE FROM meals;",
+      "DELETE FROM my_meals;",
+      "DELETE FROM chat_messages;",
+      "DELETE FROM chat_threads;",
+      "COMMIT",
+    ]);
+  });
+
   it("migrates meals and my_meals to v8 by adding input_method and ai_meta", () => {
     mockGetFirstSync.mockReturnValue({ user_version: 7 });
     mockGetAllSync.mockImplementation((sql: string) => {
@@ -100,8 +124,81 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
     expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 11;");
   });
 
+  it("adds durable queue mutation identity columns during v12 migration", () => {
+    mockGetFirstSync.mockReturnValue({ user_version: 11 });
+    mockGetAllSync.mockImplementation((sql: string) => {
+      if (sql === "PRAGMA table_info(op_queue)") {
+        return [{ name: "id" }];
+      }
+      if (sql === "PRAGMA table_info(op_queue_dead)") {
+        return [{ name: "id" }, { name: "op_id" }];
+      }
+      return [];
+    });
+
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.runMigrations();
+
+    expect(mockExecSync).toHaveBeenCalledWith(
+      "ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(mockExecSync).toHaveBeenCalledWith(
+      "ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 12;");
+  });
+
+  it("adds saved meal image_ref column during v13 migration", () => {
+    mockGetFirstSync.mockReturnValue({ user_version: 12 });
+    mockGetAllSync.mockImplementation((sql: string) => {
+      if (sql === "PRAGMA table_info(my_meals)") {
+        return [{ name: "cloud_id" }, { name: "image_id" }];
+      }
+      return [];
+    });
+
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.runMigrations();
+
+    expect(mockExecSync).toHaveBeenCalledWith(
+      "ALTER TABLE my_meals ADD COLUMN image_ref TEXT;",
+    );
+    expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 13;");
+  });
+
+  it("skips saved meal image_ref migration when the column already exists", () => {
+    mockGetFirstSync.mockReturnValue({ user_version: 12 });
+    mockGetAllSync.mockImplementation((sql: string) => {
+      if (sql === "PRAGMA table_info(my_meals)") {
+        return [{ name: "cloud_id" }, { name: "image_ref" }];
+      }
+      return [];
+    });
+
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.runMigrations();
+
+    const calls = mockExecSync.mock.calls.map(([sql]) => String(sql));
+    expect(
+      calls.some((sql) => sql.includes("ALTER TABLE my_meals ADD COLUMN image_ref")),
+    ).toBe(false);
+    expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 13;");
+  });
+
   it("skips v8 column adds when schema is already current", () => {
-    mockGetFirstSync.mockReturnValue({ user_version: 8 });
+    mockGetFirstSync.mockReturnValue({ user_version: 12 });
 
     const module =
       jest.requireActual<typeof import("@/services/offline/db")>(

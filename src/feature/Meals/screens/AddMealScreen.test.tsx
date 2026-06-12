@@ -8,7 +8,11 @@ const mockUseNavigation = jest.fn();
 const mockUseRoute = jest.fn();
 const mockMapMealAddScreens = jest.fn();
 const mockBackHandlerAddEventListener = jest.fn();
-let mockDraftMeal: { inputMethod?: string | null } | null = null;
+let mockDraftMeal: {
+  inputMethod?: string | null;
+  savedMealRefId?: string | null;
+  source?: string | null;
+} | null = null;
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
@@ -285,7 +289,11 @@ describe("AddMealScreen", () => {
     };
     mockUseNavigation.mockReturnValue(navigation);
     mockUseRoute.mockReturnValue({ params: { start: "EditMealDetails" } });
-    mockDraftMeal = { inputMethod: "saved" };
+    mockDraftMeal = {
+      inputMethod: "manual",
+      savedMealRefId: "saved-template-1",
+      source: "saved",
+    };
 
     const { getByText } = renderWithTheme(<AddMealScreen />);
 

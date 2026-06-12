@@ -1,0 +1,410 @@
+{
+  "schemaVersion": 1,
+  "taskId": "CH-08-003",
+  "statusBoundary": "Static coverage definition only. This file does not claim any Maestro runtime pass or release acceptance.",
+  "requiredCoverageIds": [
+    "auth-login-validation",
+    "register-onboarding",
+    "offline-onboarding-finish",
+    "add-meal-manual",
+    "add-meal-text",
+    "add-meal-photo",
+    "add-meal-barcode",
+    "add-meal-saved-template",
+    "offline-save-sync",
+    "history-edit-delete",
+    "home-stats-propagation",
+    "chat-success-history",
+    "chat-no-credit-error-states",
+    "paywall-restore",
+    "paywall-entitlement-failure-states",
+    "weekly-reminders",
+    "account-settings-delete",
+    "account-data-export",
+    "account-transition-user-switch-isolation",
+    "share-export"
+  ],
+  "coverage": [
+    {
+      "id": "auth-login-validation",
+      "flowClass": "auth login validation",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "auth", "full-review"],
+      "flows": ["e2e/maestro/release-gate/auth-login-validation.yaml"],
+      "requiredSetup": [
+        "Open __E2E_EXPO_URL__",
+        "Reset through fitaly://e2e/reset?logout=1",
+        "Use E2E_EMAIL and E2E_PASSWORD from the e2e wrapper environment"
+      ],
+      "assertionTypes": ["visible-state", "negative-auth-state", "successful-login-transition"],
+      "expectedEvidence": "Invalid credentials surface the login error state, then valid credentials reach home-screen and tab-home.",
+      "currentGap": null
+    },
+    {
+      "id": "register-onboarding",
+      "flowClass": "register/onboarding",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "auth", "full-review"],
+      "flows": ["e2e/maestro/release-gate/auth-register-onboarding.yaml"],
+      "requiredSetup": [
+        "Open __E2E_EXPO_URL__",
+        "Reset through fitaly://e2e/reset?logout=1",
+        "Use disposable registration env from the e2e wrapper"
+      ],
+      "assertionTypes": ["visible-state", "onboarding-state-transition", "session-persistence"],
+      "expectedEvidence": "A disposable account completes onboarding, lands on home-screen, remains past onboarding after relaunch, and is cleaned up through account delete.",
+      "currentGap": null
+    },
+    {
+      "id": "offline-onboarding-finish",
+      "flowClass": "offline onboarding finish",
+      "status": "gap",
+      "releaseCritical": true,
+      "evidenceTier": "gap",
+      "suiteOwnership": [],
+      "flows": [],
+      "requiredSetup": [
+        "Would require deterministic offline setup for the final onboarding completion action"
+      ],
+      "assertionTypes": [],
+      "expectedEvidence": "Onboarding finish persists safely while offline and resumes without readiness/session ambiguity after reconnect.",
+      "currentGap": {
+        "reason": "No existing suites.json entry or targeted Maestro flow proves offline completion of onboarding.",
+        "nextAction": "Create a deterministic offline onboarding finish flow or record an explicit release-owner deferral before release acceptance."
+      }
+    },
+    {
+      "id": "add-meal-manual",
+      "flowClass": "Add Meal manual",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "flows": ["e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty"
+      ],
+      "assertionTypes": ["visible-state", "review-edit-state", "save-propagation"],
+      "expectedEvidence": "Manual meal entry reaches review/edit, saves, returns to Home, and the saved meal is visible after save.",
+      "currentGap": null
+    },
+    {
+      "id": "add-meal-text",
+      "flowClass": "Add Meal text",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate-with-nightly-negative-states",
+      "suiteOwnership": ["release-gate", "add-meal", "premium-billing", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
+        "e2e/maestro/nightly-regression/text-meal-ai-failure.yaml",
+        "e2e/maestro/nightly-regression/credits-none-text-meal.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Success seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess&aiConsent=granted",
+        "Failure seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=failure",
+        "No-credit seed fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
+      ],
+      "assertionTypes": ["visible-state", "ai-state-transition", "save-propagation", "negative-credit-state", "failure-state"],
+      "expectedEvidence": "Text analysis reaches review/save and propagates on success; failure and no-credit states remain explicit and observable.",
+      "currentGap": null
+    },
+    {
+      "id": "add-meal-photo",
+      "flowClass": "Add Meal photo",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "flows": ["e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=photoSlow&aiConsent=granted"
+      ],
+      "assertionTypes": ["visible-state", "photo-analysis-state", "review-transition", "save-propagation"],
+      "expectedEvidence": "Photo Add Meal reaches analysis/review, saves, and the saved meal is visible after propagation.",
+      "currentGap": null
+    },
+    {
+      "id": "add-meal-barcode",
+      "flowClass": "Add Meal barcode",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate-with-negative-state",
+      "suiteOwnership": ["release-gate", "add-meal", "platform-layout", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml",
+        "e2e/maestro/nightly-regression/barcode-not-found.yaml",
+        "e2e/maestro/platform-layout/barcode-manual-sheet.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Success seed fitaly://e2e/seed?fixture=activated-user-empty&barcode=known",
+        "Not-found/manual-sheet seed fitaly://e2e/seed?fixture=activated-user-empty&barcode=unknown"
+      ],
+      "assertionTypes": ["visible-state", "barcode-lookup-state", "review-transition", "save-propagation", "negative-barcode-state"],
+      "expectedEvidence": "Known barcode lookup reaches review/save and propagates; unknown barcode/manual sheet states are explicit.",
+      "currentGap": null
+    },
+    {
+      "id": "add-meal-saved-template",
+      "flowClass": "Add Meal saved-template/template",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "flows": ["e2e/maestro/release-gate/add-meal-saved-template.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty"
+      ],
+      "assertionTypes": ["visible-state", "template-selection-state", "save-propagation"],
+      "expectedEvidence": "Saved-template entry path is visible, selectable, saved, and the saved meal appears after save.",
+      "currentGap": null
+    },
+    {
+      "id": "offline-save-sync",
+      "flowClass": "offline save/sync",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate-with-conflict-regression",
+      "suiteOwnership": ["release-gate", "home-history-statistics", "smoke", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/offline-save-sync.yaml",
+        "e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml",
+        "e2e/maestro/smoke/offline-error.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty",
+        "Toggle fitaly://e2e/connectivity?offline=1 and fitaly://e2e/connectivity?offline=0",
+        "Failure/conflict seeds fitaly://e2e/seed?fixture=user-with-failed-meal and fitaly://e2e/seed?fixture=user-with-conflict-meal"
+      ],
+      "assertionTypes": ["visible-state", "queue-sync-outcome", "offline-state", "conflict-state", "recovery-state"],
+      "expectedEvidence": "Offline save shows pending/offline states, reconnect clears pending state, and failed/conflict states are observable.",
+      "currentGap": null
+    },
+    {
+      "id": "history-edit-delete",
+      "flowClass": "history edit/delete",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "home-history-statistics", "full-review"],
+      "flows": ["e2e/maestro/release-gate/history-edit-delete.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=user-with-today-meal"
+      ],
+      "assertionTypes": ["visible-state", "edit-state-transition", "delete-confirmation", "negative-state-after-delete"],
+      "expectedEvidence": "Seeded meal appears in History/Home, edit opens and saves, delete confirms, and the meal disappears.",
+      "currentGap": null
+    },
+    {
+      "id": "home-stats-propagation",
+      "flowClass": "Home/Stats propagation",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "home-history-statistics", "full-review"],
+      "flows": ["e2e/maestro/release-gate/home-history-statistics-after-save.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess&aiConsent=granted"
+      ],
+      "assertionTypes": ["visible-state", "save-propagation", "statistics-state"],
+      "expectedEvidence": "Saved meal appears on Home and History, and Statistics exposes trend, kcal summary, and macro rows after save.",
+      "currentGap": null
+    },
+    {
+      "id": "chat-success-history",
+      "flowClass": "Chat success/history",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "ai-chat", "smoke", "platform-layout", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/chat-basic-history.yaml",
+        "e2e/maestro/smoke/chat-ai.yaml",
+        "e2e/maestro/platform-layout/chat-long-input-keyboard.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Seed fitaly://e2e/seed?credits=ok&chat=success&billing=free&aiConsent=granted",
+        "Platform-layout seed fitaly://e2e/seed?credits=ok&chat=success&aiConsent=granted"
+      ],
+      "assertionTypes": ["visible-state", "dynamic-nonempty-response", "history-state", "keyboard-layout-state"],
+      "expectedEvidence": "Chat accepts a prompt, displays a response/history state, and remains usable with long input/keyboard layout.",
+      "currentGap": null
+    },
+    {
+      "id": "chat-no-credit-error-states",
+      "flowClass": "Chat no-credit/error states",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "full-review-domain-suites",
+      "suiteOwnership": ["ai-chat", "premium-billing", "full-review"],
+      "flows": [
+        "e2e/maestro/nightly-regression/chat-no-credits.yaml",
+        "e2e/maestro/nightly-regression/chat-error-state.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "No-credit seed fitaly://e2e/seed?credits=none&billing=free",
+        "Error seed fitaly://e2e/seed?credits=ok&chat=failure&billing=free"
+      ],
+      "assertionTypes": ["visible-state", "negative-credit-state", "failure-state", "recovery-boundary"],
+      "expectedEvidence": "Chat no-credit and backend/chat error states are visible and do not masquerade as successful generated responses.",
+      "currentGap": null
+    },
+    {
+      "id": "paywall-restore",
+      "flowClass": "paywall restore",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "premium-billing", "platform-layout", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/premium-paywall-restore.yaml",
+        "e2e/maestro/platform-layout/paywall-open-layout.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Initial seed fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free",
+        "Restore success seed fitaly://e2e/seed?credits=ok&billing=restoreSuccess",
+        "Layout seed fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=restoreFailure"
+      ],
+      "assertionTypes": ["visible-state", "paywall-state", "restore-transition", "layout-state"],
+      "expectedEvidence": "Premium gate opens paywall, restore action exposes deterministic feedback, and paywall layout remains usable.",
+      "currentGap": null
+    },
+    {
+      "id": "paywall-entitlement-failure-states",
+      "flowClass": "paywall entitlement/failure states",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "full-review-domain-suite",
+      "suiteOwnership": ["premium-billing", "full-review"],
+      "flows": [
+        "e2e/maestro/nightly-regression/billing-entitlement-states.yaml",
+        "e2e/maestro/nightly-regression/billing-restore-failure.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Free state seed fitaly://e2e/seed?credits=ok&billing=free",
+        "Premium state seed fitaly://e2e/seed?credits=ok&billing=premium",
+        "Restore failure seed fitaly://e2e/seed?credits=ok&billing=restoreError"
+      ],
+      "assertionTypes": ["visible-state", "entitlement-state", "restore-failure-state"],
+      "expectedEvidence": "Free, premium, and restore-failure billing states are explicit and visible without RevenueCat live smoke as acceptance.",
+      "currentGap": null
+    },
+    {
+      "id": "weekly-reminders",
+      "flowClass": "weekly/reminders",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate-with-full-review-breadth",
+      "suiteOwnership": ["release-gate", "notifications-retention", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/notifications-preferences.yaml",
+        "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
+        "e2e/maestro/nightly-regression/reminders-disabled-state.yaml",
+        "e2e/maestro/nightly-regression/weekly-report-open.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Notification seed fitaly://e2e/seed?notificationPermission=allowed&reminder=send",
+        "Unavailable weekly seed fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=unavailable",
+        "Available weekly seed fitaly://e2e/seed?fixture=user-with-today-meal&billing=premium&weeklyReport=available"
+      ],
+      "assertionTypes": ["visible-state", "preference-state", "disabled-state", "weekly-report-state"],
+      "expectedEvidence": "Notification preferences and unavailable weekly entry are release-gate covered; disabled reminder and available weekly report breadth live in notifications-retention/full-review.",
+      "currentGap": null
+    },
+    {
+      "id": "account-settings-delete",
+      "flowClass": "export/delete/account settings except account data export",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "smoke-release-gate-full-review",
+      "suiteOwnership": ["smoke", "release-gate", "auth", "full-review"],
+      "flows": [
+        "e2e/maestro/smoke/account-launch.yaml",
+        "e2e/maestro/release-gate/account-delete-cancel.yaml",
+        "e2e/maestro/nightly-regression/account-delete-disposable-user.yaml"
+      ],
+      "requiredSetup": [
+        "Run smoke login for account settings and delete-cancel",
+        "Use disposable account env for account-delete-disposable-user",
+        "Reset through fitaly://e2e/reset?logout=1 where the delete-confirm flow requires a clean auth state"
+      ],
+      "assertionTypes": ["visible-state", "account-navigation-state", "delete-cancel-state", "delete-confirm-state", "session-reset-state"],
+      "expectedEvidence": "Account settings surfaces are navigable, delete cancel preserves the session, and disposable-user delete confirms return to logged-out state after relaunch.",
+      "currentGap": null
+    },
+    {
+      "id": "account-data-export",
+      "flowClass": "account data export",
+      "status": "gap",
+      "releaseCritical": true,
+      "evidenceTier": "gap",
+      "suiteOwnership": [],
+      "flows": [],
+      "requiredSetup": [
+        "Would require deterministic user data seed plus account export UI/API trigger and artifact assertion"
+      ],
+      "assertionTypes": [],
+      "expectedEvidence": "Account data export can be requested, completes deterministically, and includes expected scoped user data without leaking excluded operational data.",
+      "currentGap": {
+        "reason": "Existing suites cover account settings, delete, and share export, but no Maestro flow proves account data export.",
+        "nextAction": "Add a dedicated account data export Maestro flow or attach an explicit release-owner deferral with backend emulator export evidence before release acceptance."
+      }
+    },
+    {
+      "id": "account-transition-user-switch-isolation",
+      "flowClass": "account transition/user switch isolation",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate",
+      "suiteOwnership": ["release-gate", "auth", "full-review"],
+      "flows": ["e2e/maestro/release-gate/user-switch-local-draft-isolation.yaml"],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml as user A",
+        "Seed fitaly://e2e/seed?fixture=user-with-draft",
+        "Register/log in disposable user B using E2E_DISPOSABLE_* env"
+      ],
+      "assertionTypes": ["visible-state", "account-transition-state", "local-draft-isolation", "negative-state-after-switch"],
+      "expectedEvidence": "A local draft/resume state from user A is not visible after switching to disposable user B.",
+      "currentGap": null
+    },
+    {
+      "id": "share-export",
+      "flowClass": "share/export if existing release-gate treats share as evidence",
+      "status": "covered",
+      "releaseCritical": true,
+      "evidenceTier": "release-gate-with-share-suite-negative-states",
+      "suiteOwnership": ["release-gate", "share", "full-review"],
+      "flows": [
+        "e2e/maestro/release-gate/share-save-and-share.yaml",
+        "e2e/maestro/nightly-regression/share-customize-basic.yaml",
+        "e2e/maestro/nightly-regression/share-export-error.yaml",
+        "e2e/maestro/nightly-regression/share-invalid-no-photo.yaml"
+      ],
+      "requiredSetup": [
+        "Run ../smoke/login.yaml",
+        "Success seed fitaly://e2e/seed?fixture=user-with-photo-meal&shareExport=success",
+        "Negative states use shareExport error/no-photo seeds from the share suite flows"
+      ],
+      "assertionTypes": ["visible-state", "share-canvas-state", "share-export-success-state", "share-export-error-state", "invalid-share-state"],
+      "expectedEvidence": "Release-gate share save/share succeeds, while share suite/full-review cover customization, export error, and no-photo invalid states.",
+      "currentGap": null
+    }
+  ]
+}

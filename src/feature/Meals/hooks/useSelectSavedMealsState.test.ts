@@ -13,6 +13,9 @@ import { useSelectSavedMealsState } from "@/feature/Meals/hooks/useSelectSavedMe
 const mockUuid = jest.fn<() => string>();
 const mockSubscribeToMyMealsOrderedByName = jest.fn();
 const mockUnsubscribe = jest.fn();
+const mockSaveMealTransaction = jest.fn();
+const mockUpdateMyMealRemote = jest.fn();
+const mockUpsertMyMealWithPhoto = jest.fn();
 
 let emitRepoData: ((items: Meal[]) => void) | null = null;
 
@@ -29,6 +32,16 @@ jest.mock("@/services/meals/myMealsRepository", () => ({
     emitRepoData = params.onData;
     return mockUnsubscribe;
   },
+  updateMyMealRemote: (...args: unknown[]) => mockUpdateMyMealRemote(...args),
+}));
+
+jest.mock("@/services/meals/mealSaveTransaction", () => ({
+  saveMealTransaction: (...args: unknown[]) => mockSaveMealTransaction(...args),
+}));
+
+jest.mock("@/services/meals/myMealService", () => ({
+  upsertMyMealWithPhoto: (...args: unknown[]) =>
+    mockUpsertMyMealWithPhoto(...args),
 }));
 
 const meal = (overrides: Partial<Meal> = {}): Meal => ({
@@ -120,7 +133,7 @@ describe("useSelectSavedMealsState", () => {
     expect(mockUnsubscribe).toHaveBeenCalled();
   });
 
-  it("builds a saved-meal draft and navigates straight to review", async () => {
+  it("only saves a saved-meal draft and navigates straight to review", async () => {
     const setMeal = jest.fn();
     const saveDraft = jest.fn<
       (uid: string, draftOverride?: Meal | null) => Promise<void>
@@ -143,8 +156,18 @@ describe("useSelectSavedMealsState", () => {
       }),
     );
 
+    const pickedTemplate = meal({
+      mealId: "local-template-id",
+      cloudId: "remote-template-id",
+      name: "Chicken pasta",
+      photoLocalPath: "file:///templates/chicken-local.jpg",
+      localPhotoUrl: "file:///templates/chicken-cache.jpg",
+      photoUrl: "https://cdn.example.com/templates/chicken.jpg",
+      imageId: "template-image-id",
+    });
+
     act(() => {
-      emitRepoData?.([meal()]);
+      emitRepoData?.([pickedTemplate]);
     });
 
     await waitFor(() => {
@@ -158,25 +181,29 @@ describe("useSelectSavedMealsState", () => {
       await result.current.handleAddMeal(result.current.pageItems[0]);
     });
 
-    expect(setMeal).toHaveBeenCalledWith(
+    expect(setMeal).toHaveBeenCalledTimes(1);
+    const draft = setMeal.mock.calls[0]?.[0] as Meal;
+    expect(draft).toEqual(
       expect.objectContaining({
         mealId: "uuid-new",
         cloudId: undefined,
-        savedMealRefId: "meal-1",
+        savedMealRefId: "remote-template-id",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         name: "Chicken pasta",
         timestamp: "2026-03-20T08:30:00.000Z",
         dayKey: "2026-03-20",
+        photoLocalPath: "file:///templates/chicken-local.jpg",
+        localPhotoUrl: "file:///templates/chicken-cache.jpg",
+        photoUrl: "file:///templates/chicken-local.jpg",
+        imageId: "template-image-id",
       }),
     );
-    expect(saveDraft).toHaveBeenCalledWith(
-      "user-1",
-      expect.objectContaining({
-        mealId: "uuid-new",
-        source: "saved",
-      }),
-    );
+    expect(saveDraft).toHaveBeenCalledTimes(1);
+    expect(saveDraft).toHaveBeenCalledWith("user-1", draft);
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpdateMyMealRemote).not.toHaveBeenCalled();
+    expect(mockUpsertMyMealWithPhoto).not.toHaveBeenCalled();
     expect(setLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
     expect(onNavigateReview).toHaveBeenCalledTimes(1);
 

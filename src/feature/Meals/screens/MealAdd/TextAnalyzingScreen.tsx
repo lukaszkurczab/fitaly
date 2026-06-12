@@ -289,6 +289,24 @@ export default function TextAnalyzingScreen({
           });
           return;
         }
+        if (errorType === "AI_CONSENT_REQUIRED") {
+          replaceDescribeMeal({
+            submitError: t("text_ai_error_consent_required"),
+          });
+          return;
+        }
+        if (errorType === "AI_MEAL_ANALYSIS_DISABLED") {
+          replaceDescribeMeal({
+            submitError: t("text_ai_error_disabled"),
+          });
+          return;
+        }
+        if (errorType === "AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT") {
+          replaceDescribeMeal({
+            submitError: t("text_ai_error_idempotency_conflict"),
+          });
+          return;
+        }
         if (errorType === "auth") {
           replaceDescribeMeal({
             submitError: t("text_ai_error_auth"),

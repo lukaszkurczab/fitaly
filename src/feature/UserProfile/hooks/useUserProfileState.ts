@@ -19,7 +19,9 @@ export function useUserProfileState(params: {
     loadingUser,
     refreshUser,
     syncState,
+    hasAvatarUploadDeadLetter,
     retryProfileSync,
+    discardAvatarUploadDeadLetter,
     retryingProfileSync,
   } = useUserProfileContext();
   const { uid } = useAuthContext();
@@ -68,7 +70,9 @@ export function useUserProfileState(params: {
     loadingUser,
     isOnline,
     syncState,
+    hasAvatarUploadDeadLetter,
     retryProfileSync,
+    discardAvatarUploadDeadLetter,
     retryingProfileSync,
     avatarSrc,
     safeBadges,

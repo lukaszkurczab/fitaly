@@ -1,4 +1,5 @@
 import {
+  clearBadgeRuntime,
   listBadges,
   primeBadges,
   subscribeBadges,
@@ -19,6 +20,16 @@ async function flushAsync() {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
 }
 
 jest.mock("@/services/core/apiClient", () => ({
@@ -191,6 +202,166 @@ describe("badgeService", () => {
     unsubscribe2();
   });
 
+  it("fences stale in-flight badge list writes after clearing one uid", async () => {
+    const staleUser = createDeferred<unknown>();
+    const otherUser = createDeferred<unknown>();
+    mockGet
+      .mockImplementationOnce(() => staleUser.promise)
+      .mockImplementationOnce(() => otherUser.promise);
+
+    const staleRequest = listBadges("user-stale");
+    const otherRequest = listBadges("user-other");
+
+    clearBadgeRuntime("user-stale");
+
+    staleUser.resolve({
+      items: [
+        {
+          id: "old_stale",
+          type: "streak",
+          label: "Old",
+          milestone: 3,
+          icon: "old",
+          color: "#111",
+          unlockedAt: 1,
+        },
+      ],
+    });
+    otherUser.resolve({
+      items: [
+        {
+          id: "other_ok",
+          type: "streak",
+          label: "Other",
+          milestone: 4,
+          icon: "other",
+          color: "#222",
+          unlockedAt: 2,
+        },
+      ],
+    });
+
+    await expect(staleRequest).resolves.toEqual([
+      expect.objectContaining({ id: "old_stale" }),
+    ]);
+    await expect(otherRequest).resolves.toEqual([
+      expect.objectContaining({ id: "other_ok" }),
+    ]);
+
+    expect(mockSetItem).not.toHaveBeenCalledWith(
+      "badge:list:user-stale",
+      expect.any(String),
+    );
+    expect(mockSetItem).toHaveBeenCalledWith(
+      "badge:list:user-other",
+      expect.stringContaining("other_ok"),
+    );
+  });
+
+  it("does not reuse a cleared badge list in-flight request for later calls", async () => {
+    const staleUser = createDeferred<unknown>();
+    const nextUser = createDeferred<unknown>();
+    mockGet
+      .mockImplementationOnce(() => staleUser.promise)
+      .mockImplementationOnce(() => nextUser.promise);
+
+    const staleRequest = listBadges("user-reset");
+    clearBadgeRuntime("user-reset");
+    const nextRequest = listBadges("user-reset");
+
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    staleUser.resolve({
+      items: [
+        {
+          id: "old_badge",
+          type: "streak",
+          label: "Old",
+          milestone: 3,
+          icon: "old",
+          color: "#111",
+          unlockedAt: 1,
+        },
+      ],
+    });
+    nextUser.resolve({
+      items: [
+        {
+          id: "new_badge",
+          type: "streak",
+          label: "New",
+          milestone: 4,
+          icon: "new",
+          color: "#222",
+          unlockedAt: 2,
+        },
+      ],
+    });
+
+    await expect(staleRequest).resolves.toEqual([
+      expect.objectContaining({ id: "old_badge" }),
+    ]);
+    await expect(nextRequest).resolves.toEqual([
+      expect.objectContaining({ id: "new_badge" }),
+    ]);
+
+    expect(mockSetItem).toHaveBeenCalledTimes(1);
+    expect(mockSetItem).toHaveBeenCalledWith(
+      "badge:list:user-reset",
+      expect.stringContaining("new_badge"),
+    );
+  });
+
+  it("clears badge stream state for one uid without clearing another uid", async () => {
+    mockGet
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "stale_stream",
+            type: "streak",
+            label: "Stale",
+            milestone: 3,
+            icon: "stale",
+            color: "#111",
+            unlockedAt: 1,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "other_stream",
+            type: "streak",
+            label: "Other",
+            milestone: 4,
+            icon: "other",
+            color: "#222",
+            unlockedAt: 2,
+          },
+        ],
+      });
+
+    await primeBadges("user-stream-stale");
+    await primeBadges("user-stream-other");
+    clearBadgeRuntime("user-stream-stale");
+
+    const staleCb = jest.fn<BadgeListCallback>();
+    const otherCb = jest.fn<BadgeListCallback>();
+    const staleUnsubscribe = subscribeBadges("user-stream-stale", staleCb);
+    const otherUnsubscribe = subscribeBadges("user-stream-other", otherCb);
+    await flushAsync();
+
+    expect(staleCb).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: "stale_stream" })]),
+    );
+    expect(otherCb).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: "other_stream" })]),
+    );
+
+    staleUnsubscribe();
+    otherUnsubscribe();
+  });
+
   it("loads badges at startup and does not refetch on later subscribe", async () => {
     mockGet.mockResolvedValue({
       items: [
@@ -251,6 +422,24 @@ describe("badgeService", () => {
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(mockEmit).toHaveBeenCalledTimes(1);
     expect(mockEmit).toHaveBeenCalledWith("badge:changed", { uid: "user-1" });
+  });
+
+  it("fences stale premium reconcile event emission after clear", async () => {
+    const staleReconcile = createDeferred<unknown>();
+    mockPost.mockImplementationOnce(() => staleReconcile.promise);
+
+    const request = unlockPremiumBadgesIfEligible("user-premium", true);
+    clearBadgeRuntime("user-premium");
+    staleReconcile.resolve({
+      awardedBadgeIds: ["premium_start"],
+      hasPremiumBadge: true,
+      updated: true,
+    });
+
+    await expect(request).resolves.toBeUndefined();
+    expect(mockEmit).not.toHaveBeenCalledWith("badge:changed", {
+      uid: "user-premium",
+    });
   });
 
   it("no-ops when uid is missing", async () => {

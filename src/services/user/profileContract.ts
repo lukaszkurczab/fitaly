@@ -11,6 +11,7 @@ import type {
   UserLanguage,
   UserNutritionProfile,
   UserProfile,
+  AiConsentStatus,
 } from "@/types";
 
 export const PROFILE_UNITS = [
@@ -89,6 +90,12 @@ export const PROFILE_AI_PERSONAS = [
   "mediterranean_friend",
 ] as const satisfies readonly AiPersona[];
 
+export const PROFILE_AI_CONSENT_STATUSES = [
+  "not_granted",
+  "granted",
+  "revoked",
+] as const satisfies readonly AiConsentStatus[];
+
 export const PROFILE_EDITABLE_REMOTE_FIELDS = [
   "profile",
 ] as const satisfies readonly (keyof UserData)[];
@@ -117,12 +124,15 @@ export const PROFILE_ONBOARDING_DOCUMENT_FIELDS = [
   "syncState",
   "lastSyncedAt",
   "avatarUrl",
-  "avatarLocalPath",
   "avatarlastSyncedAt",
 ] as const satisfies readonly (keyof UserData)[];
 
 export const PROFILE_READINESS_FIELDS = [
   "profile.readiness",
+] as const;
+
+export const PROFILE_AI_CONSENT_FIELDS = [
+  "profile.aiConsent",
 ] as const;
 
 export const PROFILE_AI_PERSONA_FIELDS = [
@@ -164,8 +174,10 @@ export const PROFILE_DEFAULTS = {
   aiPreferences: {
     stylePersona: "calm_guide" as AiPersona,
   },
-  consents: {
-    aiHealthDataConsentAt: null,
+  aiConsent: {
+    status: "not_granted" as AiConsentStatus,
+    grantedAt: null,
+    revokedAt: null,
   },
   readiness: {
     status: "needs_profile",

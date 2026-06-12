@@ -13,6 +13,7 @@ export type { StreakDoc } from "./streak.logic";
 const log = debugScope("StreakService");
 const streakGetInFlightByUid = new Map<string, Promise<StreakDoc>>();
 const streakLatestByUid = new Map<string, StreakDoc>();
+const streakRuntimeGenerationByUid = new Map<string, number>();
 
 type StreakBackendResponse = {
   current: number;
@@ -22,6 +23,21 @@ type StreakBackendResponse = {
 
 function streakCacheKey(uid: string) {
   return `streak:last:${uid}`;
+}
+
+function getStreakRuntimeGeneration(uid: string): number {
+  return streakRuntimeGenerationByUid.get(uid) ?? 0;
+}
+
+function isCurrentStreakRuntime(uid: string, generation: number): boolean {
+  return getStreakRuntimeGeneration(uid) === generation;
+}
+
+export function clearStreakRuntime(uid: string | null | undefined): void {
+  if (!uid) return;
+  streakRuntimeGenerationByUid.set(uid, getStreakRuntimeGeneration(uid) + 1);
+  streakGetInFlightByUid.delete(uid);
+  streakLatestByUid.delete(uid);
 }
 
 function normalizeBackendStreak(
@@ -71,24 +87,34 @@ function emitStreakChange(
 }
 
 export async function ensureStreakDoc(uid: string) {
+  const generation = getStreakRuntimeGeneration(uid);
   const response = await post<StreakBackendResponse>(
     "/users/me/streak/ensure",
     { dayKey: formatStreakDate(new Date()) }
   );
   const streak = normalizeBackendStreak(response);
-  await writeStreakCache(uid, streak);
-  emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+  if (isCurrentStreakRuntime(uid, generation)) {
+    await writeStreakCache(uid, streak);
+    if (isCurrentStreakRuntime(uid, generation)) {
+      emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+    }
+  }
   return streak;
 }
 
 export async function resetIfMissed(uid: string, now: Date = new Date()) {
+  const generation = getStreakRuntimeGeneration(uid);
   const response = await post<StreakBackendResponse>(
     "/users/me/streak/reset-if-missed",
     { dayKey: formatStreakDate(now) }
   );
   const streak = normalizeBackendStreak(response);
-  await writeStreakCache(uid, streak);
-  emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+  if (isCurrentStreakRuntime(uid, generation)) {
+    await writeStreakCache(uid, streak);
+    if (isCurrentStreakRuntime(uid, generation)) {
+      emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+    }
+  }
   return streak;
 }
 
@@ -102,6 +128,7 @@ export async function updateStreakIfThresholdMet(params: {
   const { uid, todaysKcal, targetKcal } = params;
   const now = params.now ?? new Date();
   const thresholdPct = params.thresholdPct ?? 0.8;
+  const generation = getStreakRuntimeGeneration(uid);
 
   const response = await post<StreakBackendResponse>(
     "/users/me/streak/recalculate",
@@ -114,8 +141,12 @@ export async function updateStreakIfThresholdMet(params: {
   );
 
   const streak = normalizeBackendStreak(response);
-  await writeStreakCache(uid, streak);
-  emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+  if (isCurrentStreakRuntime(uid, generation)) {
+    await writeStreakCache(uid, streak);
+    if (isCurrentStreakRuntime(uid, generation)) {
+      emitStreakChange(uid, streak, response.awardedBadgeIds || []);
+    }
+  }
   return streak;
 }
 
@@ -125,18 +156,25 @@ export async function getStreak(uid: string) {
     return existing;
   }
 
+  const generation = getStreakRuntimeGeneration(uid);
   const request = (async () => {
     try {
       void uid;
       const response = await get<StreakBackendResponse>("/users/me/streak");
       const streak = normalizeBackendStreak(response);
-      await writeStreakCache(uid, streak);
-      streakLatestByUid.set(uid, streak);
+      if (isCurrentStreakRuntime(uid, generation)) {
+        await writeStreakCache(uid, streak);
+        if (isCurrentStreakRuntime(uid, generation)) {
+          streakLatestByUid.set(uid, streak);
+        }
+      }
       return streak;
     } catch (error) {
       log.warn("getStreak backend error", { uid, error });
       const cached = await readStreakCache(uid);
-      streakLatestByUid.set(uid, cached);
+      if (isCurrentStreakRuntime(uid, generation)) {
+        streakLatestByUid.set(uid, cached);
+      }
       return cached;
     }
   })();
@@ -157,8 +195,13 @@ export async function refreshStreakFromBackend(
   uid: string,
   options?: { refreshBadges?: boolean },
 ) {
+  const generation = getStreakRuntimeGeneration(uid);
   const streak = await getStreak(uid);
-  emitStreakChange(uid, streak, [], { forceBadgeRefresh: options?.refreshBadges });
+  if (isCurrentStreakRuntime(uid, generation)) {
+    emitStreakChange(uid, streak, [], {
+      forceBadgeRefresh: options?.refreshBadges,
+    });
+  }
   return streak;
 }
 
@@ -167,9 +210,11 @@ export function subscribeStreak(
   cb: (data: StreakDoc) => void
 ) {
   let active = true;
+  const generation = getStreakRuntimeGeneration(uid);
 
   const publish = async (next?: StreakDoc) => {
     if (!active) return;
+    if (!isCurrentStreakRuntime(uid, generation)) return;
     if (next) {
       streakLatestByUid.set(uid, next);
       cb(next);
@@ -184,6 +229,7 @@ export function subscribeStreak(
 
     const cached = await readStreakCache(uid);
     if (!active) return;
+    if (!isCurrentStreakRuntime(uid, generation)) return;
     streakLatestByUid.set(uid, cached);
     cb(cached);
   };

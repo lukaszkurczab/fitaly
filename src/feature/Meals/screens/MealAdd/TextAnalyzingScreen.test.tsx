@@ -250,6 +250,186 @@ describe("TextAnalyzingScreen", () => {
     expect(setLastScreen).toHaveBeenCalledWith("user-1", "AddMeal");
   });
 
+  it("returns consent-required text analysis errors without using the generic retry failure", async () => {
+    const applyCreditsFromResponse = jest.fn((value: unknown) => value);
+    const saveDraft = jest.fn(async (_uid: string, _meal?: Meal | null) => undefined);
+    const setLastScreen = jest.fn(async (_uid: string, _screen: string) => undefined);
+    const setMeal = jest.fn();
+    const props = {
+      navigation: { navigate: jest.fn() } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"TextAnalyzing">["flow"],
+      params: {
+        analysisRequestId: "req-consent",
+        name: "Lunch bowl",
+        quickDescription: "rice and chicken",
+        retries: 2,
+      },
+    } as MealAddScreenProps<"TextAnalyzing">;
+    const { Toast } = jest.requireMock("@/components") as {
+      Toast: { show: jest.Mock };
+    };
+
+    mockUseAiCreditsContext.mockReturnValue({
+      applyCreditsFromResponse,
+      refreshCredits: jest.fn(async () => creditsSnapshot),
+    });
+    mockUseMealDraftContext.mockReturnValue({
+      meal: null,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+    });
+    mockExtractIngredientsFromText.mockRejectedValue(new Error("consent"));
+    mockGetAiUxErrorType.mockReturnValue("AI_CONSENT_REQUIRED");
+
+    renderWithTheme(<TextAnalyzingScreen {...props} />);
+
+    await waitFor(() => {
+      expect(props.flow.replace).toHaveBeenCalledWith(
+        "DescribeMeal",
+        expect.objectContaining({
+          retries: 2,
+          submitError: "meals:text_ai_error_consent_required",
+        }),
+      );
+    });
+
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "DescribeMeal",
+      expect.objectContaining({
+        retries: 3,
+        submitError: "meals:text_ai_analyze_failed",
+      }),
+    );
+    expect(props.flow.replace).not.toHaveBeenCalledWith("ReviewMeal", {});
+  });
+
+  it("returns disabled text analysis errors without using the generic retry failure", async () => {
+    const applyCreditsFromResponse = jest.fn((value: unknown) => value);
+    const saveDraft = jest.fn(async (_uid: string, _meal?: Meal | null) => undefined);
+    const setLastScreen = jest.fn(async (_uid: string, _screen: string) => undefined);
+    const setMeal = jest.fn();
+    const props = {
+      navigation: { navigate: jest.fn() } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"TextAnalyzing">["flow"],
+      params: {
+        analysisRequestId: "req-disabled",
+        name: "Lunch bowl",
+        quickDescription: "rice and chicken",
+        retries: 2,
+      },
+    } as MealAddScreenProps<"TextAnalyzing">;
+    const { Toast } = jest.requireMock("@/components") as {
+      Toast: { show: jest.Mock };
+    };
+
+    mockUseAiCreditsContext.mockReturnValue({
+      applyCreditsFromResponse,
+      refreshCredits: jest.fn(async () => creditsSnapshot),
+    });
+    mockUseMealDraftContext.mockReturnValue({
+      meal: null,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+    });
+    mockExtractIngredientsFromText.mockRejectedValue(new Error("disabled"));
+    mockGetAiUxErrorType.mockReturnValue("AI_MEAL_ANALYSIS_DISABLED");
+
+    renderWithTheme(<TextAnalyzingScreen {...props} />);
+
+    await waitFor(() => {
+      expect(props.flow.replace).toHaveBeenCalledWith(
+        "DescribeMeal",
+        expect.objectContaining({
+          retries: 2,
+          submitError: "meals:text_ai_error_disabled",
+        }),
+      );
+    });
+
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "DescribeMeal",
+      expect.objectContaining({
+        retries: 3,
+        submitError: "meals:text_ai_analyze_failed",
+      }),
+    );
+    expect(props.flow.replace).not.toHaveBeenCalledWith("ReviewMeal", {});
+  });
+
+  it("returns idempotency-conflict text analysis errors without using the generic retry failure", async () => {
+    const applyCreditsFromResponse = jest.fn((value: unknown) => value);
+    const saveDraft = jest.fn(async (_uid: string, _meal?: Meal | null) => undefined);
+    const setLastScreen = jest.fn(async (_uid: string, _screen: string) => undefined);
+    const setMeal = jest.fn();
+    const props = {
+      navigation: { navigate: jest.fn() } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"TextAnalyzing">["flow"],
+      params: {
+        analysisRequestId: "req-idempotency",
+        name: "Lunch bowl",
+        quickDescription: "rice and chicken",
+        retries: 2,
+      },
+    } as MealAddScreenProps<"TextAnalyzing">;
+    const { Toast } = jest.requireMock("@/components") as {
+      Toast: { show: jest.Mock };
+    };
+
+    mockUseAiCreditsContext.mockReturnValue({
+      applyCreditsFromResponse,
+      refreshCredits: jest.fn(async () => creditsSnapshot),
+    });
+    mockUseMealDraftContext.mockReturnValue({
+      meal: null,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+    });
+    mockExtractIngredientsFromText.mockRejectedValue(new Error("idempotency"));
+    mockGetAiUxErrorType.mockReturnValue("AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT");
+
+    renderWithTheme(<TextAnalyzingScreen {...props} />);
+
+    await waitFor(() => {
+      expect(props.flow.replace).toHaveBeenCalledWith(
+        "DescribeMeal",
+        expect.objectContaining({
+          retries: 2,
+          submitError: "meals:text_ai_error_idempotency_conflict",
+        }),
+      );
+    });
+
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "DescribeMeal",
+      expect.objectContaining({
+        retries: 3,
+        submitError: "meals:text_ai_analyze_failed",
+      }),
+    );
+    expect(props.flow.replace).not.toHaveBeenCalledWith("ReviewMeal", {});
+  });
+
   it("runs text analysis once for the same payload across rerenders", async () => {
     const applyCreditsFromResponse = jest.fn((value: unknown) => value);
     const refreshCredits = jest.fn(async () => creditsSnapshot);

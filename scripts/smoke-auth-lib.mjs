@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 const DEFAULT_FIREBASE_AUTH_BASE_URL = "https://identitytoolkit.googleapis.com/v1";
 
 function getRequiredEnv(name) {
@@ -16,9 +18,54 @@ async function parseJson(response) {
 
   try {
     return JSON.parse(text);
-  } catch (error) {
-    throw new Error(`Expected JSON response but received: ${text.slice(0, 200)}`);
+  } catch {
+    throw new Error(`Expected JSON response for HTTP ${response.status}; response body redacted.`);
   }
+}
+
+function structuredErrorCode(payload) {
+  const candidates = [
+    payload?.detail,
+    payload?.code,
+    payload?.error?.code,
+    payload?.error?.message,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && /^[A-Z0-9_:-]{2,80}$/.test(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+export function smokeUserRef(localId) {
+  const value = String(localId || "").trim();
+  if (!value) {
+    return null;
+  }
+
+  const digest = crypto.createHash("sha256").update(value).digest("hex").slice(0, 12);
+  return `smoke-user-${digest}`;
+}
+
+export function smokeEndpoint(url) {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "unknown-endpoint";
+  }
+}
+
+export function smokeResponseError(label, { response, url, payload, expectedStatus = null }) {
+  const status = response?.status ?? "unknown";
+  const endpoint = smokeEndpoint(url);
+  const expected = expectedStatus ? ` expected=${expectedStatus}` : "";
+  const code = structuredErrorCode(payload);
+  const codeSuffix = code ? ` code=${code}` : "";
+
+  return `${label} failed status=${status}${expected} endpoint=${endpoint}${codeSuffix}; response body redacted.`;
 }
 
 export async function signInSmokeUser({
@@ -47,9 +94,11 @@ export async function signInSmokeUser({
 
   const payload = await parseJson(response);
   if (!response.ok) {
-    throw new Error(
-      `Firebase sign-in failed (${response.status}): ${JSON.stringify(payload)}`,
-    );
+    throw new Error(smokeResponseError("Firebase sign-in", {
+      response,
+      url: `${authBaseUrl}/accounts:signInWithPassword`,
+      payload,
+    }));
   }
 
   const idToken = String(payload?.idToken || "").trim();
@@ -58,8 +107,8 @@ export async function signInSmokeUser({
   }
 
   return {
-    email,
     localId: String(payload?.localId || "").trim(),
+    smokeUserRef: smokeUserRef(payload?.localId),
     idToken,
   };
 }
@@ -74,7 +123,7 @@ export async function callAuthenticatedJson(
   } = {},
 ) {
   const smokeApiBaseUrl = (process.env.SMOKE_API_BASE_URL || "https://fitaly-backend-smoke.up.railway.app").trim().replace(/\/$/, "");
-  const { idToken, email, localId } = await signInSmokeUser({
+  const { idToken, localId, smokeUserRef } = await signInSmokeUser({
     emailEnvName,
     passwordEnvName,
   });
@@ -91,11 +140,11 @@ export async function callAuthenticatedJson(
 
   const payload = await parseJson(response);
   return {
-    email,
     localId,
     method,
     payload,
     response,
+    smokeUserRef,
     url,
   };
 }

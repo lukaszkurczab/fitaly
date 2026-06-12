@@ -32,6 +32,46 @@ jest.mock("@/utils/debug", () => ({
 }));
 
 describe("nutritionStateService", () => {
+  function createDeferred<T>(): {
+    promise: Promise<T>;
+    resolve: (value: T) => void;
+    reject: (error: unknown) => void;
+  } {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = promiseResolve;
+      reject = promiseReject;
+    });
+    return { promise, resolve, reject };
+  }
+
+  function createNutritionPayload(overrides?: {
+    computedAt?: string;
+    consumedKcal?: number;
+  }): unknown {
+    return {
+      computedAt: overrides?.computedAt ?? "2026-03-18T10:00:00Z",
+      dayKey: "2026-03-18",
+      targets: { kcal: 2000 },
+      consumed: {
+        kcal: overrides?.consumedKcal ?? 1000,
+        protein: 60,
+        carbs: 90,
+        fat: 20,
+      },
+      remaining: { kcal: 1000, protein: null, carbs: null, fat: null },
+      quality: {
+        mealsLogged: 1,
+        missingNutritionMeals: 0,
+        dataCompletenessScore: 1,
+      },
+      habits: { available: false },
+      streak: { available: false, current: 0, lastDate: null },
+      ai: { available: false, costs: { chat: 0, textMeal: 0, photo: 0 } },
+    };
+  }
+
   beforeEach(async () => {
     jest.clearAllMocks();
     mockReadPublicEnv.mockImplementation((name: string) => {
@@ -234,6 +274,54 @@ describe("nutritionStateService", () => {
     expect(mockGet).toHaveBeenCalledTimes(2);
     expect(await AsyncStorage.getItem("nutrition-state:last:v1:user-1:2026-03-18")).toEqual(
       expect.any(String),
+    );
+  });
+
+  it("fences stale in-flight writes after full user cache invalidation", async () => {
+    const staleRequest = createDeferred<unknown>();
+    mockGet
+      .mockReturnValueOnce(staleRequest.promise)
+      .mockResolvedValueOnce(
+        createNutritionPayload({
+          computedAt: "2026-03-18T11:00:00Z",
+          consumedKcal: 1400,
+        }),
+      );
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const service = require("@/services/nutritionState/nutritionStateService") as typeof import("@/services/nutritionState/nutritionStateService");
+
+    const stalePromise = service.getNutritionState("user-1", {
+      dayKey: "2026-03-18",
+    });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    await service.invalidateNutritionStateCache("user-1");
+    const freshResult = await service.getNutritionState("user-1", {
+      dayKey: "2026-03-18",
+    });
+
+    staleRequest.resolve(
+      createNutritionPayload({
+        computedAt: "2026-03-18T10:00:00Z",
+        consumedKcal: 1000,
+      }),
+    );
+    const staleResult = await stalePromise;
+    const cachedResult = await service.getNutritionState("user-1", {
+      dayKey: "2026-03-18",
+    });
+    const persisted = await AsyncStorage.getItem(
+      "nutrition-state:last:v1:user-1:2026-03-18",
+    );
+
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(staleResult.state.computedAt).toBe("2026-03-18T10:00:00Z");
+    expect(freshResult.state.computedAt).toBe("2026-03-18T11:00:00Z");
+    expect(cachedResult.source).toBe("memory");
+    expect(cachedResult.state.computedAt).toBe("2026-03-18T11:00:00Z");
+    expect(JSON.parse(persisted ?? "{}")).toEqual(
+      expect.objectContaining({ computedAt: "2026-03-18T11:00:00Z" }),
     );
   });
 });

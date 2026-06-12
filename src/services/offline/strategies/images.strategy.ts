@@ -4,7 +4,11 @@ import { Sync } from "@/utils/debug";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { normalizeServiceError } from "@/services/contracts/serviceError";
 import { processAndUpload } from "@/services/meals/mealService.images";
-import { getPendingUploads, markUploaded } from "../images.repo";
+import {
+  getPendingUploads,
+  markUploaded,
+  markUploadFailed,
+} from "../images.repo";
 import { enqueueUpsert } from "../queue.repo";
 import { getDB } from "../db";
 import type { MealRow } from "../types";
@@ -85,7 +89,6 @@ export async function processImageUploads(uid: string): Promise<void> {
         local_path: row.local_path,
       });
       const up = await processAndUpload(uid, row.local_path);
-      await markUploaded(row.image_id, up.cloudUrl);
 
       const now = nowISO();
       sql.runSync(
@@ -99,6 +102,18 @@ export async function processImageUploads(uid: string): Promise<void> {
         `SELECT * FROM meals WHERE user_uid=? AND image_local=?`,
         [uid, row.local_path]
       ) as MealRow[];
+
+      if (!meals.length) {
+        upLog.warn("upload:meal_attach_missing", {
+          image_id: row.image_id,
+          local_path: row.local_path,
+          remote_image_id: up.imageId,
+          cloud_url: up.cloudUrl,
+        });
+        throw new Error(
+          "uploaded image has no matching local meals for image_local"
+        );
+      }
 
       for (const m of meals) {
         const tags = safeParseJSON(m.tags) ?? [];
@@ -133,6 +148,8 @@ export async function processImageUploads(uid: string): Promise<void> {
         await enqueueUpsert(uid, normalized);
         upLog.log("meal_enqueued", m.cloud_id);
       }
+
+      await markUploaded(row.image_id, up.cloudUrl);
       ok++;
     } catch (e: unknown) {
       fail++;
@@ -147,6 +164,20 @@ export async function processImageUploads(uid: string): Promise<void> {
         upLog.warn("upload:retryable_fail", payload);
       } else {
         upLog.error("upload:fail", payload);
+      }
+      try {
+        await markUploadFailed({
+          uid,
+          imageId: row.image_id,
+        });
+      } catch (markError) {
+        const markErr = toSyncError(markError);
+        upLog.error("upload:mark_failed_error", {
+          image_id: row.image_id,
+          code: markErr.code,
+          message: markErr.message,
+          retryable: markErr.retryable,
+        });
       }
     }
   }

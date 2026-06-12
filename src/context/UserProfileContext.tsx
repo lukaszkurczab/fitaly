@@ -8,7 +8,10 @@ import React, {
 import { useAuthContext } from "./AuthContext";
 import { useUser } from "@hooks/useUser";
 import type { UserData } from "@/types";
-import type { UserProfileBootstrapState } from "@/hooks/useUserProfile";
+import type {
+  ProfileSyncState,
+  UserProfileBootstrapState,
+} from "@/hooks/useUserProfile";
 import { runMigrations } from "@/services/offline/db";
 import { startSyncLoop, stopSyncLoop } from "@/services/offline/sync.engine";
 import { cleanupTransientOfflineAssets } from "@/services/offline/fileCleanup";
@@ -20,13 +23,15 @@ export type UserProfileContextType = {
   loadingUser: boolean;
   profileBootstrapState: UserProfileBootstrapState;
   profileBootstrapError: unknown | null;
-  syncState: "synced" | "pending" | "conflict";
+  syncState: ProfileSyncState;
+  hasAvatarUploadDeadLetter: boolean;
   retryingProfileSync: boolean;
   refreshUser: () => Promise<UserData | null>;
   getUserData: () => Promise<UserData | null>;
   updateUser: (data: Partial<UserData>) => Promise<void>;
   applyServerProfile: (profile: UserData) => Promise<UserData | null>;
   retryProfileSync: () => Promise<void>;
+  discardAvatarUploadDeadLetter: () => Promise<void>;
   syncUserProfile: () => Promise<void>;
   setAvatar: (photoUri: string) => Promise<void>;
 };
@@ -37,12 +42,14 @@ const UserProfileContext = createContext<UserProfileContextType>({
   profileBootstrapState: "profileLoading",
   profileBootstrapError: null,
   syncState: "pending",
+  hasAvatarUploadDeadLetter: false,
   retryingProfileSync: false,
   refreshUser: async () => null,
   getUserData: async () => null,
   updateUser: async () => {},
   applyServerProfile: async () => null,
   retryProfileSync: async () => {},
+  discardAvatarUploadDeadLetter: async () => {},
   syncUserProfile: async () => {},
   setAvatar: async () => {},
 });
@@ -61,12 +68,14 @@ export const UserProfileProvider = ({
     profileBootstrapState,
     profileBootstrapError,
     syncState,
+    hasAvatarUploadDeadLetter,
     retryingProfileSync,
     getUserProfile,
     fetchUserFromCloud,
     updateUserProfile,
     applyServerProfile,
     retryProfileSync,
+    discardAvatarUploadDeadLetter,
     syncUserProfile,
     setAvatar,
   } = useUser(uid);
@@ -123,12 +132,14 @@ export const UserProfileProvider = ({
       profileBootstrapState,
       profileBootstrapError,
       syncState,
+      hasAvatarUploadDeadLetter,
       retryingProfileSync,
       refreshUser,
       getUserData: getUserProfile,
       updateUser: updateUserProfile,
       applyServerProfile,
       retryProfileSync,
+      discardAvatarUploadDeadLetter,
       syncUserProfile,
       setAvatar,
     }),
@@ -138,12 +149,14 @@ export const UserProfileProvider = ({
       profileBootstrapState,
       profileBootstrapError,
       syncState,
+      hasAvatarUploadDeadLetter,
       retryingProfileSync,
       refreshUser,
       getUserProfile,
       updateUserProfile,
       applyServerProfile,
       retryProfileSync,
+      discardAvatarUploadDeadLetter,
       syncUserProfile,
       setAvatar,
     ]

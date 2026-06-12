@@ -29,6 +29,7 @@ import ChangePasswordScreen from "@/feature/UserProfile/screens/ChangePasswordSc
 import LanguageScreen from "@/feature/UserProfile/screens/LanguageScreen";
 import SendFeedbackScreen from "@/feature/UserProfile/screens/SendFeedbackScreen";
 import LegalPrivacyHubScreen from "@/feature/UserProfile/screens/LegalPrivacyHubScreen";
+import PrivacyAiSettingsScreen from "@/feature/UserProfile/screens/PrivacyAiSettingsScreen";
 import DataAiClarityScreen from "@/feature/UserProfile/screens/DataAiClarityScreen";
 import HelpFeedbackHubScreen from "@/feature/UserProfile/screens/HelpFeedbackHubScreen";
 import ContactSupportScreen from "@/feature/UserProfile/screens/ContactSupportScreen";
@@ -48,6 +49,7 @@ import { primeBadges } from "@/services/gamification/badgeService";
 import { logWarning } from "@/services/core/errorLogger";
 import { authLogout } from "@/feature/Auth/services/authService";
 import {
+  PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES,
   resolveBootstrapState,
   resolveEffectiveBootstrapState,
   resolveInitialRouteName,
@@ -72,7 +74,10 @@ function renderAuthScreens() {
 function renderAppScreens() {
   return (
     <>
-      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen
+        name={PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.home}
+        component={HomeScreen}
+      />
       <Stack.Screen name="WeeklyReport" component={WeeklyReportScreen} />
       <Stack.Screen name="SavedMeals" component={SavedMealsScreen} />
       <Stack.Screen
@@ -85,9 +90,15 @@ function renderAppScreens() {
         name="ProfilePhotoPreview"
         component={ProfilePhotoPreviewScreen}
       />
-      <Stack.Screen name="HistoryList" component={HistoryListScreen} />
+      <Stack.Screen
+        name={PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.historyList}
+        component={HistoryListScreen}
+      />
       <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Statistics" component={StatisticsScreen} />
+      <Stack.Screen
+        name={PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.statistics}
+        component={StatisticsScreen}
+      />
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="EditUserData" component={EditUserDataScreen} />
@@ -116,6 +127,10 @@ function renderAppScreens() {
         component={LegalPrivacyHubScreen}
       />
       <Stack.Screen
+        name="PrivacyAiSettings"
+        component={PrivacyAiSettingsScreen}
+      />
+      <Stack.Screen
         name="DataAiClarity"
         component={DataAiClarityScreen}
       />
@@ -134,7 +149,10 @@ function renderAppScreens() {
           cardStyle: { backgroundColor: "transparent" },
         }}
       />
-      <Stack.Screen name="AddMeal" component={AddMealScreen} />
+      <Stack.Screen
+        name={PRODUCT_STACK_NON_AI_SURFACE_ROUTE_NAMES.addMeal}
+        component={AddMealScreen}
+      />
       <Stack.Screen
         name="SavedMealsCamera"
         component={SavedMealsCameraScreen}

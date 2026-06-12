@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { migrations } from "./migrations";
+import type { MigrationDatabase } from "./migrations";
 
 const MIGRATION_TABLE_SQL =
   "CREATE TABLE IF NOT EXISTS _schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)";
@@ -18,7 +19,11 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   for (const migration of pending) {
     await db.withTransactionAsync(async () => {
-      await db.execAsync(migration.up);
+      if (typeof migration.up === "function") {
+        await migration.up(db as MigrationDatabase);
+      } else {
+        await db.execAsync(migration.up);
+      }
       await db.runAsync(
         "INSERT INTO _schema_migrations (version, applied_at) VALUES (?, datetime('now'))",
         [migration.version],

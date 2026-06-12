@@ -14,7 +14,12 @@ import {
   createServiceError,
   normalizeServiceError,
 } from "@/services/contracts/serviceError";
-import { setMyMealSyncStateLocal, upsertMyMealLocal } from "../myMeals.repo";
+import {
+  getMyMealByCloudIdLocal,
+  setMyMealSyncStateLocal,
+  upsertMyMealLocal,
+} from "../myMeals.repo";
+import { resolveMealConflict } from "../conflict";
 import { getLastMyMealsPullTs, setLastMyMealsPullTs } from "../sync.storage";
 import type { QueueOp, SyncStrategy } from "../sync.strategy";
 
@@ -74,6 +79,18 @@ function isLocalUri(value?: string | null): value is string {
   return value.startsWith("file:") || value.startsWith("content:");
 }
 
+function isUserScopedSavedMealStoragePath(
+  storagePath: string | null | undefined,
+  uid: string,
+): storagePath is string {
+  return Boolean(storagePath && uid && storagePath.startsWith(`mealTemplates/${uid}/`));
+}
+
+function normalizeChangesCursor(cursor: string | null): string | null {
+  const normalized = cursor?.trim();
+  return normalized && normalized.includes("|") ? normalized : null;
+}
+
 async function forEachCursorPage<T>(params: {
   initialCursor: string | null;
   fetchPage: (cursor: string | null) => Promise<CursorPage<T>>;
@@ -101,7 +118,7 @@ export const myMealsStrategy: SyncStrategy = {
       return 0;
     }
 
-    const last = (await getLastMyMealsPullTs(uid)) || "1970-01-01T00:00:00.000Z";
+    const last = normalizeChangesCursor(await getLastMyMealsPullTs(uid));
     let latestCursor = last;
     let total = 0;
 
@@ -119,18 +136,67 @@ export const myMealsStrategy: SyncStrategy = {
       onPageItems: async (items) => {
         for (const meal of items) {
           try {
-            await upsertMyMealLocal({
+            const remoteMeal: Meal = {
               ...meal,
               source: "saved",
               photoLocalPath: meal.photoLocalPath ?? null,
-            });
-            emit("mymeal:synced", {
-              uid,
-              cloudId: meal.cloudId,
-              updatedAt: meal.updatedAt,
-            });
+            };
+            const existingLocal = meal.cloudId
+              ? await getMyMealByCloudIdLocal(uid, meal.cloudId)
+              : null;
+            const resolution = existingLocal
+              ? resolveMealConflict(existingLocal, remoteMeal)
+              : {
+                  resolved: remoteMeal,
+                  discarded: null,
+                  isAmbiguous: false,
+                  decision: "remote-wins" as const,
+                  reason: "remote-newer" as const,
+                };
+            const { resolved } = resolution;
+
+            if (resolution.decision === "remote-wins") {
+              await upsertMyMealLocal({
+                ...resolved,
+                source: "saved",
+                syncState: "synced",
+                photoLocalPath: resolved.photoLocalPath ?? null,
+              });
+              emit("mymeal:synced", {
+                uid,
+                cloudId: resolved.cloudId ?? meal.cloudId,
+                updatedAt: resolved.updatedAt,
+              });
+            } else if (resolution.decision === "conflict") {
+              await upsertMyMealLocal({
+                ...resolved,
+                source: "saved",
+                syncState: "conflict",
+                photoLocalPath: resolved.photoLocalPath ?? null,
+              });
+            }
+
+            if (
+              existingLocal &&
+              resolution.decision === "conflict" &&
+              resolution.isAmbiguous
+            ) {
+              emit("mymeal:conflict:ambiguous", {
+                uid,
+                cloudId: resolved.cloudId ?? meal.cloudId,
+                localUpdatedAt: existingLocal.updatedAt,
+                remoteUpdatedAt: meal.updatedAt,
+                reason: resolution.reason,
+              });
+            }
             total++;
             latestCursor = buildMyMealUpdatedCursor(meal);
+            pullLog.log("local_upsert:ok", {
+              id: meal.cloudId,
+              updatedAt: meal.updatedAt,
+              decision: resolution.decision,
+              reason: resolution.reason,
+            });
           } catch (e: unknown) {
             const err = toSyncError(e);
             pullLog.error("local_upsert:fail", {
@@ -144,7 +210,7 @@ export const myMealsStrategy: SyncStrategy = {
       },
     });
 
-    if (latestCursor !== last) {
+    if (latestCursor && latestCursor !== last) {
       await setLastMyMealsPullTs(uid, latestCursor);
       pullLog.log("set_last_ts", { latestCursor });
     }
@@ -174,22 +240,45 @@ export const myMealsStrategy: SyncStrategy = {
         typeof payload?.photoUrl === "string" && !isLocalUri(payload.photoUrl)
           ? payload.photoUrl
           : null;
+      let uploadedStoragePath: string | null = null;
 
       if (localPhotoPath) {
         const uploaded = await uploadMyMealPhotoRemote(uid, docId, localPhotoPath);
         imageId = uploaded.imageId;
         photoUrl = uploaded.photoUrl;
+        uploadedStoragePath = isUserScopedSavedMealStoragePath(
+          uploaded.storagePath,
+          uid,
+        )
+          ? uploaded.storagePath
+          : null;
       }
 
-      await updateMyMealRemote(uid, docId, {
-        ...payload,
-        mealId: docId,
-        cloudId: docId,
-        source: "saved",
-        updatedAt: payload?.updatedAt || nowISO(),
-        imageId,
-        photoUrl,
-      });
+      await updateMyMealRemote(
+        uid,
+        docId,
+        {
+          ...payload,
+          mealId: docId,
+          cloudId: docId,
+          source: "saved",
+          updatedAt: payload?.updatedAt || nowISO(),
+          imageId,
+          photoUrl,
+          ...(localPhotoPath && imageId
+            ? {
+                imageRef: {
+                  imageId,
+                  ...(uploadedStoragePath
+                    ? { storagePath: uploadedStoragePath }
+                    : {}),
+                  downloadUrl: photoUrl,
+                },
+              }
+            : {}),
+        },
+        op.client_mutation_id,
+      );
       await upsertMyMealLocal({
         userUid: String(payload?.userUid || uid),
         mealId: docId,
@@ -204,6 +293,14 @@ export const myMealsStrategy: SyncStrategy = {
         updatedAt: String(payload?.updatedAt || nowISO()),
         syncState: "synced",
         source: "saved",
+        imageRef:
+          imageId && uploadedStoragePath
+            ? {
+                imageId,
+                storagePath: uploadedStoragePath,
+                downloadUrl: photoUrl,
+              }
+            : payload?.imageRef ?? null,
         imageId,
         photoUrl: localPhotoPath || photoUrl,
         photoLocalPath: localPhotoPath,
@@ -227,7 +324,9 @@ export const myMealsStrategy: SyncStrategy = {
     }
 
     if (op.kind === "delete_mymeal") {
-      await markMyMealDeletedRemote(uid, op.cloud_id, op.updated_at);
+      await markMyMealDeletedRemote(uid, op.cloud_id, op.updated_at, {
+        clientMutationId: op.client_mutation_id,
+      });
       pushLog.log("mymeal:delete", op.cloud_id);
       emit("mymeal:synced", { uid, cloudId: op.cloud_id });
       return true;

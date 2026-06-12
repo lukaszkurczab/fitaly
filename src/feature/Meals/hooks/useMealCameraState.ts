@@ -9,10 +9,12 @@ import { normalizeImageOrientation } from "@/utils/normalizeImageOrientation";
 import { debugScope } from "@/utils/debug";
 import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import { getErrorStatus } from "@/services/contracts/serviceError";
 import { getE2EFixtureState } from "@/services/e2e/fixtures";
 import type { Meal } from "@/types";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
+import { hasActiveMealAiConsent } from "@/feature/Meals/utils/aiConsent";
 
 const log = debugScope("Hook:useMealCameraState");
 
@@ -33,9 +35,13 @@ export function useMealCameraState({
   const { meal, setMeal, updateMeal, setLastScreen, saveDraft } =
     useMealDraftContext();
   const { uid } = useAuthContext();
+  const { userData } = useUserProfileContext();
   const { accessState, canUseFeature } = useAccessContext();
   const credits = accessState?.credits ?? null;
   const canUsePhotoAnalysis = canUseFeature("photoAnalysis");
+  const hasActiveAiConsent = hasActiveMealAiConsent(
+    userData?.profile.aiConsent,
+  );
 
   const routeId = params?.id as string | undefined;
   const skipDetection = !!params?.skipDetection;
@@ -108,6 +114,11 @@ export function useMealCameraState({
       const finalUri = optimizedUri || photoUri;
       if (!finalUri) return;
 
+      if (!skipDetection && !hasActiveAiConsent) {
+        navigation.navigate("PrivacyAiSettings");
+        return;
+      }
+
       try {
         let draftAfterPhoto: Meal;
         if (!meal) {
@@ -176,8 +187,10 @@ export function useMealCameraState({
     [
       attempt,
       flow,
+      hasActiveAiConsent,
       meal,
       mealId,
+      navigation,
       photoUri,
       saveDraft,
       setMeal,
@@ -196,11 +209,17 @@ export function useMealCameraState({
     log.log("takePicture start", {
       skipDetection,
       canUsePhotoAi,
+      hasActiveAiConsent,
       isCameraReady,
       isSimulatorPreview,
       simulatorCreditsState,
       simulatorReviewState,
     });
+
+    if (!skipDetection && !hasActiveAiConsent) {
+      navigation.navigate("PrivacyAiSettings");
+      return;
+    }
 
     if (isSimulatorPreview) {
       const canUseSimulatorPreviewAi = accessState
@@ -251,9 +270,11 @@ export function useMealCameraState({
     accessState,
     canUsePhotoAnalysis,
     handleAccept,
+    hasActiveAiConsent,
     isCameraReady,
     isSimulatorPreview,
     isTakingPhoto,
+    navigation,
     simulatorCreditsState,
     simulatorReviewState,
     skipDetection,
@@ -272,6 +293,10 @@ export function useMealCameraState({
     navigation.navigate("ManageSubscription");
   }, [navigation]);
 
+  const openPrivacyAiSettings = useCallback(() => {
+    navigation.navigate("PrivacyAiSettings");
+  }, [navigation]);
+
   return {
     permission,
     requestPermission,
@@ -281,6 +306,7 @@ export function useMealCameraState({
     photoUri,
     premiumModal,
     canUsePhotoAi: canUsePhotoAnalysis,
+    hasActiveAiConsent,
     credits,
     skipDetection,
     setIsCameraReady,
@@ -289,5 +315,6 @@ export function useMealCameraState({
     handleRetake,
     closePremiumModal,
     goManagePremium,
+    openPrivacyAiSettings,
   };
 }

@@ -263,6 +263,8 @@ describe("PreparingReviewPhotoScreen", () => {
       expect(getByText("This is taking a bit longer")).toBeTruthy();
     });
 
+    expect(getByText("Keep waiting")).toBeTruthy();
+
     fireEvent.press(getByText("Use manual entry"));
     expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {
       submitIntent: "replaceReview",
@@ -312,6 +314,107 @@ describe("PreparingReviewPhotoScreen", () => {
       id: "meal-1",
       attempt: 3,
     });
+  });
+
+  it("shows consent-required photo recovery without exposing the generic retry path", async () => {
+    const props = buildProps();
+    const draftContext = buildDraftContext();
+    const error = Object.assign(new Error("consent"), { status: 403 });
+
+    mockUseMealDraftContext.mockReturnValue(draftContext);
+    mockDetectIngredientsWithVision.mockRejectedValue(error);
+    mockGetAiUxErrorType.mockReturnValue("AI_CONSENT_REQUIRED");
+    mockGetErrorStatus.mockReturnValue(403);
+
+    const { getByText, queryByText } = renderWithTheme(
+      <PreparingReviewPhotoScreen {...props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByText("Privacy & AI consent required")).toBeTruthy();
+    });
+
+    expect(queryByText("We couldn't prepare review")).toBeNull();
+    expect(queryByText("Try again")).toBeNull();
+
+    fireEvent.press(getByText("Manage consent"));
+
+    expect(props.navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "CameraDefault",
+      expect.anything(),
+    );
+  });
+
+  it("shows disabled photo recovery without exposing the generic retry path", async () => {
+    const props = buildProps();
+    const draftContext = buildDraftContext();
+    const error = Object.assign(new Error("disabled"), { status: 503 });
+
+    mockUseMealDraftContext.mockReturnValue(draftContext);
+    mockDetectIngredientsWithVision.mockRejectedValue(error);
+    mockGetAiUxErrorType.mockReturnValue("AI_MEAL_ANALYSIS_DISABLED");
+    mockGetErrorStatus.mockReturnValue(503);
+
+    const { getByText, queryByText } = renderWithTheme(
+      <PreparingReviewPhotoScreen {...props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByText("Photo analysis is temporarily off")).toBeTruthy();
+    });
+
+    expect(queryByText("We couldn't prepare review")).toBeNull();
+    expect(queryByText("Try again")).toBeNull();
+
+    fireEvent.press(getByText("Add manually"));
+
+    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {
+      submitIntent: "replaceReview",
+    });
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "CameraDefault",
+      expect.anything(),
+    );
+  });
+
+  it("shows idempotency-conflict recovery without exposing retry actions", async () => {
+    const props = buildProps();
+    const draftContext = buildDraftContext();
+    const error = Object.assign(new Error("idempotency"), { status: 409 });
+
+    mockUseMealDraftContext.mockReturnValue(draftContext);
+    mockDetectIngredientsWithVision.mockRejectedValue(error);
+    mockGetAiUxErrorType.mockReturnValue("AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT");
+    mockGetErrorStatus.mockReturnValue(409);
+
+    const { getByText, queryByText } = renderWithTheme(
+      <PreparingReviewPhotoScreen {...props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByText("Photo analysis is already in progress")).toBeTruthy();
+    });
+
+    expect(queryByText("This is taking a bit longer")).toBeNull();
+    expect(queryByText("Keep waiting")).toBeNull();
+    expect(queryByText("We couldn't prepare review")).toBeNull();
+    expect(queryByText("Try again")).toBeNull();
+
+    fireEvent.press(getByText("Add manually"));
+
+    expect(props.flow.replace).toHaveBeenCalledWith("EditMealDetails", {
+      submitIntent: "replaceReview",
+    });
+
+    fireEvent.press(getByText("Save draft"));
+
+    expect(props.navigation.navigate).toHaveBeenCalledWith("Home");
+    expect(props.flow.replace).not.toHaveBeenCalledWith(
+      "CameraDefault",
+      expect.anything(),
+    );
+    expect(mockDetectIngredientsWithVision).toHaveBeenCalledTimes(1);
   });
 
   it("renders simulator preview states without calling vision analysis", async () => {

@@ -246,6 +246,7 @@ function baseHookState() {
     photoUri: null as string | null,
     premiumModal: false,
     canUsePhotoAi: true,
+    hasActiveAiConsent: true,
     credits: {
       userId: "user-1",
       tier: "free" as const,
@@ -262,6 +263,7 @@ function baseHookState() {
     handleRetake: jest.fn(),
     closePremiumModal: jest.fn(),
     goManagePremium: jest.fn(),
+    openPrivacyAiSettings: jest.fn(),
   };
 }
 
@@ -579,6 +581,42 @@ describe("MealCameraScreen", () => {
 
     expect(getByText("No credits left for photo")).toBeTruthy();
     expect(queryByText("Take photo")).toBeNull();
+  });
+
+  it("renders a distinct AI consent state with a Privacy & AI settings action", () => {
+    mockDevice.isDevice = true;
+    (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+    const hookState = buildHookState({
+      hasActiveAiConsent: false,
+      canUsePhotoAi: true,
+      credits: {
+        userId: "user-1",
+        tier: "free",
+        balance: 10,
+        allocation: 100,
+        periodStartAt: "2026-03-01T00:00:00.000Z",
+        periodEndAt: "2026-04-01T00:00:00.000Z",
+        costs: { chat: 1, textMeal: 1, photo: 5 },
+      },
+    });
+    mockUseMealCameraState.mockReturnValue(hookState);
+
+    const { getByTestId, getByText, queryByTestId, queryByText } =
+      renderWithTheme(<MealCameraScreen {...buildProps()} />);
+
+    expect(getByText("AI consent required")).toBeTruthy();
+    expect(
+      getByText(
+        "Turn on Privacy & AI consent in Settings before photo analysis.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("No credits left for photo")).toBeNull();
+    expect(queryByText("chat:limit.upgradeCta")).toBeNull();
+    expect(queryByTestId("add-meal-photo-capture-button")).toBeNull();
+
+    fireEvent.press(getByTestId("add-meal-photo-ai-consent-settings-button"));
+
+    expect(hookState.openPrivacyAiSettings).toHaveBeenCalledTimes(1);
   });
 
   it("renders back and close controls on the entry camera screen", () => {

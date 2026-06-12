@@ -1,10 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { emit } from "@/services/core/events";
 import { logWarning } from "@/services/core/errorLogger";
+import { invalidateCoachCache } from "@/services/coach/coachService";
+import { clearBadgeRuntime } from "@/services/gamification/badgeService";
+import { clearStreakRuntime } from "@/services/gamification/streakService";
+import { clearLocalMealsRuntime } from "@/services/meals/localMealsStore";
+import { invalidateNutritionStateCache } from "@/services/nutritionState/nutritionStateService";
 import { resetOfflineStorage } from "@/services/offline/db";
 import { cleanupUserOfflineAssets } from "@/services/offline/fileCleanup";
 import { stopSyncLoop } from "@/services/offline/sync.engine";
 import { cancelAllReminderScheduling } from "@/services/reminders/reminderScheduling";
+import { resetTelemetryClientRuntime } from "@/services/telemetry/telemetryClient";
 import { clearCachedUserProfile } from "@/services/user/userProfileRepository";
 
 export type ResetUserRuntimeReason =
@@ -17,8 +23,10 @@ type ResetUserRuntimeStage =
   | "stop_sync_loop"
   | "cancel_reminders"
   | "clear_profile_cache"
+  | "clear_local_runtime_caches"
   | "reset_offline_storage"
   | "clear_async_storage"
+  | "reset_telemetry_runtime"
   | "cleanup_offline_assets";
 
 type ResetUserRuntimeFailure = {
@@ -49,6 +57,7 @@ function shouldClearUserScopedKey(key: string, uid: string): boolean {
   return (
     key === `user:profile:${uid}` ||
     key === `ai_credits:${uid}` ||
+    key === `chat-active-thread-${uid}` ||
     key.includes(`:${uid}:`) ||
     key.endsWith(`:${uid}`) ||
     key.endsWith(`_${uid}`)
@@ -148,6 +157,21 @@ async function runUserRuntimeReset(
     await runCleanupStage("clear_profile_cache", uid, options.reason, () => {
       clearCachedUserProfile(uid);
     });
+
+    await runCleanupStage(
+      "clear_local_runtime_caches",
+      uid,
+      options.reason,
+      async () => {
+        clearLocalMealsRuntime(uid);
+        clearStreakRuntime(uid);
+        clearBadgeRuntime(uid);
+        await Promise.all([
+          invalidateCoachCache(uid),
+          invalidateNutritionStateCache(uid),
+        ]);
+      },
+    );
   }
 
   await runCleanupStage("reset_offline_storage", uid, options.reason, () => {
@@ -156,6 +180,10 @@ async function runUserRuntimeReset(
 
   await runCleanupStage("clear_async_storage", uid, options.reason, () =>
     clearScopedAsyncStorage(uid),
+  );
+
+  await runCleanupStage("reset_telemetry_runtime", uid, options.reason, () =>
+    resetTelemetryClientRuntime(),
   );
 
   if (uid) {

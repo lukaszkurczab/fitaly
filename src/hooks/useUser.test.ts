@@ -9,6 +9,7 @@ import {
 } from "@jest/globals";
 import type { UserData, UserProfile } from "@/types";
 import { useUser } from "@/hooks/useUser";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Platform } from "react-native";
 
 const mockSubscribeToUserProfile = jest.fn<(...args: unknown[]) => unknown>();
@@ -31,7 +32,11 @@ const mockEnqueueUserProfileUpdate =
   jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetSyncCounts =
   jest.fn<(...args: unknown[]) => Promise<{ dead: number; pending: number }>>();
+const mockGetDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<Array<{ id?: number; kind: string }>>>();
 const mockRetryDeadLetterOps =
+  jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockDiscardDeadLetterOps =
   jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockPushQueue = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockAssertNoUndefined = jest.fn<(...args: unknown[]) => void>();
@@ -73,6 +78,7 @@ const mockI18nChangeLanguage =
 const mockLogError = jest.fn<(...args: unknown[]) => void>();
 const mockLogWarning = jest.fn<(...args: unknown[]) => void>();
 const mockCaptureException = jest.fn<(...args: unknown[]) => void>();
+const mockEventEmit = jest.fn<(...args: unknown[]) => void>();
 
 const createExportPayload = () => ({
   profile: createUser(),
@@ -91,9 +97,16 @@ jest.mock("@/services/user/userProfileRepository", () => ({
     mockEmitUserProfileChanged(...args),
 }));
 
-jest.mock("@utils/savePhotoLocally", () => ({
-  savePhotoLocally: (...args: unknown[]) => mockSavePhotoLocally(...args),
-}));
+jest.mock("@utils/savePhotoLocally", () => {
+  const actual =
+    jest.requireActual<typeof import("@/utils/savePhotoLocally")>(
+      "@/utils/savePhotoLocally",
+    );
+  return {
+    savePhotoLocally: (...args: unknown[]) => mockSavePhotoLocally(...args),
+    deletePhotoLocally: actual.deletePhotoLocally,
+  };
+});
 
 jest.mock("@/services/user/userService", () => ({
   changeUsernameService: (...args: unknown[]) =>
@@ -112,7 +125,10 @@ jest.mock("@/services/offline/queue.repo", () => ({
   enqueueUserAvatarUpload: (...args: unknown[]) =>
     mockEnqueueUserAvatarUpload(...args),
   getSyncCounts: (...args: unknown[]) => mockGetSyncCounts(...args),
+  getDeadLetterOps: (...args: unknown[]) => mockGetDeadLetterOps(...args),
   retryDeadLetterOps: (...args: unknown[]) => mockRetryDeadLetterOps(...args),
+  discardDeadLetterOps: (...args: unknown[]) =>
+    mockDiscardDeadLetterOps(...args),
 }));
 
 jest.mock("@/services/offline/sync.engine", () => ({
@@ -179,7 +195,7 @@ jest.mock("@/i18n", () => ({
 }));
 
 jest.mock("@/services/core/events", () => ({
-  emit: jest.fn(),
+  emit: (...args: unknown[]) => mockEventEmit(...args),
   on: jest.fn(() => jest.fn()),
 }));
 
@@ -280,8 +296,10 @@ const createProfile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   aiPreferences: {
     stylePersona: "calm_guide",
   },
-  consents: {
-    aiHealthDataConsentAt: null,
+  aiConsent: {
+    status: "granted",
+    grantedAt: "2026-03-10T10:00:00.000Z",
+    revokedAt: null,
   },
   readiness: {
     status: "ready",
@@ -302,6 +320,14 @@ const createUser = (overrides: Partial<UserData> = {}): UserData => ({
   syncState: "synced",
   ...overrides,
 });
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+};
 
 const emitSnapshot = (data: UserData | null) => {
   if (!mockSnapshotCb) throw new Error("snapshot callback missing");
@@ -336,7 +362,9 @@ describe("useUser", () => {
     mockEnqueueUserAvatarUpload.mockResolvedValue(undefined);
     mockEnqueueUserProfileUpdate.mockResolvedValue(undefined);
     mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([]);
     mockRetryDeadLetterOps.mockResolvedValue(0);
+    mockDiscardDeadLetterOps.mockResolvedValue(0);
     mockPushQueue.mockResolvedValue(undefined);
     mockAssertNoUndefined.mockReturnValue(undefined);
     mockAsyncStorageGetItem.mockResolvedValue(null);
@@ -362,6 +390,7 @@ describe("useUser", () => {
     mockI18n.resolvedLanguage = "en";
     mockI18n.language = "en";
     mockI18nChangeLanguage.mockResolvedValue(undefined);
+    mockEventEmit.mockReset();
   });
 
   afterEach(() => {
@@ -427,6 +456,114 @@ describe("useUser", () => {
 
     unmount();
     expect(mockUnsub).toHaveBeenCalled();
+  });
+
+  it("mirrors aiConsent snapshot updates into cache without refreshing the full profile", async () => {
+    const cached = createUser({
+      username: "cached-neo",
+      email: "cached@example.com",
+      profile: createProfile({
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-03-10T10:00:00.000Z",
+          revokedAt: null,
+        },
+      }),
+    });
+    const remote = createUser({
+      username: "remote-neo",
+      email: "remote@example.com",
+      lastLogin: "2026-03-11T10:00:00.000Z",
+      profile: createProfile({
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-03-10T10:00:00.000Z",
+          revokedAt: null,
+        },
+      }),
+    });
+    const updatedAiConsent = {
+      status: "revoked",
+      grantedAt: "2026-03-10T10:00:00.000Z",
+      revokedAt: "2026-03-12T10:00:00.000Z",
+    } as const;
+
+    mockAsyncStorageGetItem.mockResolvedValueOnce(JSON.stringify(cached));
+    mockFetchUserProfileRemote.mockResolvedValue(remote);
+
+    const { result } = renderHook(() => useUser("u1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mockFetchUserProfileRemote.mockClear();
+    mockAsyncStorageSetItem.mockClear();
+
+    await act(async () => {
+      emitSnapshot({
+        ...remote,
+        profile: {
+          ...remote.profile,
+          aiConsent: updatedAiConsent,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.userData?.profile.aiConsent).toEqual(
+        updatedAiConsent,
+      );
+    });
+
+    expect(result.current.userData).toEqual(
+      expect.objectContaining({
+        uid: remote.uid,
+        email: remote.email,
+        username: remote.username,
+        plan: remote.plan,
+        createdAt: remote.createdAt,
+        lastLogin: remote.lastLogin,
+        syncState: remote.syncState,
+        profile: expect.objectContaining({
+          language: remote.profile.language,
+          nutritionProfile: remote.profile.nutritionProfile,
+          aiPreferences: remote.profile.aiPreferences,
+          readiness: remote.profile.readiness,
+          aiConsent: updatedAiConsent,
+        }),
+      }),
+    );
+
+    expect(mockFetchUserProfileRemote).not.toHaveBeenCalled();
+
+    const lastCacheWrite = mockAsyncStorageSetItem.mock.calls.at(-1) as
+      | [string, string]
+      | undefined;
+    expect(lastCacheWrite).toBeDefined();
+    expect(lastCacheWrite?.[0]).toBe("user:profile:u1");
+
+    const parsedCacheWrite = JSON.parse(
+      lastCacheWrite?.[1] ?? "{}",
+    ) as Partial<UserData>;
+    expect(parsedCacheWrite).toEqual(
+      expect.objectContaining({
+        uid: remote.uid,
+        email: remote.email,
+        username: remote.username,
+        plan: remote.plan,
+        createdAt: remote.createdAt,
+        lastLogin: remote.lastLogin,
+        syncState: remote.syncState,
+        profile: expect.objectContaining({
+          language: remote.profile.language,
+          nutritionProfile: remote.profile.nutritionProfile,
+          aiPreferences: remote.profile.aiPreferences,
+          readiness: remote.profile.readiness,
+          aiConsent: updatedAiConsent,
+        }),
+      }),
+    );
   });
 
   it("marks authenticated bootstrap as profile missing when remote profile is absent", async () => {
@@ -1104,8 +1241,11 @@ describe("useUser", () => {
     expect(result.current.syncState).toBe("pending");
   });
 
-  it("marks profile sync as conflict when dead-letter ops exist", async () => {
+  it("marks profile sync as dead-letter when dead-letter ops exist", async () => {
     mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      { kind: "update_user_profile" },
+    ]);
 
     const { result } = renderHook(() => useUser("u1"));
 
@@ -1114,8 +1254,76 @@ describe("useUser", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.syncState).toBe("conflict");
+      expect(result.current.syncState).toBe("dead-letter");
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(false);
     });
+    expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+      uid: "u1",
+      kinds: ["update_user_profile", "upload_user_avatar"],
+      limit: 500,
+    });
+  });
+
+  it("exposes avatar upload dead-letter state from the full deterministic dead-letter window", async () => {
+    const deadLetterOps = [
+      ...Array.from({ length: 100 }, () => ({ kind: "update_user_profile" })),
+      { kind: "upload_user_avatar" },
+    ];
+
+    mockGetSyncCounts.mockResolvedValue({ dead: deadLetterOps.length, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      ...deadLetterOps,
+    ]);
+
+    const { result } = renderHook(() => useUser("u1"));
+
+    await act(async () => {
+      emitSnapshot(createUser());
+    });
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("dead-letter");
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+    });
+    expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+      uid: "u1",
+      kinds: ["update_user_profile", "upload_user_avatar"],
+      limit: 500,
+    });
+  });
+
+  it("ignores stale profile sync refresh results after newer diagnostics", async () => {
+    const staleCounts = createDeferred<{ dead: number; pending: number }>();
+
+    mockGetSyncCounts
+      .mockReturnValueOnce(staleCounts.promise)
+      .mockResolvedValueOnce({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValueOnce([
+      { kind: "upload_user_avatar" },
+    ]);
+
+    const { result } = renderHook(() => useUserProfile("u1"));
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await result.current.refreshProfileSyncState();
+    });
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("dead-letter");
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+    });
+
+    await act(async () => {
+      staleCounts.resolve({ dead: 0, pending: 0 });
+      await Promise.resolve();
+    });
+
+    expect(result.current.syncState).toBe("dead-letter");
+    expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
   });
 
   it("retries dead-letter profile operations and pushes when online", async () => {
@@ -1126,7 +1334,7 @@ describe("useUser", () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await waitFor(() => {
-      expect(result.current.syncState).toBe("conflict");
+      expect(result.current.syncState).toBe("dead-letter");
     });
 
     await act(async () => {
@@ -1138,6 +1346,299 @@ describe("useUser", () => {
       kinds: ["update_user_profile", "upload_user_avatar"],
     });
     expect(mockPushQueue).toHaveBeenCalledWith("u1");
+  });
+
+  it("discards only avatar upload dead-letter rows, clears local avatar path, and refreshes profile sync state", async () => {
+    let avatarDeadLetterPresent = true;
+    const remoteAvatarUrl = "https://cdn.example/avatar.jpg";
+    mockFetchUserProfileRemote.mockResolvedValue(
+      createUser({
+        avatarLocalPath: "file:///photos/avatar.jpg",
+        avatarUrl: remoteAvatarUrl,
+      }),
+    );
+    mockGetSyncCounts
+      .mockResolvedValueOnce({ dead: 2, pending: 0 })
+      .mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockImplementation(async (...args: unknown[]) => {
+      const params = args[0] as { kinds?: string[] };
+      if (
+        params.kinds?.length === 1 &&
+        params.kinds[0] === "upload_user_avatar"
+      ) {
+        return avatarDeadLetterPresent
+          ? [{ id: 101, kind: "upload_user_avatar" }]
+          : [];
+      }
+      return avatarDeadLetterPresent
+        ? [
+            { id: 101, kind: "upload_user_avatar" },
+            { id: 102, kind: "update_user_profile" },
+          ]
+        : [{ id: 102, kind: "update_user_profile" }];
+    });
+    mockDiscardDeadLetterOps.mockImplementation(async () => {
+      avatarDeadLetterPresent = false;
+      return 1;
+    });
+
+    const { result } = renderHook(() => useUserProfile("u1"));
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("dead-letter");
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+      expect(result.current.userData?.avatarLocalPath).toBe(
+        "file:///photos/avatar.jpg",
+      );
+    });
+
+    await act(async () => {
+      await result.current.discardAvatarUploadDeadLetter();
+    });
+
+    expect(mockDiscardDeadLetterOps).toHaveBeenCalledWith({
+      uid: "u1",
+      ids: [101],
+      kinds: ["upload_user_avatar"],
+    });
+    expect(mockFsGetInfoAsync).toHaveBeenCalledWith(
+      "file:///docs/users/u1/images/avatar.jpg",
+    );
+    expect(mockFsDeleteAsync).toHaveBeenCalledWith(
+      "file:///docs/users/u1/images/avatar.jpg",
+      { idempotent: true },
+    );
+    expect(
+      mockFsDeleteAsync.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockDiscardDeadLetterOps.mock.invocationCallOrder[0]);
+    expect(mockEnqueueUserProfileUpdate).not.toHaveBeenCalled();
+    expect(mockPushQueue).not.toHaveBeenCalledWith("u1");
+    expect(mockEventEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "sync.avatarUploadDiscarded",
+      ns: "profile",
+      options: { count: 1 },
+    });
+    await waitFor(() => {
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(false);
+      expect(result.current.userData?.avatarLocalPath).toBe("");
+      expect(result.current.userData?.avatarUrl).toBe(remoteAvatarUrl);
+    });
+    expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
+      "user:profile:u1",
+      expect.stringContaining('"avatarLocalPath":""'),
+    );
+    expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
+      "user:profile:u1",
+      expect.stringContaining(`"avatarUrl":"${remoteAvatarUrl}"`),
+    );
+  });
+
+  it("refreshes diagnostics and skips destructive avatar discard work when no avatar dead-letter rows exist", async () => {
+    const remoteAvatarUrl = "https://cdn.example/avatar-current.jpg";
+    mockFetchUserProfileRemote.mockResolvedValue(
+      createUser({
+        avatarLocalPath: "file:///photos/avatar.jpg",
+        avatarUrl: remoteAvatarUrl,
+      }),
+    );
+    mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useUserProfile("u1"));
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("synced");
+    });
+
+    mockGetSyncCounts.mockClear();
+    mockGetDeadLetterOps.mockClear();
+
+    await act(async () => {
+      await result.current.discardAvatarUploadDeadLetter();
+    });
+
+    expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+      uid: "u1",
+      kinds: ["upload_user_avatar"],
+      limit: 500,
+    });
+    expect(mockDiscardDeadLetterOps).not.toHaveBeenCalled();
+    expect(mockFsDeleteAsync).not.toHaveBeenCalled();
+    expect(mockAsyncStorageSetItem).not.toHaveBeenCalledWith(
+      "user:profile:u1",
+      expect.stringContaining('"avatarLocalPath":""'),
+    );
+    expect(mockGetSyncCounts).toHaveBeenCalledWith("u1", {
+      kinds: ["update_user_profile", "upload_user_avatar"],
+    });
+    expect(result.current.userData?.avatarLocalPath).toBe(
+      "file:///photos/avatar.jpg",
+    );
+    expect(result.current.userData?.avatarUrl).toBe(remoteAvatarUrl);
+  });
+
+  it("clears avatar discard state when cache deletion reports missing and does not rehydrate stale cache path", async () => {
+    let avatarDeadLetterPresent = true;
+    let avatarCacheExists = true;
+    const avatarCachePath = "file:///docs/users/u1/images/avatar.jpg";
+    const remoteAvatarUrl = "https://cdn.example/avatar-current.jpg";
+
+    mockFetchUserProfileRemote.mockResolvedValue(
+      createUser({
+        avatarLocalPath: avatarCachePath,
+        avatarUrl: remoteAvatarUrl,
+      }),
+    );
+    mockFsGetInfoAsync.mockImplementation(async (...args: unknown[]) => {
+      const path = args[0] as string;
+      if (path === avatarCachePath) return { exists: avatarCacheExists };
+      return { exists: false };
+    });
+    mockGetSyncCounts
+      .mockResolvedValueOnce({ dead: 1, pending: 0 })
+      .mockResolvedValue({ dead: 0, pending: 0 });
+    mockGetDeadLetterOps.mockImplementation(async (...args: unknown[]) => {
+      const params = args[0] as { kinds?: string[] };
+      if (
+        params.kinds?.length === 1 &&
+        params.kinds[0] === "upload_user_avatar"
+      ) {
+        return avatarDeadLetterPresent
+          ? [{ id: 201, kind: "upload_user_avatar" }]
+          : [];
+      }
+      return avatarDeadLetterPresent
+        ? [{ id: 201, kind: "upload_user_avatar" }]
+        : [];
+    });
+    mockDiscardDeadLetterOps.mockImplementation(async () => {
+      avatarDeadLetterPresent = false;
+      avatarCacheExists = false;
+      return 1;
+    });
+
+    const { result } = renderHook(() => useUserProfile("u1"));
+
+    await waitFor(() => {
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+      expect(result.current.userData?.avatarLocalPath).toBe(avatarCachePath);
+    });
+
+    avatarCacheExists = false;
+
+    await act(async () => {
+      await result.current.discardAvatarUploadDeadLetter();
+    });
+
+    expect(mockFsGetInfoAsync).toHaveBeenCalledWith(avatarCachePath);
+    expect(mockFsDeleteAsync).not.toHaveBeenCalledWith(avatarCachePath, {
+      idempotent: true,
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(false);
+      expect(result.current.userData?.avatarLocalPath).toBe("");
+    });
+
+    await act(async () => {
+      await result.current.applyServerProfile(
+        createUser({
+          avatarLocalPath: "",
+          avatarUrl: remoteAvatarUrl,
+        }),
+      );
+    });
+
+    expect(result.current.userData?.avatarLocalPath).toBe("");
+    expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
+      "user:profile:u1",
+      expect.stringContaining('"avatarLocalPath":""'),
+    );
+    expect(mockEnqueueUserProfileUpdate).not.toHaveBeenCalled();
+    expect(mockPushQueue).not.toHaveBeenCalledWith("u1");
+  });
+
+  it("keeps avatar discard recovery visible when existing cache deletion fails", async () => {
+    const avatarDeadLetterPresent = true;
+    const avatarCachePath = "file:///docs/users/u1/images/avatar.jpg";
+    const deleteError = new Error("cache delete failed");
+
+    mockFetchUserProfileRemote.mockResolvedValue(
+      createUser({
+        avatarLocalPath: avatarCachePath,
+        avatarUrl: "https://cdn.example/avatar-current.jpg",
+      }),
+    );
+    mockFsGetInfoAsync.mockImplementation(async (...args: unknown[]) => {
+      const path = args[0] as string;
+      if (path === avatarCachePath) return { exists: true };
+      return { exists: false };
+    });
+    mockFsDeleteAsync.mockRejectedValue(deleteError);
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockImplementation(async (...args: unknown[]) => {
+      const params = args[0] as { kinds?: string[] };
+      if (
+        params.kinds?.length === 1 &&
+        params.kinds[0] === "upload_user_avatar"
+      ) {
+        return avatarDeadLetterPresent
+          ? [{ id: 301, kind: "upload_user_avatar" }]
+          : [];
+      }
+      return avatarDeadLetterPresent
+        ? [{ id: 301, kind: "upload_user_avatar" }]
+        : [];
+    });
+
+    const { result } = renderHook(() => useUserProfile("u1"));
+
+    await waitFor(() => {
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+      expect(result.current.userData?.avatarLocalPath).toBe(avatarCachePath);
+    });
+
+    await act(async () => {
+      await result.current.discardAvatarUploadDeadLetter();
+    });
+
+    expect(mockFsGetInfoAsync).toHaveBeenCalledWith(avatarCachePath);
+    expect(mockFsDeleteAsync).toHaveBeenCalledWith(avatarCachePath, {
+      idempotent: true,
+    });
+    expect(mockDiscardDeadLetterOps).not.toHaveBeenCalled();
+    expect(result.current.userData?.avatarLocalPath).toBe(avatarCachePath);
+    expect(mockAsyncStorageSetItem).not.toHaveBeenCalledWith(
+      "user:profile:u1",
+      expect.stringContaining('"avatarLocalPath":""'),
+    );
+    expect(mockEventEmit).not.toHaveBeenCalledWith("ui:toast", {
+      key: "sync.avatarUploadDiscarded",
+      ns: "profile",
+      options: { count: 1 },
+    });
+    expect(mockEventEmit).toHaveBeenCalledWith("ui:toast", {
+      text: "common:unknownError",
+    });
+    expect(mockLogError).toHaveBeenCalledWith(
+      "avatar cache delete failed",
+      { uid: "u1", path: avatarCachePath },
+      deleteError,
+    );
+    expect(mockLogError).toHaveBeenCalledWith(
+      "profile avatar upload discard failed",
+      null,
+      deleteError,
+    );
+
+    await act(async () => {
+      await result.current.refreshProfileSyncState();
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasAvatarUploadDeadLetter).toBe(true);
+    });
+    expect(avatarDeadLetterPresent).toBe(true);
   });
 
   it("sets avatar in offline and online modes", async () => {

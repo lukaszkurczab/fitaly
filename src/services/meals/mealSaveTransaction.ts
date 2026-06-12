@@ -115,7 +115,7 @@ function withCanonicalMealFields(params: {
       (meal.source === "manual" || meal.source === null
         ? "manual"
         : meal.source === "saved"
-          ? "saved"
+          ? "manual"
           : null),
     totals: computeTotals(meal),
   };
@@ -144,7 +144,7 @@ async function maybeSaveTemplate(params: {
       mealId: templateId,
       cloudId: templateId,
       source: "saved",
-      inputMethod: "saved",
+      inputMethod: meal.inputMethod ?? "manual",
     },
     localPhoto,
   );

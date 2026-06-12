@@ -24,6 +24,7 @@ import type {
   WeeklyReportResult,
 } from "@/services/weeklyReport/weeklyReportTypes";
 import type { Ingredient, Meal } from "@/types/meal";
+import type { UserAiConsent } from "@/types/user";
 
 export type E2EFixtureName =
   | "activated-user-empty"
@@ -65,6 +66,9 @@ export type E2EWeeklyReportSeed =
   | "unavailable"
   | "disabled"
   | "forbidden";
+export type E2EAiConsentSeed = "granted" | "notGranted" | "revoked";
+export type E2EAiConsentGrantSeed = "success" | "failure";
+export type E2EAiConsentRevokeSeed = "success" | "failure" | "failureOnce";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -77,6 +81,9 @@ export type E2ESeedCommand = {
   notificationPermission?: E2ENotificationPermissionSeed;
   reminder?: E2EReminderSeed;
   weeklyReport?: E2EWeeklyReportSeed;
+  aiConsent?: E2EAiConsentSeed;
+  aiConsentGrant?: E2EAiConsentGrantSeed;
+  aiConsentRevoke?: E2EAiConsentRevokeSeed;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -137,9 +144,27 @@ const VALID_WEEKLY_REPORT = new Set<E2EWeeklyReportSeed>([
   "disabled",
   "forbidden",
 ]);
+const VALID_AI_CONSENT = new Set<E2EAiConsentSeed>([
+  "granted",
+  "notGranted",
+  "revoked",
+]);
+const VALID_AI_CONSENT_GRANT = new Set<E2EAiConsentGrantSeed>([
+  "success",
+  "failure",
+]);
+const VALID_AI_CONSENT_REVOKE = new Set<E2EAiConsentRevokeSeed>([
+  "success",
+  "failure",
+  "failureOnce",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
+const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
+const E2E_AI_CONSENT_REVOKED_AT = "2026-05-02T10:00:00.000Z";
 let fixtureState: E2EFixtureState = {};
+let aiConsentRevokeFailureOnceConsumed = new Set<string>();
+let aiConsentSeedByUid = new Map<string, UserAiConsent>();
 
 function todayDayKey(): string {
   const now = new Date();
@@ -179,6 +204,9 @@ export function parseE2ESeedCommand(
     ),
     reminder: asValid(params.reminder, VALID_REMINDER),
     weeklyReport: asValid(params.weeklyReport, VALID_WEEKLY_REPORT),
+    aiConsent: asValid(params.aiConsent, VALID_AI_CONSENT),
+    aiConsentGrant: asValid(params.aiConsentGrant, VALID_AI_CONSENT_GRANT),
+    aiConsentRevoke: asValid(params.aiConsentRevoke, VALID_AI_CONSENT_REVOKE),
   };
 }
 
@@ -193,7 +221,10 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.shareExport ||
       command.notificationPermission ||
       command.reminder ||
-      command.weeklyReport,
+      command.weeklyReport ||
+      command.aiConsent ||
+      command.aiConsentGrant ||
+      command.aiConsentRevoke,
   );
 }
 
@@ -211,7 +242,42 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   }
   if (command.reminder) markers.push(`reminder-${command.reminder}`);
   if (command.weeklyReport) markers.push(`weeklyReport-${command.weeklyReport}`);
+  if (command.aiConsent) markers.push(`aiConsent-${command.aiConsent}`);
+  if (command.aiConsentGrant) {
+    markers.push(`aiConsentGrant-${command.aiConsentGrant}`);
+  }
+  if (command.aiConsentRevoke) {
+    markers.push(`aiConsentRevoke-${command.aiConsentRevoke}`);
+  }
   return markers;
+}
+
+function aiConsentForSeed(seed: E2EAiConsentSeed): UserAiConsent {
+  if (seed === "granted") {
+    return {
+      status: "granted",
+      grantedAt: E2E_AI_CONSENT_GRANTED_AT,
+      revokedAt: null,
+    };
+  }
+
+  if (seed === "revoked") {
+    return {
+      status: "revoked",
+      grantedAt: E2E_AI_CONSENT_GRANTED_AT,
+      revokedAt: E2E_AI_CONSENT_REVOKED_AT,
+    };
+  }
+
+  return {
+    status: "not_granted",
+    grantedAt: null,
+    revokedAt: null,
+  };
+}
+
+function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
+  return { ...aiConsent };
 }
 
 function ingredient(params: {
@@ -355,7 +421,7 @@ async function seedSavedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
     ...fixtureMeal,
     userUid: uid,
     source: "saved",
-    inputMethod: "saved",
+    inputMethod: fixtureMeal.inputMethod ?? "manual",
   });
 }
 
@@ -597,7 +663,7 @@ async function applyNamedFixture(
         id: "e2e-saved-meal-1",
         name: "Miska z kaszą i warzywami",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         ingredients: [
           ingredient({
             id: "e2e-saved-bulgur",
@@ -636,7 +702,7 @@ async function applyNamedFixture(
         id: "e2e-saved-meal-2",
         name: "Koktajl białkowy z owocami",
         source: "saved",
-        inputMethod: "saved",
+        inputMethod: "manual",
         ingredients: [
           ingredient({
             id: "e2e-smoothie-yogurt",
@@ -696,10 +762,14 @@ export async function applyE2ESeedCommand(params: {
   if (!hasSeedCommand(params.command)) return [];
 
   const appliedCommand =
-    params.command.fixture && !params.uid
-      ? { ...params.command, fixture: undefined }
+    !params.uid
+      ? { ...params.command, fixture: undefined, aiConsent: undefined }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
+
+  if ("aiConsentRevoke" in appliedCommand) {
+    aiConsentRevokeFailureOnceConsumed = new Set<string>();
+  }
 
   fixtureState = {
     ...fixtureState,
@@ -711,6 +781,15 @@ export async function applyE2ESeedCommand(params: {
     await applyNamedFixture(params.uid, appliedCommand.fixture);
   }
 
+  if (params.uid && appliedCommand.aiConsent) {
+    const aiConsent = aiConsentForSeed(appliedCommand.aiConsent);
+    aiConsentSeedByUid.set(params.uid, aiConsent);
+    emit("e2e:aiConsentSeeded", {
+      uid: params.uid,
+      aiConsent,
+    });
+  }
+
   emit("e2e:seeded", fixtureState);
   return seedMarkers(appliedCommand);
 }
@@ -718,6 +797,12 @@ export async function applyE2ESeedCommand(params: {
 export function getE2EFixtureState(): E2EFixtureState | null {
   if (!isE2EModeEnabled()) return null;
   return fixtureState;
+}
+
+export function resolveE2EAiConsentSeed(uid: string): UserAiConsent | null {
+  if (!isE2EModeEnabled()) return null;
+  const aiConsent = aiConsentSeedByUid.get(uid);
+  return aiConsent ? copyAiConsent(aiConsent) : null;
 }
 
 function creditsStatus(uid: string, credits: E2ECreditsSeed): AiCreditsStatus {
@@ -810,6 +895,82 @@ export function resolveE2EChatRun(): { reply: string } | { error: Error } | null
     default:
       return null;
   }
+}
+
+function aiConsentGrantedFrom(
+  currentAiConsent: UserAiConsent | null | undefined,
+): UserAiConsent {
+  if (
+    currentAiConsent?.status === "granted" &&
+    currentAiConsent.grantedAt &&
+    currentAiConsent.revokedAt === null
+  ) {
+    return { ...currentAiConsent };
+  }
+
+  return {
+    status: "granted",
+    grantedAt: E2E_AI_CONSENT_GRANTED_AT,
+    revokedAt: null,
+  };
+}
+
+function aiConsentRevokedFrom(
+  currentAiConsent: UserAiConsent | null | undefined,
+): UserAiConsent {
+  return {
+    status: "revoked",
+    grantedAt: currentAiConsent?.grantedAt ?? E2E_AI_CONSENT_GRANTED_AT,
+    revokedAt: currentAiConsent?.revokedAt ?? E2E_AI_CONSENT_REVOKED_AT,
+  };
+}
+
+function aiConsentMutationError(action: "grant" | "revoke"): Error {
+  return createServiceError({
+    code: `ai-consent/e2e-${action}-failure`,
+    source: "E2EAiConsentFixture",
+    retryable: action === "revoke",
+    message: `E2E deterministic AI consent ${action} failure`,
+  });
+}
+
+export function resolveE2EAiConsentGrant(
+  uid: string,
+  currentAiConsent: UserAiConsent | null | undefined,
+): { aiConsent: UserAiConsent } | { error: Error } | null {
+  void uid;
+  if (!isE2EModeEnabled() || !fixtureState.aiConsentGrant) return null;
+
+  if (fixtureState.aiConsentGrant === "failure") {
+    return { error: aiConsentMutationError("grant") };
+  }
+
+  const aiConsent = aiConsentGrantedFrom(currentAiConsent);
+  aiConsentSeedByUid.set(uid, aiConsent);
+  return { aiConsent };
+}
+
+export function resolveE2EAiConsentRevoke(
+  uid: string,
+  currentAiConsent: UserAiConsent | null | undefined,
+): { aiConsent: UserAiConsent } | { error: Error } | null {
+  if (!isE2EModeEnabled() || !fixtureState.aiConsentRevoke) return null;
+
+  if (fixtureState.aiConsentRevoke === "failure") {
+    return { error: aiConsentMutationError("revoke") };
+  }
+
+  if (fixtureState.aiConsentRevoke === "failureOnce") {
+    const key = `${uid}:revoke`;
+    if (!aiConsentRevokeFailureOnceConsumed.has(key)) {
+      aiConsentRevokeFailureOnceConsumed.add(key);
+      return { error: aiConsentMutationError("revoke") };
+    }
+  }
+
+  const aiConsent = aiConsentRevokedFrom(currentAiConsent);
+  aiConsentSeedByUid.set(uid, aiConsent);
+  return { aiConsent };
 }
 
 function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
@@ -1189,11 +1350,15 @@ export function resolveE2EBillingPurchaseResult(
 
 export function __resetE2EFixturesForTests(): void {
   fixtureState = {};
+  aiConsentRevokeFailureOnceConsumed = new Set<string>();
+  aiConsentSeedByUid = new Map<string, UserAiConsent>();
 }
 
 export async function resetE2EFixtureState(): Promise<void> {
   if (!isE2EModeEnabled()) return;
   fixtureState = {};
+  aiConsentRevokeFailureOnceConsumed = new Set<string>();
+  aiConsentSeedByUid = new Map<string, UserAiConsent>();
   await AsyncStorage.removeItem(E2E_FIXTURE_STATE_KEY);
   emit("e2e:seeded", fixtureState);
 }

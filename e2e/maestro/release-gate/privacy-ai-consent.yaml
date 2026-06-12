@@ -1,0 +1,117 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&aiConsent=notGranted&aiConsentGrant=success&aiConsentRevoke=failureOnce"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-billing-free
+- assertVisible:
+    id: e2e-ready-aiConsent-notGranted
+- assertVisible:
+    id: e2e-ready-aiConsentGrant-success
+- assertVisible:
+    id: e2e-ready-aiConsentRevoke-failureOnce
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-identity-card
+- scrollUntilVisible:
+    element:
+      id: account-legal-privacy-row
+    direction: DOWN
+- tapOn:
+    id: account-legal-privacy-row
+- assertVisible:
+    id: legal-privacy-screen
+- scrollUntilVisible:
+    element:
+      id: legal-privacy-ai-settings-row
+    direction: DOWN
+- tapOn:
+    id: legal-privacy-ai-settings-row
+- assertVisible:
+    id: privacy-ai-settings-screen
+- assertVisible:
+    id: privacy-ai-consent-toggle-row-off
+- tapOn:
+    id: privacy-ai-consent-toggle
+- extendedWaitUntil:
+    visible:
+      id: privacy-ai-consent-toggle-row-on
+    timeout: 10000
+- tapOn:
+    id: privacy-ai-consent-toggle
+- extendedWaitUntil:
+    visible:
+      id: privacy-ai-consent-retry-button
+    timeout: 10000
+- assertVisible:
+    id: privacy-ai-consent-toggle-row-off
+- tapOn:
+    id: privacy-ai-consent-retry-button
+- extendedWaitUntil:
+    visible:
+      id: privacy-ai-consent-toggle-row-off
+    timeout: 10000
+- assertNotVisible:
+    id: privacy-ai-consent-retry-button
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: legal-privacy-screen
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: account-identity-card
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-text
+- tapOn:
+    id: meal-add-option-text
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-name-input
+- eraseText
+- inputText: Privacy AI proof bowl
+- tapOn:
+    point: "50%,30%"
+- waitForAnimationToEnd
+- assertVisible:
+    id: add-meal-text-ai-consent-settings-button
+- tapOn:
+    id: add-meal-text-ai-consent-settings-button
+- assertVisible:
+    id: privacy-ai-settings-screen
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: add-meal-text-screen
+- tapOn:
+    id: add-meal-text-close
+- runFlow:
+    when:
+      visible: "Discard changes?"
+    commands:
+      - tapOn: "Discard"
+- runFlow:
+    when:
+      visible: "Odrzucić zmiany?"
+    commands:
+      - tapOn: "Odrzuć"
+- assertVisible:
+    id: account-identity-card
+- tapOn:
+    id: tab-chat
+- assertVisible:
+    id: chat-legal-modal
+- assertVisible:
+    id: chat-legal-accept
+- tapOn:
+    id: chat-legal-accept
+- assertVisible:
+    id: privacy-ai-settings-screen

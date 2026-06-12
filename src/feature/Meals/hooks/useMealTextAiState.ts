@@ -4,10 +4,12 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import { v4 as uuidv4 } from "uuid";
 import { useAuthContext } from "@/context/AuthContext";
 import { useAccessContext } from "@/context/AccessContext";
+import { useUserProfileContext } from "@/context/UserProfileContext";
 import type { RootStackParamList } from "@/navigation/navigate";
 import type { AiCreditsStatus } from "@/services/ai/contracts";
 import { getE2EAccessState } from "@/services/e2e/fixtures";
 import { trackPaywallViewed } from "@/services/telemetry/telemetryInstrumentation";
+import { hasActiveMealAiConsent } from "@/feature/Meals/utils/aiConsent";
 import type {
   MealAddTextIngredientInput,
   MealAddFlowApi,
@@ -25,10 +27,14 @@ export function useMealTextAiState(params: {
   const { t, flow, initialValues } = params;
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { uid } = useAuthContext();
+  const { userData } = useUserProfileContext();
   const { accessState, canUseFeature, refreshAccess } = useAccessContext();
   const e2eAccessState = uid ? getE2EAccessState(uid) : null;
   const effectiveAccessState = e2eAccessState ?? accessState;
   const credits = effectiveAccessState?.credits ?? null;
+  const hasActiveAiConsent = hasActiveMealAiConsent(
+    userData?.profile.aiConsent,
+  );
 
   const [name, setName] = useState(initialValues?.name ?? "");
   const [quickDescription, setQuickDescription] = useState(
@@ -83,12 +89,21 @@ export function useMealTextAiState(params: {
     return refreshedAccess?.credits ?? credits;
   }, [credits, refreshAccess]);
 
+  const openPrivacyAiSettings = useCallback(() => {
+    navigation.navigate("PrivacyAiSettings");
+  }, [navigation]);
+
   const onAnalyze = useCallback(async () => {
     setNameError(undefined);
     setSubmitError(undefined);
 
     if (!name.trim()) {
       setNameError(t("text_ai_require_meal_name", { ns: "meals" }));
+      return;
+    }
+
+    if (!hasActiveAiConsent) {
+      openPrivacyAiSettings();
       return;
     }
 
@@ -144,7 +159,9 @@ export function useMealTextAiState(params: {
     e2eAccessState?.features.textMealAnalysis.enabled,
     canUseFeature,
     flow,
+    hasActiveAiConsent,
     name,
+    openPrivacyAiSettings,
     quickDescription,
     reconcileCredits,
     retries,
@@ -154,10 +171,17 @@ export function useMealTextAiState(params: {
   ]);
 
   const analysisState = useMemo<
-    "missing_name" | "credits_unverified" | "insufficient_credits" | "ready"
+    | "missing_name"
+    | "ai_consent_required"
+    | "credits_unverified"
+    | "insufficient_credits"
+    | "ready"
   >(() => {
     if (!name.trim()) {
       return "missing_name";
+    }
+    if (!hasActiveAiConsent) {
+      return "ai_consent_required";
     }
     if (!credits) {
       return "credits_unverified";
@@ -166,7 +190,7 @@ export function useMealTextAiState(params: {
       return "insufficient_credits";
     }
     return "ready";
-  }, [credits, name, textMealCost]);
+  }, [credits, hasActiveAiConsent, name, textMealCost]);
 
   const analyzeDisabled = analysisState !== "ready";
 
@@ -260,6 +284,7 @@ export function useMealTextAiState(params: {
     submitError,
     analyzeDisabled,
     analysisState,
+    hasActiveAiConsent,
     creditAllocation,
     onNameChange,
     onQuickDescriptionChange,
@@ -268,6 +293,7 @@ export function useMealTextAiState(params: {
     onUpdateTextIngredient,
     onRemoveTextIngredient,
     onAnalyze,
+    openPrivacyAiSettings,
     closeLimitModal,
     openPaywall,
   };

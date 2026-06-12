@@ -191,6 +191,153 @@ describe("visionService", () => {
     });
   });
 
+  it("maps structured backend consent rejection into explicit consent service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 403,
+      details: {
+        detail: {
+          code: "AI_CONSENT_REQUIRED",
+          message: "AI health data consent required.",
+          aiConsent: {
+            required: true,
+            scope: "global_ai_health_data",
+          },
+        },
+      },
+    });
+
+    await expect(
+      detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      }),
+    ).rejects.toMatchObject({
+      code: "ai/consent-required",
+      source: "VisionService",
+      retryable: false,
+      message: "AI health data consent required.",
+    });
+  });
+
+  it("maps structured meal-analysis disabled rejection into explicit disabled service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 503,
+      details: {
+        detail: {
+          code: "AI_MEAL_ANALYSIS_DISABLED",
+          message: "Meal analysis AI is temporarily disabled.",
+        },
+      },
+    });
+
+    await expect(
+      detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      }),
+    ).rejects.toMatchObject({
+      code: "ai/meal-analysis-disabled",
+      source: "VisionService",
+      retryable: false,
+      message: "Meal analysis AI is temporarily disabled.",
+    });
+  });
+
+  it("maps structured meal-analysis idempotency conflict into explicit service error", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 409,
+      details: {
+        detail: {
+          code: "AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT",
+          message: "Meal analysis request is already in progress or completed.",
+        },
+      },
+    });
+
+    await expect(
+      detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      }),
+    ).rejects.toMatchObject({
+      code: "ai/meal-analysis-idempotency-conflict",
+      source: "VisionService",
+      retryable: false,
+      message: "Meal analysis request is already in progress or completed.",
+    });
+  });
+
+  it("keeps generic 503 backend failures mapped to ai/unavailable", async () => {
+    mockPost.mockRejectedValueOnce(
+      Object.assign(new Error("unavailable"), { status: 503 }),
+    );
+
+    await expect(
+      detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      }),
+    ).rejects.toMatchObject({
+      code: "ai/unavailable",
+      source: "VisionService",
+      retryable: true,
+    });
+  });
+
+  it("maps structured provider unavailable rejection to provider-unavailable UX", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 503,
+      details: {
+        detail: {
+          code: "AI_CHAT_PROVIDER_UNAVAILABLE",
+          message: "AI provider is temporarily unavailable.",
+        },
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getAiUxErrorType } = require("@/services/ai/uxError");
+
+    try {
+      await detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      });
+      throw new Error("Expected detectIngredientsWithVision to reject");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "ai/unavailable",
+        source: "VisionService",
+        retryable: true,
+        message: "AI provider is temporarily unavailable.",
+      });
+      expect(getAiUxErrorType(error)).toBe("AI_CHAT_PROVIDER_UNAVAILABLE");
+    }
+  });
+
+  it("maps structured provider timeout rejection to timeout UX", async () => {
+    mockPost.mockRejectedValueOnce({
+      status: 504,
+      details: {
+        detail: {
+          code: "AI_CHAT_TIMEOUT",
+          message: "AI provider timed out before a response was generated.",
+        },
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getAiUxErrorType } = require("@/services/ai/uxError");
+
+    try {
+      await detectIngredientsWithVision("user-1", "file:///meal.jpg", {
+        lang: "pl",
+      });
+      throw new Error("Expected detectIngredientsWithVision to reject");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "api/timeout",
+        source: "VisionService",
+        retryable: true,
+        message: "AI provider timed out before a response was generated.",
+      });
+      expect(getAiUxErrorType(error)).toBe("AI_CHAT_TIMEOUT");
+    }
+  });
+
   it("passes 402 through for credits refresh flow", async () => {
     mockPost.mockRejectedValueOnce(Object.assign(new Error("payment required"), { status: 402 }));
 

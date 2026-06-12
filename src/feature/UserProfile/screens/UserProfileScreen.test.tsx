@@ -10,6 +10,8 @@ import UserProfileScreen from "@/feature/UserProfile/screens/UserProfileScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 
 const mockHandleLogout = jest.fn<() => Promise<void>>();
+const mockRetryProfileSync = jest.fn<() => Promise<void>>();
+const mockDiscardAvatarUploadDeadLetter = jest.fn<() => Promise<void>>();
 
 const mockBaseState = {
   userData: {
@@ -20,7 +22,9 @@ const mockBaseState = {
   loadingUser: false,
   isOnline: true,
   syncState: "synced",
-  retryProfileSync: jest.fn<() => Promise<void>>(),
+  hasAvatarUploadDeadLetter: false,
+  retryProfileSync: mockRetryProfileSync,
+  discardAvatarUploadDeadLetter: mockDiscardAvatarUploadDeadLetter,
   retryingProfileSync: false,
   avatarSrc: "",
   safeBadges: [],
@@ -99,7 +103,20 @@ jest.mock("@/components", () => {
         <Text>{label}</Text>
       </Pressable>
     ),
-    InfoBlock: () => null,
+    InfoBlock: ({
+      title,
+      body,
+      testID,
+    }: {
+      title: string;
+      body: string;
+      testID?: string;
+    }) => (
+      <View testID={testID}>
+        <Text>{title}</Text>
+        <Text>{body}</Text>
+      </View>
+    ),
     Layout: ({ children }: { children: ReactNode }) => <View>{children}</View>,
     Modal: ({
       visible,
@@ -181,6 +198,11 @@ describe("UserProfileScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockHandleLogout.mockResolvedValue(undefined);
+    mockRetryProfileSync.mockResolvedValue(undefined);
+    mockDiscardAvatarUploadDeadLetter.mockResolvedValue(undefined);
+    mockBaseState.syncState = "synced";
+    mockBaseState.hasAvatarUploadDeadLetter = false;
+    mockBaseState.retryingProfileSync = false;
   });
 
   it("opens a confirmation modal before logging out", () => {
@@ -226,6 +248,72 @@ describe("UserProfileScreen", () => {
     fireEvent.press(screen.getByTestId("account-identity-card"));
 
     expect(navigation.navigate).toHaveBeenCalledWith("EditUserData");
+  });
+
+  it("shows pending sync copy without retry action", () => {
+    mockBaseState.syncState = "pending";
+
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.getByTestId("account-sync-pending-notice")).toBeTruthy();
+    expect(screen.getByText("sync.pendingTitle")).toBeTruthy();
+    expect(screen.getByText("sync.pending")).toBeTruthy();
+    expect(screen.queryByTestId("account-sync-retry-button")).toBeNull();
+  });
+
+  it("shows generic profile dead-letter sync copy and wires retry action", () => {
+    mockBaseState.syncState = "dead-letter";
+    mockBaseState.hasAvatarUploadDeadLetter = false;
+
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.getByTestId("account-sync-dead-letter-notice")).toBeTruthy();
+    expect(screen.getByText("sync.deadLetterTitle")).toBeTruthy();
+    expect(screen.getByText("sync.deadLetter")).toBeTruthy();
+    expect(screen.queryByText("sync.avatarDeadLetterTitle")).toBeNull();
+    expect(screen.queryByText("sync.avatarDeadLetter")).toBeNull();
+    expect(screen.queryByText("sync.conflictTitle")).toBeNull();
+    expect(screen.queryByText("sync.conflict")).toBeNull();
+    expect(
+      screen.queryByTestId("account-sync-avatar-discard-button"),
+    ).toBeNull();
+
+    fireEvent.press(screen.getByTestId("account-sync-retry-button"));
+
+    expect(mockRetryProfileSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows avatar-specific dead-letter copy when avatar upload failed", () => {
+    mockBaseState.syncState = "dead-letter";
+    mockBaseState.hasAvatarUploadDeadLetter = true;
+
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.getByTestId("account-sync-dead-letter-notice")).toBeTruthy();
+    expect(screen.getByText("sync.avatarDeadLetterTitle")).toBeTruthy();
+    expect(screen.getByText("sync.avatarDeadLetter")).toBeTruthy();
+    expect(screen.queryByText("sync.deadLetterTitle")).toBeNull();
+    expect(screen.queryByText("sync.deadLetter")).toBeNull();
+    expect(
+      screen.getByTestId("account-sync-avatar-discard-button"),
+    ).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("account-sync-avatar-discard-button"));
+
+    expect(mockDiscardAvatarUploadDeadLetter).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByTestId("account-sync-retry-button"));
+
+    expect(mockRetryProfileSync).toHaveBeenCalledTimes(1);
   });
 
   it("keeps profile material translucent without heavy panels or clipped raised section shadows", () => {

@@ -1,9 +1,10 @@
 import type {
   UserAiPreferences,
-  UserConsents,
+  UserAiConsent,
   UserNutritionProfile,
   UserProfile,
   ReadinessStatus,
+  AiConsentStatus,
   Sex,
   UserData,
   UserReadiness,
@@ -33,6 +34,11 @@ const READINESS_STATUSES = [
   "needs_ai_consent",
   "ready",
 ] as const satisfies readonly ReadinessStatus[];
+const AI_CONSENT_STATUSES = [
+  "not_granted",
+  "granted",
+  "revoked",
+] as const satisfies readonly AiConsentStatus[];
 
 function pickEnum<T extends string>(
   raw: unknown,
@@ -52,6 +58,12 @@ function pickNullableSex(raw: unknown): Sex {
 function pickEnumArray<T extends string>(raw: unknown, allowed: readonly T[]): T[] {
   const input = asStringArray(raw);
   return input.filter((item): item is T => allowed.includes(item as T));
+}
+
+function parseAvatarRef(raw: unknown): UserData["avatarRef"] {
+  if (!isRecord(raw)) return undefined;
+  const storagePath = asString(raw.storagePath);
+  return storagePath ? { storagePath } : undefined;
 }
 
 function parseReadiness(raw: unknown): UserReadiness {
@@ -105,10 +117,12 @@ function parseAiPreferences(raw: unknown): UserAiPreferences {
   };
 }
 
-function parseConsents(raw: unknown): UserConsents {
+function parseAiConsent(raw: unknown): UserAiConsent {
   const payload = isRecord(raw) ? raw : {};
   return {
-    aiHealthDataConsentAt: asString(payload.aiHealthDataConsentAt) ?? null,
+    status: pickEnum(payload.status, AI_CONSENT_STATUSES, "not_granted"),
+    grantedAt: asString(payload.grantedAt) ?? null,
+    revokedAt: asString(payload.revokedAt) ?? null,
   };
 }
 
@@ -118,7 +132,7 @@ export function parseUserProfile(raw: unknown): UserProfile {
     language: pickEnum(payload.language, PROFILE_LANGUAGES, "en"),
     nutritionProfile: parseNutritionProfile(payload.nutritionProfile),
     aiPreferences: parseAiPreferences(payload.aiPreferences),
-    consents: parseConsents(payload.consents),
+    aiConsent: parseAiConsent(payload.aiConsent),
     readiness: parseReadiness(payload.readiness),
   };
 }
@@ -147,6 +161,7 @@ export function parseUserData(payload: unknown): UserData | null {
     avatarUrl: asString(payload.avatarUrl),
     avatarLocalPath: asString(payload.avatarLocalPath),
     avatarlastSyncedAt: asString(payload.avatarlastSyncedAt),
+    avatarRef: parseAvatarRef(payload.avatarRef),
   };
 
   return data;

@@ -30,6 +30,7 @@ const mockUploadUserAvatarRemote = jest.fn<(...args: unknown[]) => Promise<unkno
 const mockClaimUsername = jest.fn<(...args: unknown[]) => Promise<string>>();
 const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockLogError = jest.fn<(...args: unknown[]) => void>();
 const mockResetUserRuntime = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
@@ -37,6 +38,7 @@ const mockEmailCredential = jest.fn<(...args: unknown[]) => unknown>();
 const mockReauthenticateWithCredential = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
+const mockSignOut = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockUpdatePassword = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetAuth = jest.fn<(...args: unknown[]) => { currentUser: unknown }>();
 const mockCurrentUserDelete = jest.fn<() => Promise<void>>();
@@ -58,6 +60,10 @@ jest.mock("@/services/core/apiClient", () => ({
   post: (...args: unknown[]) => mockPost(...args),
 }));
 
+jest.mock("@/services/core/errorLogger", () => ({
+  logError: (...args: unknown[]) => mockLogError(...args),
+}));
+
 jest.mock("@/services/session/resetUserRuntime", () => ({
   resetUserRuntime: (...args: unknown[]) => mockResetUserRuntime(...args),
 }));
@@ -71,6 +77,7 @@ jest.mock("@react-native-firebase/auth", () => ({
   EmailAuthProvider: { credential: (...args: unknown[]) => mockEmailCredential(...args) },
   reauthenticateWithCredential: (...args: unknown[]) =>
     mockReauthenticateWithCredential(...args),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
   verifyBeforeUpdateEmail: jest.fn(),
   updatePassword: (...args: unknown[]) => mockUpdatePassword(...args),
 }));
@@ -90,6 +97,10 @@ jest.mock("react-native-zip-archive", () => ({
   zip: jest.fn(),
 }));
 
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "profile-uuid-1"),
+}));
+
 describe("user/profile", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -100,6 +111,7 @@ describe("user/profile", () => {
     mockUploadUserAvatarRemote.mockResolvedValue({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
     mockClaimUsername.mockResolvedValue("neo");
     mockGet.mockResolvedValue({
@@ -107,11 +119,30 @@ describe("user/profile", () => {
       meals: [{ id: "meal-1" }],
       myMeals: [{ id: "saved-1" }],
       chatMessages: [{ id: "chat-1" }],
+      chatMemory: [{ id: "memory-1" }],
+      aiRuns: [{ id: "run-1" }],
+      notifications: [{ id: "notif-1" }],
+      notificationPrefs: { motivationEnabled: true },
+      feedback: [{ id: "feedback-1" }],
+      mealMutationDedupe: [
+        { clientMutationId: "profile-mutation-1", kind: "profile_update" },
+      ],
+      billing: [{ id: "main", status: "active" }],
+      aiCredits: [{ id: "current", billingId: "main", balance: 8 }],
+      aiCreditTransactions: [{ id: "tx-1", billingId: "main", amount: -1 }],
+      aiCreditIdempotency: [
+        { id: "idem-1", billingId: "main", state: "deducted" },
+      ],
+      badges: [{ id: "streak_7", type: "streak" }],
+      streak: [{ id: "main", current: 7 }],
+      reminderDailyStats: [{ id: "2026-03-03", sendCount: 2 }],
+      telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
     mockPost.mockResolvedValue(undefined);
     mockResetUserRuntime.mockResolvedValue(undefined);
     mockEmailCredential.mockReturnValue({ providerId: "password" });
     mockReauthenticateWithCredential.mockResolvedValue(undefined);
+    mockSignOut.mockResolvedValue(undefined);
     mockUpdatePassword.mockResolvedValue(undefined);
     mockGetAuth.mockReturnValue({
       currentUser: {
@@ -192,8 +223,10 @@ describe("user/profile", () => {
         aiPreferences: {
           stylePersona: "calm_guide",
         },
-        consents: {
-          aiHealthDataConsentAt: null,
+        aiConsent: {
+          status: "not_granted",
+          grantedAt: null,
+          revokedAt: null,
         },
         readiness: {
           status: "needs_profile",
@@ -212,13 +245,21 @@ describe("user/profile", () => {
     mockFetchUserProfileRemote.mockResolvedValue(profile);
     await updateUserLanguageInFirestore("pl");
 
-    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(1, profile);
-    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(2, {
-      profile: {
-        ...profile.profile,
-        language: "pl",
+    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(
+      1,
+      profile,
+      { clientMutationId: "profile-direct:upsert:u1:profile-uuid-1" },
+    );
+    expect(mockMergeUserProfileRemote).toHaveBeenNthCalledWith(
+      2,
+      {
+        profile: {
+          ...profile.profile,
+          language: "pl",
+        },
       },
-    });
+      { clientMutationId: "profile-direct:language:u1:profile-uuid-1" },
+    );
   });
 
   it("skips language update when the profile payload is missing", async () => {
@@ -231,14 +272,19 @@ describe("user/profile", () => {
 
   it("uploads avatar via repository and persists synced metadata", async () => {
     const result = await uploadAndSaveAvatar({
+      uid: "u1",
       localUri: "file:///avatar.jpg",
     });
 
-    expect(mockUploadUserAvatarRemote).toHaveBeenCalledWith("file:///avatar.jpg");
+    expect(mockUploadUserAvatarRemote).toHaveBeenCalledWith(
+      "file:///avatar.jpg",
+      { clientMutationId: "profile-direct:avatar:u1:profile-uuid-1" },
+    );
     expect(result).toEqual({
       avatarUrl: "https://cdn/avatar.jpg",
       avatarLocalPath: "file:///avatar.jpg",
       avatarlastSyncedAt: "2026-03-03T12:00:00.000Z",
+      avatarRef: { storagePath: "avatars/u1/avatar.abc123" },
     });
   });
 
@@ -248,6 +294,24 @@ describe("user/profile", () => {
       meals: [{ id: "meal-1" }],
       myMeals: [{ id: "saved-1" }],
       chatMessages: [{ id: "chat-1" }],
+      chatMemory: [{ id: "memory-1" }],
+      aiRuns: [{ id: "run-1" }],
+      notifications: [{ id: "notif-1" }],
+      notificationPrefs: { motivationEnabled: true },
+      feedback: [{ id: "feedback-1" }],
+      mealMutationDedupe: [
+        { clientMutationId: "profile-mutation-1", kind: "profile_update" },
+      ],
+      billing: [{ id: "main", status: "active" }],
+      aiCredits: [{ id: "current", billingId: "main", balance: 8 }],
+      aiCreditTransactions: [{ id: "tx-1", billingId: "main", amount: -1 }],
+      aiCreditIdempotency: [
+        { id: "idem-1", billingId: "main", state: "deducted" },
+      ],
+      badges: [{ id: "streak_7", type: "streak" }],
+      streak: [{ id: "main", current: 7 }],
+      reminderDailyStats: [{ id: "2026-03-03", sendCount: 2 }],
+      telemetryEvents: [{ eventId: "telemetry-1", name: "meal_logged" }],
     });
 
     expect(mockGet).toHaveBeenCalledWith("/users/me/export");
@@ -335,9 +399,166 @@ describe("user/profile", () => {
     expect(mockReauthenticateWithCredential).toHaveBeenCalled();
     expect(mockPost).toHaveBeenCalledWith("/users/me/delete");
     expect(mockCurrentUserDelete).toHaveBeenCalledWith();
+    expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockResetUserRuntime).toHaveBeenCalledWith("u1", {
       reason: "delete_account",
     });
+  });
+
+  it("routes E2E-pattern emails through reauth and backend cascade before Auth delete", async () => {
+    mockGetAuth.mockReturnValue({
+      currentUser: {
+        email: "fitaly-e2e-delete-1780522597-24090@example.com",
+        delete: mockCurrentUserDelete,
+      },
+    });
+
+    await deleteAccountService({
+      uid: "u1",
+      password: "Strong1!",
+    });
+
+    expect(mockEmailCredential).toHaveBeenCalledWith(
+      "fitaly-e2e-delete-1780522597-24090@example.com",
+      "Strong1!",
+    );
+    expect(mockReauthenticateWithCredential).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "fitaly-e2e-delete-1780522597-24090@example.com",
+      }),
+      { providerId: "password" },
+    );
+    expect(mockPost).toHaveBeenCalledWith("/users/me/delete");
+    expect(mockCurrentUserDelete).toHaveBeenCalledWith();
+    expect(
+      mockReauthenticateWithCredential.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockPost.mock.invocationCallOrder[0]);
+    expect(mockPost.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCurrentUserDelete.mock.invocationCallOrder[0],
+    );
+    expect(mockResetUserRuntime).toHaveBeenCalledWith("u1", {
+      reason: "delete_account",
+    });
+  });
+
+  it("clears local runtime and signs out when Firebase Auth delete fails after backend cascade", async () => {
+    const deleteError = new Error("auth-delete-failed");
+    mockCurrentUserDelete.mockRejectedValueOnce(deleteError);
+
+    await expect(
+      deleteAccountService({
+        uid: "u1",
+        password: "Strong1!",
+      }),
+    ).rejects.toBe(deleteError);
+
+    expect(mockReauthenticateWithCredential).toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith("/users/me/delete");
+    expect(mockCurrentUserDelete).toHaveBeenCalledWith();
+    expect(mockSignOut).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentUser: expect.objectContaining({ email: "u1@example.com" }),
+      }),
+    );
+    expect(mockResetUserRuntime).toHaveBeenCalledWith("u1", {
+      reason: "delete_account",
+    });
+    expect(mockLogError).not.toHaveBeenCalled();
+  });
+
+  it("preserves Auth delete failure when cleanup signOut also fails", async () => {
+    const deleteError = new Error("auth-delete-failed");
+    const signOutError = new Error("signout-failed");
+    mockCurrentUserDelete.mockRejectedValueOnce(deleteError);
+    mockSignOut.mockRejectedValueOnce(signOutError);
+
+    await expect(
+      deleteAccountService({
+        uid: "u1",
+        password: "Strong1!",
+      }),
+    ).rejects.toBe(deleteError);
+
+    expect(mockSignOut).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentUser: expect.objectContaining({ email: "u1@example.com" }),
+      }),
+    );
+    expect(mockResetUserRuntime).toHaveBeenCalledWith("u1", {
+      reason: "delete_account",
+    });
+    expect(mockLogError).toHaveBeenCalledWith(
+      "deleteAccount: failed signOut after Firebase Auth delete failure",
+      { uid: "u1" },
+      signOutError,
+    );
+  });
+
+  it("preserves Auth delete failure when runtime reset also fails and logs reset failure", async () => {
+    const deleteError = new Error("auth-delete-failed");
+    const resetError = new Error("reset-failed");
+    mockCurrentUserDelete.mockRejectedValueOnce(deleteError);
+    mockResetUserRuntime.mockRejectedValueOnce(resetError);
+
+    await expect(
+      deleteAccountService({
+        uid: "u1",
+        password: "Strong1!",
+      }),
+    ).rejects.toBe(deleteError);
+
+    expect(mockSignOut).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentUser: expect.objectContaining({ email: "u1@example.com" }),
+      }),
+    );
+    expect(mockResetUserRuntime).toHaveBeenCalledWith("u1", {
+      reason: "delete_account",
+    });
+    expect(mockLogError).toHaveBeenCalledWith(
+      "deleteAccount: failed runtime reset after account delete",
+      { uid: "u1", preservingPrimaryError: true },
+      resetError,
+    );
+  });
+
+  it("surfaces runtime reset failure after successful backend and Auth delete", async () => {
+    const resetError = new Error("reset-failed");
+    mockResetUserRuntime.mockRejectedValueOnce(resetError);
+
+    await expect(
+      deleteAccountService({
+        uid: "u1",
+        password: "Strong1!",
+      }),
+    ).rejects.toBe(resetError);
+
+    expect(mockPost).toHaveBeenCalledWith("/users/me/delete");
+    expect(mockCurrentUserDelete).toHaveBeenCalledWith();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalledWith(
+      "deleteAccount: failed runtime reset after account delete",
+      { uid: "u1", preservingPrimaryError: false },
+      resetError,
+    );
+  });
+
+  it("does not delete Auth user or reset runtime when backend cascade fails", async () => {
+    const backendError = new Error("backend-delete-failed");
+    mockPost.mockRejectedValueOnce(backendError);
+
+    await expect(
+      deleteAccountService({
+        uid: "u1",
+        password: "Strong1!",
+      }),
+    ).rejects.toBe(backendError);
+
+    expect(mockReauthenticateWithCredential).toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith("/users/me/delete");
+    expect(mockCurrentUserDelete).not.toHaveBeenCalled();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockResetUserRuntime).not.toHaveBeenCalled();
   });
 
   it("initializes onboarding profile through backend-owned endpoint", async () => {

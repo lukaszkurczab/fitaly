@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS my_meals (
   photo_url TEXT,
   image_local TEXT,
   image_id TEXT,
+  image_ref TEXT,
   totals_kcal REAL DEFAULT 0,
   totals_protein REAL DEFAULT 0,
   totals_carbs REAL DEFAULT 0,
@@ -60,6 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_my_meals_user_updated
 
 CREATE TABLE IF NOT EXISTS op_queue (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_mutation_id TEXT NOT NULL,
   cloud_id TEXT NOT NULL,
   user_uid TEXT NOT NULL,
   kind TEXT NOT NULL,
@@ -71,6 +73,7 @@ CREATE TABLE IF NOT EXISTS op_queue (
 CREATE TABLE IF NOT EXISTS op_queue_dead (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   op_id INTEGER NOT NULL,
+  client_mutation_id TEXT NOT NULL,
   cloud_id TEXT NOT NULL,
   user_uid TEXT NOT NULL,
   kind TEXT NOT NULL,
@@ -119,4 +122,4 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created
   ON chat_messages(user_uid, thread_id, created_at DESC);
 
-PRAGMA user_version=11;
+PRAGMA user_version=13;

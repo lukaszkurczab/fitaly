@@ -1,22 +1,17 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free"
+- openLink: "fitaly://e2e/seed?credits=ok&chat=success&billing=free&aiConsent=granted"
 - assertVisible:
     id: e2e-ready-credits-ok
 - assertVisible:
     id: e2e-ready-chat-success
+- assertVisible:
+    id: e2e-ready-aiConsent-granted
 - tapOn:
     id: tab-chat
 - assertVisible:
     id: chat-screen
-- runFlow:
-    when:
-      visible:
-        id: chat-legal-accept
-    commands:
-      - tapOn:
-          id: chat-legal-accept
 - tapOn:
     id: chat-input
 - inputText: Plan a balanced dinner for today

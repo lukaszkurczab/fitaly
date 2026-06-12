@@ -93,7 +93,10 @@ export function subscribeMeals(
 }
 
 export async function deleteMealInFirestore(uid: string, cloudId: string) {
-  await markMealDeletedRemote(uid, cloudId, new Date().toISOString());
+  const updatedAt = new Date().toISOString();
+  await markMealDeletedRemote(uid, cloudId, updatedAt, {
+    clientMutationId: `direct-delete:${uid}:${cloudId}:${updatedAt}`,
+  });
 }
 
 async function ensureDir(dir: string) {

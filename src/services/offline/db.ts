@@ -124,6 +124,7 @@ export function runMigrations() {
       d.execSync(`
         CREATE TABLE IF NOT EXISTS op_queue (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_mutation_id TEXT NOT NULL,
           cloud_id TEXT NOT NULL,
           user_uid TEXT NOT NULL,
           kind TEXT NOT NULL,
@@ -136,6 +137,7 @@ export function runMigrations() {
         CREATE TABLE IF NOT EXISTS op_queue_dead (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           op_id INTEGER NOT NULL,
+          client_mutation_id TEXT NOT NULL,
           cloud_id TEXT NOT NULL,
           user_uid TEXT NOT NULL,
           kind TEXT NOT NULL,
@@ -267,6 +269,7 @@ export function runMigrations() {
           photo_url TEXT,
           image_local TEXT,
           image_id TEXT,
+          image_ref TEXT,
           totals_kcal REAL DEFAULT 0,
           totals_protein REAL DEFAULT 0,
           totals_carbs REAL DEFAULT 0,
@@ -595,6 +598,53 @@ export function runMigrations() {
       setUserVersion(d, 11);
       d.execSync("COMMIT");
       v = 11;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
+  if (v < 12) {
+    d.execSync("BEGIN");
+    try {
+      if (!columnExists(d, "op_queue", "client_mutation_id")) {
+        d.execSync(
+          `ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';`,
+        );
+      }
+      if (!columnExists(d, "op_queue_dead", "client_mutation_id")) {
+        d.execSync(
+          `ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';`,
+        );
+      }
+      d.execSync(`
+        UPDATE op_queue
+        SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
+        WHERE client_mutation_id IS NULL OR client_mutation_id = '';
+      `);
+      d.execSync(`
+        UPDATE op_queue_dead
+        SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at
+        WHERE client_mutation_id IS NULL OR client_mutation_id = '';
+      `);
+      setUserVersion(d, 12);
+      d.execSync("COMMIT");
+      v = 12;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
+  if (v < 13) {
+    d.execSync("BEGIN");
+    try {
+      if (!columnExists(d, "my_meals", "image_ref")) {
+        d.execSync(`ALTER TABLE my_meals ADD COLUMN image_ref TEXT;`);
+      }
+      setUserVersion(d, 13);
+      d.execSync("COMMIT");
+      v = 13;
     } catch (e) {
       d.execSync("ROLLBACK");
       throw e;

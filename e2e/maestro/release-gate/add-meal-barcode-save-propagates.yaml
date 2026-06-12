@@ -34,6 +34,9 @@ appId: com.lkurczab.fitaly
     element:
       id: home-view-history-button
     direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:

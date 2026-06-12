@@ -2,11 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { callAuthenticatedJson } from "./smoke-auth-lib.mjs";
+import { callAuthenticatedJson, smokeEndpoint, smokeResponseError } from "./smoke-auth-lib.mjs";
 
 const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : "";
 
-const { email, localId, payload, response, url } = await callAuthenticatedJson(
+const { payload, response, smokeUserRef, url } = await callAuthenticatedJson(
   "/api/v1/users/me/delete",
   {
     method: "POST",
@@ -16,21 +16,18 @@ const { email, localId, payload, response, url } = await callAuthenticatedJson(
 );
 
 if (!response.ok) {
-  throw new Error(
-    `Manual smoke delete failed (${response.status}) for ${url}: ${JSON.stringify(payload)}`,
-  );
+  throw new Error(smokeResponseError("Manual smoke delete", { response, url, payload }));
 }
 
 if (!payload || payload.deleted !== true) {
-  throw new Error(`Expected { deleted: true } from ${url}. Received: ${JSON.stringify(payload)}`);
+  throw new Error(`Manual smoke delete returned invalid contract endpoint=${smokeEndpoint(url)}; response body redacted.`);
 }
 
 const summary = {
   checkedAt: new Date().toISOString(),
   smokeApiBaseUrl: new URL(url).origin,
-  url,
-  smokeUserEmail: email,
-  smokeUserId: localId,
+  endpoint: smokeEndpoint(url),
+  smokeUserRef,
   status: response.status,
   deleted: true,
 };

@@ -172,7 +172,6 @@ function getInputMethodForOption(option: MethodOption): MealInputMethod | null {
   if (option.key === "text") return "text";
   if (option.key === "manual") return "manual";
   if (option.key === "barcode") return "barcode";
-  if (option.key === "saved") return "saved";
   return null;
 }
 

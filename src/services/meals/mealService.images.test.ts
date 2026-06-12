@@ -60,10 +60,12 @@ describe("services/mealService.images", () => {
     mockDownloadAsync.mockResolvedValue({ status: 200 });
     mockUpload.mockResolvedValue({
       imageId: "image-1",
+      storagePath: "meals/user-1/image-1.jpg",
       photoUrl: "https://cdn/meal.jpg",
     });
     mockGet.mockResolvedValue({
       imageId: "image-1",
+      storagePath: "meals/user-1/image-1.jpg",
       photoUrl: "https://cdn/meal.jpg",
     });
     mockUuid.mockReturnValue("uuid-1");
@@ -141,6 +143,7 @@ describe("services/mealService.images", () => {
 
     mockGet.mockResolvedValue({
       imageId: "image-2",
+      storagePath: "meals/user-1/image-2.jpg",
       photoUrl: "https://cdn/fresh.jpg",
     });
 

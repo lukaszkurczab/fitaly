@@ -119,6 +119,208 @@ describe("telemetryClient", () => {
     expect(payload.events?.[0]?.actor?.userId).toBeUndefined();
   });
 
+  it("resets telemetry runtime and clears persisted buffer and anonymous identity", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await AsyncStorage.setItem(
+      telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY,
+      JSON.stringify({
+        sessionId: "sess-old",
+        events: [
+          {
+            eventId: "evt-old",
+            name: "meal_logged",
+            ts: "2026-03-18T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    await AsyncStorage.setItem(
+      telemetryClient.TELEMETRY_ANONYMOUS_ID_STORAGE_KEY,
+      "anon-old",
+    );
+
+    await telemetryClient.initTelemetryClient();
+    telemetryClient.setTelemetryUserId("user-old");
+    await telemetryClient.resetTelemetryClientRuntime();
+
+    expect(
+      await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
+    ).toBeNull();
+    expect(
+      await AsyncStorage.getItem(
+        telemetryClient.TELEMETRY_ANONYMOUS_ID_STORAGE_KEY,
+      ),
+    ).toBeNull();
+
+    await telemetryClient.track("session_start", { origin: "app_boot" });
+
+    const raw = await AsyncStorage.getItem(
+      telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY,
+    );
+    const payload = JSON.parse(raw || "{}") as {
+      events?: Array<{
+        actor?: { anonymousId?: string; userId?: string };
+      }>;
+    };
+
+    expect(payload.events?.[0]?.actor).toEqual({
+      anonymousId: expect.stringMatching(/^anon_/),
+    });
+    expect(payload.events?.[0]?.actor?.anonymousId).not.toBe("anon-old");
+    expect(payload.events?.[0]?.actor?.userId).toBeUndefined();
+  });
+
+  it("delays a track started before reset until the reset settles and resumes anonymously", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    const setItemMock = AsyncStorage.setItem as jest.MockedFunction<
+      typeof AsyncStorage.setItem
+    >;
+    const originalSetItem = setItemMock.getMockImplementation?.();
+    if (!originalSetItem) {
+      throw new Error("expected AsyncStorage.setItem mock implementation");
+    }
+
+    let resetInProgress = false;
+    let resetSettled = false;
+    let bufferWritesDuringReset = 0;
+
+    const setItemSpy = jest.spyOn(AsyncStorage, "setItem");
+    setItemSpy.mockImplementation((key: string, value: string) => {
+      if (
+        key === telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY &&
+        resetInProgress &&
+        !resetSettled
+      ) {
+        bufferWritesDuringReset += 1;
+      }
+
+      return originalSetItem(key, value);
+    });
+
+    try {
+      telemetryClient.setTelemetryUserId("user-old");
+
+      resetInProgress = true;
+      const trackPromise = telemetryClient.track("meal_logged", {
+        mealInputMethod: "photo",
+      });
+      const resetPromise = telemetryClient.resetTelemetryClientRuntime().finally(
+        () => {
+          resetSettled = true;
+        },
+      );
+
+      await Promise.all([trackPromise, resetPromise]);
+
+      expect(bufferWritesDuringReset).toBe(0);
+
+      await telemetryClient.track("session_start", { origin: "app_boot" });
+
+      const raw = await AsyncStorage.getItem(
+        telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY,
+      );
+      const payload = JSON.parse(raw || "{}") as {
+        events?: Array<{
+          actor?: { anonymousId?: string; userId?: string };
+        }>;
+      };
+
+      expect(payload.events?.[0]?.actor).toEqual({
+        anonymousId: expect.stringMatching(/^anon_/),
+      });
+      expect(payload.events?.[0]?.actor?.userId).toBeUndefined();
+    } finally {
+      setItemSpy.mockImplementation(
+        originalSetItem as typeof AsyncStorage.setItem,
+      );
+    }
+  });
+
+  it("aborts an in-flight flush during telemetry reset and does not re-persist old user telemetry", async () => {
+    let flushSignal: AbortSignal | undefined;
+    mockPost.mockImplementationOnce((_path, _data, options) => {
+      const signal = (options as { signal?: AbortSignal } | undefined)?.signal;
+      flushSignal = signal;
+
+      return new Promise<unknown>((_resolve, reject) => {
+        if (!signal) {
+          reject(new Error("missing telemetry abort signal"));
+          return;
+        }
+
+        if (signal.aborted) {
+          reject(
+            Object.assign(new Error("Request was aborted"), {
+              code: "api/aborted",
+              retryable: false,
+            }),
+          );
+          return;
+        }
+
+        signal.addEventListener(
+          "abort",
+          () => {
+            reject(
+              Object.assign(new Error("Request was aborted"), {
+                code: "api/aborted",
+                retryable: false,
+              }),
+            );
+          },
+          { once: true },
+        );
+      });
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    telemetryClient.setTelemetryUserId("user-old");
+    await telemetryClient.track("meal_logged", { mealInputMethod: "photo" });
+
+    const flushPromise = telemetryClient.flush();
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(flushSignal).toBeDefined();
+    expect(flushSignal?.aborted).toBe(false);
+
+    await telemetryClient.resetTelemetryClientRuntime();
+
+    expect(flushSignal?.aborted).toBe(true);
+    await expect(flushPromise).resolves.toBeUndefined();
+
+    expect(
+      await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
+    ).toBeNull();
+    expect(
+      await AsyncStorage.getItem(
+        telemetryClient.TELEMETRY_ANONYMOUS_ID_STORAGE_KEY,
+      ),
+    ).toBeNull();
+
+    await telemetryClient.track("session_start", { origin: "app_boot" });
+
+    const raw = await AsyncStorage.getItem(
+      telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY,
+    );
+    const payload = JSON.parse(raw || "{}") as {
+      events?: Array<{
+        actor?: { anonymousId?: string; userId?: string };
+      }>;
+    };
+
+    expect(payload.events?.[0]?.actor).toEqual({
+      anonymousId: expect.stringMatching(/^anon_/),
+    });
+    expect(payload.events?.[0]?.actor?.userId).toBeUndefined();
+  });
+
   it("deduplicates buffered events by eventId when restoring persisted queue", async () => {
     const duplicateEvent = {
       eventId: "evt-1",
@@ -361,7 +563,11 @@ describe("telemetryClient", () => {
           }),
         ],
       }),
-      { timeout: 15_000, retryMode: "none" },
+      expect.objectContaining({
+        timeout: 15_000,
+        retryMode: "none",
+        signal: expect.any(Object),
+      }),
     );
   });
 });

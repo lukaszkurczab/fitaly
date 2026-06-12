@@ -1,5 +1,5 @@
-import type { Meal } from "@/types/meal";
-import type { MealDocument, MealImageRef } from "@/types/mealDocument";
+import type { Meal, MealImageRef } from "@/types/meal";
+import type { MealDocument } from "@/types/mealDocument";
 import { get, post } from "@/services/core/apiClient";
 import { updateMyMealRemote } from "@/services/meals/myMealsRepository";
 import {
@@ -86,12 +86,15 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
       ? type
       : "other";
 
+  const ownerUid = String(uid || "").trim();
   const imageRef =
     parseImageRef(doc.imageRef) ||
     (typeof doc.imageId === "string" && doc.imageId.trim().length > 0
       ? {
           imageId: doc.imageId.trim(),
-          storagePath: `meals/${uid}/${doc.imageId.trim()}.jpg`,
+          ...(ownerUid
+            ? { storagePath: `meals/${ownerUid}/${doc.imageId.trim()}.jpg` }
+            : {}),
           downloadUrl:
             typeof doc.photoUrl === "string" && doc.photoUrl.trim().length > 0
               ? doc.photoUrl.trim()
@@ -240,12 +243,13 @@ export async function fetchMealChangesRemote(params: {
   return toMealsPage(response, params.uid);
 }
 
-function toMealDocumentPayload(meal: Meal): MealDocument {
+function toMealDocumentPayload(meal: Meal, ownerUid: string): MealDocument {
   const id = String(meal.cloudId || meal.mealId || "").trim();
   const imageId =
     typeof meal.imageId === "string" && meal.imageId.trim().length > 0
       ? meal.imageId.trim()
       : null;
+  const uid = String(meal.userUid || ownerUid || "").trim();
   const downloadUrl =
     typeof meal.photoUrl === "string" && /^https?:\/\//i.test(meal.photoUrl)
       ? meal.photoUrl
@@ -254,7 +258,7 @@ function toMealDocumentPayload(meal: Meal): MealDocument {
   const imageRef = imageId
     ? {
         imageId,
-        storagePath: `meals/${meal.userUid || "unknown"}/${imageId}.jpg`,
+        ...(uid ? { storagePath: `meals/${uid}/${imageId}.jpg` } : {}),
         downloadUrl,
       }
     : null;
@@ -284,15 +288,24 @@ function toMealDocumentPayload(meal: Meal): MealDocument {
 export async function saveMealRemote(params: {
   uid: string;
   meal: Meal;
+  clientMutationId: string;
   alsoSaveToMyMeals?: boolean;
 }): Promise<void> {
-  const payload = toMealDocumentPayload(params.meal);
+  const payload = {
+    ...toMealDocumentPayload(params.meal, params.uid),
+    clientMutationId: params.clientMutationId,
+  };
   await post("/users/me/meals", payload);
   if (params.alsoSaveToMyMeals) {
-    await updateMyMealRemote(params.uid, params.meal.mealId, {
-      ...payload,
-      source: "saved",
-    });
+    await updateMyMealRemote(
+      params.uid,
+      params.meal.mealId,
+      {
+        ...payload,
+        source: "saved",
+      },
+      `${params.clientMutationId}:my-meal-upsert`,
+    );
   }
 }
 
@@ -300,9 +313,11 @@ export async function markMealDeletedRemote(
   uid: string,
   cloudId: string,
   updatedAt: string,
+  options: { clientMutationId: string },
 ): Promise<void> {
   void uid;
   await post(`/users/me/meals/${encodeURIComponent(cloudId)}/delete`, {
     updatedAt,
+    clientMutationId: options.clientMutationId,
   });
 }

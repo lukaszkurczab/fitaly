@@ -365,7 +365,7 @@ export default function ReviewMealScreen({
 
   const noPhotoIconName = useMemo<AppIconName>(() => {
     if (meal?.inputMethod === "barcode") return "scan-barcode";
-    if (meal?.inputMethod === "saved" || meal?.source === "saved") {
+    if (meal?.source === "saved") {
       return "saved-items";
     }
     if (meal?.inputMethod === "photo") return "camera";

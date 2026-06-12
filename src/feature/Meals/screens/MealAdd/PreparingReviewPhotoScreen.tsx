@@ -27,18 +27,35 @@ type PreparingReviewUiState =
   | "preparing"
   | "slow"
   | "failed"
-  | "offline";
+  | "offline"
+  | "consent_required"
+  | "disabled"
+  | "idempotency_conflict";
+
+type RecognitionFailureReason =
+  | "offline"
+  | "timeout"
+  | "ai_unavailable"
+  | "consent_required"
+  | "disabled"
+  | "idempotency_conflict"
+  | "not_recognized";
 
 const SLOW_ANALYSIS_DELAY_MS = 8000;
 const SIMULATOR_PREVIEW_DELAY_MS = 900;
 
 const getRecognitionFailureReason = (
   error: unknown,
-): "offline" | "timeout" | "ai_unavailable" | "not_recognized" => {
+): RecognitionFailureReason => {
   const errorType = getAiUxErrorType(error);
   if (errorType === "offline") return "offline";
   if (errorType === "AI_CHAT_TIMEOUT") return "timeout";
   if (errorType === "AI_CHAT_PROVIDER_UNAVAILABLE") return "ai_unavailable";
+  if (errorType === "AI_CONSENT_REQUIRED") return "consent_required";
+  if (errorType === "AI_MEAL_ANALYSIS_DISABLED") return "disabled";
+  if (errorType === "AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT") {
+    return "idempotency_conflict";
+  }
   return "not_recognized";
 };
 
@@ -229,13 +246,19 @@ export default function PreparingReviewPhotoScreen({
 
         if (!cancelled) {
           const reason = getRecognitionFailureReason(error);
-          setUiState(
-            reason === "offline"
-              ? "offline"
-              : reason === "timeout"
-                ? "slow"
-                : "failed",
-          );
+          if (reason === "offline") {
+            setUiState("offline");
+          } else if (reason === "timeout") {
+            setUiState("slow");
+          } else if (reason === "idempotency_conflict") {
+            setUiState("idempotency_conflict");
+          } else if (reason === "consent_required") {
+            setUiState("consent_required");
+          } else if (reason === "disabled") {
+            setUiState("disabled");
+          } else {
+            setUiState("failed");
+          }
         }
       } finally {
         inFlightRef.current = false;
@@ -310,6 +333,12 @@ export default function PreparingReviewPhotoScreen({
     ignoreResultRef.current = true;
     navigation.navigate("Home");
   }, [navigation]);
+
+  const handleManageConsent = useCallback(() => {
+    ignoreResultRef.current = true;
+    navigation.navigate("PrivacyAiSettings");
+  }, [navigation]);
+
   const handleBack = useCallback(() => {
     ignoreResultRef.current = true;
     if (flow.canGoBack()) {
@@ -333,6 +362,115 @@ export default function PreparingReviewPhotoScreen({
     }
     navigation.navigate("Home");
   }, [clearMeal, navigation, uid]);
+
+  const recoverySecondaryAction = useMemo(() => {
+    if (uiState === "slow") {
+      return {
+        label: t("preparing_review_slow_secondary", {
+          ns: "meals",
+          defaultValue: "Use manual entry",
+        }),
+        onPress: handleManualEntry,
+      };
+    }
+    if (uiState === "disabled") {
+      return {
+        label: t("preparing_review_disabled_secondary", {
+          ns: "meals",
+          defaultValue: "Save draft",
+        }),
+        onPress: handleSaveDraft,
+      };
+    }
+    if (uiState === "idempotency_conflict") {
+      return {
+        label: t("preparing_review_idempotency_secondary", {
+          ns: "meals",
+          defaultValue: "Save draft",
+        }),
+        onPress: handleSaveDraft,
+      };
+    }
+    if (uiState === "consent_required") {
+      return {
+        label: t("preparing_review_consent_secondary", {
+          ns: "meals",
+          defaultValue: "Add manually",
+        }),
+        onPress: handleManualEntry,
+      };
+    }
+    return {
+      label: t("preparing_review_failed_secondary", {
+        ns: "meals",
+        defaultValue: "Add manually",
+      }),
+      onPress: handleManualEntry,
+    };
+  }, [handleManualEntry, handleSaveDraft, t, uiState]);
+
+  const recoveryPrimaryAction = useMemo(() => {
+    if (uiState === "slow") {
+      return {
+        label: t("preparing_review_slow_primary", {
+          ns: "meals",
+          defaultValue: "Keep waiting",
+        }),
+        onPress: handleKeepWaiting,
+      };
+    }
+    if (uiState === "offline") {
+      return {
+        label: t("preparing_review_offline_primary", {
+          ns: "meals",
+          defaultValue: "Save draft",
+        }),
+        onPress: handleSaveDraft,
+      };
+    }
+    if (uiState === "consent_required") {
+      return {
+        label: t("preparing_review_consent_primary", {
+          ns: "meals",
+          defaultValue: "Manage consent",
+        }),
+        onPress: handleManageConsent,
+      };
+    }
+    if (uiState === "disabled") {
+      return {
+        label: t("preparing_review_disabled_primary", {
+          ns: "meals",
+          defaultValue: "Add manually",
+        }),
+        onPress: handleManualEntry,
+      };
+    }
+    if (uiState === "idempotency_conflict") {
+      return {
+        label: t("preparing_review_idempotency_primary", {
+          ns: "meals",
+          defaultValue: "Add manually",
+        }),
+        onPress: handleManualEntry,
+      };
+    }
+    return {
+      label: t("preparing_review_failed_primary", {
+        ns: "meals",
+        defaultValue: "Try again",
+      }),
+      onPress: handleTryAgain,
+    };
+  }, [
+    handleKeepWaiting,
+    handleManualEntry,
+    handleManageConsent,
+    handleSaveDraft,
+    handleTryAgain,
+    t,
+    uiState,
+  ]);
 
   const screenCopy = useMemo(() => {
     switch (uiState) {
@@ -384,6 +522,54 @@ export default function PreparingReviewPhotoScreen({
               "Finish later when you're back online, or add it manually now.",
           }),
         };
+      case "consent_required":
+        return {
+          eyebrow: t("preparing_review_consent_label", {
+            ns: "meals",
+            defaultValue: "Consent required",
+          }),
+          title: t("preparing_review_consent_title", {
+            ns: "meals",
+            defaultValue: "Privacy & AI consent required",
+          }),
+          description: t("preparing_review_consent_subtitle", {
+            ns: "meals",
+            defaultValue:
+              "Turn on Privacy & AI consent in Settings before photo analysis. Manual entry still works.",
+          }),
+        };
+      case "disabled":
+        return {
+          eyebrow: t("preparing_review_disabled_label", {
+            ns: "meals",
+            defaultValue: "AI temporarily off",
+          }),
+          title: t("preparing_review_disabled_title", {
+            ns: "meals",
+            defaultValue: "Photo analysis is temporarily off",
+          }),
+          description: t("preparing_review_disabled_subtitle", {
+            ns: "meals",
+            defaultValue:
+              "Add this meal manually for now. Manual, barcode, and saved meals still work.",
+          }),
+        };
+      case "idempotency_conflict":
+        return {
+          eyebrow: t("preparing_review_idempotency_label", {
+            ns: "meals",
+            defaultValue: "Analysis already running",
+          }),
+          title: t("preparing_review_idempotency_title", {
+            ns: "meals",
+            defaultValue: "Photo analysis is already in progress",
+          }),
+          description: t("preparing_review_idempotency_subtitle", {
+            ns: "meals",
+            defaultValue:
+              "This request is already processing or completed. Add the meal manually or save the draft instead of starting another analysis.",
+          }),
+        };
       case "preparing":
       default:
         return {
@@ -417,85 +603,55 @@ export default function PreparingReviewPhotoScreen({
           closeTestID="add-meal-photo-preparing-close"
         />
         <MealAddPhotoScaffold
-        preview={
-          params.image && !imageError ? (
-            <Image
-              source={{ uri: params.image }}
-              style={styles.previewImage}
-              resizeMode="cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <View style={styles.previewFallback} />
-          )
-        }
-        previewOverlay={<View pointerEvents="none" style={styles.previewOverlay} />}
-        eyebrow={screenCopy.eyebrow}
-        title={screenCopy.title}
-        description={screenCopy.description}
-        footerNote={
-          uiState === "preparing"
-            ? t("preparing_review_footer", {
-                ns: "meals",
-                defaultValue: "Review Meal opens automatically. No action needed.",
-              })
-            : undefined
-        }
-        content={
-          uiState === "preparing" ? (
-            <View testID="add-meal-photo-preparing-state">
-              <MealAddStatusBanner
-                label={t("preparing_review_status", {
-                  ns: "meals",
-                  defaultValue: "Photo analysis started",
-                })}
-                loading
+          preview={
+            params.image && !imageError ? (
+              <Image
+                source={{ uri: params.image }}
+                style={styles.previewImage}
+                resizeMode="cover"
+                onError={() => setImageError(true)}
               />
-            </View>
-          ) : (
-            <BottomActionBar
-              placement="inline"
-              horizontalPadding={0}
-              secondaryAction={{
-                variant: "secondary",
-                label:
-                  uiState === "slow"
-                    ? t("preparing_review_slow_secondary", {
-                        ns: "meals",
-                        defaultValue: "Use manual entry",
-                      })
-                    : t("preparing_review_failed_secondary", {
-                        ns: "meals",
-                        defaultValue: "Add manually",
-                      }),
-                onPress: handleManualEntry,
-              }}
-              primaryAction={{
-                label:
-                  uiState === "slow"
-                    ? t("preparing_review_slow_primary", {
-                        ns: "meals",
-                        defaultValue: "Keep waiting",
-                      })
-                    : uiState === "offline"
-                      ? t("preparing_review_offline_primary", {
-                          ns: "meals",
-                          defaultValue: "Save draft",
-                        })
-                      : t("preparing_review_failed_primary", {
-                          ns: "meals",
-                          defaultValue: "Try again",
-                        }),
-                onPress:
-                  uiState === "slow"
-                    ? handleKeepWaiting
-                    : uiState === "offline"
-                      ? handleSaveDraft
-                      : handleTryAgain,
-              }}
-            />
-          )
-        }
+            ) : (
+              <View style={styles.previewFallback} />
+            )
+          }
+          previewOverlay={
+            <View pointerEvents="none" style={styles.previewOverlay} />
+          }
+          eyebrow={screenCopy.eyebrow}
+          title={screenCopy.title}
+          description={screenCopy.description}
+          footerNote={
+            uiState === "preparing"
+              ? t("preparing_review_footer", {
+                  ns: "meals",
+                  defaultValue: "Review Meal opens automatically. No action needed.",
+                })
+              : undefined
+          }
+          content={
+            uiState === "preparing" ? (
+              <View testID="add-meal-photo-preparing-state">
+                <MealAddStatusBanner
+                  label={t("preparing_review_status", {
+                    ns: "meals",
+                    defaultValue: "Photo analysis started",
+                  })}
+                  loading
+                />
+              </View>
+            ) : (
+              <BottomActionBar
+                placement="inline"
+                horizontalPadding={0}
+                secondaryAction={{
+                  variant: "secondary",
+                  ...recoverySecondaryAction,
+                }}
+                primaryAction={recoveryPrimaryAction}
+              />
+            )
+          }
         />
       </View>
     </Layout>

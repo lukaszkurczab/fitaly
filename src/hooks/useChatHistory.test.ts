@@ -519,6 +519,37 @@ describe("useChatHistory", () => {
     expect(mockApiPost).toHaveBeenCalledTimes(2);
   });
 
+  it("maps backend global consent failures to non-retryable consent state", async () => {
+    mockApiPost.mockRejectedValueOnce({
+      status: 403,
+      details: {
+        detail: {
+          code: "AI_CONSENT_REQUIRED",
+          message: "AI health data consent required.",
+          aiConsent: {
+            required: true,
+            scope: "global_ai_health_data",
+          },
+        },
+      },
+    });
+
+    const { result } = await renderChatHistoryHook();
+
+    await act(async () => {
+      await result.current.send("hello");
+    });
+
+    expect(result.current.sendErrorType).toBe("AI_CONSENT_REQUIRED");
+    expect(mockCacheAssistantChatMessageProjection).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.retryLastSend();
+    });
+
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
   it("deduplicates double-tap send intents while request is in flight", async () => {
     let resolvePost: ((value: unknown) => void) | null = null;
     const pendingPost = new Promise((resolve) => {

@@ -5,15 +5,19 @@ export type MealInputMethod =
   | "manual"
   | "photo"
   | "barcode"
-  | "text"
-  | "saved"
-  | "quick_add";
+  | "text";
 
 export type MealAiMeta = {
   model?: string | null;
   runId?: string | null;
   confidence?: number | null;
   warnings?: string[] | null;
+};
+
+export type MealImageRef = {
+  imageId: string;
+  storagePath?: string;
+  downloadUrl?: string | null;
 };
 
 export type Ingredient = {
@@ -52,6 +56,7 @@ export interface Meal {
   source: MealSource;
   inputMethod?: MealInputMethod | null;
   aiMeta?: MealAiMeta | null;
+  imageRef?: MealImageRef | null;
   imageId?: string | null;
   photoLocalPath?: string | null;
   photoUrl?: string | null;

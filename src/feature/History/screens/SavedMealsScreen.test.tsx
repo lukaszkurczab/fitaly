@@ -1,4 +1,4 @@
-import { fireEvent, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ActivityIndicator } from "react-native";
 import SavedMealsScreen from "@/feature/History/screens/SavedMealsScreen";
@@ -15,6 +15,33 @@ const mockUuid = jest.fn();
 const mockSyncMyMeals = jest.fn<
   (uid: string | null | undefined) => Promise<void>
 >();
+const mockGetSyncCounts = jest.fn<
+  (
+    uid: string,
+    options?: { kinds?: string[] },
+  ) => Promise<{ dead: number; pending: number }>
+>();
+const mockGetDeadLetterOps = jest.fn<
+  (params: {
+    uid: string;
+    kinds?: string[];
+    limit?: number;
+  }) => Promise<Array<{ id?: number; kind: string; payload?: unknown }>>
+>();
+const mockRetryDeadLetterOps = jest.fn<
+  (params: { uid: string; kinds?: string[] }) => Promise<number>
+>();
+const mockDiscardDeadLetterOps = jest.fn<
+  (params: { uid: string; ids: number[]; kinds?: string[] }) => Promise<number>
+>();
+const mockRequestSync = jest.fn<
+  (params: { uid: string; domain: string; reason: string }) => Promise<void>
+>();
+const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
+const mockOn = jest.fn<
+  (event: string, handler: (payload?: unknown) => void) => () => void
+>();
+const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
 let savedMealsFocusEffect: (() => void) | undefined;
 
 jest.mock("@react-native-community/netinfo", () => ({
@@ -51,6 +78,43 @@ jest.mock("@/services/meals/myMealService", () => ({
   syncMyMeals: (uid: string | null | undefined) => mockSyncMyMeals(uid),
 }));
 
+jest.mock("@/services/offline/queue.repo", () => ({
+  getSyncCounts: (...args: [string, { kinds?: string[] }?]) =>
+    mockGetSyncCounts(...args),
+  getDeadLetterOps: (...args: [{
+    uid: string;
+    kinds?: string[];
+    limit?: number;
+  }]) => mockGetDeadLetterOps(...args),
+  retryDeadLetterOps: (...args: [{
+    uid: string;
+    kinds?: string[];
+  }]) => mockRetryDeadLetterOps(...args),
+  discardDeadLetterOps: (...args: [{
+    uid: string;
+    ids: number[];
+    kinds?: string[];
+  }]) => mockDiscardDeadLetterOps(...args),
+}));
+
+jest.mock("@/services/offline/sync.engine", () => ({
+  requestSync: (...args: [{ uid: string; domain: string; reason: string }]) =>
+    mockRequestSync(...args),
+}));
+
+jest.mock("@/services/core/events", () => ({
+  emit: (event: string, payload?: unknown) => mockEmit(event, payload),
+  on: (event: string, handler: (payload?: unknown) => void) => {
+    mockOn(event, handler);
+    const handlers = mockEventHandlers.get(event) ?? new Set();
+    handlers.add(handler);
+    mockEventHandlers.set(event, handlers);
+    return () => {
+      handlers.delete(handler);
+    };
+  },
+}));
+
 jest.mock("uuid", () => ({
   v4: () => mockUuid(),
 }));
@@ -59,8 +123,45 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (
       key: string,
-      options?: { defaultValue?: string } | string,
-    ) => (typeof options === "string" ? options : options?.defaultValue ?? key),
+      options?:
+        | {
+            count?: number;
+            defaultValue?: string;
+            operation?: string;
+            pending?: number;
+          }
+        | string,
+    ) => {
+      const params = typeof options === "object" ? options : undefined;
+      if (key === "history.deadLetterTitle") {
+        return `${params?.count ?? 0} saved meal changes need retry.`;
+      }
+      if (key === "history.deadLetterSubtitle") {
+        return `Pending saved meal changes: ${params?.pending ?? 0}.`;
+      }
+      if (key === "history.deadLetterSubtitleWithLast") {
+        return `Pending saved meal changes: ${params?.pending ?? 0}. Last failed: ${params?.operation ?? ""}.`;
+      }
+      if (key === "history.savedMealPhotoUploadRecoveryTitle") {
+        return "Saved meal photo needs retry.";
+      }
+      if (key === "history.savedMealPhotoUploadRecoverySubtitle") {
+        return `Saved meal change includes a failed local photo. Pending saved meal changes: ${params?.pending ?? 0}.`;
+      }
+      if (key === "history.savedMealPhotoUploadDiscardAction") {
+        return "Discard saved-meal change";
+      }
+      if (key === "history.savedMealPhotoUploadDiscarded") {
+        return `${params?.count ?? 0} saved-meal change with failed local photo discarded.`;
+      }
+      if (key === "history.deadLetterOperation.upsert_mymeal") {
+        return "saved meal update";
+      }
+      if (key === "history.deadLetterOperation.delete_mymeal") {
+        return "saved meal delete";
+      }
+      return typeof options === "string" ? options : options?.defaultValue ?? key;
+    },
   }),
 }));
 
@@ -226,11 +327,30 @@ const buildMeal = (overrides?: Partial<Meal>): Meal => ({
   ...overrides,
 });
 
+const emitCapturedEvent = (event: string, payload?: unknown) => {
+  for (const handler of Array.from(mockEventHandlers.get(event) ?? [])) {
+    handler(payload);
+  }
+};
+
 describe("SavedMealsScreen", () => {
   beforeEach(() => {
     savedMealsFocusEffect = undefined;
     mockSyncMyMeals.mockReset();
     mockSyncMyMeals.mockResolvedValue(undefined);
+    mockGetSyncCounts.mockReset();
+    mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
+    mockGetDeadLetterOps.mockReset();
+    mockGetDeadLetterOps.mockResolvedValue([]);
+    mockRetryDeadLetterOps.mockReset();
+    mockRetryDeadLetterOps.mockResolvedValue(0);
+    mockDiscardDeadLetterOps.mockReset();
+    mockDiscardDeadLetterOps.mockResolvedValue(0);
+    mockRequestSync.mockReset();
+    mockRequestSync.mockResolvedValue(undefined);
+    mockEmit.mockReset();
+    mockOn.mockReset();
+    mockEventHandlers.clear();
     mockUuid.mockReset();
     mockUuid
       .mockReturnValueOnce("duplicated-meal-id")
@@ -402,6 +522,456 @@ describe("SavedMealsScreen", () => {
     );
 
     expect(screen.getByText("filter-panel:myMeals")).toBeTruthy();
+  });
+
+  it("does not render a saved meals dead-letter banner without saved-meal dead letters", async () => {
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledWith("user-1", {
+        kinds: ["upsert_mymeal", "delete_mymeal"],
+      });
+      expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+        uid: "user-1",
+        kinds: ["upsert_mymeal", "delete_mymeal"],
+        limit: 500,
+      });
+    });
+    expect(screen.queryByTestId("saved-meals-dead-letter-banner")).toBeNull();
+  });
+
+  it("renders saved-meal photo upload recovery copy from local photo payload evidence", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 2, pending: 3 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      {
+        kind: "delete_mymeal",
+        payload: { cloudId: "saved-2", deleted: true },
+      },
+      {
+        kind: "upsert_mymeal",
+        payload: {
+          cloudId: "saved-1",
+          photoLocalPath: "file:///saved-meal.jpg",
+          photoUrl: "https://cdn.example/old.jpg",
+        },
+      },
+    ]);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(screen.getByText("Saved meal photo needs retry.")).toBeTruthy();
+    expect(
+      screen.getByTestId("saved-meals-photo-upload-discard-button"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Saved meal change includes a failed local photo. Pending saved meal changes: 3.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("Discard saved-meal change")).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Pending saved meal changes: 3. Last failed: saved meal delete.",
+      ),
+    ).toBeNull();
+  });
+
+  it("renders saved-meal photo upload recovery when local photo evidence is not in the first dead-letter rows", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 103, pending: 1 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      ...Array.from({ length: 102 }, (_, index) => ({
+        kind: "delete_mymeal",
+        payload: { cloudId: `saved-delete-${index + 1}`, deleted: true },
+      })),
+      {
+        kind: "upsert_mymeal",
+        payload: {
+          cloudId: "saved-photo-1",
+          photoLocalPath: "file:///late-saved-meal.jpg",
+        },
+      },
+    ]);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(mockGetDeadLetterOps).toHaveBeenCalledWith({
+      uid: "user-1",
+      kinds: ["upsert_mymeal", "delete_mymeal"],
+      limit: 500,
+    });
+    expect(screen.getByText("Saved meal photo needs retry.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Saved meal change includes a failed local photo. Pending saved meal changes: 1.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Pending saved meal changes: 1. Last failed: saved meal delete.",
+      ),
+    ).toBeNull();
+  });
+
+  it("renders saved-meal dead-letter diagnostics without a visible saved meal row", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 2, pending: 3 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      { kind: "delete_mymeal", payload: { cloudId: "saved-1", deleted: true } },
+    ]);
+    mockUseSavedMealsData.mockReturnValue({
+      pageSize: 20,
+      dataState: "empty",
+      errorKind: null,
+    });
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(screen.getByText("2 saved meal changes need retry.")).toBeTruthy();
+    expect(
+      screen.queryByTestId("saved-meals-photo-upload-discard-button"),
+    ).toBeNull();
+    expect(
+      screen.getByText(
+        "Pending saved meal changes: 3. Last failed: saved meal delete.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps generic saved-meal recovery copy for upsert dead letters without local photo evidence", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      {
+        kind: "upsert_mymeal",
+        payload: {
+          cloudId: "saved-1",
+          photoUrl: "https://cdn.example/saved-meal.jpg",
+        },
+      },
+    ]);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(screen.getByText("1 saved meal changes need retry.")).toBeTruthy();
+    expect(
+      screen.queryByTestId("saved-meals-photo-upload-discard-button"),
+    ).toBeNull();
+    expect(
+      screen.getByText(
+        "Pending saved meal changes: 0. Last failed: saved meal update.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Saved meal photo needs retry.")).toBeNull();
+  });
+
+  it("keeps generic saved-meal recovery copy for delete dead letters with local-looking payload fields", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      {
+        kind: "delete_mymeal",
+        payload: {
+          cloudId: "saved-1",
+          photoLocalPath: "file:///saved-meal.jpg",
+        },
+      },
+    ]);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(screen.getByText("1 saved meal changes need retry.")).toBeTruthy();
+    expect(
+      screen.queryByTestId("saved-meals-photo-upload-discard-button"),
+    ).toBeNull();
+    expect(
+      screen.getByText(
+        "Pending saved meal changes: 0. Last failed: saved meal delete.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Saved meal photo needs retry.")).toBeNull();
+  });
+
+  it("detects saved-meal photo upload recovery from localPhotoUri and local photoUrl payload evidence", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 0 });
+    mockGetDeadLetterOps
+      .mockResolvedValueOnce([
+        {
+          kind: "upsert_mymeal",
+          payload: {
+            cloudId: "saved-1",
+            localPhotoUri: "content://saved-meal",
+          },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          kind: "upsert_mymeal",
+          payload: {
+            cloudId: "saved-2",
+            photoUrl: "file:///saved-meal.jpg",
+          },
+        },
+      ]);
+
+    const contentUriScreen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+    await waitFor(() => {
+      expect(
+        contentUriScreen.getByText("Saved meal photo needs retry."),
+      ).toBeTruthy();
+    });
+
+    const photoUrlScreen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+    await waitFor(() => {
+      expect(photoUrlScreen.getByText("Saved meal photo needs retry.")).toBeTruthy();
+    });
+  });
+
+  it("keeps saved-meal diagnostics visible when a later diagnostic refresh fails", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 2 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      { kind: "upsert_mymeal", payload: { cloudId: "saved-1" } },
+    ]);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    });
+    expect(screen.getByText("1 saved meal changes need retry.")).toBeTruthy();
+
+    mockGetSyncCounts.mockRejectedValueOnce(new Error("diagnostic read failed"));
+    mockGetDeadLetterOps.mockResolvedValueOnce([
+      { kind: "delete_mymeal", payload: { cloudId: "saved-1" } },
+    ]);
+
+    await act(async () => {
+      emitCapturedEvent("sync:op:dead", {
+        uid: "user-1",
+        kind: "upsert_mymeal",
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByTestId("saved-meals-dead-letter-banner")).toBeTruthy();
+    expect(screen.getByText("1 saved meal changes need retry.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Pending saved meal changes: 2. Last failed: saved meal update.",
+      ),
+    ).toBeTruthy();
+    expect(mockEmit).not.toHaveBeenCalled();
+  });
+
+  it("retries saved-meal dead letters with the saved-meal kinds and myMeals domain", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 4 });
+    mockGetDeadLetterOps.mockResolvedValue([
+      {
+        kind: "upsert_mymeal",
+        payload: { cloudId: "saved-1", photoLocalPath: "file:///saved.jpg" },
+      },
+    ]);
+    mockRetryDeadLetterOps.mockResolvedValue(2);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-meals-dead-letter-retry")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("saved-meals-dead-letter-retry"));
+    fireEvent.press(screen.getByTestId("saved-meals-dead-letter-retry"));
+
+    await waitFor(() => {
+      expect(mockRetryDeadLetterOps).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRetryDeadLetterOps).toHaveBeenCalledWith({
+      uid: "user-1",
+      kinds: ["upsert_mymeal", "delete_mymeal"],
+    });
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "history.deadLetterRetryQueued",
+      ns: "meals",
+      options: { count: 2 },
+    });
+    expect(mockRequestSync).toHaveBeenCalledWith({
+      uid: "user-1",
+      domain: "myMeals",
+      reason: "retry",
+    });
+  });
+
+  it("discards only saved-meal photo upsert dead letters with local photo evidence", async () => {
+    mockGetSyncCounts.mockResolvedValue({ dead: 3, pending: 1 });
+    mockGetDeadLetterOps.mockImplementation(async (params) => {
+      if (params.kinds?.length === 1 && params.kinds[0] === "upsert_mymeal") {
+        return [
+          {
+            id: 10,
+            kind: "upsert_mymeal",
+            payload: {
+              cloudId: "saved-photo",
+              photoLocalPath: "file:///saved-photo.jpg",
+            },
+          },
+          {
+            id: 11,
+            kind: "upsert_mymeal",
+            payload: {
+              cloudId: "saved-remote",
+              photoUrl: "https://cdn.example/saved.jpg",
+            },
+          },
+        ];
+      }
+
+      return [
+        {
+          id: 10,
+          kind: "upsert_mymeal",
+          payload: {
+            cloudId: "saved-photo",
+            photoLocalPath: "file:///saved-photo.jpg",
+          },
+        },
+        {
+          id: 11,
+          kind: "upsert_mymeal",
+          payload: {
+            cloudId: "saved-remote",
+            photoUrl: "https://cdn.example/saved.jpg",
+          },
+        },
+        {
+          id: 12,
+          kind: "delete_mymeal",
+          payload: {
+            cloudId: "saved-delete",
+            photoLocalPath: "file:///delete-payload.jpg",
+          },
+        },
+      ];
+    });
+    mockDiscardDeadLetterOps.mockResolvedValue(1);
+
+    const screen = renderWithTheme(
+      <SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("saved-meals-photo-upload-discard-button"),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("saved-meals-photo-upload-discard-button"));
+    fireEvent.press(screen.getByTestId("saved-meals-photo-upload-discard-button"));
+
+    await waitFor(() => {
+      expect(mockDiscardDeadLetterOps).toHaveBeenCalledTimes(1);
+    });
+    expect(mockDiscardDeadLetterOps).toHaveBeenCalledWith({
+      uid: "user-1",
+      ids: [10],
+      kinds: ["upsert_mymeal"],
+    });
+    expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+      key: "history.savedMealPhotoUploadDiscarded",
+      ns: "meals",
+      options: { count: 1 },
+    });
+    expect(mockRequestSync).not.toHaveBeenCalled();
+  });
+
+  it("refreshes saved-meal diagnostics for same-uid dead-letter and retry events", async () => {
+    renderWithTheme(<SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />);
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+    mockGetSyncCounts.mockClear();
+    mockGetDeadLetterOps.mockClear();
+
+    act(() => {
+      emitCapturedEvent("sync:op:dead", {
+        uid: "user-1",
+        kind: "delete_mymeal",
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGetDeadLetterOps).toHaveBeenCalledTimes(1);
+    mockGetSyncCounts.mockClear();
+    mockGetDeadLetterOps.mockClear();
+
+    act(() => {
+      emitCapturedEvent("sync:op:retried", {
+        uid: "user-1",
+        count: 1,
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGetDeadLetterOps).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not refresh saved-meal diagnostics for unrelated uid events", async () => {
+    renderWithTheme(<SavedMealsScreen navigation={{ navigate: jest.fn() } as never} />);
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledTimes(1);
+    });
+    mockGetSyncCounts.mockClear();
+    mockGetDeadLetterOps.mockClear();
+
+    await act(async () => {
+      emitCapturedEvent("sync:op:dead", {
+        uid: "other-user",
+        kind: "upsert_mymeal",
+      });
+      await Promise.resolve();
+    });
+
+    expect(mockGetSyncCounts).not.toHaveBeenCalled();
+    expect(mockGetDeadLetterOps).not.toHaveBeenCalled();
   });
 
   it("renders ready list state and handles saved meal actions", async () => {

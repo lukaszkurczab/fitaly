@@ -160,6 +160,7 @@ export async function updateSavedMeal(params: {
     timestamp: params.timestampISO,
     createdAt: params.createdAtISO,
     updatedAt: nowISO,
+    syncState: "pending",
     source: "saved",
   };
 

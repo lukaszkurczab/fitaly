@@ -18,6 +18,7 @@ import {
   setMealSyncStateLocal,
   upsertMealLocal,
 } from "../meals.repo";
+import { cleanupConfirmedLoggedMealPhoto } from "../images.repo";
 import { resolveMealConflict } from "../conflict";
 import { getLastPullTs, setLastPullTs } from "../sync.storage";
 import type { QueueOp, SyncStrategy } from "../sync.strategy";
@@ -80,6 +81,15 @@ function nowISO() {
 function normalizeChangesCursor(cursor: string | null): string | null {
   const normalized = cursor?.trim();
   return normalized && normalized.includes("|") ? normalized : null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function toConfirmedPhotoUrl(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized && /^https?:\/\//i.test(normalized) ? normalized : null;
 }
 
 async function forEachCursorPage<T>(params: {
@@ -209,34 +219,69 @@ export const mealsStrategy: SyncStrategy = {
           retryable: false,
         });
       }
+      const mealForRemote: Meal = {
+        ...(payload as Meal),
+        cloudId: id,
+        mealId: String(payload.mealId || id),
+        userUid: String(payload.userUid || uid),
+        timestamp: String(payload.timestamp || payload.updatedAt || nowISO()),
+        type: toMealType(String(payload.type || "other")),
+        name: payload.name ?? null,
+        ingredients: Array.isArray(payload.ingredients) ? payload.ingredients : [],
+        createdAt: String(
+          payload.createdAt || payload.timestamp || payload.updatedAt || nowISO()
+        ),
+        updatedAt: String(payload.updatedAt || nowISO()),
+        syncState: "pending",
+        source: toMealSource(typeof payload.source === "string" ? payload.source : null),
+        imageId: payload.imageId ?? null,
+        photoUrl: payload.photoUrl ?? null,
+        notes: payload.notes ?? null,
+        tags: Array.isArray(payload.tags) ? payload.tags : [],
+        deleted: Boolean(payload.deleted),
+        totals:
+          payload.totals && typeof payload.totals === "object"
+            ? payload.totals
+            : { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+      };
+
       await saveMealRemote({
         uid,
-        meal: {
-          ...(payload as Meal),
-          cloudId: id,
-          mealId: String(payload.mealId || id),
-          userUid: String(payload.userUid || uid),
-          timestamp: String(payload.timestamp || payload.updatedAt || nowISO()),
-          type: toMealType(String(payload.type || "other")),
-          name: payload.name ?? null,
-          ingredients: Array.isArray(payload.ingredients) ? payload.ingredients : [],
-          createdAt: String(
-            payload.createdAt || payload.timestamp || payload.updatedAt || nowISO()
-          ),
-          updatedAt: String(payload.updatedAt || nowISO()),
-          syncState: "pending",
-          source: toMealSource(typeof payload.source === "string" ? payload.source : null),
-          imageId: payload.imageId ?? null,
-          photoUrl: payload.photoUrl ?? null,
-          notes: payload.notes ?? null,
-          tags: Array.isArray(payload.tags) ? payload.tags : [],
-          deleted: Boolean(payload.deleted),
-          totals:
-            payload.totals && typeof payload.totals === "object"
-              ? payload.totals
-              : { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-        },
+        clientMutationId: op.client_mutation_id,
+        meal: mealForRemote,
       });
+      try {
+        const confirmedImageId =
+          typeof mealForRemote.imageId === "string" ? mealForRemote.imageId.trim() : "";
+        if (confirmedImageId) {
+          const cleanup = await cleanupConfirmedLoggedMealPhoto({
+            uid,
+            cloudId: id,
+            confirmedImageId,
+            confirmedPhotoUrl: toConfirmedPhotoUrl(mealForRemote.photoUrl),
+          });
+          if (cleanup.cleaned) {
+            pushLog.log("confirmed_photo_cleanup:ok", {
+              cloudId: id,
+              localPath: cleanup.localPath,
+            });
+          } else {
+            pushLog.log("confirmed_photo_cleanup:skip", cleanup);
+          }
+        } else {
+          pushLog.log("confirmed_photo_cleanup:skip", {
+            cleaned: false,
+            cloudId: id,
+            reason: "confirmed-image-id-missing",
+          });
+        }
+      } catch (error) {
+        pushLog.warn("confirmed_photo_cleanup:error", {
+          cloudId: id,
+          message: errorMessage(error),
+        });
+      }
+
       await setMealSyncStateLocal({
         uid,
         cloudId: id,
@@ -249,7 +294,9 @@ export const mealsStrategy: SyncStrategy = {
     }
 
     if (op.kind === "delete") {
-      await markMealDeletedRemote(uid, op.cloud_id, op.updated_at);
+      await markMealDeletedRemote(uid, op.cloud_id, op.updated_at, {
+        clientMutationId: op.client_mutation_id,
+      });
       pushLog.log("delete:ok", op.cloud_id);
       emit("meal:pushed", { uid, cloudId: op.cloud_id });
       return true;

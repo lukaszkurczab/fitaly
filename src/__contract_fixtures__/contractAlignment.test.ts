@@ -19,7 +19,20 @@ import type {
   MealInputMethod,
   MealSource,
 } from "@/types/meal";
+import type { Ingredient } from "@/types";
 import type { MealDocument } from "@/types/mealDocument";
+import {
+  FOOD_LIBRARY_BARCODE_RESULT_OWNERS,
+  FOOD_LIBRARY_CURRENT_SAVED_MEAL_NAMES,
+  FOOD_LIBRARY_DOMAIN_CONTRACTS,
+  FOOD_LIBRARY_DOMAINS,
+  FOOD_LIBRARY_LEGACY_MARKERS_NOT_CANONICAL,
+  FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+  FOOD_LIBRARY_LOGGED_MEAL_OWNER,
+  FOOD_LIBRARY_LOGGED_MEAL_SCHEMA,
+  FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS,
+  type FoodLibraryDomainsContract,
+} from "@/types/foodLibrary";
 import type {
   CoachActionType,
   CoachEmptyReason,
@@ -70,12 +83,82 @@ import {
   WEEKLY_REPORT_STATUSES,
   isWeeklyReportDayKey,
 } from "@/services/weeklyReport/weeklyReportContract";
+import {
+  MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+  MEDIA_ASSET_DOMAIN_OWNED_FIELDS_BY_SURFACE,
+  MEDIA_ASSET_DOMAIN_OWNER_BY_SURFACE,
+  MEDIA_ASSET_LIFECYCLE_OWNED_FIELDS,
+  MEDIA_ASSET_LIFECYCLE_OWNER,
+  MEDIA_ASSET_STATES,
+  MEDIA_ASSET_SURFACES,
+  type MediaAssetSurface,
+} from "@/services/media/assetLifecycle";
+
+const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
+  "avatarUrl",
+  "attachmentUrl",
+  "downloadUrl",
+  "publicUrl",
+  "resolvedDownloadUrl",
+] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_BRIDGE_DOMAINS = [
+  "MealTemplate",
+  "Recipe",
+] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_NON_MIGRATION_TARGETS = [
+  {
+    domain: "Ingredient/Product",
+    boundaryMechanism: "excluded_from_saved_meal_photo_media_bridge",
+    reason:
+      "product_media_is_product_owned_not_derived_from_saved_meal_photo_asset",
+  },
+  {
+    domain: "ShoppingList",
+    boundaryMechanism: "excluded_from_saved_meal_photo_media_bridge",
+    reason:
+      "shopping_list_references_items_without_transforming_saved_meal_photo_assets",
+  },
+] as const;
+const SAVED_MEAL_PHOTO_STABLE_MEDIA_IDENTITY = [
+  "imageRef",
+  "imageRef.storagePath",
+] as const;
+const SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN = [
+  "recipeLifecycleState",
+  "productLifecycleState",
+  "shoppingListLifecycleState",
+  "recipeMediaLifecycle",
+  "productMediaLifecycle",
+  "shoppingListMediaLifecycle",
+] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
 
 function loadFixture<T = unknown>(name: string): T {
   const raw = fs.readFileSync(path.join(FIXTURES_DIR, name), "utf-8");
   return JSON.parse(raw) as T;
+}
+
+function collectObjectKeys(value: unknown, keys = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectObjectKeys(item, keys);
+    }
+    return keys;
+  }
+
+  if (value !== null && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      keys.add(key);
+      collectObjectKeys(child, keys);
+    }
+  }
+
+  return keys;
+}
+
+function expectExactKeys(value: Record<string, unknown>, expectedKeys: string[]): void {
+  expect(Object.keys(value).sort()).toEqual([...expectedKeys].sort());
 }
 
 type EnumsFixture = {
@@ -98,6 +181,141 @@ type SmartReminderTelemetryFixture = {
   disallowedEventNames: string[];
 };
 
+type AiRejectionsFixture = {
+  rejections: {
+    consentRequired: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent: {
+          required: boolean;
+          scope: string;
+        };
+      };
+    };
+    mealAnalysisDisabled: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    mealAnalysisIdempotencyConflict: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    providerUnavailable: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    providerTimeout: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+      };
+    };
+    creditsExhausted: {
+      status: number;
+      detail: {
+        code: string;
+        message: string;
+        aiConsent?: unknown;
+        credits: {
+          userId: string;
+          tier: string;
+          balance: number;
+          allocation: number;
+          periodStartAt: string;
+          periodEndAt: string;
+          costs: {
+            chat: number;
+            textMeal: number;
+            photo: number;
+          };
+          renewalAnchorSource?: string | null;
+          revenueCatEntitlementId?: string | null;
+          revenueCatExpirationAt?: string | null;
+          lastRevenueCatEventId?: string | null;
+        };
+      };
+    };
+  };
+};
+
+type MediaAssetLifecycleFixture = {
+  contract: "media_asset_lifecycle_v1";
+  assetStates: string[];
+  lifecycleOwner: string;
+  assetLifecycleOwns: string[];
+  surfaces: Record<
+    MediaAssetSurface,
+    {
+      usesAssetStates: "assetStates";
+      domainOwner: string;
+      domainDocumentOwns: string[];
+      domainDocumentMustNotOwn: string[];
+      futureLibraryBridge?: {
+        currentDomain: "saved_meal";
+        stableMediaIdentity: string[];
+        bridgesToDomains: string[];
+        bridgeMechanism: string;
+        requiresSeparateMediaMigration: boolean;
+        nonMigrationTargets: {
+          domain: string;
+          boundaryMechanism: string;
+          reason: string;
+        }[];
+        loggedMealMustRemainNarrow: boolean;
+        currentSavedMealMustNotExpandWith: string[];
+      };
+    }
+  >;
+};
+
+type BarcodeLookupFixture = {
+  contract: "barcode_lookup_v1";
+  route: {
+    method: "GET";
+    path: "/users/me/barcode/lookup";
+    query: { barcode: string };
+  };
+  found: {
+    kind: "found";
+    name: string;
+    ingredient: Ingredient;
+  };
+  errors: {
+    invalid: {
+      status: 400;
+      detail: { code: "BARCODE_INVALID"; message: string };
+    };
+    not_found: {
+      status: 404;
+      detail: { code: "BARCODE_NOT_FOUND"; message: string };
+    };
+    timeout: {
+      status: 504;
+      detail: { code: "BARCODE_PROVIDER_TIMEOUT"; message: string };
+    };
+    provider_error: {
+      status: 502;
+      detail: { code: "BARCODE_PROVIDER_FAILURE"; message: string };
+    };
+  };
+};
+
 describe("Enum parity", () => {
   const enums = loadFixture<EnumsFixture>("enums.json");
   const MOBILE_MEAL_TYPES: MealType[] = [
@@ -118,8 +336,6 @@ describe("Enum parity", () => {
     "photo",
     "barcode",
     "text",
-    "saved",
-    "quick_add",
   ];
   const MOBILE_MEAL_SOURCES: NonNullable<MealSource>[] = [
     "ai",
@@ -769,5 +985,450 @@ describe("Gateway reject contract", () => {
     expect(GATEWAY_REJECT_REASONS.has(fixture.detail.reason as string)).toBe(
       true,
     );
+  });
+});
+
+describe("AI rejection contract", () => {
+  const fixture = loadFixture<AiRejectionsFixture>("ai_rejections.json");
+
+  test("global consent rejection uses the canonical code and consent scope", () => {
+    const rejection = fixture.rejections.consentRequired;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(403);
+    expect(detail.code).toBe("AI_CONSENT_REQUIRED");
+    expect(detail.code).not.toBe(["AI", "CHAT", "CONSENT", "REQUIRED"].join("_"));
+    expect(detail.message).toBe("AI health data consent required.");
+    expect(detail.aiConsent.required).toBe(true);
+    expect(detail.aiConsent.scope).toBe("global_ai_health_data");
+  });
+
+  test("meal-analysis disabled rejection uses the canonical disabled code", () => {
+    const rejection = fixture.rejections.mealAnalysisDisabled;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(503);
+    expect(detail.code).toBe("AI_MEAL_ANALYSIS_DISABLED");
+    expect(detail.message).toBe("Meal analysis AI is temporarily disabled.");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("meal-analysis idempotency conflict uses the canonical Add Meal code", () => {
+    const rejection = fixture.rejections.mealAnalysisIdempotencyConflict;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(409);
+    expect(detail.code).toBe("AI_MEAL_ANALYSIS_IDEMPOTENCY_CONFLICT");
+    expect(detail.message).toBe(
+      "Meal analysis request is already in progress or completed.",
+    );
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("provider unavailable rejection uses the canonical provider code", () => {
+    const rejection = fixture.rejections.providerUnavailable;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(503);
+    expect(detail.code).toBe("AI_CHAT_PROVIDER_UNAVAILABLE");
+    expect(detail.message).toBe("AI provider is temporarily unavailable.");
+    expect(detail.message).not.toContain("OpenAI");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("provider timeout rejection uses the canonical timeout code", () => {
+    const rejection = fixture.rejections.providerTimeout;
+    const { detail } = rejection;
+
+    expect(rejection.status).toBe(504);
+    expect(detail.code).toBe("AI_CHAT_TIMEOUT");
+    expect(detail.message).toBe(
+      "AI provider timed out before a response was generated.",
+    );
+    expect(detail.message).not.toContain("OpenAI");
+    expect(detail.aiConsent).toBeUndefined();
+  });
+
+  test("credits exhausted rejection uses the canonical credits payload shape", () => {
+    const rejection = fixture.rejections.creditsExhausted;
+    const { detail } = rejection;
+    const { credits } = detail;
+
+    expect(rejection.status).toBe(402);
+    expect(detail.code).toBe("AI_CREDITS_EXHAUSTED");
+    expect(detail.message).toBe("AI credits exhausted.");
+    expect(detail.aiConsent).toBeUndefined();
+    expect(Object.keys(credits).sort()).toEqual(
+      [
+        "allocation",
+        "balance",
+        "costs",
+        "lastRevenueCatEventId",
+        "periodEndAt",
+        "periodStartAt",
+        "renewalAnchorSource",
+        "revenueCatEntitlementId",
+        "revenueCatExpirationAt",
+        "tier",
+        "userId",
+      ].sort(),
+    );
+    expect(credits.userId).toBe("user-1");
+    expect(credits.tier).toBe("free");
+    expect(credits.balance).toBe(0);
+    expect(credits.allocation).toBe(100);
+    expect(credits.periodStartAt).toBe("2026-04-19T00:00:00Z");
+    expect(credits.periodEndAt).toBe("2026-05-19T00:00:00Z");
+    expect(credits.costs).toEqual({
+      chat: 1,
+      textMeal: 1,
+      photo: 5,
+    });
+  });
+});
+
+describe("Media asset lifecycle contract", () => {
+  const fixture = loadFixture<MediaAssetLifecycleFixture>(
+    "media_asset_lifecycle_v1.json",
+  );
+
+  test("state vocabulary matches mobile constants exactly", () => {
+    expect(fixture.assetStates).toEqual([...MEDIA_ASSET_STATES]);
+  });
+
+  test("release media surfaces match mobile constants exactly", () => {
+    expect(Object.keys(fixture.surfaces).sort()).toEqual(
+      [...MEDIA_ASSET_SURFACES].sort(),
+    );
+  });
+
+  test("fixture declares one shared lifecycle owner and owned fields", () => {
+    expect(fixture.lifecycleOwner).toBe(MEDIA_ASSET_LIFECYCLE_OWNER);
+    expect(fixture.assetLifecycleOwns).toEqual([
+      ...MEDIA_ASSET_LIFECYCLE_OWNED_FIELDS,
+    ]);
+    expect(fixture.assetLifecycleOwns).toEqual(
+      expect.arrayContaining(["opId", "clientMutationId"]),
+    );
+  });
+
+  test("every surface uses canonical states and explicit owner boundaries", () => {
+    for (const surface of MEDIA_ASSET_SURFACES) {
+      const contract = fixture.surfaces[surface];
+
+      expect(contract.usesAssetStates).toBe("assetStates");
+      expect(contract.domainOwner).toBe(
+        MEDIA_ASSET_DOMAIN_OWNER_BY_SURFACE[surface],
+      );
+      expect(contract.domainDocumentOwns).toEqual([
+        ...MEDIA_ASSET_DOMAIN_OWNED_FIELDS_BY_SURFACE[surface],
+      ]);
+      expect(contract.domainDocumentMustNotOwn).toEqual([
+        ...MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+      ]);
+      expect(contract.domainDocumentMustNotOwn).toEqual([
+        ...fixture.assetLifecycleOwns,
+      ]);
+      expect(contract.domainDocumentOwns).not.toEqual(
+        expect.arrayContaining([
+          ...MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN,
+        ]),
+      );
+      for (const field of contract.domainDocumentOwns) {
+        expect(field).not.toMatch(/(?:Url|URL)$/);
+      }
+    }
+  });
+
+  test("saved-meal photo media bridges to future library domains by stable imageRef identity", () => {
+    const bridge = fixture.surfaces.saved_meal_photo.futureLibraryBridge;
+
+    expect(bridge).toBeDefined();
+    expect(bridge?.currentDomain).toBe("saved_meal");
+    expect(bridge?.stableMediaIdentity).toEqual([
+      ...SAVED_MEAL_PHOTO_STABLE_MEDIA_IDENTITY,
+    ]);
+    expect(bridge?.bridgesToDomains).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_BRIDGE_DOMAINS,
+    ]);
+    expect(bridge?.bridgeMechanism).toBe(
+      "reuse_imageRef_storagePath_without_storage_rewrite",
+    );
+    expect(bridge?.requiresSeparateMediaMigration).toBe(false);
+  });
+
+  test("saved-meal bridge explicitly excludes product and shopping-list media migration targets", () => {
+    const bridge = fixture.surfaces.saved_meal_photo.futureLibraryBridge;
+
+    expect(bridge?.nonMigrationTargets).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_NON_MIGRATION_TARGETS,
+    ]);
+    expect(bridge?.bridgesToDomains).not.toEqual(
+      expect.arrayContaining(["Ingredient/Product", "ShoppingList"]),
+    );
+  });
+
+  test("saved-meal bridge does not widen logged Meal or current saved-meal documents", () => {
+    const savedMealPhoto = fixture.surfaces.saved_meal_photo;
+    const bridge = savedMealPhoto.futureLibraryBridge;
+
+    expect(bridge?.loggedMealMustRemainNarrow).toBe(true);
+    expect(savedMealPhoto.domainDocumentOwns).toEqual([
+      "imageRef",
+      "displayMetadata",
+      "savedMealDomainMetadata",
+    ]);
+    expect(savedMealPhoto.domainDocumentOwns).not.toEqual(
+      expect.arrayContaining([
+        ...SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN,
+      ]),
+    );
+    expect(savedMealPhoto.domainDocumentMustNotOwn).toEqual([
+      ...MEDIA_ASSET_DOMAIN_FORBIDDEN_LIFECYCLE_FIELDS,
+    ]);
+    expect(bridge?.currentSavedMealMustNotExpandWith).toEqual([
+      ...SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN,
+    ]);
+  });
+});
+
+describe("Food library domains contract", () => {
+  const fixture = loadFixture<FoodLibraryDomainsContract>(
+    "food_library_domains_v1.json",
+  );
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "food_library_domains_v1.json",
+    );
+
+    expectExactKeys(rawFixture, [
+      "contract",
+      "libraryDomains",
+      "domainContracts",
+      "loggedMealBoundary",
+      "currentSavedMealsBoundary",
+      "barcodeBoundary",
+    ]);
+    expectExactKeys(rawFixture.loggedMealBoundary as Record<string, unknown>, [
+      "owner",
+      "schemaName",
+      "mustRemainNarrow",
+      "mustNotServeAsLibraryCatchAll",
+      "mustNotGainFields",
+      "rationale",
+    ]);
+    expectExactKeys(
+      rawFixture.currentSavedMealsBoundary as Record<string, unknown>,
+      [
+        "currentNames",
+        "isFinalLibraryFoundation",
+        "laterTargetDomain",
+        "compatibilityFallbackToOldShapeAccepted",
+        "legacyMarkersNotCanonicalLibraryFoundation",
+        "mustNotExpandWith",
+        "rationale",
+      ],
+    );
+    expectExactKeys(rawFixture.barcodeBoundary as Record<string, unknown>, [
+      "resultOwnership",
+      "addMealDraftSourceOnly",
+      "createsFirstPartyProductCatalogInThisSlice",
+      "mustNotWriteLibraryDomains",
+      "rationale",
+    ]);
+
+    const domainContracts = rawFixture.domainContracts as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expectExactKeys(domainContracts, [...FOOD_LIBRARY_DOMAINS]);
+    for (const domain of FOOD_LIBRARY_DOMAINS) {
+      expectExactKeys(domainContracts[domain], [
+        "owner",
+        "identityFields",
+        "ownedFields",
+      ]);
+    }
+  });
+
+  test("declares exact CH-06 library domains", () => {
+    expect(fixture.contract).toBe("food_library_domains_v1");
+    expect(fixture.libraryDomains).toEqual([...FOOD_LIBRARY_DOMAINS]);
+    expect(fixture.libraryDomains).toEqual([
+      "MealTemplate",
+      "Recipe",
+      "Ingredient/Product",
+      "ShoppingList",
+    ]);
+  });
+
+  test("declares exact field-level contracts for all library domains", () => {
+    expect(Object.keys(fixture.domainContracts)).toEqual([...FOOD_LIBRARY_DOMAINS]);
+
+    for (const domain of FOOD_LIBRARY_DOMAINS) {
+      expect(fixture.domainContracts[domain].owner).toBe(
+        FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].owner,
+      );
+      expect(fixture.domainContracts[domain].identityFields).toEqual([
+        ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].identityFields,
+      ]);
+      expect(fixture.domainContracts[domain].ownedFields).toEqual([
+        ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].ownedFields,
+      ]);
+    }
+  });
+
+  test("MealTemplate excludes logged-meal-only persistence fields", () => {
+    const templateContract = fixture.domainContracts.MealTemplate;
+    const templateFields = new Set<string>([
+      ...templateContract.identityFields,
+      ...templateContract.ownedFields,
+    ]);
+
+    for (const field of FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS) {
+      expect(templateFields.has(field)).toBe(false);
+    }
+  });
+
+  test("logged Meal remains narrow and not the library catch-all", () => {
+    const boundary = fixture.loggedMealBoundary;
+
+    expect(boundary.owner).toBe(FOOD_LIBRARY_LOGGED_MEAL_OWNER);
+    expect(boundary.schemaName).toBe(FOOD_LIBRARY_LOGGED_MEAL_SCHEMA);
+    expect(boundary.mustRemainNarrow).toBe(true);
+    expect(boundary.mustNotServeAsLibraryCatchAll).toBe(true);
+    expect(boundary.mustNotGainFields).toEqual([
+      ...FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+    ]);
+    expect(boundary.rationale).toContain("persisted eaten-meal schema");
+  });
+
+  test("current saved meals are explicitly not final library foundation", () => {
+    const boundary = fixture.currentSavedMealsBoundary;
+
+    expect(boundary.currentNames).toEqual([
+      ...FOOD_LIBRARY_CURRENT_SAVED_MEAL_NAMES,
+    ]);
+    expect(boundary.isFinalLibraryFoundation).toBe(false);
+    expect(boundary.laterTargetDomain).toBe("MealTemplate");
+    expect(boundary.compatibilityFallbackToOldShapeAccepted).toBe(false);
+    expect(boundary.legacyMarkersNotCanonicalLibraryFoundation).toEqual([
+      ...FOOD_LIBRARY_LEGACY_MARKERS_NOT_CANONICAL,
+    ]);
+    expect(boundary.mustNotExpandWith).toEqual([
+      ...FOOD_LIBRARY_LOGGED_MEAL_FORBIDDEN_FIELDS,
+    ]);
+  });
+
+  test("barcode result stays backend-adapter and Add Meal draft owned", () => {
+    const boundary = fixture.barcodeBoundary;
+
+    expect(boundary.resultOwnership).toEqual([
+      ...FOOD_LIBRARY_BARCODE_RESULT_OWNERS,
+    ]);
+    expect(boundary.addMealDraftSourceOnly).toBe(true);
+    expect(boundary.createsFirstPartyProductCatalogInThisSlice).toBe(false);
+    expect(boundary.mustNotWriteLibraryDomains).toEqual(["Ingredient/Product"]);
+    expect(fixture.domainContracts["Ingredient/Product"].owner).toBe(
+      "ingredient_product_library",
+    );
+  });
+
+  test("existing logged meal fixture does not include library-only fields", () => {
+    const meal = loadFixture<MealDocument>("meal_item.json");
+    const mealKeys = collectObjectKeys(meal);
+
+    for (const field of fixture.loggedMealBoundary.mustNotGainFields) {
+      expect(mealKeys.has(field)).toBe(false);
+    }
+  });
+});
+
+describe("Barcode lookup contract", () => {
+  const fixture = loadFixture<BarcodeLookupFixture>("barcode_lookup_v1.json");
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "barcode_lookup_v1.json",
+    );
+
+    expectExactKeys(rawFixture, ["contract", "route", "found", "errors"]);
+    expectExactKeys(rawFixture.route as Record<string, unknown>, [
+      "method",
+      "path",
+      "query",
+    ]);
+    expectExactKeys(rawFixture.found as Record<string, unknown>, [
+      "kind",
+      "name",
+      "ingredient",
+    ]);
+    expectExactKeys(
+      (rawFixture.found as { ingredient: Record<string, unknown> }).ingredient,
+      ["id", "name", "amount", "unit", "kcal", "protein", "fat", "carbs"],
+    );
+    expectExactKeys(rawFixture.errors as Record<string, unknown>, [
+      "invalid",
+      "not_found",
+      "timeout",
+      "provider_error",
+    ]);
+  });
+
+  test("declares exact route and found response shape", () => {
+    expect(fixture.contract).toBe("barcode_lookup_v1");
+    expect(fixture.route).toEqual({
+      method: "GET",
+      path: "/users/me/barcode/lookup",
+      query: { barcode: "5901234123457" },
+    });
+    expect(fixture.found).toEqual({
+      kind: "found",
+      name: "Greek yogurt",
+      ingredient: {
+        id: "5901234123457",
+        name: "Greek yogurt",
+        amount: 100,
+        unit: "g",
+        kcal: 120,
+        protein: 12,
+        fat: 4,
+        carbs: 8,
+      },
+    });
+  });
+
+  test("declares exact backend error status and code mapping", () => {
+    expect(fixture.errors).toEqual({
+      invalid: {
+        status: 400,
+        detail: {
+          code: "BARCODE_INVALID",
+          message: "Barcode must be 8, 12, or 13 digits",
+        },
+      },
+      not_found: {
+        status: 404,
+        detail: {
+          code: "BARCODE_NOT_FOUND",
+          message: "Barcode product not found",
+        },
+      },
+      timeout: {
+        status: 504,
+        detail: {
+          code: "BARCODE_PROVIDER_TIMEOUT",
+          message: "Barcode provider timed out",
+        },
+      },
+      provider_error: {
+        status: 502,
+        detail: {
+          code: "BARCODE_PROVIDER_FAILURE",
+          message: "Barcode provider unavailable",
+        },
+      },
+    });
   });
 });

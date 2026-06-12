@@ -1,4 +1,4 @@
-import type { UserData } from "@/types";
+import type { UserAiConsent, UserData } from "@/types";
 import type {
   ActivityLevel,
   AiPersona,
@@ -11,11 +11,20 @@ import type {
 } from "@/types";
 import { get, post, upload } from "@/services/core/apiClient";
 import { emit, on } from "@/services/core/events";
+import { isE2EModeEnabled } from "@/services/e2e/config";
+import {
+  resolveE2EAiConsentSeed,
+  resolveE2EAiConsentGrant,
+  resolveE2EAiConsentRevoke,
+} from "@/services/e2e/fixtures";
 import { sanitizeUserProfilePatch } from "./profilePatch";
 
 type AvatarUploadResponse = {
   avatarUrl: string;
   avatarlastSyncedAt: string;
+  avatarRef?: {
+    storagePath?: string;
+  };
 };
 
 type UserOnboardingResponse = {
@@ -48,17 +57,127 @@ type UserOnboardingCompleteResponse = {
   updated: boolean;
 };
 
-type AiHealthDataConsentResponse = {
-  profile: UserData | null;
-  updated: boolean;
-  consent: {
-    aiHealthDataConsentAt: string | null;
-    readiness: UserData["profile"]["readiness"];
-  };
+type AiConsentResponse = {
+  aiConsent: UserAiConsent;
+};
+
+type ProfileMutationOptions = {
+  clientMutationId: string;
 };
 
 const profileCache = new Map<string, UserData | null>();
 const profileFetchInFlight = new Map<string, Promise<UserData | null>>();
+const profileFetchInvalidatedAt = new Map<string, number>();
+const localAiConsentRevokeGuards = new Map<string, UserAiConsent>();
+const e2eAiConsentSeeds = new Map<string, UserAiConsent>();
+let profileFetchInvalidationClock = 0;
+
+type E2EAiConsentSeededPayload = {
+  uid?: string | null;
+  aiConsent?: UserAiConsent;
+};
+
+function isAiConsentActive(aiConsent: UserAiConsent | null | undefined): boolean {
+  return (
+    aiConsent?.status === "granted" &&
+    Boolean(aiConsent.grantedAt) &&
+    aiConsent.revokedAt === null
+  );
+}
+
+function isAiConsentInactive(aiConsent: UserAiConsent | null | undefined): boolean {
+  return !isAiConsentActive(aiConsent);
+}
+
+function getLocalRevokeGuard(uid: string): UserAiConsent | undefined {
+  return localAiConsentRevokeGuards.get(uid);
+}
+
+function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
+  return { ...aiConsent };
+}
+
+function rememberE2EAiConsentSeed(uid: string, aiConsent: UserAiConsent): void {
+  if (!isE2EModeEnabled()) return;
+  e2eAiConsentSeeds.set(uid, copyAiConsent(aiConsent));
+}
+
+function getE2EAiConsentSeed(uid: string): UserAiConsent | undefined {
+  if (!isE2EModeEnabled()) return undefined;
+  const localSeed = e2eAiConsentSeeds.get(uid);
+  if (localSeed) return copyAiConsent(localSeed);
+  return resolveE2EAiConsentSeed(uid) ?? undefined;
+}
+
+function requireClientMutationId(options: ProfileMutationOptions | undefined): string {
+  const clientMutationId = String(options?.clientMutationId || "").trim();
+  if (!clientMutationId) {
+    throw new Error("profile/client-mutation-id-required");
+  }
+  return clientMutationId;
+}
+
+export function getAiConsentLocalRevokeGuard(
+  uid: string,
+): UserAiConsent | null {
+  const guard = getLocalRevokeGuard(uid);
+  return guard ? copyAiConsent(guard) : null;
+}
+
+function overlayLocalRevokeGuard(
+  profile: UserData,
+  uid: string,
+): UserData {
+  const guard = getLocalRevokeGuard(uid);
+  if (!guard) {
+    return profile;
+  }
+
+  if (!isAiConsentActive(profile.profile.aiConsent)) {
+    localAiConsentRevokeGuards.delete(uid);
+    return {
+      ...profile,
+      profile: {
+        ...profile.profile,
+      },
+    };
+  }
+
+  return {
+    ...profile,
+    profile: {
+      ...profile.profile,
+      aiConsent: copyAiConsent(guard),
+    },
+  };
+}
+
+function overlayE2EAiConsentSeed(
+  profile: UserData,
+  uid: string,
+): UserData {
+  const aiConsent = getE2EAiConsentSeed(uid);
+  if (!aiConsent) {
+    return profile;
+  }
+
+  const currentAiConsent = profile.profile.aiConsent;
+  if (
+    currentAiConsent?.status === aiConsent.status &&
+    currentAiConsent?.grantedAt === aiConsent.grantedAt &&
+    currentAiConsent?.revokedAt === aiConsent.revokedAt
+  ) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    profile: {
+      ...profile.profile,
+      aiConsent,
+    },
+  };
+}
 
 export function getCachedUserProfile(uid: string): UserData | null | undefined {
   return profileCache.get(uid);
@@ -66,11 +185,62 @@ export function getCachedUserProfile(uid: string): UserData | null | undefined {
 
 export function clearCachedUserProfile(uid: string): void {
   profileCache.delete(uid);
+  profileFetchInFlight.delete(uid);
+  profileFetchInvalidationClock += 1;
+  profileFetchInvalidatedAt.set(uid, profileFetchInvalidationClock);
+  localAiConsentRevokeGuards.delete(uid);
+  e2eAiConsentSeeds.delete(uid);
 }
 
 export function emitUserProfileChanged(uid: string, data: UserData | null) {
   profileCache.set(uid, data);
   emit("user:profile:changed", { uid, data });
+}
+
+function patchCachedAiConsent(uid: string, aiConsent: UserAiConsent): void {
+  const cached = profileCache.get(uid);
+  if (!cached) return;
+  emitUserProfileChanged(uid, {
+    ...cached,
+    profile: {
+      ...cached.profile,
+      aiConsent,
+    },
+  });
+}
+
+on<E2EAiConsentSeededPayload>("e2e:aiConsentSeeded", (payload) => {
+  if (!isE2EModeEnabled()) return;
+  const uid = payload?.uid;
+  const aiConsent = payload?.aiConsent;
+  if (!uid || !aiConsent) return;
+  rememberE2EAiConsentSeed(uid, aiConsent);
+  patchCachedAiConsent(uid, aiConsent);
+});
+
+export function publishAiConsentRevokeLocalInactive(
+  uid: string,
+  currentProfile?: UserData | null,
+): UserAiConsent | null {
+  const source = profileCache.get(uid) ?? currentProfile ?? null;
+  if (!source) return null;
+  const currentAiConsent = source.profile.aiConsent;
+  const aiConsent: UserAiConsent = {
+    status: "revoked",
+    grantedAt: currentAiConsent.grantedAt,
+    revokedAt: currentAiConsent.revokedAt ?? new Date().toISOString(),
+  };
+  localAiConsentRevokeGuards.set(uid, aiConsent);
+
+  emitUserProfileChanged(uid, {
+    ...source,
+    profile: {
+      ...source.profile,
+      aiConsent,
+    },
+  });
+
+  return aiConsent;
 }
 
 export function subscribeToUserProfile(params: {
@@ -99,9 +269,42 @@ export async function fetchUserProfileRemote(
     if (inFlight) return inFlight;
   }
 
+  const fetchStartedAt = profileFetchInvalidationClock;
+  const isFetchStale = (uid?: string | null): boolean => {
+    const sessionInvalidatedAt = sessionKey
+      ? profileFetchInvalidatedAt.get(sessionKey) ?? 0
+      : 0;
+    if (sessionInvalidatedAt > fetchStartedAt) {
+      return true;
+    }
+    if (uid && uid !== sessionKey) {
+      return (profileFetchInvalidatedAt.get(uid) ?? 0) > fetchStartedAt;
+    }
+    return false;
+  };
+
   const request = (async () => {
     const response = await get<{ profile: UserData | null }>("/users/me/profile");
-    return response.profile ?? null;
+    const profile = response.profile ?? null;
+    if (!profile) return null;
+
+    const uid = profile.uid || sessionKey;
+    if (!uid) return profile;
+    if (isFetchStale(uid)) return profile;
+
+    const hadLocalRevokeGuard = Boolean(getLocalRevokeGuard(uid));
+    const guardedProfile = overlayLocalRevokeGuard(profile, uid);
+    if (hadLocalRevokeGuard && isAiConsentInactive(guardedProfile.profile.aiConsent)) {
+      rememberE2EAiConsentSeed(uid, guardedProfile.profile.aiConsent);
+    }
+    const resolvedProfile = hadLocalRevokeGuard
+      ? guardedProfile
+      : overlayE2EAiConsentSeed(guardedProfile, uid);
+    if (resolvedProfile !== profile) {
+      emitUserProfileChanged(uid, resolvedProfile);
+    }
+
+    return resolvedProfile;
   })();
 
   if (sessionKey) {
@@ -118,35 +321,86 @@ export async function fetchUserProfileRemote(
 
 export async function mergeUserProfileRemote(
   payload: Partial<UserData>,
+  options: ProfileMutationOptions,
 ): Promise<void> {
   const patch = sanitizeUserProfilePatch(payload);
   if (Object.keys(patch).length === 0) return;
-  await post("/users/me/profile", patch);
+  const clientMutationId = requireClientMutationId(options);
+  await post("/users/me/profile", {
+    ...patch,
+    clientMutationId,
+  });
 }
 
 export async function updateUserProfileRemote(
   payload: Partial<UserData> & { updatedAt?: string },
+  options: ProfileMutationOptions,
 ): Promise<void> {
-  await mergeUserProfileRemote(payload);
+  await mergeUserProfileRemote(payload, options);
 }
 
-export async function acceptAiHealthDataConsentRemote(
+export async function grantAiConsentRemote(
   uid: string,
-): Promise<AiHealthDataConsentResponse> {
-  const response = await post<AiHealthDataConsentResponse>(
-    "/users/me/ai-health-data-consent",
-    { accepted: true },
-  );
-  if (response.profile) {
-    emitUserProfileChanged(uid, response.profile);
+): Promise<AiConsentResponse> {
+  const guard = getLocalRevokeGuard(uid);
+  if (guard) {
+    throw new Error("ai-consent/revoke-pending");
   }
+
+  if (isE2EModeEnabled()) {
+    const e2eResponse = resolveE2EAiConsentGrant(
+      uid,
+      profileCache.get(uid)?.profile.aiConsent,
+    );
+    if (e2eResponse) {
+      if ("error" in e2eResponse) throw e2eResponse.error;
+      rememberE2EAiConsentSeed(uid, e2eResponse.aiConsent);
+      patchCachedAiConsent(uid, e2eResponse.aiConsent);
+      return e2eResponse;
+    }
+  }
+
+  const response = await post<AiConsentResponse>("/users/me/ai-consent/grant");
+  rememberE2EAiConsentSeed(uid, response.aiConsent);
+  patchCachedAiConsent(uid, response.aiConsent);
+  return response;
+}
+
+export async function revokeAiConsentRemote(
+  uid: string,
+): Promise<AiConsentResponse> {
+  if (isE2EModeEnabled()) {
+    const e2eResponse = resolveE2EAiConsentRevoke(
+      uid,
+      profileCache.get(uid)?.profile.aiConsent,
+    );
+    if (e2eResponse) {
+      if ("error" in e2eResponse) throw e2eResponse.error;
+      if (isAiConsentInactive(e2eResponse.aiConsent)) {
+        localAiConsentRevokeGuards.delete(uid);
+      }
+      rememberE2EAiConsentSeed(uid, e2eResponse.aiConsent);
+      patchCachedAiConsent(uid, e2eResponse.aiConsent);
+      return e2eResponse;
+    }
+  }
+
+  const response = await post<AiConsentResponse>("/users/me/ai-consent/revoke");
+  if (isAiConsentInactive(response.aiConsent)) {
+    localAiConsentRevokeGuards.delete(uid);
+  }
+  rememberE2EAiConsentSeed(uid, response.aiConsent);
+  patchCachedAiConsent(uid, response.aiConsent);
   return response;
 }
 
 export async function uploadUserAvatarRemote(
   localPath: string,
+  options: ProfileMutationOptions,
 ): Promise<AvatarUploadResponse> {
+  const clientMutationId = requireClientMutationId(options);
   const data = new FormData();
+  data.append("clientMutationId", clientMutationId);
   data.append("file", {
     uri: localPath,
     name: "avatar.jpg",

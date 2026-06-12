@@ -47,6 +47,7 @@ const buildTextAiState = (overrides: Record<string, unknown> = {}) => ({
   submitError: undefined,
   analyzeDisabled: false,
   analysisState: "ready",
+  hasActiveAiConsent: true,
   creditAllocation: 100,
   onNameChange: jest.fn(),
   onQuickDescriptionChange: jest.fn(),
@@ -55,6 +56,7 @@ const buildTextAiState = (overrides: Record<string, unknown> = {}) => ({
   onUpdateTextIngredient: jest.fn(),
   onRemoveTextIngredient: jest.fn(),
   onAnalyze: jest.fn(),
+  openPrivacyAiSettings: jest.fn(),
   closeLimitModal: jest.fn(),
   openPaywall: jest.fn(),
   ...overrides,
@@ -593,5 +595,49 @@ describe("DescribeMealScreen", () => {
       getByText("You do not have enough AI Credits to prepare a summary."),
     ).toBeTruthy();
     expect(getByText("chat:limit.upgradeCta")).toBeTruthy();
+  });
+
+  it("shows a distinct AI consent lock with a Privacy & AI settings action", () => {
+    const openPrivacyAiSettings = jest.fn();
+    mockUseMealTextAiState.mockReturnValue({
+      ...buildTextAiState(),
+      analyzeDisabled: true,
+      analysisState: "ai_consent_required",
+      hasActiveAiConsent: false,
+      creditsBalance: 74,
+      remainingCreditsAfterAnalyze: 73,
+      openPrivacyAiSettings,
+    });
+    const props = {
+      navigation: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+        addListener: jest.fn(() => jest.fn()),
+        dispatch: jest.fn(),
+      } as never,
+      flow: {
+        goTo: jest.fn(),
+        replace: jest.fn(),
+        goBack: jest.fn(),
+        canGoBack: jest.fn(() => true),
+      } as unknown as MealAddScreenProps<"DescribeMeal">["flow"],
+      params: {},
+    } as MealAddScreenProps<"DescribeMeal">;
+
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <DescribeMealScreen {...props} />,
+    );
+
+    expect(
+      getByText(
+        "Turn on Privacy & AI consent in Settings to use meal analysis.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("chat:limit.upgradeCta")).toBeNull();
+
+    fireEvent.press(getByTestId("add-meal-text-ai-consent-settings-button"));
+
+    expect(openPrivacyAiSettings).toHaveBeenCalledTimes(1);
   });
 });

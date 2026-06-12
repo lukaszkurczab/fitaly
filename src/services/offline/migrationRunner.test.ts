@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-type MigrationDef = { version: number; up: string };
+type MigrationDef = {
+  version: number;
+  up: string | ((db: DbMock) => Promise<void>);
+};
 
 type DbMock = {
   execAsync: jest.MockedFunction<(sql: string) => Promise<void>>;
@@ -11,19 +14,31 @@ type DbMock = {
     (
       sql: string,
       params?: unknown[],
-    ) => Promise<{ max_v: number | null } | null>
+    ) => Promise<Record<string, unknown> | null>
   >;
   withTransactionAsync: jest.MockedFunction<
     (fn: () => Promise<void>) => Promise<void>
   >;
 };
 
-function createDbMock(currentVersion: number | null): DbMock {
+function createDbMock(
+  currentVersion: number | null,
+  tableColumns: Record<string, string[]> = {},
+): DbMock {
   const execAsync = jest.fn(async (_sql: string) => {});
   const runAsync = jest.fn(async (_sql: string, _params?: unknown[]) => ({}));
-  const getFirstAsync = jest.fn(
-    async (_sql: string, _params?: unknown[]) => ({ max_v: currentVersion }),
-  );
+  const getFirstAsync = jest.fn(async (sql: string, params?: unknown[]) => {
+    if (sql.includes("pragma_table_info")) {
+      const tableMatch = sql.match(/pragma_table_info\('([^']+)'\)/);
+      const table = tableMatch?.[1] ?? "";
+      const expectedColumn = String(params?.[0] ?? "").toLowerCase();
+      const existingColumn = tableColumns[table]?.find(
+        (column) => column.toLowerCase() === expectedColumn,
+      );
+      return existingColumn ? { name: existingColumn } : null;
+    }
+    return { max_v: currentVersion };
+  });
   const withTransactionAsync = jest.fn(async (fn: () => Promise<void>) => {
     await fn();
   });
@@ -41,6 +56,22 @@ async function loadRunnerWithMigrations(migrations: MigrationDef[]) {
   jest.doMock("@/services/offline/migrations", () => ({ migrations }));
   return jest.requireActual<typeof import("@/services/offline/migrationRunner")>(
     "@/services/offline/migrationRunner",
+  );
+}
+
+async function loadActualRunner() {
+  jest.resetModules();
+  jest.dontMock("@/services/offline/migrations");
+  return jest.requireActual<typeof import("@/services/offline/migrationRunner")>(
+    "@/services/offline/migrationRunner",
+  );
+}
+
+async function loadActualMigrations() {
+  jest.resetModules();
+  jest.dontMock("@/services/offline/migrations");
+  return jest.requireActual<typeof import("@/services/offline/migrations")>(
+    "@/services/offline/migrations",
   );
 }
 
@@ -115,5 +146,109 @@ describe("offline migrationRunner", () => {
     await module.runMigrations(db as never);
 
     expect(db.withTransactionAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps saved meal image_ref in the async fresh my_meals schema", async () => {
+    const { migrations } = await loadActualMigrations();
+    const freshSchema = migrations.find((migration) => migration.version === 1);
+
+    expect(typeof freshSchema?.up).toBe("string");
+    if (typeof freshSchema?.up !== "string") {
+      throw new Error("Expected async migration v1 to be a SQL schema string");
+    }
+    const sql = freshSchema.up;
+    const mealsBlock = sql.slice(
+      sql.indexOf("CREATE TABLE IF NOT EXISTS meals"),
+      sql.indexOf("CREATE INDEX IF NOT EXISTS idx_meals_user_ts"),
+    );
+    const myMealsBlock = sql.slice(
+      sql.indexOf("CREATE TABLE IF NOT EXISTS my_meals"),
+      sql.indexOf("CREATE INDEX IF NOT EXISTS idx_my_meals_user_name"),
+    );
+    expect(myMealsBlock).toContain("image_ref TEXT");
+    expect(mealsBlock).not.toContain("image_ref TEXT");
+  });
+
+  it("does not issue duplicate image_ref ALTER when async v4 sees the column already exists", async () => {
+    const module = await loadActualRunner();
+    const db = createDbMock(3, { my_meals: ["cloud_id", "image_ref"] });
+
+    await module.runMigrations(db as never);
+
+    expect(db.execAsync).toHaveBeenCalledWith(
+      "CREATE TABLE IF NOT EXISTS _schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
+    );
+    expect(
+      db.execAsync.mock.calls.some(([sql]) =>
+        sql.includes("ALTER TABLE my_meals ADD COLUMN image_ref TEXT"),
+      ),
+    ).toBe(false);
+    expect(db.execAsync).toHaveBeenCalledWith("PRAGMA user_version=13;");
+    expect(db.runAsync).toHaveBeenCalledWith(
+      "INSERT INTO _schema_migrations (version, applied_at) VALUES (?, datetime('now'))",
+      [4],
+    );
+  });
+
+  it("does not replay duplicate client_mutation_id ALTER before async v4 in mixed bootstrap state", async () => {
+    const module = await loadActualRunner();
+    const db = createDbMock(2, {
+      op_queue: ["id", "client_mutation_id"],
+      op_queue_dead: ["id", "client_mutation_id"],
+      my_meals: ["cloud_id", "image_ref"],
+    });
+
+    await module.runMigrations(db as never);
+
+    const executedSql = db.execAsync.mock.calls.map(([sql]) => sql);
+    expect(
+      executedSql.some((sql) =>
+        sql.includes("ALTER TABLE op_queue ADD COLUMN client_mutation_id"),
+      ),
+    ).toBe(false);
+    expect(
+      executedSql.some((sql) =>
+        sql.includes("ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id"),
+      ),
+    ).toBe(false);
+    expect(
+      executedSql.some((sql) =>
+        sql.includes("ALTER TABLE my_meals ADD COLUMN image_ref TEXT"),
+      ),
+    ).toBe(false);
+    expect(executedSql).toContain("PRAGMA user_version=13;");
+    expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([
+      3,
+      4,
+    ]);
+  });
+
+  it("adds and backfills client_mutation_id columns when async v3 columns are missing", async () => {
+    const module = await loadActualRunner();
+    const db = createDbMock(2, { my_meals: ["cloud_id", "image_ref"] });
+
+    await module.runMigrations(db as never);
+
+    const executedSql = db.execAsync.mock.calls.map(([sql]) => sql);
+    expect(executedSql).toContain(
+      "ALTER TABLE op_queue ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(executedSql).toContain(
+      "ALTER TABLE op_queue_dead ADD COLUMN client_mutation_id TEXT NOT NULL DEFAULT '';",
+    );
+    expect(
+      executedSql.some((sql) =>
+        sql.includes(
+          "SET client_mutation_id = 'legacy:' || user_uid || ':' || kind || ':' || cloud_id || ':' || updated_at",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      executedSql.some((sql) => sql.includes("PRAGMA user_version=12;")),
+    ).toBe(true);
+    expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([
+      3,
+      4,
+    ]);
   });
 });

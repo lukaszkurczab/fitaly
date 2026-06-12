@@ -43,6 +43,20 @@ const mockRequestPermission = jest.fn();
 const mockLayoutProps = jest.fn();
 let mockKeyboardInset = 0;
 
+const PRODUCT_LIBRARY_FIELDS = [
+  "libraryDomain",
+  "productId",
+  "productRef",
+  "catalogId",
+  "barcodeIdentities",
+] as const;
+
+function expectNoProductLibraryFields(value: Record<string, unknown>) {
+  for (const field of PRODUCT_LIBRARY_FIELDS) {
+    expect(value).not.toHaveProperty(field);
+  }
+}
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 4, right: 0, bottom: 0, left: 0 }),
 }));
@@ -270,7 +284,17 @@ describe("BarcodeScanScreen", () => {
       expect.objectContaining({
         inputMethod: "barcode",
         name: "Greek yogurt",
+        notes: "barcode:5901234123457",
+        ingredients: [ingredient],
       }),
+    );
+    const savedDraft = mockSaveDraft.mock.calls[0]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expectNoProductLibraryFields(savedDraft);
+    expectNoProductLibraryFields(
+      (savedDraft.ingredients as Record<string, unknown>[])[0],
     );
     await waitFor(() => {
       expect(props.flow.replace).toHaveBeenCalledWith("ReviewMeal", {});

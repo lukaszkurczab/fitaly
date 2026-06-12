@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Meal } from "@/types/meal";
 
-const mockRunSync = jest.fn<(sql: string, params?: unknown[]) => void>();
+const mockRunSync = jest.fn<
+  (sql: string, params?: unknown[]) => { changes?: number } | void
+>();
 const mockExecSync = jest.fn<(sql: string) => void>();
 const mockGetAllSync = jest.fn<(sql: string, params?: unknown[]) => unknown[]>();
 const mockGetFirstSync = jest.fn<
@@ -11,6 +13,7 @@ const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
 
 type QueuedOp = {
   id: number;
+  clientMutationId: string;
   cloudId: string;
   uid: string;
   kind: string;
@@ -33,9 +36,35 @@ let deadOps: DeadOp[] = [];
 
 function applyQueueMutation(sql: string, params: unknown[] = []) {
   if (sql.includes("DELETE FROM op_queue_dead")) {
+    if (sql.includes("user_uid=?")) {
+      const uid = String(params[0] ?? "");
+      const ids = new Set(
+        params
+          .slice(1)
+          .filter((value): value is number => typeof value === "number")
+          .map(Number),
+      );
+      const kinds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string"),
+      );
+      const before = deadOps.length;
+      deadOps = deadOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            ids.has(op.id) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - deadOps.length };
+    }
+
     const ids = new Set((params as number[]).map(Number));
+    const before = deadOps.length;
     deadOps = deadOps.filter((op) => !ids.has(op.id));
-    return;
+    return { changes: before - deadOps.length };
   }
 
   if (sql.includes("DELETE FROM op_queue")) {
@@ -67,17 +96,30 @@ function applyQueueMutation(sql: string, params: unknown[] = []) {
   }
 
   if (sql.includes("INSERT INTO op_queue")) {
-    const [cloudId, uid] = params as string[];
+    const hasClientMutationId = sql.includes("client_mutation_id");
+    const offset = hasClientMutationId ? 1 : 0;
+    const clientMutationId = hasClientMutationId
+      ? String(params[0])
+      : `legacy:${params[1]}:${params[2]}:${params[0]}`;
+    const cloudId = String(params[offset]);
+    const uid = String(params[offset + 1]);
+    const maybeKind = params[offset + 2];
     const kind =
-      typeof params[2] === "string" && !String(params[2]).startsWith("{")
-        ? params[2]
+      typeof maybeKind === "string" && !String(maybeKind).startsWith("{")
+        ? maybeKind
         : sql.includes("'upsert_mymeal'")
           ? "upsert_mymeal"
-          : "upsert";
-    const payloadIndex = params.length === 5 ? 3 : 2;
-    const updatedAtIndex = params.length === 5 ? 4 : 3;
+          : sql.includes("'update_user_profile'")
+            ? "update_user_profile"
+            : sql.includes("'upload_user_avatar'")
+              ? "upload_user_avatar"
+              : "upsert";
+    const kindIsParam = kind === maybeKind;
+    const payloadIndex = offset + (kindIsParam ? 3 : 2);
+    const updatedAtIndex = payloadIndex + 1;
     queuedOps.push({
       id: nextQueueId++,
+      clientMutationId,
       cloudId,
       uid,
       kind,
@@ -105,6 +147,7 @@ function selectDeadOps(_sql: string, params: unknown[] = []) {
     .map((op) => ({
       id: op.id,
       op_id: op.opId,
+      client_mutation_id: op.clientMutationId,
       cloud_id: op.cloudId,
       user_uid: op.uid,
       kind: op.kind,
@@ -120,6 +163,7 @@ function selectDeadOps(_sql: string, params: unknown[] = []) {
 function toQueueRow(op: QueuedOp) {
   return {
     id: op.id,
+    client_mutation_id: op.clientMutationId,
     cloud_id: op.cloudId,
     user_uid: op.uid,
     kind: op.kind,
@@ -231,6 +275,7 @@ const baseMeal = (overrides: Partial<Meal> = {}): Meal => ({
 function queuedOp(overrides: Partial<QueuedOp> = {}): QueuedOp {
   return {
     id: nextQueueId++,
+    clientMutationId: "mutation-queued",
     cloudId: "cloud-1",
     uid: "user-1",
     kind: "upsert",
@@ -245,6 +290,7 @@ function deadOp(overrides: Partial<DeadOp> = {}): DeadOp {
   return {
     id: nextDeadId++,
     opId: 10 + deadOps.length,
+    clientMutationId: "mutation-dead",
     cloudId: "cloud-1",
     uid: "user-1",
     kind: "upsert",
@@ -295,6 +341,7 @@ describe("queue.repo", () => {
       2,
       expect.stringContaining("INSERT INTO op_queue"),
       [
+        "meal-sync:upsert:user-1:cloud-1:uuid-generated",
         "cloud-1",
         "user-1",
         expect.stringContaining('"cloudId":"cloud-1"'),
@@ -334,6 +381,7 @@ describe("queue.repo", () => {
     expect(queuedOps).toHaveLength(1);
     expect(queuedOps[0]).toEqual(
       expect.objectContaining({
+        clientMutationId: "meal-sync:upsert:user-1:cloud-1:uuid-generated",
         cloudId: "cloud-1",
         kind: "upsert",
         updatedAt: "2026-02-25T10:30:00.000Z",
@@ -367,6 +415,7 @@ describe("queue.repo", () => {
       2,
       expect.stringContaining("INSERT INTO op_queue"),
       [
+        "meal-sync:upsert_mymeal:user-1:uuid-generated:uuid-generated",
         "uuid-generated",
         "user-1",
         expect.stringContaining('"source":"manual"'),
@@ -461,6 +510,7 @@ describe("queue.repo", () => {
       {
         id: 1,
         cloudId: "cloud-1",
+        clientMutationId: "mutation-dead-retry",
         uid: "user-1",
         kind: "upsert",
         payload: baseMeal({
@@ -476,6 +526,7 @@ describe("queue.repo", () => {
       {
         id: 10,
         opId: 1,
+        clientMutationId: "mutation-dead-retry",
         cloudId: "cloud-1",
         uid: "user-1",
         kind: "upsert",
@@ -514,6 +565,7 @@ describe("queue.repo", () => {
       expect.objectContaining({
         cloudId: "cloud-1",
         kind: "upsert",
+        clientMutationId: "mutation-dead-retry",
         attempts: 0,
         payload: expect.objectContaining({ syncState: "failed" }),
       }),
@@ -527,6 +579,195 @@ describe("queue.repo", () => {
     await expect(
       getSyncCounts("user-1", { kinds: ["upsert", "delete"] }),
     ).resolves.toEqual({ dead: 0, pending: 0 });
+  });
+
+  it("retries a dead avatar upload with the same durable identity and clears the dead row", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { retryDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    deadOps = [
+      deadOp({
+        id: 44,
+        opId: 12,
+        clientMutationId: "avatar-mutation-1",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-new.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 10,
+        failedAt: "2026-03-03T12:12:00.000Z",
+        lastErrorCode: "storage/upload-failed",
+        lastErrorMessage: "Upload failed",
+      }),
+    ];
+
+    await expect(
+      retryDeadLetterOps({ uid: "user-1", kinds: ["upload_user_avatar"] }),
+    ).resolves.toBe(1);
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        clientMutationId: "avatar-mutation-1",
+        cloudId: "profile_avatar",
+        uid: "user-1",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-new.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 0,
+      }),
+    ]);
+    expect(deadOps).toEqual([]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:retried", {
+      uid: "user-1",
+      count: 1,
+    });
+  });
+
+  it("discards only selected dead-letter rows for the requested uid and kind", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { discardDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    queuedOps = [
+      queuedOp({
+        id: 44,
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+    deadOps = [
+      deadOp({
+        id: 10,
+        uid: "user-1",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+      deadOp({
+        id: 11,
+        uid: "user-1",
+        cloudId: "user_profile",
+        kind: "update_user_profile",
+      }),
+      deadOp({
+        id: 12,
+        uid: "other-user",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+
+    await expect(
+      discardDeadLetterOps({
+        uid: "user-1",
+        ids: [10, 11, 12],
+        kinds: ["upload_user_avatar"],
+      }),
+    ).resolves.toBe(1);
+
+    expect(deadOps).toEqual([
+      expect.objectContaining({ id: 11, uid: "user-1" }),
+      expect.objectContaining({ id: 12, uid: "other-user" }),
+    ]);
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        id: 44,
+        uid: "user-1",
+        kind: "upload_user_avatar",
+      }),
+    ]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:discarded", {
+      uid: "user-1",
+      count: 1,
+      ids: [10, 11, 12],
+      kinds: ["upload_user_avatar"],
+    });
+  });
+
+  it("does not emit a discard event when no dead-letter rows are removed", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { discardDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    deadOps = [
+      deadOp({
+        id: 10,
+        uid: "other-user",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+      }),
+    ];
+
+    await expect(
+      discardDeadLetterOps({
+        uid: "user-1",
+        ids: [10],
+        kinds: ["upload_user_avatar"],
+      }),
+    ).resolves.toBe(0);
+
+    expect(deadOps).toEqual([
+      expect.objectContaining({ id: 10, uid: "other-user" }),
+    ]);
+    expect(mockEmit).not.toHaveBeenCalledWith(
+      "sync:op:discarded",
+      expect.anything(),
+    );
+  });
+
+  it("replaces an existing pending avatar upload when retrying the same dead avatar reference", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { retryDeadLetterOps } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    queuedOps = [
+      queuedOp({
+        clientMutationId: "avatar-pending-old",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-stale.jpg",
+          updatedAt: "2026-03-03T12:00:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:00:00.000Z",
+      }),
+    ];
+    deadOps = [
+      deadOp({
+        clientMutationId: "avatar-mutation-retry",
+        cloudId: "profile_avatar",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-retry.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+      }),
+    ];
+
+    await expect(
+      retryDeadLetterOps({ uid: "user-1", kinds: ["upload_user_avatar"] }),
+    ).resolves.toBe(1);
+
+    expect(familyOps("user-1", "profile_avatar", ["upload_user_avatar"])).toEqual([
+      expect.objectContaining({
+        clientMutationId: "avatar-mutation-retry",
+        kind: "upload_user_avatar",
+        payload: {
+          localPath: "file://avatar-retry.jpg",
+          updatedAt: "2026-03-03T12:10:00.000Z",
+        },
+        updatedAt: "2026-03-03T12:10:00.000Z",
+        attempts: 0,
+      }),
+    ]);
+    expect(deadOps).toEqual([]);
   });
 
   it("skips a dead meal upsert when a newer pending delete exists", async () => {

@@ -126,15 +126,14 @@
     "renewalUnknown": "Unavailable"
   },
   "legal": {
-    "title": "Before we start your AI chat",
-    "informational": "This chat offers general support with diet, nutrition, and meal planning.",
+    "title": "AI consent required",
+    "informational": "AI Chat uses your health-data consent from Settings.",
     "medical": "It does not replace medical advice or a one-to-one consultation with a clinician.",
-    "accept": "Accept",
+    "manageConsent": "Manage AI consent",
     "moreInfo": "You can quickly review:",
     "learnMore": "How Data & AI works",
     "privacy": "Legal & privacy",
-    "composerLocked": "Accept the notice to unlock chat",
-    "saveFailed": "We couldn't save your consent. Check your connection and try again.",
+    "composerLocked": "Manage AI consent in Settings",
     "back": "Go back"
   }
 }

@@ -32,6 +32,7 @@ type SendFeedbackScreenProps = {
 };
 
 type FeedbackStatus = {
+  kind: "generic" | "attachment";
   tone: "warning" | "error";
   title: string;
   body: string;
@@ -69,8 +70,6 @@ export default function SendFeedbackScreen({
   });
 
   const handlePickAttachment = async () => {
-    setStatus(null);
-
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
@@ -80,9 +79,11 @@ export default function SendFeedbackScreen({
 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         setAttachment(result.assets[0].uri);
+        setStatus(null);
       }
     } catch {
       setStatus({
+        kind: "generic",
         tone: "error",
         title: t("feedbackAttachmentErrorTitle", {
           defaultValue: "Couldn’t open your photo library",
@@ -92,6 +93,15 @@ export default function SendFeedbackScreen({
         }),
       });
     }
+  };
+
+  const handleAttachmentPreviewError = () => {
+    setStatus({
+      kind: "attachment",
+      tone: "error",
+      title: t("feedbackAttachmentPreviewFailedTitle"),
+      body: t("feedbackAttachmentPreviewFailedBody"),
+    });
   };
 
   const handleSend = async () => {
@@ -104,6 +114,7 @@ export default function SendFeedbackScreen({
     const net = await NetInfo.fetch();
     if (isOfflineNetState(net)) {
       setStatus({
+        kind: "generic",
         tone: "warning",
         title: t("noInternet", { defaultValue: "No internet connection" }),
         body: t("checkConnection", {
@@ -131,16 +142,31 @@ export default function SendFeedbackScreen({
       setMessage("");
       setAttachment(null);
     } catch {
-      setStatus({
-        tone: "error",
-        title: t("error", { defaultValue: "Error" }),
-        body: t("feedbackSendError", {
-          defaultValue: "Failed to send feedback. Try again later.",
-        }),
-      });
+      setStatus(
+        attachment
+          ? {
+              kind: "attachment",
+              tone: "error",
+              title: t("feedbackAttachmentSendFailedTitle"),
+              body: t("feedbackAttachmentSendFailedBody"),
+            }
+          : {
+              kind: "generic",
+              tone: "error",
+              title: t("error", { defaultValue: "Error" }),
+              body: t("feedbackSendError", {
+                defaultValue: "Failed to send feedback. Try again later.",
+              }),
+            },
+      );
     } finally {
       setSending(false);
     }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
+    setStatus((current) => (current?.kind === "attachment" ? null : current));
   };
 
   const resetFeedbackForm = () => {
@@ -182,6 +208,7 @@ export default function SendFeedbackScreen({
         }}
         actionLoading={sending}
         actionDisabled={sent ? false : !trimmedMessage || sending}
+        actionTestID="send-feedback-submit"
         secondaryActionLabel={
           sent
             ? t("feedbackSendAnotherAction", {
@@ -240,6 +267,7 @@ export default function SendFeedbackScreen({
                 style={styles.textarea}
                 inputStyle={styles.textareaInput}
                 maxLength={500}
+                testID="send-feedback-message"
               />
 
               <SettingsSection
@@ -264,6 +292,7 @@ export default function SendFeedbackScreen({
                   onPress={() => {
                     void handlePickAttachment();
                   }}
+                  testID="send-feedback-attachment-picker"
                   leading={
                     <AppIcon
                       name={attachment ? "image" : "add-photo"}
@@ -277,16 +306,18 @@ export default function SendFeedbackScreen({
               {attachment ? (
                 <View style={styles.attachmentCard}>
                   <Image
+                    testID="send-feedback-attachment-preview"
                     source={{ uri: attachment }}
                     style={styles.attachmentImage}
-                    onError={() => setAttachment(null)}
+                    onError={handleAttachmentPreviewError}
                   />
 
                   <Button
                     label={t("removeAttachment", { defaultValue: "Remove" })}
                     variant="secondary"
                     fullWidth={false}
-                    onPress={() => setAttachment(null)}
+                    onPress={handleRemoveAttachment}
+                    testID="send-feedback-remove-attachment"
                   />
                 </View>
               ) : null}

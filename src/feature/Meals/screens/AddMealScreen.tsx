@@ -97,8 +97,9 @@ export default function AddMealScreen() {
   }, [route.params]);
 
   const [stack, setStack] = useState<Step[]>([initialStep]);
+  const isSavedFlow = Boolean(meal?.savedMealRefId || meal?.source === "saved");
   const [flowPath, setFlowPath] = useState<MealAddFlowPath>(() =>
-    resolveMealAddFlowPath(initialStep.name, meal?.inputMethod),
+    resolveMealAddFlowPath(initialStep.name, meal?.inputMethod, isSavedFlow),
   );
 
   useEffect(() => {
@@ -113,30 +114,30 @@ export default function AddMealScreen() {
     ) {
       return;
     }
-    setFlowPath(resolveMealAddFlowPath(initialStep.name, meal?.inputMethod));
-  }, [initialStep.name, meal?.inputMethod]);
+    setFlowPath(resolveMealAddFlowPath(initialStep.name, meal?.inputMethod, isSavedFlow));
+  }, [initialStep.name, isSavedFlow, meal?.inputMethod]);
 
   const goTo = useCallback<MealAddFlowApi["goTo"]>((name, params) => {
     setFlowPath((currentPath) =>
       name === "ReviewMeal"
         ? currentPath
-        : resolveMealAddFlowPath(name, meal?.inputMethod),
+        : resolveMealAddFlowPath(name, meal?.inputMethod, isSavedFlow),
     );
     setStack((prev) => [...prev, createStep(name, params)]);
-  }, [meal?.inputMethod]);
+  }, [isSavedFlow, meal?.inputMethod]);
 
   const replace = useCallback<MealAddFlowApi["replace"]>((name, params) => {
     setFlowPath((currentPath) =>
       name === "ReviewMeal"
         ? currentPath
-        : resolveMealAddFlowPath(name, meal?.inputMethod),
+        : resolveMealAddFlowPath(name, meal?.inputMethod, isSavedFlow),
     );
     setStack((prev) => {
       const next = [...prev];
       next[next.length - 1] = createStep(name, params);
       return next;
     });
-  }, [meal?.inputMethod]);
+  }, [isSavedFlow, meal?.inputMethod]);
 
   const goBack = useCallback(() => {
     setStack((prev) => {

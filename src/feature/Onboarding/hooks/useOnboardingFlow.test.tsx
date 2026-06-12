@@ -89,8 +89,10 @@ function buildUserData(overrides?: Partial<UserData>): UserData {
       aiPreferences: {
         stylePersona: "cheerful_companion",
       },
-      consents: {
-        aiHealthDataConsentAt: "2026-03-28T10:00:00.000Z",
+      aiConsent: {
+        status: "granted",
+        grantedAt: "2026-03-28T10:00:00.000Z",
+        revokedAt: null,
       },
       readiness: {
         status: "ready",

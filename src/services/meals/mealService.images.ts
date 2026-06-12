@@ -21,6 +21,7 @@ export type UploadedImage = {
 
 type MealPhotoResponse = {
   imageId?: string;
+  storagePath?: string;
   photoUrl?: string;
 };
 

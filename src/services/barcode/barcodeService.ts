@@ -1,24 +1,69 @@
-import type { Ingredient } from "@/types";
-import { decodeHtmlEntities } from "@/utils/decodeHtmlEntities";
-import { parseOffProductResponse } from "@/services/barcode/off.dto";
+import { get } from "@/services/core/apiClient";
+import { getErrorStatus } from "@/services/contracts/serviceError";
 import { debugScope } from "@/utils/debug";
 import { resolveE2EBarcodeLookup } from "@/services/e2e/fixtures";
+import type { Ingredient } from "@/types";
+import { asNumber, asString, isRecord } from "@/services/contracts/guards";
 
 const log = debugScope("BarcodeService");
+const BARCODE_LOOKUP_ENDPOINT = "/users/me/barcode/lookup";
 
 export type BarcodeLookupResult =
   | { kind: "found"; name: string; ingredient: Ingredient }
   | { kind: "not_found" }
   | { kind: "error" };
 
-const toNumber = (v: unknown): number => {
-  if (typeof v === "number") return isFinite(v) ? v : 0;
-  if (typeof v === "string") {
-    const n = Number(String(v).replace(/[^0-9.+-]/g, ""));
-    return isFinite(n) ? n : 0;
-  }
-  return 0;
+type BarcodeLookupBackendFoundResponse = {
+  kind: "found";
+  name: string;
+  ingredient: Ingredient;
 };
+
+function parseBarcodeLookupIngredient(
+  payload: unknown,
+): Ingredient | null {
+  if (!isRecord(payload)) return null;
+
+  const id = asString(payload.id);
+  const name = asString(payload.name);
+  const amount = asNumber(payload.amount);
+  const kcal = asNumber(payload.kcal);
+  const protein = asNumber(payload.protein);
+  const fat = asNumber(payload.fat);
+  const carbs = asNumber(payload.carbs);
+  const unit = payload.unit;
+
+  if (!id || !name || amount === undefined || kcal === undefined) {
+    return null;
+  }
+  if (protein === undefined || fat === undefined || carbs === undefined) {
+    return null;
+  }
+  if (unit !== undefined && unit !== null && unit !== "g" && unit !== "ml") {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    amount,
+    unit: unit ?? undefined,
+    kcal,
+    protein,
+    fat,
+    carbs,
+  };
+}
+
+function parseBarcodeLookupResponse(
+  payload: unknown,
+): BarcodeLookupBackendFoundResponse | null {
+  if (!isRecord(payload) || payload.kind !== "found") return null;
+  const name = asString(payload.name);
+  const ingredient = parseBarcodeLookupIngredient(payload.ingredient);
+  if (!name || !ingredient) return null;
+  return { kind: "found", name, ingredient };
+}
 
 export async function lookupBarcodeProduct(
   barcode: string,
@@ -29,78 +74,25 @@ export async function lookupBarcodeProduct(
   }
 
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(
-      barcode,
-    )}.json`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) {
-      log.warn("OpenFoodFacts lookup failed", { barcode, status: res.status });
-      return res.status === 404 ? { kind: "not_found" } : { kind: "error" };
+    const payload = await get<unknown>(
+      `${BARCODE_LOOKUP_ENDPOINT}?barcode=${encodeURIComponent(barcode)}`,
+    );
+    const decoded = parseBarcodeLookupResponse(payload);
+    if (!decoded) {
+      log.warn("Barcode lookup response did not match expected schema", {
+        barcode,
+      });
+      return { kind: "error" };
     }
 
-    const json = await res.json();
-    const status =
-      typeof json === "object" &&
-      json !== null &&
-      "status" in json &&
-      typeof json.status === "number"
-        ? json.status
-        : null;
-
-    if (status === 0) {
+    return decoded;
+  } catch (error: unknown) {
+    const status = getErrorStatus(error);
+    if (status === 404) {
       return { kind: "not_found" };
     }
 
-    const decoded = parseOffProductResponse(json);
-    if (!decoded) {
-      log.warn("OpenFoodFacts response did not match expected schema", {
-        barcode,
-      });
-      return status === 0 ? { kind: "not_found" } : { kind: "error" };
-    }
-
-    const p = decoded.product;
-    const name = decodeHtmlEntities(p.product_name || "").trim();
-    const n = p.nutriments || {};
-
-    const kcal = toNumber(
-      n["energy-kcal_100g"] ??
-        n["energy-kcal"] ??
-        n["energy_100g"] ??
-        n["energy"]
-    );
-    const protein = toNumber(n["proteins_100g"] ?? n["proteins"]);
-    const carbs = toNumber(n["carbohydrates_100g"] ?? n["carbohydrates"]);
-    const fat = toNumber(n["fat_100g"] ?? n["fat"]);
-
-    const q = String(p.quantity || "").toLowerCase();
-    const srv = String(p.serving_size || "").toLowerCase();
-    const tags: string[] = Array.isArray(p.categories_tags)
-      ? p.categories_tags
-      : [];
-    const dataPer = String(p.nutrition_data_per || "").toLowerCase();
-
-    const isBeverage =
-      tags.some((t) => /beverage|drink|napoje|napój/i.test(String(t))) ||
-      q.includes("ml") ||
-      srv.includes("ml");
-    const unit: "g" | "ml" =
-      isBeverage || dataPer.includes("100ml") ? "ml" : "g";
-
-    const ingredient: Ingredient = {
-      id: `${Date.now()}`,
-      name: name || `Product ${barcode}`,
-      amount: 100,
-      unit,
-      protein,
-      fat,
-      carbs,
-      kcal,
-    };
-
-    return { kind: "found", name: ingredient.name, ingredient };
-  } catch (error: unknown) {
-    log.error("Barcode lookup failed", { barcode, error });
+    log.error("Barcode lookup failed", { barcode, error, status });
     return { kind: "error" };
   }
 }

@@ -218,6 +218,16 @@ class LocalMealsReadModel {
     this.stop();
   }
 
+  clearRuntime(): void {
+    this.stopEventSubscriptions();
+    this.byId.clear();
+    this.loading = false;
+    this.loadToken += 1;
+    this.version += 1;
+    this.snapshotCache = EMPTY_SNAPSHOT;
+    this.publish();
+  }
+
   private removeByIdSilently(id: string): boolean {
     let changed = false;
     for (const [key, meal] of this.byId.entries()) {
@@ -271,10 +281,7 @@ class LocalMealsReadModel {
   }
 
   private stop(): void {
-    for (const unsubscribe of this.unsubs) {
-      unsubscribe();
-    }
-    this.unsubs = [];
+    this.stopEventSubscriptions();
     this.byId.clear();
     this.loading = false;
     this.loadToken += 1;
@@ -283,6 +290,13 @@ class LocalMealsReadModel {
     if (this.listeners.size === 0) {
       this.onIdle(this.uid, this);
     }
+  }
+
+  private stopEventSubscriptions(): void {
+    for (const unsubscribe of this.unsubs) {
+      unsubscribe();
+    }
+    this.unsubs = [];
   }
 
   private matchesUid(event?: LocalMealEvent): boolean {
@@ -428,6 +442,13 @@ export function removeLocalMealSnapshot(
   cloudId: string,
 ): void {
   ensureStore(uid)?.removeById(cloudId);
+}
+
+export function clearLocalMealsRuntime(uid: string | null | undefined): void {
+  const store = peekStore(uid);
+  if (!uid || !store) return;
+  store.clearRuntime();
+  stores.delete(uid);
 }
 
 export function __resetLocalMealsStoreForTests(): void {

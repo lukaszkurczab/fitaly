@@ -21,6 +21,7 @@ export type MealRow = {
   photo_url: string | null;
   image_local: string | null;
   image_id: string | null;
+  image_ref?: string | null;
   totals_kcal: number | null;
   totals_protein: number | null;
   totals_carbs: number | null;
@@ -50,6 +51,7 @@ export type ImageRow = {
 
 export type QueueRow = {
   id: number;
+  client_mutation_id: string;
   cloud_id: string;
   user_uid: string;
   kind: QueueKind;
@@ -61,6 +63,7 @@ export type QueueRow = {
 export type DeadLetterRow = {
   id: number;
   op_id: number;
+  client_mutation_id: string;
   cloud_id: string;
   user_uid: string;
   kind: QueueKind;

@@ -31,7 +31,7 @@ const makeMeal = (overrides: Partial<Meal> = {}): Meal => ({
 describe("mealMetadata", () => {
   it("normalizes the canonical meal input methods", () => {
     expect(normalizeMealInputMethod("photo")).toBe("photo");
-    expect(normalizeMealInputMethod("saved")).toBe("saved");
+    expect(normalizeMealInputMethod("saved")).toBeNull();
     expect(normalizeMealInputMethod("legacy")).toBeNull();
   });
 

@@ -86,5 +86,7 @@ export function captureException(
 }
 
 export function captureMessage(message: string, extra?: ExtraContext): void {
-  Sentry.captureMessage(message, { extra });
+  Sentry.captureMessage(sanitizeLogMessage(message), {
+    extra: toExtraContext(extra),
+  });
 }

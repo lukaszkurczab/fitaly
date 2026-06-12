@@ -12,6 +12,7 @@ const mockUseAccessContext = jest.fn();
 const mockCanUseFeature = jest.fn(() => true);
 const mockRefreshAccess = jest.fn<() => Promise<unknown>>();
 const mockGetE2EAccessState = jest.fn<() => unknown>();
+const mockUseUserProfileContext = jest.fn();
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
@@ -33,9 +34,19 @@ jest.mock("@/context/AuthContext", () => ({
   useAuthContext: () => ({ uid: "user-1" }),
 }));
 
+jest.mock("@/context/UserProfileContext", () => ({
+  useUserProfileContext: () => mockUseUserProfileContext(),
+}));
+
 jest.mock("@/services/e2e/fixtures", () => ({
   getE2EAccessState: () => mockGetE2EAccessState(),
 }));
+
+const activeAiConsent = {
+  status: "granted",
+  grantedAt: "2026-06-01T10:00:00.000Z",
+  revokedAt: null,
+};
 
 describe("useMealTextAiState", () => {
   beforeEach(() => {
@@ -51,6 +62,13 @@ describe("useMealTextAiState", () => {
     mockCanUseFeature.mockReturnValue(true);
     mockRefreshAccess.mockResolvedValue(null);
     mockGetE2EAccessState.mockReturnValue(null);
+    mockUseUserProfileContext.mockReturnValue({
+      userData: {
+        profile: {
+          aiConsent: activeAiConsent,
+        },
+      },
+    });
     mockUseAiCreditsContext.mockReturnValue({
       credits: {
         userId: "user-1",
@@ -146,6 +164,68 @@ describe("useMealTextAiState", () => {
       }),
     );
   });
+
+  it.each([
+    [
+      "not_granted",
+      { status: "not_granted", grantedAt: null, revokedAt: null },
+    ],
+    [
+      "revoked",
+      {
+        status: "revoked",
+        grantedAt: "2026-06-01T10:00:00.000Z",
+        revokedAt: "2026-06-02T10:00:00.000Z",
+      },
+    ],
+    [
+      "granted missing grantedAt",
+      { status: "granted", grantedAt: null, revokedAt: null },
+    ],
+    [
+      "granted with revokedAt",
+      {
+        status: "granted",
+        grantedAt: "2026-06-01T10:00:00.000Z",
+        revokedAt: "2026-06-02T10:00:00.000Z",
+      },
+    ],
+  ])(
+    "routes to Privacy & AI settings instead of analyzing when consent is %s",
+    async (_label, aiConsent) => {
+      const flow = { goTo: jest.fn() };
+      const navigation = { navigate: jest.fn() };
+      mockUseNavigation.mockReturnValue(navigation);
+      mockUseUserProfileContext.mockReturnValue({
+        userData: {
+          profile: {
+            aiConsent,
+          },
+        },
+      });
+
+      const { result } = renderHook(() =>
+        useMealTextAiState({
+          t: (key: string) => key,
+          language: "en",
+          flow,
+        }),
+      );
+
+      act(() => {
+        result.current.onNameChange("Chicken and rice");
+      });
+      await act(async () => {
+        await result.current.onAnalyze();
+      });
+
+      expect(result.current.analysisState).toBe("ai_consent_required");
+      expect(result.current.showLimitModal).toBe(false);
+      expect(mockRefreshAccess).not.toHaveBeenCalled();
+      expect(flow.goTo).not.toHaveBeenCalled();
+      expect(navigation.navigate).toHaveBeenCalledWith("PrivacyAiSettings");
+    },
+  );
 
   it("routes optional description, ingredients, and serving to the analyzing step", async () => {
     const flow = { goTo: jest.fn() };
