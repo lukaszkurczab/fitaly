@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { callAuthenticatedJson } from "./smoke-auth-lib.mjs";
+import { callAuthenticatedJson, smokeResponseError } from "./smoke-auth-lib.mjs";
 
 const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const maxLatencyMs = Number.parseInt(process.env.MAX_FLOW_LATENCY_MS || "5000", 10);
@@ -75,18 +75,19 @@ function assertWeeklyContract(payload) {
 const summary = {
   checkedAt: new Date().toISOString(),
   smokeApiBaseUrl: null,
-  smokeUserEmail: null,
-  smokeUserId: null,
+  smokeUserRef: null,
   checks: [],
 };
 
 const creditsResult = await timedCall("/api/v1/ai/credits");
-assert(creditsResult.response.ok, `AI credits check failed (${creditsResult.response.status}) for ${creditsResult.url}: ${JSON.stringify(creditsResult.payload)}`);
+assert(
+  creditsResult.response.ok,
+  smokeResponseError("AI credits check", creditsResult),
+);
 assertLatency(creditsResult.latencyMs, "ai_credits");
 assertCreditsContract(creditsResult.payload);
 summary.smokeApiBaseUrl = new URL(creditsResult.url).origin;
-summary.smokeUserEmail = creditsResult.email;
-summary.smokeUserId = creditsResult.localId;
+summary.smokeUserRef = creditsResult.smokeUserRef;
 summary.checks.push({
   name: "ai_credits",
   status: creditsResult.response.status,
@@ -98,7 +99,10 @@ const weekEnd = mostRecentSundayIso();
 const weeklyResult = await timedCall(`/api/v2/users/me/reports/weekly?weekEnd=${weekEnd}`);
 assert(
   weeklyResult.response.status === weeklyExpectedStatus,
-  `Weekly report check returned ${weeklyResult.response.status} (expected ${weeklyExpectedStatus}) for ${weeklyResult.url}: ${JSON.stringify(weeklyResult.payload)}`,
+  smokeResponseError("Weekly report check", {
+    ...weeklyResult,
+    expectedStatus: weeklyExpectedStatus,
+  }),
 );
 assertLatency(weeklyResult.latencyMs, "weekly_report");
 assertWeeklyContract(weeklyResult.payload);

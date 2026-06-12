@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { callAuthenticatedJson } from "./smoke-auth-lib.mjs";
+import { callAuthenticatedJson, smokeEndpoint, smokeResponseError } from "./smoke-auth-lib.mjs";
 
 const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const requiredKeys = [
@@ -27,14 +27,12 @@ function assertExportShape(payload) {
   }
 }
 
-const { email, localId, payload, response, url } = await callAuthenticatedJson(
+const { payload, response, smokeUserRef, url } = await callAuthenticatedJson(
   "/api/v1/users/me/export",
 );
 
 if (!response.ok) {
-  throw new Error(
-    `Smoke export check failed (${response.status}) for ${url}: ${JSON.stringify(payload)}`,
-  );
+  throw new Error(smokeResponseError("Smoke export check", { response, url, payload }));
 }
 
 assertExportShape(payload);
@@ -42,9 +40,8 @@ assertExportShape(payload);
 const summary = {
   checkedAt: new Date().toISOString(),
   smokeApiBaseUrl: new URL(url).origin,
-  url,
-  smokeUserEmail: email,
-  smokeUserId: localId,
+  endpoint: smokeEndpoint(url),
+  smokeUserRef,
   status: response.status,
   counts: {
     meals: Array.isArray(payload.meals) ? payload.meals.length : null,

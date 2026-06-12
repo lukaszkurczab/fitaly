@@ -18,6 +18,10 @@ function bullet(label, content) {
   return `- ${label}: ${content}`;
 }
 
+function smokeUser(summary) {
+  return summary?.smokeUserRef || "not provided";
+}
+
 const lines = [
   "# Release Evidence",
   "",
@@ -55,7 +59,7 @@ if (exportSummary) {
   lines.push(
     bullet("Checked at", exportSummary.checkedAt || "unknown"),
     bullet("Smoke API", exportSummary.smokeApiBaseUrl || "unknown"),
-    bullet("Smoke user", exportSummary.smokeUserEmail || exportSummary.smokeUserId || "unknown"),
+    bullet("Smoke user", smokeUser(exportSummary)),
     bullet("Meals count", String(exportSummary.counts?.meals ?? "unknown")),
     bullet("Saved meals count", String(exportSummary.counts?.myMeals ?? "unknown")),
     bullet("Chat messages count", String(exportSummary.counts?.chatMessages ?? "unknown")),
@@ -71,7 +75,7 @@ if (flowSummary) {
   lines.push(
     bullet("Checked at", flowSummary.checkedAt || "unknown"),
     bullet("Smoke API", flowSummary.smokeApiBaseUrl || "unknown"),
-    bullet("Smoke user", flowSummary.smokeUserEmail || flowSummary.smokeUserId || "unknown"),
+    bullet("Smoke user", smokeUser(flowSummary)),
   );
   for (const check of flowSummary.checks || []) {
     lines.push(
