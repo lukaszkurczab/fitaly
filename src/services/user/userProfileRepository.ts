@@ -13,6 +13,7 @@ import { get, post, upload } from "@/services/core/apiClient";
 import { emit, on } from "@/services/core/events";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
+  resolveE2EAiConsentSeed,
   resolveE2EAiConsentGrant,
   resolveE2EAiConsentRevoke,
 } from "@/services/e2e/fixtures";
@@ -68,6 +69,7 @@ const profileCache = new Map<string, UserData | null>();
 const profileFetchInFlight = new Map<string, Promise<UserData | null>>();
 const profileFetchInvalidatedAt = new Map<string, number>();
 const localAiConsentRevokeGuards = new Map<string, UserAiConsent>();
+const e2eAiConsentSeeds = new Map<string, UserAiConsent>();
 let profileFetchInvalidationClock = 0;
 
 type E2EAiConsentSeededPayload = {
@@ -93,6 +95,18 @@ function getLocalRevokeGuard(uid: string): UserAiConsent | undefined {
 
 function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
   return { ...aiConsent };
+}
+
+function rememberE2EAiConsentSeed(uid: string, aiConsent: UserAiConsent): void {
+  if (!isE2EModeEnabled()) return;
+  e2eAiConsentSeeds.set(uid, copyAiConsent(aiConsent));
+}
+
+function getE2EAiConsentSeed(uid: string): UserAiConsent | undefined {
+  if (!isE2EModeEnabled()) return undefined;
+  const localSeed = e2eAiConsentSeeds.get(uid);
+  if (localSeed) return copyAiConsent(localSeed);
+  return resolveE2EAiConsentSeed(uid) ?? undefined;
 }
 
 function requireClientMutationId(options: ProfileMutationOptions | undefined): string {
@@ -138,6 +152,33 @@ function overlayLocalRevokeGuard(
   };
 }
 
+function overlayE2EAiConsentSeed(
+  profile: UserData,
+  uid: string,
+): UserData {
+  const aiConsent = getE2EAiConsentSeed(uid);
+  if (!aiConsent) {
+    return profile;
+  }
+
+  const currentAiConsent = profile.profile.aiConsent;
+  if (
+    currentAiConsent?.status === aiConsent.status &&
+    currentAiConsent?.grantedAt === aiConsent.grantedAt &&
+    currentAiConsent?.revokedAt === aiConsent.revokedAt
+  ) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    profile: {
+      ...profile.profile,
+      aiConsent,
+    },
+  };
+}
+
 export function getCachedUserProfile(uid: string): UserData | null | undefined {
   return profileCache.get(uid);
 }
@@ -148,6 +189,7 @@ export function clearCachedUserProfile(uid: string): void {
   profileFetchInvalidationClock += 1;
   profileFetchInvalidatedAt.set(uid, profileFetchInvalidationClock);
   localAiConsentRevokeGuards.delete(uid);
+  e2eAiConsentSeeds.delete(uid);
 }
 
 export function emitUserProfileChanged(uid: string, data: UserData | null) {
@@ -172,6 +214,7 @@ on<E2EAiConsentSeededPayload>("e2e:aiConsentSeeded", (payload) => {
   const uid = payload?.uid;
   const aiConsent = payload?.aiConsent;
   if (!uid || !aiConsent) return;
+  rememberE2EAiConsentSeed(uid, aiConsent);
   patchCachedAiConsent(uid, aiConsent);
 });
 
@@ -249,12 +292,19 @@ export async function fetchUserProfileRemote(
     if (!uid) return profile;
     if (isFetchStale(uid)) return profile;
 
+    const hadLocalRevokeGuard = Boolean(getLocalRevokeGuard(uid));
     const guardedProfile = overlayLocalRevokeGuard(profile, uid);
-    if (guardedProfile !== profile) {
-      emitUserProfileChanged(uid, guardedProfile);
+    if (hadLocalRevokeGuard && isAiConsentInactive(guardedProfile.profile.aiConsent)) {
+      rememberE2EAiConsentSeed(uid, guardedProfile.profile.aiConsent);
+    }
+    const resolvedProfile = hadLocalRevokeGuard
+      ? guardedProfile
+      : overlayE2EAiConsentSeed(guardedProfile, uid);
+    if (resolvedProfile !== profile) {
+      emitUserProfileChanged(uid, resolvedProfile);
     }
 
-    return guardedProfile;
+    return resolvedProfile;
   })();
 
   if (sessionKey) {
@@ -304,12 +354,14 @@ export async function grantAiConsentRemote(
     );
     if (e2eResponse) {
       if ("error" in e2eResponse) throw e2eResponse.error;
+      rememberE2EAiConsentSeed(uid, e2eResponse.aiConsent);
       patchCachedAiConsent(uid, e2eResponse.aiConsent);
       return e2eResponse;
     }
   }
 
   const response = await post<AiConsentResponse>("/users/me/ai-consent/grant");
+  rememberE2EAiConsentSeed(uid, response.aiConsent);
   patchCachedAiConsent(uid, response.aiConsent);
   return response;
 }
@@ -327,6 +379,7 @@ export async function revokeAiConsentRemote(
       if (isAiConsentInactive(e2eResponse.aiConsent)) {
         localAiConsentRevokeGuards.delete(uid);
       }
+      rememberE2EAiConsentSeed(uid, e2eResponse.aiConsent);
       patchCachedAiConsent(uid, e2eResponse.aiConsent);
       return e2eResponse;
     }
@@ -336,6 +389,7 @@ export async function revokeAiConsentRemote(
   if (isAiConsentInactive(response.aiConsent)) {
     localAiConsentRevokeGuards.delete(uid);
   }
+  rememberE2EAiConsentSeed(uid, response.aiConsent);
   patchCachedAiConsent(uid, response.aiConsent);
   return response;
 }

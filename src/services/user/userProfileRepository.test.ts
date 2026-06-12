@@ -23,6 +23,9 @@ const mockResolveE2EAiConsentRevoke = jest.fn<
     currentAiConsent: UserAiConsent | null | undefined,
   ) => { aiConsent: UserAiConsent } | { error: Error } | null
 >();
+const mockResolveE2EAiConsentSeed = jest.fn<
+  (uid: string) => UserAiConsent | null
+>();
 
 let mockE2EEnabled = false;
 
@@ -78,6 +81,8 @@ jest.mock("@/services/e2e/config", () => ({
 }));
 
 jest.mock("@/services/e2e/fixtures", () => ({
+  resolveE2EAiConsentSeed: (uid: string) =>
+    mockResolveE2EAiConsentSeed(uid),
   resolveE2EAiConsentGrant: (
     uid: string,
     currentAiConsent: UserAiConsent | null | undefined,
@@ -93,6 +98,7 @@ describe("services/user/userProfileRepository", () => {
     jest.clearAllMocks();
     jest.resetModules();
     mockE2EEnabled = false;
+    mockResolveE2EAiConsentSeed.mockReturnValue(null);
     mockResolveE2EAiConsentGrant.mockReturnValue(null);
     mockResolveE2EAiConsentRevoke.mockReturnValue(null);
   });
@@ -643,6 +649,80 @@ describe("services/user/userProfileRepository", () => {
     expect(mockGet).not.toHaveBeenCalled();
   });
 
+  it("applies E2E AI consent seed to remote-fetched profile data and cache", async () => {
+    mockE2EEnabled = true;
+    const grantedAiConsent: UserAiConsent = {
+      status: "granted",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: null,
+    };
+    const backendProfile = {
+      uid: "u1",
+      username: "neo",
+      profile,
+    };
+    mockResolveE2EAiConsentSeed.mockImplementation((uid) =>
+      uid === "u1" ? grantedAiConsent : null,
+    );
+    mockGet.mockResolvedValue({ profile: backendProfile });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+
+    await expect(repo.fetchUserProfileRemote("u1")).resolves.toEqual({
+      ...backendProfile,
+      profile: {
+        ...backendProfile.profile,
+        aiConsent: grantedAiConsent,
+      },
+    });
+
+    expect(mockGet).toHaveBeenCalledWith("/users/me/profile");
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(repo.getCachedUserProfile("u1")).toEqual({
+      ...backendProfile,
+      profile: {
+        ...backendProfile.profile,
+        aiConsent: grantedAiConsent,
+      },
+    });
+  });
+
+  it("applies inactive E2E AI consent seed without making consent active", async () => {
+    mockE2EEnabled = true;
+    const revokedAiConsent: UserAiConsent = {
+      status: "revoked",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: "2026-05-02T10:00:00.000Z",
+    };
+    const backendProfile = {
+      uid: "u1",
+      username: "neo",
+      profile: {
+        ...profile,
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-05-01T10:00:00Z",
+          revokedAt: null,
+        },
+      },
+    };
+    mockResolveE2EAiConsentSeed.mockReturnValue(revokedAiConsent);
+    mockGet.mockResolvedValue({ profile: backendProfile });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+
+    await expect(repo.fetchUserProfileRemote("u1")).resolves.toEqual({
+      ...backendProfile,
+      profile: {
+        ...backendProfile.profile,
+        aiConsent: revokedAiConsent,
+      },
+    });
+    expect(repo.getCachedUserProfile("u1")).toMatchObject({
+      profile: { aiConsent: revokedAiConsent },
+    });
+  });
+
   it("uses E2E AI consent grant success without calling the backend endpoint", async () => {
     mockE2EEnabled = true;
     const grantedAiConsent: UserAiConsent = {
@@ -790,6 +870,50 @@ describe("services/user/userProfileRepository", () => {
       },
     });
     expect(repo.getCachedUserProfile("u1")).toEqual(received[1]);
+  });
+
+  it("keeps local revoke guard stronger than an active E2E AI consent seed", async () => {
+    mockE2EEnabled = true;
+    const seededGrantedAiConsent: UserAiConsent = {
+      status: "granted",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: null,
+    };
+    mockResolveE2EAiConsentSeed.mockReturnValue(seededGrantedAiConsent);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+    const activeProfile = {
+      uid: "u1",
+      username: "neo",
+      profile: {
+        ...profile,
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-05-01T10:00:00Z",
+          revokedAt: null,
+        },
+      },
+    };
+    const backendProfile = {
+      ...activeProfile,
+      username: "backend-neo",
+    };
+
+    repo.emitUserProfileChanged("u1", activeProfile);
+    const localInactiveAiConsent =
+      repo.publishAiConsentRevokeLocalInactive("u1");
+    mockGet.mockResolvedValue({ profile: backendProfile });
+
+    await expect(repo.fetchUserProfileRemote("u1")).resolves.toEqual({
+      ...backendProfile,
+      profile: {
+        ...backendProfile.profile,
+        aiConsent: localInactiveAiConsent,
+      },
+    });
+    expect(repo.getCachedUserProfile("u1")).toMatchObject({
+      profile: { aiConsent: localInactiveAiConsent },
+    });
   });
 
   it("clears local revoke guard on backend-inactive profile evidence and allows grant afterward", async () => {

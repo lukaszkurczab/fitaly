@@ -107,7 +107,7 @@
       ],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
-        "Success seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess",
+        "Success seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess&aiConsent=granted",
         "Failure seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=failure",
         "No-credit seed fitaly://e2e/seed?fixture=activated-user-empty&credits=none&billing=free"
       ],
@@ -216,7 +216,7 @@
       "flows": ["e2e/maestro/release-gate/home-history-statistics-after-save.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
-        "Seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+        "Seed fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess&aiConsent=granted"
       ],
       "assertionTypes": ["visible-state", "save-propagation", "statistics-state"],
       "expectedEvidence": "Saved meal appears on Home and History, and Statistics exposes trend, kcal summary, and macro rows after save.",
@@ -236,8 +236,8 @@
       ],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
-        "Seed fitaly://e2e/seed?credits=ok&chat=success&billing=free",
-        "Platform-layout seed fitaly://e2e/seed?credits=ok&chat=success"
+        "Seed fitaly://e2e/seed?credits=ok&chat=success&billing=free&aiConsent=granted",
+        "Platform-layout seed fitaly://e2e/seed?credits=ok&chat=success&aiConsent=granted"
       ],
       "assertionTypes": ["visible-state", "dynamic-nonempty-response", "history-state", "keyboard-layout-state"],
       "expectedEvidence": "Chat accepts a prompt, displays a response/history state, and remains usable with long input/keyboard layout.",

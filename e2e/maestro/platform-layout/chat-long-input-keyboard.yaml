@@ -1,20 +1,15 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?credits=ok&chat=success"
+- openLink: "fitaly://e2e/seed?credits=ok&chat=success&aiConsent=granted"
 - assertVisible:
     id: e2e-ready-credits-ok
+- assertVisible:
+    id: e2e-ready-aiConsent-granted
 - tapOn:
     id: tab-chat
 - assertVisible:
     id: chat-screen
-- runFlow:
-    when:
-      visible:
-        id: chat-legal-accept
-    commands:
-      - tapOn:
-          id: chat-legal-accept
 - tapOn:
     id: chat-input
 - inputText: Czy możesz spokojnie podsumować mój dzisiejszy dzień pod kątem białka, kalorii i regularności posiłków? Napisz krótko, co wygląda dobrze, co warto poprawić przy kolacji i jaki jeden prosty krok zrobić teraz.

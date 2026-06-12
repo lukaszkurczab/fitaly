@@ -1,9 +1,11 @@
 appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
-- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess"
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&ai=textSuccess&aiConsent=granted"
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-aiConsent-granted
 - tapOn:
     id: tab-add-meal
 - assertVisible:

@@ -8,6 +8,7 @@ import {
   resolveE2EBarcodeLookup,
   resolveE2EBillingPurchaseResult,
   resolveE2EChatRun,
+  resolveE2EAiConsentSeed,
   resolveE2EAiConsentGrant,
   resolveE2EAiConsentRevoke,
   resolveE2ENotificationPermission,
@@ -178,6 +179,12 @@ describe("E2E fixtures", () => {
         revokedAt: "2026-05-02T10:00:00.000Z",
       },
     });
+    expect(resolveE2EAiConsentSeed("user-1")).toEqual({
+      status: "revoked",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: "2026-05-02T10:00:00.000Z",
+    });
+    expect(resolveE2EAiConsentSeed("user-2")).toBeNull();
   });
 
   it("does not mark profile AI consent seed ready without a uid", async () => {
@@ -276,6 +283,60 @@ describe("E2E fixtures", () => {
 
     expect(resolveE2EAiConsentRevoke("user-1", grantedConsent)).toEqual({
       error: expect.any(Error),
+    });
+  });
+
+  it("updates the uid-scoped AI consent seed after E2E grant and revoke mutations", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: {
+        aiConsent: "notGranted",
+        aiConsentGrant: "success",
+        aiConsentRevoke: "success",
+      },
+    });
+
+    expect(resolveE2EAiConsentSeed("user-1")).toEqual({
+      status: "not_granted",
+      grantedAt: null,
+      revokedAt: null,
+    });
+
+    const grantResult = resolveE2EAiConsentGrant("user-1", {
+      status: "not_granted",
+      grantedAt: null,
+      revokedAt: null,
+    });
+
+    expect(grantResult).toEqual({
+      aiConsent: {
+        status: "granted",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: null,
+      },
+    });
+    expect(resolveE2EAiConsentSeed("user-1")).toEqual({
+      status: "granted",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: null,
+    });
+
+    expect(
+      resolveE2EAiConsentRevoke(
+        "user-1",
+        "aiConsent" in grantResult! ? grantResult.aiConsent : null,
+      ),
+    ).toEqual({
+      aiConsent: {
+        status: "revoked",
+        grantedAt: "2026-05-01T10:00:00.000Z",
+        revokedAt: "2026-05-02T10:00:00.000Z",
+      },
+    });
+    expect(resolveE2EAiConsentSeed("user-1")).toEqual({
+      status: "revoked",
+      grantedAt: "2026-05-01T10:00:00.000Z",
+      revokedAt: "2026-05-02T10:00:00.000Z",
     });
   });
 

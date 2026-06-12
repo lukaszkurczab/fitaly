@@ -164,6 +164,7 @@ const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
 const E2E_AI_CONSENT_REVOKED_AT = "2026-05-02T10:00:00.000Z";
 let fixtureState: E2EFixtureState = {};
 let aiConsentRevokeFailureOnceConsumed = new Set<string>();
+let aiConsentSeedByUid = new Map<string, UserAiConsent>();
 
 function todayDayKey(): string {
   const now = new Date();
@@ -273,6 +274,10 @@ function aiConsentForSeed(seed: E2EAiConsentSeed): UserAiConsent {
     grantedAt: null,
     revokedAt: null,
   };
+}
+
+function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
+  return { ...aiConsent };
 }
 
 function ingredient(params: {
@@ -777,9 +782,11 @@ export async function applyE2ESeedCommand(params: {
   }
 
   if (params.uid && appliedCommand.aiConsent) {
+    const aiConsent = aiConsentForSeed(appliedCommand.aiConsent);
+    aiConsentSeedByUid.set(params.uid, aiConsent);
     emit("e2e:aiConsentSeeded", {
       uid: params.uid,
-      aiConsent: aiConsentForSeed(appliedCommand.aiConsent),
+      aiConsent,
     });
   }
 
@@ -790,6 +797,12 @@ export async function applyE2ESeedCommand(params: {
 export function getE2EFixtureState(): E2EFixtureState | null {
   if (!isE2EModeEnabled()) return null;
   return fixtureState;
+}
+
+export function resolveE2EAiConsentSeed(uid: string): UserAiConsent | null {
+  if (!isE2EModeEnabled()) return null;
+  const aiConsent = aiConsentSeedByUid.get(uid);
+  return aiConsent ? copyAiConsent(aiConsent) : null;
 }
 
 function creditsStatus(uid: string, credits: E2ECreditsSeed): AiCreditsStatus {
@@ -932,7 +945,9 @@ export function resolveE2EAiConsentGrant(
     return { error: aiConsentMutationError("grant") };
   }
 
-  return { aiConsent: aiConsentGrantedFrom(currentAiConsent) };
+  const aiConsent = aiConsentGrantedFrom(currentAiConsent);
+  aiConsentSeedByUid.set(uid, aiConsent);
+  return { aiConsent };
 }
 
 export function resolveE2EAiConsentRevoke(
@@ -953,7 +968,9 @@ export function resolveE2EAiConsentRevoke(
     }
   }
 
-  return { aiConsent: aiConsentRevokedFrom(currentAiConsent) };
+  const aiConsent = aiConsentRevokedFrom(currentAiConsent);
+  aiConsentSeedByUid.set(uid, aiConsent);
+  return { aiConsent };
 }
 
 function aiCreditsResponse(uid: string): AiTextMealAnalyzeResponse {
@@ -1334,12 +1351,14 @@ export function resolveE2EBillingPurchaseResult(
 export function __resetE2EFixturesForTests(): void {
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
+  aiConsentSeedByUid = new Map<string, UserAiConsent>();
 }
 
 export async function resetE2EFixtureState(): Promise<void> {
   if (!isE2EModeEnabled()) return;
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
+  aiConsentSeedByUid = new Map<string, UserAiConsent>();
   await AsyncStorage.removeItem(E2E_FIXTURE_STATE_KEY);
   emit("e2e:seeded", fixtureState);
 }
