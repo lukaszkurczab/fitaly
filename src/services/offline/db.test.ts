@@ -47,6 +47,30 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
     expect(mockExecSync).toHaveBeenCalledWith("PRAGMA foreign_keys = ON;");
   });
 
+  it("resets offline storage by deleting current runtime tables in one transaction", () => {
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.getDB();
+    mockExecSync.mockClear();
+
+    module.resetOfflineStorage();
+
+    expect(mockExecSync.mock.calls.map(([sql]) => sql)).toEqual([
+      "BEGIN",
+      "DELETE FROM op_queue;",
+      "DELETE FROM op_queue_dead;",
+      "DELETE FROM images;",
+      "DELETE FROM meals;",
+      "DELETE FROM my_meals;",
+      "DELETE FROM chat_messages;",
+      "DELETE FROM chat_threads;",
+      "COMMIT",
+    ]);
+  });
+
   it("migrates meals and my_meals to v8 by adding input_method and ai_meta", () => {
     mockGetFirstSync.mockReturnValue({ user_version: 7 });
     mockGetAllSync.mockImplementation((sql: string) => {

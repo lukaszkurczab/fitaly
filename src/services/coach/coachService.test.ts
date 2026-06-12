@@ -33,6 +33,20 @@ jest.mock("@/utils/debug", () => ({
 }));
 
 describe("coachService", () => {
+  function createDeferred<T>(): {
+    promise: Promise<T>;
+    resolve: (value: T) => void;
+    reject: (error: unknown) => void;
+  } {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = promiseResolve;
+      reject = promiseReject;
+    });
+    return { promise, resolve, reject };
+  }
+
   function createHealthyPayload(overrides?: Partial<CoachResponse>): CoachResponse {
     return {
       dayKey: "2026-03-18",
@@ -243,6 +257,48 @@ describe("coachService", () => {
     expect(second.coach.topInsight?.type).toBe("under_logging");
     expect(second.status).toBe("live_success");
     expect(mockGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("fences stale in-flight writes after full user cache invalidation", async () => {
+    const staleRequest = createDeferred<unknown>();
+    const stalePayload = createHealthyPayload({
+      computedAt: "2026-03-18T10:00:00Z",
+    });
+    const freshPayload = createHealthyPayload({
+      computedAt: "2026-03-18T11:00:00Z",
+    });
+    mockGet
+      .mockReturnValueOnce(staleRequest.promise)
+      .mockResolvedValueOnce(freshPayload);
+
+    const service =
+      jest.requireActual("@/services/coach/coachService") as typeof import("@/services/coach/coachService");
+
+    const stalePromise = service.getCoach("user-1", { dayKey: "2026-03-18" });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    await service.invalidateCoachCache("user-1");
+    const freshResult = await service.getCoach("user-1", {
+      dayKey: "2026-03-18",
+    });
+
+    staleRequest.resolve(stalePayload);
+    const staleResult = await stalePromise;
+    const cachedResult = await service.getCoach("user-1", {
+      dayKey: "2026-03-18",
+    });
+    const persisted = await AsyncStorage.getItem(
+      "coach:last:v1:user-1:2026-03-18",
+    );
+
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(staleResult.coach.computedAt).toBe("2026-03-18T10:00:00Z");
+    expect(freshResult.coach.computedAt).toBe("2026-03-18T11:00:00Z");
+    expect(cachedResult.source).toBe("memory");
+    expect(cachedResult.coach.computedAt).toBe("2026-03-18T11:00:00Z");
+    expect(JSON.parse(persisted ?? "{}")).toEqual(
+      expect.objectContaining({ computedAt: "2026-03-18T11:00:00Z" }),
+    );
   });
 
   it("rejects unknown insightType as invalid contract payload", async () => {

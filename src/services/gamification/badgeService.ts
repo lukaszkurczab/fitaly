@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Badge } from "@/types/badge";
 import { get, post } from "@/services/core/apiClient";
-import { createRequestDeduplicator } from "@/services/core/deduplicateRequest";
 import { emit, on } from "@/services/core/events";
 
 type BadgeListResponse = {
@@ -28,10 +27,30 @@ const premiumReconcileInFlightByUid = new Map<
   { isPremium: boolean; promise: Promise<void> }
 >();
 const badgeStreamsByUid = new Map<string, BadgeStream>();
-const dedupeBadgeListRequest = createRequestDeduplicator<string, Badge[]>();
+const badgeListInFlightByUid = new Map<string, Promise<Badge[]>>();
+const badgeRuntimeGenerationByUid = new Map<string, number>();
 
 function badgeCacheKey(uid: string) {
   return `badge:list:${uid}`;
+}
+
+function getBadgeRuntimeGeneration(uid: string): number {
+  return badgeRuntimeGenerationByUid.get(uid) ?? 0;
+}
+
+function isCurrentBadgeRuntime(uid: string, generation: number): boolean {
+  return getBadgeRuntimeGeneration(uid) === generation;
+}
+
+export function clearBadgeRuntime(uid: string | null | undefined): void {
+  if (!uid) return;
+  badgeRuntimeGenerationByUid.set(uid, getBadgeRuntimeGeneration(uid) + 1);
+  badgeListInFlightByUid.delete(uid);
+  premiumReconcileInFlightByUid.delete(uid);
+
+  const stream = badgeStreamsByUid.get(uid);
+  stream?.eventUnsubscribe?.();
+  badgeStreamsByUid.delete(uid);
 }
 
 function sortByUnlockedAtAsc(a: Badge, b: Badge): number {
@@ -94,16 +113,34 @@ async function writeBadgeCache(uid: string, items: Badge[]): Promise<void> {
 }
 
 export async function listBadges(uid: string): Promise<Badge[]> {
-  return dedupeBadgeListRequest(uid, async () => {
+  const existing = badgeListInFlightByUid.get(uid);
+  if (existing) {
+    return existing;
+  }
+
+  const generation = getBadgeRuntimeGeneration(uid);
+  const request = (async () => {
     try {
       const response = await get<BadgeListResponse>("/users/me/badges");
       const items = normalizeBadgeList(response);
-      await writeBadgeCache(uid, items);
+      if (isCurrentBadgeRuntime(uid, generation)) {
+        await writeBadgeCache(uid, items);
+      }
       return items;
     } catch {
       return readBadgeCache(uid);
     }
-  });
+  })();
+
+  badgeListInFlightByUid.set(uid, request);
+
+  try {
+    return await request;
+  } finally {
+    if (badgeListInFlightByUid.get(uid) === request) {
+      badgeListInFlightByUid.delete(uid);
+    }
+  }
 }
 
 function getOrCreateBadgeStream(uid: string): BadgeStream {
@@ -200,6 +237,7 @@ export async function unlockPremiumBadgesIfEligible(
 ) {
   if (!uid) return;
 
+  const generation = getBadgeRuntimeGeneration(uid);
   const existing = premiumReconcileInFlightByUid.get(uid);
   if (existing && existing.isPremium === isPremium) {
     await existing.promise;
@@ -210,7 +248,9 @@ export async function unlockPremiumBadgesIfEligible(
     await post("/users/me/badges/premium/reconcile", {
       isPremium,
     });
-    emit("badge:changed", { uid });
+    if (isCurrentBadgeRuntime(uid, generation)) {
+      emit("badge:changed", { uid });
+    }
   })();
 
   premiumReconcileInFlightByUid.set(uid, { isPremium, promise: request });

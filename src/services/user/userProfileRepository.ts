@@ -66,7 +66,9 @@ type ProfileMutationOptions = {
 
 const profileCache = new Map<string, UserData | null>();
 const profileFetchInFlight = new Map<string, Promise<UserData | null>>();
+const profileFetchInvalidatedAt = new Map<string, number>();
 const localAiConsentRevokeGuards = new Map<string, UserAiConsent>();
+let profileFetchInvalidationClock = 0;
 
 type E2EAiConsentSeededPayload = {
   uid?: string | null;
@@ -142,6 +144,9 @@ export function getCachedUserProfile(uid: string): UserData | null | undefined {
 
 export function clearCachedUserProfile(uid: string): void {
   profileCache.delete(uid);
+  profileFetchInFlight.delete(uid);
+  profileFetchInvalidationClock += 1;
+  profileFetchInvalidatedAt.set(uid, profileFetchInvalidationClock);
   localAiConsentRevokeGuards.delete(uid);
 }
 
@@ -221,6 +226,20 @@ export async function fetchUserProfileRemote(
     if (inFlight) return inFlight;
   }
 
+  const fetchStartedAt = profileFetchInvalidationClock;
+  const isFetchStale = (uid?: string | null): boolean => {
+    const sessionInvalidatedAt = sessionKey
+      ? profileFetchInvalidatedAt.get(sessionKey) ?? 0
+      : 0;
+    if (sessionInvalidatedAt > fetchStartedAt) {
+      return true;
+    }
+    if (uid && uid !== sessionKey) {
+      return (profileFetchInvalidatedAt.get(uid) ?? 0) > fetchStartedAt;
+    }
+    return false;
+  };
+
   const request = (async () => {
     const response = await get<{ profile: UserData | null }>("/users/me/profile");
     const profile = response.profile ?? null;
@@ -228,6 +247,7 @@ export async function fetchUserProfileRemote(
 
     const uid = profile.uid || sessionKey;
     if (!uid) return profile;
+    if (isFetchStale(uid)) return profile;
 
     const guardedProfile = overlayLocalRevokeGuard(profile, uid);
     if (guardedProfile !== profile) {

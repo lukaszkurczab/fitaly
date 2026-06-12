@@ -3,16 +3,19 @@ import {
   describe,
   expect,
   it,
+  jest,
 } from "@jest/globals";
 import {
   __hasLocalMealsStoreForTests,
   __resetLocalMealsStoreForTests,
+  clearLocalMealsRuntime,
   getLocalMealsSnapshot,
   subscribeLocalMeals,
   selectLocalMealByCloudId,
   selectLocalMealsByRange,
   upsertLocalMealSnapshot,
 } from "@/services/meals/localMealsStore";
+import { emit } from "@/services/core/events";
 import type { Meal } from "@/types/meal";
 
 const UID = "user-1";
@@ -169,5 +172,48 @@ describe("localMealsStore range selectors", () => {
     expect(selectLocalMealByCloudId(UID_B, "uid-a-meal")).toBeNull();
 
     unsubscribeB();
+  });
+
+  it("clears only the selected uid runtime store and publishes an empty active snapshot", () => {
+    upsertLocalMealSnapshot(
+      UID,
+      makeMeal({
+        mealId: "uid-a-meal",
+        cloudId: "uid-a-meal",
+      }),
+    );
+    upsertLocalMealSnapshot(
+      UID_B,
+      makeMeal({
+        userUid: UID_B,
+        mealId: "uid-b-meal",
+        cloudId: "uid-b-meal",
+      }),
+    );
+    const listenerA = jest.fn();
+    const unsubscribeA = subscribeLocalMeals(UID, listenerA);
+    const callsBeforeClear = listenerA.mock.calls.length;
+
+    clearLocalMealsRuntime(UID);
+
+    expect(listenerA).toHaveBeenCalledTimes(callsBeforeClear + 1);
+    const callsAfterClear = listenerA.mock.calls.length;
+    emit("meal:pushed", { uid: UID });
+    expect(listenerA).toHaveBeenCalledTimes(callsAfterClear);
+    expect(__hasLocalMealsStoreForTests(UID)).toBe(false);
+    expect(getLocalMealsSnapshot(UID)).toEqual({
+      meals: [],
+      loading: false,
+      version: 0,
+    });
+    expect(__hasLocalMealsStoreForTests(UID_B)).toBe(true);
+    expect(getLocalMealsSnapshot(UID_B).meals).toEqual([
+      expect.objectContaining({ cloudId: "uid-b-meal", userUid: UID_B }),
+    ]);
+    expect(selectLocalMealByCloudId(UID_B, "uid-b-meal")).toEqual(
+      expect.objectContaining({ cloudId: "uid-b-meal", userUid: UID_B }),
+    );
+
+    unsubscribeA();
   });
 });

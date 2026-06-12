@@ -42,6 +42,7 @@ const inFlightByKey = new Map<
   string,
   { promise: Promise<NutritionStateResult> }
 >();
+const cacheGenerationByKey = new Map<string, number>();
 
 function toDayKey(date: Date): string {
   const year = date.getFullYear();
@@ -314,6 +315,18 @@ function createStorageKey(uid: string, dayKey: string): string {
 
 function createStorageKeyPrefix(uid: string): string {
   return `${NUTRITION_STATE_STORAGE_KEY_PREFIX}:${uid}:`;
+}
+
+function getCacheGeneration(cacheKey: string): number {
+  return cacheGenerationByKey.get(cacheKey) ?? 0;
+}
+
+function bumpCacheGeneration(cacheKey: string): void {
+  cacheGenerationByKey.set(cacheKey, getCacheGeneration(cacheKey) + 1);
+}
+
+function isCacheGenerationCurrent(cacheKey: string, generation: number): boolean {
+  return getCacheGeneration(cacheKey) === generation;
 }
 
 function buildEndpoint(dayKey: string): string {
@@ -642,6 +655,7 @@ export async function getNutritionState(
   }
 
   const entry = {} as { promise: Promise<NutritionStateResult> };
+  const generation = getCacheGeneration(cacheKey);
   entry.promise = (async (): Promise<NutritionStateResult> => {
     try {
       const payload = await get<unknown>(buildEndpoint(dayKey), { timeout: 15_000 });
@@ -650,8 +664,10 @@ export async function getNutritionState(
         throw new Error("Invalid nutrition state payload");
       }
 
-      memoryCacheByKey.set(cacheKey, normalized);
-      await persistState(uid, dayKey, normalized);
+      if (isCacheGenerationCurrent(cacheKey, generation)) {
+        memoryCacheByKey.set(cacheKey, normalized);
+        await persistState(uid, dayKey, normalized);
+      }
 
       return {
         state: normalized,
@@ -676,7 +692,9 @@ export async function getNutritionState(
 
       const persisted = await readPersistedState(uid, dayKey);
       if (persisted) {
-        memoryCacheByKey.set(cacheKey, persisted);
+        if (isCacheGenerationCurrent(cacheKey, generation)) {
+          memoryCacheByKey.set(cacheKey, persisted);
+        }
         return {
           state: persisted,
           source: "storage",
@@ -722,7 +740,10 @@ export async function invalidateNutritionStateCache(
 
   const normalizedDayKey = options?.dayKey?.trim();
   if (normalizedDayKey) {
-    memoryCacheByKey.delete(createCacheKey(uid, normalizedDayKey));
+    const cacheKey = createCacheKey(uid, normalizedDayKey);
+    bumpCacheGeneration(cacheKey);
+    memoryCacheByKey.delete(cacheKey);
+    inFlightByKey.delete(cacheKey);
     try {
       await AsyncStorage.removeItem(createStorageKey(uid, normalizedDayKey));
     } catch {
@@ -733,7 +754,14 @@ export async function invalidateNutritionStateCache(
 
   for (const cacheKey of Array.from(memoryCacheByKey.keys())) {
     if (cacheKey.startsWith(`${uid}:`)) {
+      bumpCacheGeneration(cacheKey);
       memoryCacheByKey.delete(cacheKey);
+    }
+  }
+  for (const cacheKey of Array.from(inFlightByKey.keys())) {
+    if (cacheKey.startsWith(`${uid}:`)) {
+      bumpCacheGeneration(cacheKey);
+      inFlightByKey.delete(cacheKey);
     }
   }
 
@@ -753,4 +781,5 @@ export async function invalidateNutritionStateCache(
 export function __resetNutritionStateServiceForTests(): void {
   memoryCacheByKey.clear();
   inFlightByKey.clear();
+  cacheGenerationByKey.clear();
 }

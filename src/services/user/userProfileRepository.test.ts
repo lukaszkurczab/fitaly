@@ -224,6 +224,183 @@ describe("services/user/userProfileRepository", () => {
     await expect(userA).resolves.toEqual({ uid: "user-a", username: "neo" });
   });
 
+  it("fences stale in-flight profile fetches after clearing a uid cache", async () => {
+    let resolveStaleFetch!: (value: unknown) => void;
+    let resolveCurrentFetch!: (value: unknown) => void;
+    mockGet
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveStaleFetch = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveCurrentFetch = resolve;
+        }),
+      );
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+    const activeProfile = {
+      uid: "uid-a",
+      username: "after-reset-active",
+      profile: {
+        ...profile,
+        aiConsent: {
+          status: "granted",
+          grantedAt: "2026-05-01T10:00:00Z",
+          revokedAt: null,
+        },
+      },
+    };
+    const staleBackendProfile = {
+      ...activeProfile,
+      username: "stale-before-reset",
+    };
+    const currentBackendProfile = {
+      ...activeProfile,
+      username: "current-after-reset",
+    };
+    const received: unknown[] = [];
+
+    repo.subscribeToUserProfile({
+      uid: "uid-a",
+      onData: (data: unknown) => received.push(data),
+    });
+
+    const staleFetch = repo.fetchUserProfileRemote("uid-a");
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    repo.clearCachedUserProfile("uid-a");
+    const localInactiveAiConsent =
+      repo.publishAiConsentRevokeLocalInactive("uid-a", activeProfile);
+
+    const currentFetch = repo.fetchUserProfileRemote("uid-a");
+    const duplicateCurrentFetch = repo.fetchUserProfileRemote("uid-a");
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    resolveStaleFetch({ profile: staleBackendProfile });
+
+    await expect(staleFetch).resolves.toEqual(staleBackendProfile);
+    expect(received).toEqual([
+      {
+        ...activeProfile,
+        profile: {
+          ...activeProfile.profile,
+          aiConsent: localInactiveAiConsent,
+        },
+      },
+    ]);
+    expect(repo.getCachedUserProfile("uid-a")).toEqual(received[0]);
+
+    resolveCurrentFetch({ profile: currentBackendProfile });
+
+    await expect(currentFetch).resolves.toEqual({
+      ...currentBackendProfile,
+      profile: {
+        ...currentBackendProfile.profile,
+        aiConsent: localInactiveAiConsent,
+      },
+    });
+    await expect(duplicateCurrentFetch).resolves.toEqual({
+      ...currentBackendProfile,
+      profile: {
+        ...currentBackendProfile.profile,
+        aiConsent: localInactiveAiConsent,
+      },
+    });
+    expect(received).toEqual([
+      received[0],
+      {
+        ...currentBackendProfile,
+        profile: {
+          ...currentBackendProfile.profile,
+          aiConsent: localInactiveAiConsent,
+        },
+      },
+    ]);
+    expect(repo.getCachedUserProfile("uid-a")).toEqual(received[1]);
+
+    mockGet.mockResolvedValueOnce({
+      profile: { ...currentBackendProfile, username: "after-current-finished" },
+    });
+    await expect(repo.fetchUserProfileRemote("uid-a")).resolves.toEqual({
+      ...currentBackendProfile,
+      username: "after-current-finished",
+      profile: {
+        ...currentBackendProfile.profile,
+        aiConsent: localInactiveAiConsent,
+      },
+    });
+    expect(mockGet).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps in-flight profile fetches for other session keys independent", async () => {
+    let resolveUserA!: (value: unknown) => void;
+    let resolveUserB!: (value: unknown) => void;
+    let resolveUserANew!: (value: unknown) => void;
+    mockGet
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveUserA = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveUserB = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveUserANew = resolve;
+        }),
+      );
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const repo = require("@/services/user/userProfileRepository");
+    const { clearCachedUserProfile, fetchUserProfileRemote } = repo;
+
+    const staleUserA = fetchUserProfileRemote("uid-a");
+    const userB = fetchUserProfileRemote("uid-b");
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    clearCachedUserProfile("uid-a");
+
+    const duplicateUserB = fetchUserProfileRemote("uid-b");
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    const currentUserA = fetchUserProfileRemote("uid-a");
+    expect(mockGet).toHaveBeenCalledTimes(3);
+
+    resolveUserB({
+      profile: { uid: "uid-b", username: "trinity" },
+    });
+    await expect(userB).resolves.toEqual({
+      uid: "uid-b",
+      username: "trinity",
+    });
+    await expect(duplicateUserB).resolves.toEqual({
+      uid: "uid-b",
+      username: "trinity",
+    });
+
+    resolveUserA({
+      profile: { uid: "uid-a", username: "stale-neo" },
+    });
+    resolveUserANew({
+      profile: { uid: "uid-a", username: "current-neo" },
+    });
+
+    await expect(staleUserA).resolves.toEqual({
+      uid: "uid-a",
+      username: "stale-neo",
+    });
+    await expect(currentUserA).resolves.toEqual({
+      uid: "uid-a",
+      username: "current-neo",
+    });
+  });
+
   it("clears in-memory profile cache for a uid", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const repo = require("@/services/user/userProfileRepository");

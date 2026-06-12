@@ -35,6 +35,7 @@ export const COACH_STORAGE_KEY_PREFIX = "coach:last:v1";
 
 const memoryCacheByKey = new Map<string, CoachResponse>();
 const inFlightByKey = new Map<string, { promise: Promise<CoachResult> }>();
+const cacheGenerationByKey = new Map<string, number>();
 
 function toDayKey(date: Date): string {
   const year = date.getFullYear();
@@ -66,6 +67,18 @@ function createStorageKey(uid: string, dayKey: string): string {
 
 function createStorageKeyPrefix(uid: string): string {
   return `${COACH_STORAGE_KEY_PREFIX}:${uid}:`;
+}
+
+function getCacheGeneration(cacheKey: string): number {
+  return cacheGenerationByKey.get(cacheKey) ?? 0;
+}
+
+function bumpCacheGeneration(cacheKey: string): void {
+  cacheGenerationByKey.set(cacheKey, getCacheGeneration(cacheKey) + 1);
+}
+
+function isCacheGenerationCurrent(cacheKey: string, generation: number): boolean {
+  return getCacheGeneration(cacheKey) === generation;
 }
 
 function buildEndpoint(dayKey: string): string {
@@ -344,6 +357,7 @@ async function buildCachedCoachResult(params: {
   dayKey: string;
   error: unknown;
   status: Extract<CoachResultStatus, "stale_cache" | "invalid_payload">;
+  generation?: number;
 }): Promise<CoachResult | null> {
   const cacheKey = createCacheKey(params.uid, params.dayKey);
   const memory = memoryCacheByKey.get(cacheKey);
@@ -360,7 +374,12 @@ async function buildCachedCoachResult(params: {
 
   const persisted = await readPersistedCoach(params.uid, params.dayKey);
   if (persisted) {
-    memoryCacheByKey.set(cacheKey, persisted);
+    if (
+      params.generation === undefined ||
+      isCacheGenerationCurrent(cacheKey, params.generation)
+    ) {
+      memoryCacheByKey.set(cacheKey, persisted);
+    }
     return buildCoachResult({
       coach: persisted,
       source: "storage",
@@ -413,6 +432,7 @@ export async function getCoach(
   }
 
   const entry = {} as { promise: Promise<CoachResult> };
+  const generation = getCacheGeneration(cacheKey);
   entry.promise = (async (): Promise<CoachResult> => {
     try {
       const payload = await get<unknown>(buildEndpoint(dayKey), { timeout: 15_000 });
@@ -421,8 +441,10 @@ export async function getCoach(
         throw createInvalidCoachPayloadError("Invalid coach contract payload", payload);
       }
 
-      memoryCacheByKey.set(cacheKey, normalized);
-      await persistCoach(uid, dayKey, normalized);
+      if (isCacheGenerationCurrent(cacheKey, generation)) {
+        memoryCacheByKey.set(cacheKey, normalized);
+        await persistCoach(uid, dayKey, normalized);
+      }
 
       return buildCoachResult({
         coach: normalized,
@@ -444,6 +466,7 @@ export async function getCoach(
         dayKey,
         error,
         status: isInvalidPayload ? "invalid_payload" : "stale_cache",
+        generation,
       });
       if (cached) {
         return cached;
@@ -485,7 +508,10 @@ export async function invalidateCoachCache(
 
   const normalizedDayKey = options?.dayKey?.trim();
   if (normalizedDayKey) {
-    memoryCacheByKey.delete(createCacheKey(uid, normalizedDayKey));
+    const cacheKey = createCacheKey(uid, normalizedDayKey);
+    bumpCacheGeneration(cacheKey);
+    memoryCacheByKey.delete(cacheKey);
+    inFlightByKey.delete(cacheKey);
     try {
       await AsyncStorage.removeItem(createStorageKey(uid, normalizedDayKey));
     } catch {
@@ -496,7 +522,14 @@ export async function invalidateCoachCache(
 
   for (const cacheKey of Array.from(memoryCacheByKey.keys())) {
     if (cacheKey.startsWith(`${uid}:`)) {
+      bumpCacheGeneration(cacheKey);
       memoryCacheByKey.delete(cacheKey);
+    }
+  }
+  for (const cacheKey of Array.from(inFlightByKey.keys())) {
+    if (cacheKey.startsWith(`${uid}:`)) {
+      bumpCacheGeneration(cacheKey);
+      inFlightByKey.delete(cacheKey);
     }
   }
 
@@ -516,4 +549,5 @@ export async function invalidateCoachCache(
 export function __resetCoachServiceForTests(): void {
   memoryCacheByKey.clear();
   inFlightByKey.clear();
+  cacheGenerationByKey.clear();
 }
