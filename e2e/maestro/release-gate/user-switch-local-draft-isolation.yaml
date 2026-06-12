@@ -1,0 +1,131 @@
+appId: com.lkurczab.fitaly
+env:
+  E2E_EMAIL: e2e@example.com
+  E2E_PASSWORD: Test@1234
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-close-button
+- assertVisible:
+    id: meal-add-method-close-button
+- tapOn:
+    id: meal-add-method-close-button
+- assertVisible:
+    id: tab-profile
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: account-logout-row
+    direction: DOWN
+- tapOn:
+    id: account-logout-row
+- assertVisible:
+    id: account-logout-confirm-button
+- tapOn:
+    id: account-logout-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: login-email-input
+    timeout: 15000
+- assertVisible:
+    id: login-screen
+- tapOn:
+    id: login-register-link
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
+- tapOn:
+    id: register-username-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_USERNAME}
+- tapOn:
+    id: register-email-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_EMAIL}
+- tapOn:
+    id: register-password-visibility-toggle
+- tapOn:
+    id: register-confirm-password-visibility-toggle
+- tapOn:
+    id: register-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    id: register-confirm-password-input
+- eraseText
+- inputText: ${E2E_DISPOSABLE_PASSWORD}
+- tapOn:
+    point: "87%,89%"
+- tapOn:
+    id: register-terms-checkbox
+- tapOn:
+    id: register-submit-button
+- extendedWaitUntil:
+    visible:
+      id: onboarding-screen
+    timeout: 30000
+- assertVisible:
+    id: onboarding-step-1
+- scrollUntilVisible:
+    element:
+      id: onboarding-weight-input
+    direction: DOWN
+- tapOn:
+    id: onboarding-weight-input
+- eraseText
+- inputText: "78"
+- tapOn:
+    id: onboarding-height-input
+- eraseText
+- inputText: "178"
+- tapOn:
+    id: onboarding-age-input
+- eraseText
+- inputText: "34"
+- tapOn:
+    id: onboarding-step-1-next-button
+- assertVisible:
+    id: onboarding-step-2
+- tapOn:
+    id: onboarding-step-2-next-button
+- assertVisible:
+    id: onboarding-step-3
+- tapOn:
+    id: onboarding-step-3-skip-button
+- assertVisible:
+    id: onboarding-confirm-modal
+- tapOn:
+    id: onboarding-confirm-primary-button
+- assertVisible:
+    id: onboarding-step-4
+- tapOn:
+    id: onboarding-step-4-submit-button
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- assertVisible:
+    id: tab-home
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- assertNotVisible:
+    id: resume-draft-sheet
