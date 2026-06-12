@@ -5,12 +5,14 @@ import {
   getAuth,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  signOut,
   verifyBeforeUpdateEmail,
   updatePassword,
 } from "@react-native-firebase/auth";
 import { getApp } from "@react-native-firebase/app";
 import { v4 as uuidv4 } from "uuid";
 import { get, post } from "@/services/core/apiClient";
+import { logError } from "@/services/core/errorLogger";
 import { parseUserData } from "./profile.dto";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { claimUsername } from "@/services/user/usernameService";
@@ -22,7 +24,6 @@ import {
   mergeUserProfileRemote,
   uploadUserAvatarRemote,
 } from "@/services/user/userProfileRepository";
-import { isE2EModeEnabled } from "@/services/e2e/config";
 
 function requireCurrentUser(
   user: FirebaseAuthTypes.User | null
@@ -48,6 +49,24 @@ function normalizeInitialLanguage(language: string | null | undefined): "en" | "
 
 function newProfileMutationId(kind: string, uid?: string | null): string {
   return `profile-direct:${kind}:${uid || "unknown"}:${uuidv4()}`;
+}
+
+async function resetAccountDeleteRuntime(
+  uid: string,
+  primaryError?: unknown,
+): Promise<void> {
+  try {
+    await resetUserRuntime(uid, { reason: "delete_account" });
+  } catch (resetError) {
+    logError(
+      "deleteAccount: failed runtime reset after account delete",
+      { uid, preservingPrimaryError: Boolean(primaryError) },
+      resetError,
+    );
+    if (!primaryError) {
+      throw resetError;
+    }
+  }
 }
 
 export async function getUserLocal(): Promise<UserData | null> {
@@ -160,22 +179,32 @@ export async function deleteAccountService({
 }) {
   const auth = getAuth(getApp());
   const current = requireCurrentUser(auth.currentUser);
-  const currentEmail = current.email ?? "";
-
-  if (
-    isE2EModeEnabled() &&
-    /^fitaly-e2e-[^@]+@example\.com$/i.test(currentEmail)
-  ) {
-    await current.delete();
-    await resetUserRuntime(uid, { reason: "delete_account" });
-    return;
-  }
 
   const cred = EmailAuthProvider.credential(current.email!, password);
   await reauthenticateWithCredential(current, cred);
   await post("/users/me/delete");
-  await current.delete();
-  await resetUserRuntime(uid, { reason: "delete_account" });
+
+  let deleteError: unknown = null;
+  try {
+    await current.delete();
+  } catch (error) {
+    deleteError = error;
+    try {
+      await signOut(auth);
+    } catch (signOutError) {
+      logError(
+        "deleteAccount: failed signOut after Firebase Auth delete failure",
+        { uid },
+        signOutError,
+      );
+    }
+  }
+
+  await resetAccountDeleteRuntime(uid, deleteError);
+
+  if (deleteError) {
+    throw deleteError;
+  }
 }
 
 export async function initializeUserOnboardingProfile(
