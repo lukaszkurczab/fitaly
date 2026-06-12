@@ -45,6 +45,7 @@
     "e2e:notifications-retention": "node scripts/e2e/run-suite.mjs notifications-retention",
     "e2e:share": "node scripts/e2e/run-suite.mjs share",
     "e2e:platform-layout": "node scripts/e2e/run-suite.mjs platform-layout",
+    "e2e:coverage:check": "node scripts/e2e/validate-release-coverage.mjs",
     "e2e:visual-audit": "node scripts/e2e/run-visual-suite.mjs",
     "e2e:full-review": "node scripts/e2e/run-suite.mjs full-review --continue-on-failure"
   },
