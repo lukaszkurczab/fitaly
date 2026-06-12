@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { RuntimeConfig } from "@/services/core/runtimeConfig";
 
 const mockSentryCaptureException = jest.fn();
+const mockSentryCaptureMessage = jest.fn();
 const mockApiPost = jest.fn();
 const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
 
@@ -28,6 +29,7 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
 
 jest.mock("@sentry/react-native", () => ({
   captureException: (...args: unknown[]) => mockSentryCaptureException(...args),
+  captureMessage: (...args: unknown[]) => mockSentryCaptureMessage(...args),
 }));
 
 jest.mock("@/services/core/apiClient", () => ({
@@ -101,6 +103,43 @@ describe("errorLogger", () => {
       threadId: "thread-1",
       endpoint: "/users/me/profile",
       requestId: "railway-request-1",
+    });
+  });
+
+  it("sanitizes captureMessage text and extra before sentry capture", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { captureMessage } = require("@/services/core/errorLogger");
+
+    captureMessage(
+      "message: raw user text; email=user@example.com path=meals/user-1/image.jpg /api/v1/meals?token=secret",
+      {
+        userUid: "user-1",
+        feature: "chat",
+        endpoint: "/api/v1/chat?token=secret",
+        prompt: "raw prompt",
+        unsafe: "drop-me",
+        token: "drop-me-too",
+      },
+    );
+
+    expect(mockSentryCaptureMessage).toHaveBeenCalledTimes(1);
+    const [message, options] = mockSentryCaptureMessage.mock.calls[0] as [
+      string,
+      { extra?: Record<string, unknown> },
+    ];
+
+    expect(message).toContain("message=[redacted-content]");
+    expect(message).toContain("[redacted-email]");
+    expect(message).toContain("[redacted-storage-path]");
+    expect(message).toContain("/api/v1/meals?[redacted-query]");
+    expect(message).not.toContain("raw user text");
+    expect(message).not.toContain("user@example.com");
+    expect(message).not.toContain("meals/user-1/image.jpg");
+    expect(message).not.toContain("token=secret");
+    expect(options.extra).toEqual({
+      userUid: "user-1",
+      feature: "chat",
+      endpoint: "/api/v1/chat?[redacted-query]",
     });
   });
 });

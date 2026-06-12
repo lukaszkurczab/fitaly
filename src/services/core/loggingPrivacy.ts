@@ -49,8 +49,20 @@ const SENSITIVE_KEY_MARKERS = [
 
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi;
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g;
+const PROVIDER_SECRET_PATTERN =
+  /\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{10,}|AIza[A-Za-z0-9_-]{20,}|(?:AKIA|ASIA)[A-Z0-9]{16})\b/g;
 const SECRET_ASSIGNMENT_PATTERN =
-  /\b(authorization|cookie|token|password)\s*[:=]\s*[^\s,;]+/gi;
+  /\b(authorization|cookie|token|password|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|secret|client[_-]?secret)\s*[:=]\s*("[^"]*"|'[^']*'|[^\s,;]+)/gi;
+const RAW_CONTENT_ASSIGNMENT_PATTERN =
+  /\b(prompt|message|text|raw(?:[_-]?body|\s+body)?|body)\s*[:=]\s*("[^"]*"|'[^']*'|[^\n\r,;]+)/gi;
+const FIREBASE_STORAGE_URL_PATTERN =
+  /\b(?:https?:\/\/firebasestorage\.googleapis\.com\/[^\s,;]+|gs:\/\/[^\s,;]+)/gi;
+const STORAGE_PATH_PATTERN =
+  /\b(?:meals|mealTemplates|avatars|feedback|feedbacks)\/[^\s?#,;]+/g;
+const ENCODED_STORAGE_PATH_PATTERN =
+  /\b(?:meals|mealTemplates|avatars|feedback|feedbacks)%2F[^\s?#,;]+/gi;
+const URL_QUERY_PATTERN = /((?:https?:\/\/|\/)[^\s?#]+)\?[^#\s,;]*(#[^\s,;]*)?/g;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -70,9 +82,16 @@ function truncate(value: string, maxLength: number): string {
 
 export function redactSensitiveText(value: string): string {
   return value
+    .replace(FIREBASE_STORAGE_URL_PATTERN, "[redacted-storage-url]")
+    .replace(ENCODED_STORAGE_PATH_PATTERN, "[redacted-storage-path]")
+    .replace(STORAGE_PATH_PATTERN, "[redacted-storage-path]")
+    .replace(URL_QUERY_PATTERN, "$1?[redacted-query]$2")
     .replace(EMAIL_PATTERN, "[redacted-email]")
     .replace(BEARER_PATTERN, "Bearer [redacted]")
-    .replace(SECRET_ASSIGNMENT_PATTERN, "$1=[redacted]");
+    .replace(JWT_PATTERN, "[redacted-secret]")
+    .replace(PROVIDER_SECRET_PATTERN, "[redacted-secret]")
+    .replace(SECRET_ASSIGNMENT_PATTERN, "$1=[redacted]")
+    .replace(RAW_CONTENT_ASSIGNMENT_PATTERN, "$1=[redacted-content]");
 }
 
 function toSafePrimitive(value: unknown, maxStringLength: number): Primitive | undefined {
