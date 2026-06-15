@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import { isOfflineNetState } from "@/services/core/networkState";
+import { isE2EForcedOffline } from "@/services/e2e/connectivityOverride";
 import {
   INGREDIENT_PRODUCT_SEARCH_MIN_QUERY_LENGTH,
   normalizeIngredientProductSearchQuery,
@@ -144,7 +145,7 @@ export async function searchIngredientProducts(
   }
 
   const net = await NetInfo.fetch().catch(() => null);
-  if (net && isOfflineNetState(net)) {
+  if (isE2EForcedOffline() || (net && isOfflineNetState(net))) {
     return readCacheResult({
       uid: params.uid,
       query: normalizedQuery,

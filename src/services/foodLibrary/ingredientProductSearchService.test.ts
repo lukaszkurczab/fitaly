@@ -8,6 +8,7 @@ const mockNetInfoFetch = jest.fn<() => Promise<{ isConnected: boolean }>>();
 const mockSearchRemote = jest.fn<(...args: unknown[]) => Promise<IngredientProductSearchResponse>>();
 const mockReadProjection = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockReplaceProjection = jest.fn<(...args: unknown[]) => Promise<void>>();
+let mockE2EForcedOffline = false;
 
 jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
@@ -31,6 +32,10 @@ jest.mock("./ingredientProductSearchProjectionRepository", () => ({
     mockReadProjection(...args),
   replaceIngredientProductSearchProjection: (...args: unknown[]) =>
     mockReplaceProjection(...args),
+}));
+
+jest.mock("@/services/e2e/connectivityOverride", () => ({
+  isE2EForcedOffline: () => mockE2EForcedOffline,
 }));
 
 function sampleSearchRow(
@@ -114,6 +119,7 @@ describe("ingredientProductSearchService", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockE2EForcedOffline = false;
     mockNetInfoFetch.mockResolvedValue({ isConnected: true });
     mockReadProjection.mockResolvedValue(sampleProjection({ items: [] }));
     mockReplaceProjection.mockResolvedValue(undefined);
@@ -251,6 +257,26 @@ describe("ingredientProductSearchService", () => {
     ).resolves.toEqual(
       expect.objectContaining({ status: "stale", source: "cache", isStale: true }),
     );
+  });
+
+  it("honors the e2e forced-offline override for deterministic offline evidence", async () => {
+    const service =
+      jest.requireActual<typeof import("./ingredientProductSearchService")>(
+        "./ingredientProductSearchService",
+      );
+    mockE2EForcedOffline = true;
+    mockNetInfoFetch.mockResolvedValueOnce({ isConnected: true });
+    mockReadProjection.mockResolvedValueOnce(sampleProjection({ items: [] }));
+
+    await expect(
+      service.searchIngredientProducts({ uid: "user-1", query: "missing" }),
+    ).resolves.toEqual(expect.objectContaining({ status: "offline_no_cache" }));
+
+    expect(mockReadProjection).toHaveBeenCalledWith({
+      uid: "user-1",
+      query: "missing",
+    });
+    expect(mockSearchRemote).not.toHaveBeenCalled();
   });
 
   it("falls back to cache when remote fails", async () => {
