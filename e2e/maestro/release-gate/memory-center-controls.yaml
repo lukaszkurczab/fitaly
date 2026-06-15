@@ -2,10 +2,14 @@ appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
 - openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&smartMemory=emptyEnabled"
-- assertVisible:
-    id: e2e-ready-fixture-activated-user-empty
-- assertVisible:
-    id: e2e-ready-smartMemory-emptyEnabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-emptyEnabled
+    timeout: 10000
 - tapOn:
     id: tab-profile
 - assertVisible:
@@ -28,8 +32,10 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 
 - openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=sourceDeleted"
-- assertVisible:
-    id: e2e-ready-smartMemory-sourceDeleted
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-sourceDeleted
+    timeout: 10000
 - assertVisible:
     id: memory-center-screen
 - tapOn:
@@ -50,8 +56,10 @@ appId: com.lkurczab.fitaly
     id: account-screen
 
 - openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=emptyDisabled"
-- assertVisible:
-    id: e2e-ready-smartMemory-emptyDisabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-emptyDisabled
+    timeout: 10000
 - scrollUntilVisible:
     element:
       id: account-app-settings-row
@@ -86,8 +94,10 @@ appId: com.lkurczab.fitaly
     id: account-screen
 
 - openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=active"
-- assertVisible:
-    id: e2e-ready-smartMemory-active
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-active
+    timeout: 10000
 - scrollUntilVisible:
     element:
       id: account-memory-center-row

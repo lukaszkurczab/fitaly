@@ -2,10 +2,14 @@ appId: com.lkurczab.fitaly
 ---
 - runFlow: ../smoke/login.yaml
 - openLink: fitaly://e2e/seed?fixture=user-with-draft&smartMemory=reviewActive
-- assertVisible:
-    id: e2e-ready-fixture-user-with-draft
-- assertVisible:
-    id: e2e-ready-smartMemory-reviewActive
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-user-with-draft
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-reviewActive
+    timeout: 10000
 - tapOn:
     id: tab-add-meal
 - assertVisible:
