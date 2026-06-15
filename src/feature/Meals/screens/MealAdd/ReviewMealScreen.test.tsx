@@ -77,6 +77,7 @@ function createRuntimeConfig(
     sentryProject: "",
     revenuecatIosKey: "",
     revenuecatAndroidKey: "",
+    firebaseAuthEmulatorHost: "",
     ...overrides,
   };
 }

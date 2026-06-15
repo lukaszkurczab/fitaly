@@ -20,6 +20,7 @@ export type RuntimeConfig = {
   sentryProject: string;
   revenuecatIosKey: string;
   revenuecatAndroidKey: string;
+  firebaseAuthEmulatorHost: string;
 };
 
 function normalizeString(value: unknown): string {
@@ -72,6 +73,7 @@ export function getRuntimeConfigFromExtra(extra: unknown): RuntimeConfig {
     sentryProject: normalizeString(record.sentryProject),
     revenuecatIosKey: normalizeString(record.revenuecatIosKey),
     revenuecatAndroidKey: normalizeString(record.revenuecatAndroidKey),
+    firebaseAuthEmulatorHost: normalizeString(record.firebaseAuthEmulatorHost),
   };
 }
 

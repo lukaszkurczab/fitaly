@@ -133,6 +133,9 @@ export default {
       ),
       debugOcr: (process.env.DEBUG_OCR || "false").toLowerCase() === "true",
       e2e: (process.env.E2E || "").toLowerCase() === "true",
+      firebaseAuthEmulatorHost: normalizeEnvString(
+        process.env.EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST,
+      ),
       e2eMockChatReply:
         process.env.E2E_MOCK_CHAT_REPLY ||
         "E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day.",

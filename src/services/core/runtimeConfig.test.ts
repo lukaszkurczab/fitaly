@@ -14,6 +14,7 @@ describe("runtimeConfig", () => {
         reviewMemoryExplanationEnabled: "true",
         billingDisabled: "true",
         sentryEnvironment: "production",
+        firebaseAuthEmulatorHost: " http://127.0.0.1:9099 ",
       }),
     ).toMatchObject({
       apiBaseUrl: "https://api.example.com",
@@ -24,6 +25,7 @@ describe("runtimeConfig", () => {
       reviewMemoryExplanationEnabled: true,
       billingDisabled: true,
       sentryEnvironment: "production",
+      firebaseAuthEmulatorHost: "http://127.0.0.1:9099",
     });
   });
 
@@ -36,6 +38,7 @@ describe("runtimeConfig", () => {
       billingDisabled: false,
       apiVersion: "v1",
       sentryEnvironment: "development",
+      firebaseAuthEmulatorHost: "",
     });
   });
 
