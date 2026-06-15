@@ -346,6 +346,8 @@ function MealDetailsFormScreenInner({
 
       <IngredientEditorModal
         visible={ingredientDraft !== null}
+        uid={uid}
+        locale={locale}
         ingredientDraft={ingredientDraft}
         editingIngredientIndex={editingIngredientIndex}
         onClose={handleCloseIngredientEditor}

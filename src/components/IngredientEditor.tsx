@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -20,6 +21,11 @@ import { NumberInput } from "./NumberInput";
 import { TextInput } from "./TextInput";
 import { Button } from "./Button";
 import { Modal as AppModal } from "./Modal";
+import { searchIngredientProducts } from "@/services/foodLibrary/ingredientProductSearchService";
+import type {
+  IngredientProductSearchResult,
+  IngredientProductSearchRow,
+} from "@/types/foodLibrary";
 
 type Props = {
   initial: Ingredient;
@@ -33,6 +39,9 @@ type Props = {
   showDelete?: boolean;
   testIDPrefix?: string;
   showSheetActions?: boolean;
+  autocompleteUid?: string | null;
+  autocompleteLocale?: string | null;
+  autocompleteDebounceMs?: number;
 };
 
 const parseNum = (v: string) => {
@@ -43,10 +52,65 @@ const parseNum = (v: string) => {
 type NumericIngredientKey = "amount" | "protein" | "carbs" | "fat" | "kcal";
 
 const AMOUNT_MAX_DECIMALS = 1;
+const AUTOCOMPLETE_LIMIT = 6;
 
 export type IngredientEditorHandle = {
   submit: () => void;
 };
+
+type IngredientUnit = NonNullable<Ingredient["unit"]>;
+
+function toIngredientUnit(unit: string | null | undefined): IngredientUnit | null {
+  return unit === "g" || unit === "ml" ? unit : null;
+}
+
+function roundMacro(value: number): number {
+  return Number(value.toFixed(1));
+}
+
+function ingredientFromSearchRow(
+  currentId: string,
+  row: IngredientProductSearchRow,
+): Ingredient | null {
+  const unit = toIngredientUnit(row.defaultServing.unit);
+  if (!unit || !row.nutritionPer100 || row.nutritionPer100.unit !== unit) {
+    return null;
+  }
+
+  const amount = row.defaultServing.quantity;
+  const factor = amount / 100;
+  return {
+    id: currentId,
+    name: row.displayName,
+    amount,
+    unit,
+    protein: roundMacro(row.nutritionPer100.protein * factor),
+    carbs: roundMacro(row.nutritionPer100.carbs * factor),
+    fat: roundMacro(row.nutritionPer100.fat * factor),
+    kcal: Math.round(row.nutritionPer100.kcal * factor),
+  };
+}
+
+function autocompleteStatusTestID(
+  result: IngredientProductSearchResult | null,
+): string | null {
+  if (!result) return null;
+  if (result.status === "no_results") return "ingredient-autocomplete-no-results";
+  if (
+    result.status === "offline_no_cache" ||
+    result.status === "offline_warm_cache"
+  ) {
+    return "ingredient-autocomplete-offline";
+  }
+  if (
+    result.status === "stale" ||
+    result.status === "warning" ||
+    result.status === "backend_degraded"
+  ) {
+    return "ingredient-autocomplete-warning";
+  }
+  return null;
+}
 
 const IngredientEditorComponent = (
   {
@@ -61,6 +125,9 @@ const IngredientEditorComponent = (
     showDelete = true,
     testIDPrefix = "ingredient-editor",
     showSheetActions = true,
+    autocompleteUid = null,
+    autocompleteLocale = null,
+    autocompleteDebounceMs = 250,
   }: Props,
   ref: React.ForwardedRef<IngredientEditorHandle>,
 ) => {
@@ -78,9 +145,14 @@ const IngredientEditorComponent = (
   const [fat, setFat] = useState(String(initial.fat ?? 0));
   const [kcal, setKcal] = useState(String(initial.kcal ?? 0));
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [autocompleteResult, setAutocompleteResult] =
+    useState<IngredientProductSearchResult | null>(null);
+  const [autocompleteLoading, setAutocompleteLoading] = useState(false);
 
   const [nameTouched, setNameTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
+  const autocompleteRequestId = useRef(0);
+  const selectedAutocompleteName = useRef<string | null>(null);
 
   const baseline = useRef({
     amount: Number(initial.amount ?? 0),
@@ -106,6 +178,22 @@ const IngredientEditorComponent = (
           defaultValue: "Add an approximate protein, carbs or fat value.",
         })
       : null;
+  const autocompleteSuggestions = useMemo(
+    () =>
+      (autocompleteResult?.items ?? [])
+        .map((item) => ({
+          item,
+          ingredient: ingredientFromSearchRow(initial.id, item),
+        }))
+        .filter(
+          (entry): entry is {
+            item: IngredientProductSearchRow;
+            ingredient: Ingredient;
+          } => entry.ingredient !== null,
+        )
+        .slice(0, 4),
+    [autocompleteResult?.items, initial.id],
+  );
 
   const syncBaselineFromState = (keepAmount = true) => {
     const amt = keepAmount ? baseline.current.amount : parseNum(amount) || 0;
@@ -311,6 +399,76 @@ const IngredientEditorComponent = (
     onChangePartial?.({ name: next });
   };
 
+  const applyIngredientSearchSuggestion = useCallback(
+    (ingredient: Ingredient) => {
+      setName(ingredient.name);
+      setAmount(String(ingredient.amount));
+      setProtein(String(ingredient.protein));
+      setCarbs(String(ingredient.carbs));
+      setFat(String(ingredient.fat));
+      setKcal(String(ingredient.kcal));
+      setRecalcPromptVisible(false);
+      setAutocompleteResult(null);
+      setAutocompleteLoading(false);
+      selectedAutocompleteName.current = ingredient.name;
+      onChangePartial?.({
+        name: ingredient.name,
+        amount: ingredient.amount,
+        protein: ingredient.protein,
+        carbs: ingredient.carbs,
+        fat: ingredient.fat,
+        kcal: ingredient.kcal,
+      });
+      baseline.current = {
+        amount: ingredient.amount,
+        protein: ingredient.protein,
+        carbs: ingredient.carbs,
+        fat: ingredient.fat,
+        kcal: ingredient.kcal,
+      };
+    },
+    [onChangePartial],
+  );
+
+  const autocompleteStatus = useMemo(() => {
+    const testID = autocompleteStatusTestID(autocompleteResult);
+    if (!testID || !autocompleteResult) return null;
+    if (autocompleteResult.status === "no_results") {
+      return {
+        testID,
+        label: t("ingredient_search_no_results", { ns: "meals" }),
+      };
+    }
+    if (autocompleteResult.status === "offline_no_cache") {
+      return {
+        testID,
+        label: t("ingredient_search_offline_no_cache", { ns: "meals" }),
+      };
+    }
+    if (autocompleteResult.status === "offline_warm_cache") {
+      return {
+        testID,
+        label: t("ingredient_search_offline_warm_cache", { ns: "meals" }),
+      };
+    }
+    if (autocompleteResult.status === "stale") {
+      return {
+        testID,
+        label: t("ingredient_search_stale", { ns: "meals" }),
+      };
+    }
+    if (autocompleteResult.status === "warning") {
+      return {
+        testID,
+        label: t("ingredient_search_warning", { ns: "meals" }),
+      };
+    }
+    return {
+      testID,
+      label: t("ingredient_search_backend_degraded", { ns: "meals" }),
+    };
+  }, [autocompleteResult, t]);
+
   const renderSheetActions = () => (
     <View style={styles.sheetActions}>
       <Button
@@ -499,6 +657,62 @@ const IngredientEditorComponent = (
     return () => sub.remove();
   }, [onChangePartial]);
 
+  useEffect(() => {
+    if (!autocompleteUid || !isSheetVariant) {
+      setAutocompleteResult(null);
+      setAutocompleteLoading(false);
+      return;
+    }
+
+    const query = name.trim();
+    if (query.length < 2) {
+      setAutocompleteResult(null);
+      setAutocompleteLoading(false);
+      return;
+    }
+    if (selectedAutocompleteName.current === query) {
+      selectedAutocompleteName.current = null;
+      setAutocompleteResult(null);
+      setAutocompleteLoading(false);
+      return;
+    }
+
+    const requestId = autocompleteRequestId.current + 1;
+    autocompleteRequestId.current = requestId;
+    setAutocompleteLoading(true);
+
+    const timeoutId = setTimeout(() => {
+      searchIngredientProducts({
+        uid: autocompleteUid,
+        query,
+        locale: autocompleteLocale,
+        limit: AUTOCOMPLETE_LIMIT,
+      })
+        .then((result) => {
+          if (autocompleteRequestId.current !== requestId) return;
+          setAutocompleteResult(result);
+        })
+        .catch(() => {
+          if (autocompleteRequestId.current !== requestId) return;
+          setAutocompleteResult(null);
+        })
+        .finally(() => {
+          if (autocompleteRequestId.current !== requestId) return;
+          setAutocompleteLoading(false);
+        });
+    }, autocompleteDebounceMs);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [
+    autocompleteDebounceMs,
+    autocompleteLocale,
+    autocompleteUid,
+    isSheetVariant,
+    name,
+  ]);
+
   return (
     <View
       style={[styles.box, isSheetVariant ? styles.sheetBox : null]}
@@ -528,6 +742,71 @@ const IngredientEditorComponent = (
 
         {errors.name && nameTouched ? (
           <Text style={styles.errText}>{errors.name}</Text>
+        ) : null}
+
+        {isSheetVariant &&
+        (autocompleteLoading ||
+          autocompleteSuggestions.length > 0 ||
+          autocompleteStatus) ? (
+          <View
+            style={styles.autocompletePanel}
+            testID={`${testIDPrefix}-autocomplete-panel`}
+          >
+            {autocompleteLoading ? (
+              <Text
+                style={styles.autocompleteStatus}
+                testID={`${testIDPrefix}-autocomplete-loading`}
+              >
+                {t("ingredient_search_loading", { ns: "meals" })}
+              </Text>
+            ) : null}
+
+            {!autocompleteLoading && autocompleteStatus ? (
+              <Text
+                style={styles.autocompleteStatus}
+                testID={autocompleteStatus.testID}
+              >
+                {autocompleteStatus.label}
+              </Text>
+            ) : null}
+
+            {autocompleteSuggestions.length > 0 ? (
+              <View testID="ingredient-autocomplete-results">
+                {autocompleteSuggestions.map(({ item, ingredient }, index) => (
+                  <Pressable
+                    key={item.ingredientProductId}
+                    testID={`ingredient-autocomplete-row-${index}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("ingredient_search_select_option", {
+                      ns: "meals",
+                      name: item.displayName,
+                    })}
+                    onPress={() => applyIngredientSearchSuggestion(ingredient)}
+                    style={styles.autocompleteOption}
+                  >
+                    <View style={styles.autocompleteOptionText}>
+                      <Text style={styles.autocompleteName} numberOfLines={1}>
+                        {item.displayName}
+                      </Text>
+                      <Text style={styles.autocompleteMeta} numberOfLines={1}>
+                        {t("ingredient_search_serving_meta", {
+                          ns: "meals",
+                          amount: ingredient.amount,
+                          unit: ingredient.unit ?? "g",
+                          kcal: ingredient.kcal,
+                        })}
+                      </Text>
+                    </View>
+                    {item.warningReasonCodes.length > 0 ? (
+                      <Text style={styles.autocompleteBadge}>
+                        {t("ingredient_search_warning_badge", { ns: "meals" })}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         {isSheetVariant ? (
@@ -772,6 +1051,54 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       minWidth: 0,
       gap: theme.spacing.xxs,
+    },
+    autocompletePanel: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.surface,
+      overflow: "hidden",
+      marginTop: theme.spacing.xs,
+      marginBottom: theme.spacing.xs,
+    },
+    autocompleteStatus: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+    },
+    autocompleteOption: {
+      minHeight: 48,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.border,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    autocompleteOptionText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    autocompleteName: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    autocompleteMeta: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+    },
+    autocompleteBadge: {
+      color: theme.warning.text,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
     },
     sheetFieldContainer: {
       flex: 1,
