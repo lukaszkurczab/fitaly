@@ -36,6 +36,19 @@ TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
 SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
 PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
+
+ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
+REVIEW_MEMORY_EXPLANATION_FLOW=0
+for FLOW_PATH in "${FLOW_PATHS[@]}"; do
+  case "${FLOW_PATH}" in
+    *review-memory-explanation.yaml)
+      REVIEW_MEMORY_EXPLANATION_FLOW=1
+      ENABLE_REVIEW_MEMORY_EXPLANATION="true"
+      ;;
+  esac
+done
+export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
+
 if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
   API_BASE_URL="${E2E_API_BASE_URL}"
 else
@@ -334,6 +347,7 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export CI=1
     export E2E=true
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
+    export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
     export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
     exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
   ) >"${EXPO_LOG}" 2>&1 &
@@ -345,6 +359,9 @@ else
 fi
 
 echo "[e2e] Runtime: platform=${PLATFORM} host=${EXPO_HOST} api=${API_BASE_URL} expo=${EXPO_URL} results=${RESULTS_PATH}"
+if [[ "${REVIEW_MEMORY_EXPLANATION_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Review memory explanation gate enabled for targeted flow."
+fi
 if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
   mkdir -p "${TEST_OUTPUT_DIR}"
   echo "[e2e] Maestro test output: ${TEST_OUTPUT_DIR}"
