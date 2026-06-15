@@ -51,7 +51,15 @@ Use risk-based validation. Small visual/layout/copy patches do not imply Maestro
 | Tier 3 | Critical flow changes | Run a targeted Maestro flow, plus lint/typecheck and relevant tests. Critical flows include auth/session routing, onboarding completion, add meal save, local-first sync, premium/restore, reminders, account deletion, and navigation. |
 | Tier 4 | Release gate or full app review | Run smoke or full relevant Maestro suites before release candidates, larger merges, full visual/product review, or explicit request. |
 
-When Maestro is appropriate, prefer focused package scripts such as `npm run e2e:smoke:login`, `npm run e2e:release-gate:add-meal:manual`, or `npm run e2e:platform-layout:small-screen-forms` before running a full suite. Any `e2e-full` wrapper or equivalent full-suite run is for full visual/product review, not every patch.
+When Maestro is appropriate, prefer the focused package scripts currently
+defined in `package.json`, such as `npm run e2e:auth`,
+`npm run e2e:add-meal`, `npm run e2e:home-history-statistics`,
+`npm run e2e:ai-chat`, `npm run e2e:premium-billing`,
+`npm run e2e:notifications-retention`, `npm run e2e:share`, or
+`npm run e2e:platform-layout`, before running a broad suite. The canonical
+workspace runbook is `../docs/runbooks/e2e-testing.md`. Any full-suite wrapper
+or equivalent full-review run is for full visual/product review, not every
+patch.
 
 ## Environment and build profiles
 
