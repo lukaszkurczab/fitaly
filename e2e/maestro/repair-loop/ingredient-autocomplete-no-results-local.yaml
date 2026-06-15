@@ -1,0 +1,101 @@
+appId: com.lkurczab.fitaly
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: fitaly://e2e/reset?logout=1
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-email-input
+- tapOn:
+    id: login-email-input
+- inputText: "e2e@example.com"
+- tapOn:
+    id: login-password-input
+- inputText: "Test@1234"
+- hideKeyboard
+- assertVisible:
+    id: login-submit-button
+- tapOn:
+    id: login-submit-button
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- inputText: Local No Results Bowl
+- hideKeyboard
+- tapOn:
+    id: meal-type-picker-trigger
+- assertVisible:
+    id: meal-type-picker-sheet
+- tapOn:
+    id: meal-type-picker-option-lunch
+- tapOn:
+    id: meal-type-picker-apply-button
+- tapOn:
+    id: meal-time-picker-trigger
+- assertVisible:
+    id: meal-time-picker-sheet
+- tapOn:
+    id: meal-time-picker-apply-button
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: ingredient-add-button
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- assertVisible:
+    id: ingredient-editor-name-input
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Zzzqxx local missing
+- extendedWaitUntil:
+    visible:
+      id: ingredient-autocomplete-no-results
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-editor-protein-input
+- inputText: "2"
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
