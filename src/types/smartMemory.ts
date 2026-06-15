@@ -20,6 +20,7 @@ export const SMART_MEMORY_STATES = [
 
 export const SMART_MEMORY_CANDIDATE_STATES = [
   "candidate",
+  "activated",
   "deleted_suppressed",
   "source_deleted",
 ] as const;
