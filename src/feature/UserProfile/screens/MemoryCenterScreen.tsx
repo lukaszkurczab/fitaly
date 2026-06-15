@@ -32,6 +32,7 @@ import {
   readSmartMemoryProjection,
   discardFailedSmartMemoryControls,
   retryFailedSmartMemoryControls,
+  selectMemoryCenterState,
 } from "@/services/smartMemory/smartMemoryService";
 import type {
   SmartMemoryProjection,
@@ -82,6 +83,10 @@ export default function MemoryCenterScreen({
   const [projection, setProjection] = useState<SmartMemoryProjection | null>(
     null,
   );
+  const centerState = useMemo(
+    () => selectMemoryCenterState(projection),
+    [projection],
+  );
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [actionInFlight, setActionInFlight] = useState<PendingAction>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -117,34 +122,11 @@ export default function MemoryCenterScreen({
     };
   }, [loadProjection]);
 
-  const settings = projection?.settings ?? null;
-  const accountEnabled = settings?.settings.enabled ?? true;
-  const hasRows = Boolean(
-    projection &&
-      (visibleItems(projection.items).length > 0 ||
-        projection.candidates.length > 0),
-  );
-  const hasPendingRows = Boolean(
-    projection &&
-      [
-        settings,
-        ...projection.items,
-        ...projection.candidates,
-      ].some((entry) => entry?.queuedOperation),
-  );
-  const hasFailedRows = Boolean(
-    projection &&
-      [
-        settings,
-        ...projection.items,
-        ...projection.candidates,
-      ].some(
-        (entry) =>
-          entry?.syncState === "sync_failed" ||
-          entry?.syncState === "dead_letter" ||
-          entry?.syncState === "conflicted",
-      ),
-  );
+  const settings = centerState.settings;
+  const accountEnabled = centerState.accountEnabled;
+  const hasRows = centerState.hasRows;
+  const hasPendingRows = centerState.hasPendingRows;
+  const hasFailedRows = centerState.hasFailedRows;
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -460,35 +442,29 @@ export default function MemoryCenterScreen({
 
           <MemoryGroup
             title={t("memoryCenter.group.portions")}
-            items={visibleItems(projection?.items ?? []).filter(
-              (item) => item.item.memoryType === "typical_portion",
-            )}
+            items={centerState.portionItems}
             renderItem={renderItemRow}
             emptyCopy={t("memoryCenter.groupEmpty.portions")}
           />
           <MemoryGroup
             title={t("memoryCenter.group.corrections")}
-            items={visibleItems(projection?.items ?? []).filter(
-              (item) => item.item.memoryType === "review_correction",
-            )}
+            items={centerState.correctionItems}
             renderItem={renderItemRow}
             emptyCopy={t("memoryCenter.groupEmpty.corrections")}
           />
           <MemoryGroup
             title={t("memoryCenter.group.ingredientsProducts")}
-            items={visibleItems(projection?.items ?? []).filter(
-              (item) => item.item.memoryType === "ingredient_product_selection",
-            )}
+            items={centerState.ingredientProductItems}
             renderItem={renderItemRow}
             emptyCopy={t("memoryCenter.groupEmpty.ingredientsProducts")}
           />
 
-          {projection?.candidates.length ? (
+          {centerState.candidates.length ? (
             <SettingsSection
               title={t("memoryCenter.pendingSectionTitle")}
               contentStyle={styles.sectionGroup}
             >
-              {projection.candidates.map(renderCandidateRow)}
+              {centerState.candidates.map(renderCandidateRow)}
             </SettingsSection>
           ) : null}
         </View>
@@ -620,22 +596,6 @@ function MemoryGroup({
       {items.map(renderItem)}
     </SettingsSection>
   );
-}
-
-function visibleItems(
-  items: SmartMemoryProjectionItem[],
-): SmartMemoryProjectionItem[] {
-  return items.filter((item) => {
-    if (item.queuedOperation) return true;
-    if (
-      item.syncState === "sync_failed" ||
-      item.syncState === "dead_letter" ||
-      item.syncState === "conflicted"
-    ) {
-      return true;
-    }
-    return item.projectionState !== "deleted_suppressed";
-  });
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) {

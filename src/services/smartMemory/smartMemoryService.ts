@@ -76,6 +76,19 @@ export type ReviewMemoryExplanation = {
   row: ReviewMemoryRow | null;
 };
 
+export type MemoryCenterServiceState = {
+  settings: SmartMemoryProjectionSettings | null;
+  accountEnabled: boolean;
+  visibleItems: SmartMemoryProjectionItem[];
+  candidates: SmartMemoryProjectionCandidate[];
+  portionItems: SmartMemoryProjectionItem[];
+  correctionItems: SmartMemoryProjectionItem[];
+  ingredientProductItems: SmartMemoryProjectionItem[];
+  hasRows: boolean;
+  hasPendingRows: boolean;
+  hasFailedRows: boolean;
+};
+
 const FAILED_SYNC_STATES = new Set(["sync_failed", "dead_letter", "conflicted"]);
 const HIDDEN_PROJECTION_STATES = new Set([
   "muted",
@@ -109,6 +122,39 @@ export async function readReviewSmartMemoryExplanation(params: {
 }): Promise<ReviewMemoryExplanation> {
   const projection = await getSmartMemoryProjection(params.uid);
   return selectReviewSmartMemoryExplanation(projection, params.ingredients);
+}
+
+export function selectMemoryCenterState(
+  projection: SmartMemoryProjection | null,
+): MemoryCenterServiceState {
+  const settings = projection?.settings ?? null;
+  const accountEnabled = settings?.settings.enabled ?? true;
+  const visibleItems = selectMemoryCenterVisibleItems(projection?.items ?? []);
+  const candidates = projection?.candidates ?? [];
+  const entries = [
+    settings,
+    ...(projection?.items ?? []),
+    ...(projection?.candidates ?? []),
+  ];
+
+  return {
+    settings,
+    accountEnabled,
+    visibleItems,
+    candidates,
+    portionItems: visibleItems.filter(
+      (item) => item.item.memoryType === "typical_portion",
+    ),
+    correctionItems: visibleItems.filter(
+      (item) => item.item.memoryType === "review_correction",
+    ),
+    ingredientProductItems: visibleItems.filter(
+      (item) => item.item.memoryType === "ingredient_product_selection",
+    ),
+    hasRows: visibleItems.length > 0 || candidates.length > 0,
+    hasPendingRows: entries.some((entry) => Boolean(entry?.queuedOperation)),
+    hasFailedRows: entries.some((entry) => Boolean(entry && isFailedEntry(entry))),
+  };
 }
 
 export function selectReviewSmartMemoryExplanation(
@@ -323,6 +369,16 @@ function isHiddenCandidate(entry: SmartMemoryProjectionCandidate): boolean {
     candidateState === "deleted_suppressed" ||
     candidateState === "source_deleted"
   );
+}
+
+function selectMemoryCenterVisibleItems(
+  items: SmartMemoryProjectionItem[],
+): SmartMemoryProjectionItem[] {
+  return items.filter((item) => {
+    if (item.queuedOperation) return true;
+    if (isFailedEntry(item)) return true;
+    return item.projectionState !== "deleted_suppressed";
+  });
 }
 
 function formatSmartMemoryUserValue(value: SmartMemoryUserValue): string {

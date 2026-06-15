@@ -49,20 +49,27 @@ jest.mock("@/services/core/networkState", () => ({
     state.isConnected === false,
 }));
 
-jest.mock("@/services/smartMemory/smartMemoryService", () => ({
-  readSmartMemoryProjection: (uid: string) => mockReadSmartMemoryProjection(uid),
-  queueSmartMemorySettingsDisable: (uid: string) => mockQueueSettingsDisable(uid),
-  queueSmartMemorySettingsEnable: (uid: string) => mockQueueSettingsEnable(uid),
-  queueSmartMemoryItemMute: (uid: string, memoryItemId: string) =>
-    mockQueueItemMute(uid, memoryItemId),
-  queueSmartMemoryItemRestore: (uid: string, memoryItemId: string) =>
-    mockQueueItemRestore(uid, memoryItemId),
-  queueSmartMemoryItemDelete: (uid: string, memoryItemId: string) =>
-    mockQueueItemDelete(uid, memoryItemId),
-  retryFailedSmartMemoryControls: (uid: string) => mockRetryFailedControls(uid),
-  discardFailedSmartMemoryControls: (uid: string) =>
-    mockDiscardFailedControls(uid),
-}));
+jest.mock("@/services/smartMemory/smartMemoryService", () => {
+  const actual =
+    jest.requireActual<typeof import("@/services/smartMemory/smartMemoryService")>(
+      "@/services/smartMemory/smartMemoryService",
+    );
+  return {
+    ...actual,
+    readSmartMemoryProjection: (uid: string) => mockReadSmartMemoryProjection(uid),
+    queueSmartMemorySettingsDisable: (uid: string) => mockQueueSettingsDisable(uid),
+    queueSmartMemorySettingsEnable: (uid: string) => mockQueueSettingsEnable(uid),
+    queueSmartMemoryItemMute: (uid: string, memoryItemId: string) =>
+      mockQueueItemMute(uid, memoryItemId),
+    queueSmartMemoryItemRestore: (uid: string, memoryItemId: string) =>
+      mockQueueItemRestore(uid, memoryItemId),
+    queueSmartMemoryItemDelete: (uid: string, memoryItemId: string) =>
+      mockQueueItemDelete(uid, memoryItemId),
+    retryFailedSmartMemoryControls: (uid: string) => mockRetryFailedControls(uid),
+    discardFailedSmartMemoryControls: (uid: string) =>
+      mockDiscardFailedControls(uid),
+  };
+});
 
 jest.mock("@/components", () => {
   const { Pressable, Text, View } =

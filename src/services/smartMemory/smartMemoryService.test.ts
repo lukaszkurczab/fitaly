@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+  selectMemoryCenterState,
   selectReviewSmartMemoryExplanation,
   type ReviewMemoryExplanation,
 } from "@/services/smartMemory/smartMemoryService";
@@ -247,5 +248,126 @@ describe("selectReviewSmartMemoryExplanation", () => {
     );
 
     expect(result).toEqual({ activeIngredients: [], row: null });
+  });
+});
+
+describe("selectMemoryCenterState", () => {
+  it("derives empty enabled and disabled account states", () => {
+    expect(selectMemoryCenterState(null)).toMatchObject({
+      accountEnabled: true,
+      hasRows: false,
+      hasPendingRows: false,
+      hasFailedRows: false,
+      visibleItems: [],
+      candidates: [],
+    });
+
+    expect(
+      selectMemoryCenterState(
+        projection({
+          settings: settings(false),
+        }),
+      ),
+    ).toMatchObject({
+      accountEnabled: false,
+      hasRows: false,
+      hasPendingRows: false,
+      hasFailedRows: false,
+    });
+  });
+
+  it("groups visible memory items by first-slice type", () => {
+    const portion = item();
+    const correction = item({
+      item: {
+        ...item().item,
+        memoryItemId: "memory-correction",
+        memoryType: "review_correction",
+        userValue: { amount: 70, unit: "g", reasonCode: "user_corrected" },
+      },
+    });
+    const ingredientProduct = item({
+      item: {
+        ...item().item,
+        memoryItemId: "memory-product",
+        memoryType: "ingredient_product_selection",
+        userValue: { displayLabel: "Private product" },
+      },
+    });
+    const deleted = item({
+      projectionState: "deleted_suppressed",
+      item: {
+        ...item().item,
+        memoryItemId: "memory-deleted",
+        state: "deleted_suppressed",
+      },
+    });
+
+    const result = selectMemoryCenterState(
+      projection({
+        items: [portion, correction, ingredientProduct, deleted],
+      }),
+    );
+
+    expect(result.visibleItems.map((entry) => entry.item.memoryItemId)).toEqual([
+      "memory-1",
+      "memory-correction",
+      "memory-product",
+    ]);
+    expect(result.portionItems).toHaveLength(1);
+    expect(result.correctionItems).toHaveLength(1);
+    expect(result.ingredientProductItems).toHaveLength(1);
+    expect(result.hasRows).toBe(true);
+  });
+
+  it("keeps pending and failed controls visible for recovery", () => {
+    const pending = item({
+      projectionState: "queued_delete",
+      queuedOperation: {
+        operation: "delete",
+        status: "queued",
+        clientMutationId: "delete-1",
+        updatedAt: now,
+      },
+    });
+    const failed = item({
+      item: {
+        ...item().item,
+        memoryItemId: "memory-failed",
+      },
+      projectionState: "sync_failed",
+      syncState: "dead_letter",
+      queuedOperation: {
+        operation: "mute",
+        status: "dead_letter",
+        clientMutationId: "mute-1",
+        updatedAt: now,
+      },
+    });
+
+    const result = selectMemoryCenterState(
+      projection({
+        items: [pending, failed],
+      }),
+    );
+
+    expect(result.visibleItems.map((entry) => entry.item.memoryItemId)).toEqual([
+      "memory-1",
+      "memory-failed",
+    ]);
+    expect(result.hasPendingRows).toBe(true);
+    expect(result.hasFailedRows).toBe(true);
+  });
+
+  it("counts candidates as rows without activating them", () => {
+    const result = selectMemoryCenterState(
+      projection({
+        candidates: [candidate()],
+      }),
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.hasRows).toBe(true);
+    expect(result.visibleItems).toEqual([]);
   });
 });

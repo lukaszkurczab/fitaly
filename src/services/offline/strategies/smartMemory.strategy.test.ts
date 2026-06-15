@@ -7,6 +7,8 @@ const mockFetchSettings = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockUpsertCandidateRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockEditItemRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockMuteItemRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRestoreItemRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockDeleteItemRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockMarkSourceDeletedRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockUpdateSettingsRemote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockReplaceItems = jest.fn<(...args: unknown[]) => Promise<void>>();
@@ -31,8 +33,10 @@ jest.mock("@/services/smartMemory/smartMemoryApi", () => ({
     mockUpsertCandidateRemote(...args),
   editSmartMemoryItemRemote: (...args: unknown[]) => mockEditItemRemote(...args),
   muteSmartMemoryItemRemote: (...args: unknown[]) => mockMuteItemRemote(...args),
-  restoreSmartMemoryItemRemote: jest.fn(),
-  deleteSmartMemoryItemRemote: jest.fn(),
+  restoreSmartMemoryItemRemote: (...args: unknown[]) =>
+    mockRestoreItemRemote(...args),
+  deleteSmartMemoryItemRemote: (...args: unknown[]) =>
+    mockDeleteItemRemote(...args),
   markSmartMemoryItemSourceDeletedRemote: (...args: unknown[]) =>
     mockMarkSourceDeletedRemote(...args),
   updateSmartMemorySettingsRemote: (...args: unknown[]) =>
@@ -111,6 +115,14 @@ describe("smartMemoryStrategy", () => {
     mockEditItemRemote.mockResolvedValue({ item, updated: true });
     mockMuteItemRemote.mockResolvedValue({
       item: { ...item, state: "muted", stateReason: "user_muted" },
+      updated: true,
+    });
+    mockRestoreItemRemote.mockResolvedValue({
+      item: { ...item, state: "active", stateReason: "user_restored" },
+      updated: true,
+    });
+    mockDeleteItemRemote.mockResolvedValue({
+      item: { ...item, state: "deleted_suppressed", stateReason: "user_deleted" },
       updated: true,
     });
     mockMarkSourceDeletedRemote.mockResolvedValue({
@@ -216,6 +228,42 @@ describe("smartMemoryStrategy", () => {
         attempts: 0,
       }),
     ).resolves.toBe(true);
+    await expect(
+      smartMemoryStrategy.handlePushOp("user-1", {
+        id: 5,
+        client_mutation_id: "restore-mutation",
+        cloud_id: "memory-1",
+        user_uid: "user-1",
+        kind: "smart_memory_item_restore",
+        payload: {},
+        updated_at: "2026-06-04T10:13:00.000Z",
+        attempts: 0,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      smartMemoryStrategy.handlePushOp("user-1", {
+        id: 6,
+        client_mutation_id: "delete-mutation",
+        cloud_id: "memory-1",
+        user_uid: "user-1",
+        kind: "smart_memory_item_delete",
+        payload: {},
+        updated_at: "2026-06-04T10:14:00.000Z",
+        attempts: 0,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      smartMemoryStrategy.handlePushOp("user-1", {
+        id: 7,
+        client_mutation_id: "enable-mutation",
+        cloud_id: "settings",
+        user_uid: "user-1",
+        kind: "smart_memory_settings_enable",
+        payload: { enabled: true },
+        updated_at: "2026-06-04T10:15:00.000Z",
+        attempts: 0,
+      }),
+    ).resolves.toBe(true);
 
     expect(mockEditItemRemote).toHaveBeenCalledWith({
       memoryItemId: "memory-1",
@@ -226,9 +274,21 @@ describe("smartMemoryStrategy", () => {
       memoryItemId: "memory-1",
       clientMutationId: "mute-mutation",
     });
+    expect(mockRestoreItemRemote).toHaveBeenCalledWith({
+      memoryItemId: "memory-1",
+      clientMutationId: "restore-mutation",
+    });
+    expect(mockDeleteItemRemote).toHaveBeenCalledWith({
+      memoryItemId: "memory-1",
+      clientMutationId: "delete-mutation",
+    });
     expect(mockUpdateSettingsRemote).toHaveBeenCalledWith({
       enabled: false,
       clientMutationId: "disable-mutation",
+    });
+    expect(mockUpdateSettingsRemote).toHaveBeenCalledWith({
+      enabled: true,
+      clientMutationId: "enable-mutation",
     });
   });
 
