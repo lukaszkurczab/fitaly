@@ -68,6 +68,7 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
       "DELETE FROM smart_memory_items;",
       "DELETE FROM smart_memory_candidates;",
       "DELETE FROM smart_memory_settings;",
+      "DELETE FROM ingredient_product_search_cache;",
       "DELETE FROM chat_messages;",
       "DELETE FROM chat_threads;",
       "COMMIT",
@@ -202,6 +203,30 @@ describe("offline db bootstrap (src/services/offline/db.ts)", () => {
       ),
     ).toBe(true);
     expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 14;");
+  });
+
+  it("adds Ingredient/Product search cache table during v15 migration", () => {
+    mockGetFirstSync.mockReturnValue({ user_version: 14 });
+
+    const module =
+      jest.requireActual<typeof import("@/services/offline/db")>(
+        "@/services/offline/db",
+      );
+
+    module.runMigrations();
+
+    const calls = mockExecSync.mock.calls.map(([sql]) => String(sql));
+    expect(
+      calls.some((sql) =>
+        sql.includes("CREATE TABLE IF NOT EXISTS ingredient_product_search_cache"),
+      ),
+    ).toBe(true);
+    expect(
+      calls.some((sql) =>
+        sql.includes("idx_ingredient_product_search_cache_query"),
+      ),
+    ).toBe(true);
+    expect(mockExecSync).toHaveBeenCalledWith("PRAGMA user_version = 15;");
   });
 
   it("skips saved meal image_ref migration when the column already exists", () => {

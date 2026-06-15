@@ -138,6 +138,21 @@ export type SmartMemorySettingsRow = {
   last_error_message: string | null;
 };
 
+export type IngredientProductSearchCacheRow = {
+  user_uid: string;
+  normalized_query: string;
+  ingredient_product_id: string;
+  result_rank: number;
+  display_name: string;
+  payload: string;
+  query_echo: string;
+  cache_policy: string;
+  warnings: string;
+  cache_state: string | null;
+  cached_at: number;
+  expires_at: number;
+};
+
 export type ChatThreadRow = {
   id: string;
   user_uid: string;

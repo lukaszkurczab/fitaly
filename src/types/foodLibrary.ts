@@ -212,6 +212,38 @@ export const INGREDIENT_PRODUCT_ALLERGEN_FLAGS = [
   "sesame",
 ] as const;
 
+export const INGREDIENT_PRODUCT_WARNING_REASON_CODES = [
+  "profile_unknown",
+  "profile_warning",
+  "profile_incompatible",
+  "nutrition_low_confidence",
+  "nutrition_missing",
+  "source_candidate_only",
+  "cache_stale",
+  "offline_cache",
+  "pending_user_record",
+  "query_too_short",
+  "backend_degraded",
+] as const;
+
+export const INGREDIENT_PRODUCT_RANKING_SIGNALS = [
+  "exact_user",
+  "exact_match",
+  "user_scoped",
+  "verified_seed",
+  "verified_global",
+  "profile_warning",
+  "nutrition_warning",
+  "pending_user_record",
+] as const;
+
+export const INGREDIENT_PRODUCT_CACHE_STATES = [
+  "fresh",
+  "stale",
+  "offline",
+  "pending_local",
+] as const;
+
 export const INGREDIENT_PRODUCT_REQUIRED_FIELDS = [
   "ingredientProductId",
   "recordScope",
@@ -320,6 +352,12 @@ export type IngredientProductDietaryFlag =
   (typeof INGREDIENT_PRODUCT_DIETARY_FLAGS)[number];
 export type IngredientProductAllergenFlag =
   (typeof INGREDIENT_PRODUCT_ALLERGEN_FLAGS)[number];
+export type IngredientProductWarningReasonCode =
+  (typeof INGREDIENT_PRODUCT_WARNING_REASON_CODES)[number];
+export type IngredientProductRankingSignal =
+  (typeof INGREDIENT_PRODUCT_RANKING_SIGNALS)[number];
+export type IngredientProductCacheState =
+  (typeof INGREDIENT_PRODUCT_CACHE_STATES)[number];
 export type IngredientProductContractField =
   | (typeof INGREDIENT_PRODUCT_REQUIRED_FIELDS)[number]
   | (typeof INGREDIENT_PRODUCT_OPTIONAL_FIELDS)[number];
@@ -341,6 +379,126 @@ export type IngredientProductBarcodeMinimalIdentityField =
   (typeof INGREDIENT_PRODUCT_BARCODE_MINIMAL_IDENTITY_FIELDS)[number];
 export type IngredientProductBarcodeOptionalField =
   (typeof INGREDIENT_PRODUCT_BARCODE_OPTIONAL_FIELDS)[number];
+
+export type IngredientProductSourceAttribution = {
+  sourceType: IngredientProductSourceType;
+  sourceId: string;
+  sourceName: string;
+  provider: string | null;
+  license: string | null;
+  observedAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+};
+
+export type IngredientProductConfidence = {
+  identity: IngredientProductConfidenceLevel;
+  nutrition: IngredientProductConfidenceLevel;
+  profile: IngredientProductConfidenceLevel;
+};
+
+export type IngredientProductNutritionPer100 = {
+  basis: IngredientProductNutritionBasis;
+  unit: IngredientProductServingUnit;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  fiber: number | null;
+  sugar: number | null;
+  salt: number | null;
+  saturatedFat: number | null;
+};
+
+export type IngredientProductServing = {
+  quantity: number;
+  unit: IngredientProductServingUnit;
+};
+
+export type IngredientProductServingSize = IngredientProductServing & {
+  servingSizeId: string;
+  label: string;
+};
+
+export type IngredientProductProfileCompatibility = {
+  status: IngredientProductProfileCompatibilityStatus;
+  dietaryFlags: IngredientProductDietaryFlag[];
+  allergenFlags: IngredientProductAllergenFlag[];
+};
+
+export type IngredientProductSearchRow = {
+  ingredientProductId: string;
+  recordScope: IngredientProductRecordScope;
+  lifecycleState: IngredientProductLifecycleState;
+  displayName: string;
+  kind: IngredientProductKind;
+  defaultServing: IngredientProductServing;
+  nutritionPer100: IngredientProductNutritionPer100 | null;
+  confidence: IngredientProductConfidence;
+  sourceAttribution: IngredientProductSourceAttribution;
+  profileCompatibility: IngredientProductProfileCompatibility;
+  warningReasonCodes: IngredientProductWarningReasonCode[];
+  rankingSignals: IngredientProductRankingSignal[];
+  brandName: string | null;
+  ingredientName: string | null;
+  packageName: string | null;
+  category: string | null;
+  servingSizes: IngredientProductServingSize[];
+  dietaryFlags: IngredientProductDietaryFlag[];
+  allergenFlags: IngredientProductAllergenFlag[];
+  cacheState: IngredientProductCacheState | null;
+  ownerUserId: string | null;
+};
+
+export type IngredientProductSearchQueryEcho = {
+  normalizedQuery: string;
+  queryLength: number;
+  limit: number;
+  includeUserScoped: boolean;
+  includeGlobal: boolean;
+  locale: string | null;
+};
+
+export type IngredientProductSearchCachePolicy = {
+  cacheGeneration: "ingredient_product_search_v1";
+  maxAgeSeconds: number;
+};
+
+export type IngredientProductSearchResponse = {
+  items: IngredientProductSearchRow[];
+  queryEcho: IngredientProductSearchQueryEcho;
+  cachePolicy: IngredientProductSearchCachePolicy | null;
+  warnings: IngredientProductWarningReasonCode[];
+};
+
+export type IngredientProductSearchRequest = {
+  query: string;
+  locale?: string | null;
+  limit?: number;
+  includeUserScoped?: boolean;
+  includeGlobal?: boolean;
+};
+
+export type IngredientProductSearchStatus =
+  | "idle"
+  | "results"
+  | "no_results"
+  | "offline_warm_cache"
+  | "offline_no_cache"
+  | "stale"
+  | "warning"
+  | "backend_degraded";
+
+export type IngredientProductSearchResult = {
+  status: IngredientProductSearchStatus;
+  items: IngredientProductSearchRow[];
+  queryEcho: IngredientProductSearchQueryEcho | null;
+  warnings: IngredientProductWarningReasonCode[];
+  cachePolicy: IngredientProductSearchCachePolicy | null;
+  source: "remote" | "cache" | "none";
+  isStale: boolean;
+  errorCode: string | null;
+};
 
 export type FoodLibraryDomainContract =
   (typeof FOOD_LIBRARY_DOMAIN_CONTRACTS)[FoodLibraryDomain];

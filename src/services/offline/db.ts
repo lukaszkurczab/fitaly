@@ -150,6 +150,34 @@ function createSmartMemoryProjectionTables(d: SQLite.SQLiteDatabase): void {
   `);
 }
 
+function createIngredientProductSearchCacheTable(d: SQLite.SQLiteDatabase): void {
+  d.execSync(`
+    CREATE TABLE IF NOT EXISTS ingredient_product_search_cache (
+      user_uid TEXT NOT NULL,
+      normalized_query TEXT NOT NULL,
+      ingredient_product_id TEXT NOT NULL,
+      result_rank INTEGER NOT NULL,
+      display_name TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      query_echo TEXT NOT NULL,
+      cache_policy TEXT NOT NULL,
+      warnings TEXT NOT NULL,
+      cache_state TEXT,
+      cached_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      PRIMARY KEY (user_uid, normalized_query, ingredient_product_id)
+    );
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_query
+      ON ingredient_product_search_cache(user_uid, normalized_query, result_rank ASC);
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_user_cached
+      ON ingredient_product_search_cache(user_uid, cached_at DESC);
+  `);
+}
+
 export function runMigrations() {
   const d = getDB();
   let v = getUserVersion(d);
@@ -227,6 +255,7 @@ export function runMigrations() {
           ON op_queue_dead(user_uid, failed_at DESC);
       `);
       createSmartMemoryProjectionTables(d);
+      createIngredientProductSearchCacheTable(d);
       d.execSync(`
         CREATE TABLE IF NOT EXISTS images (
           image_id TEXT PRIMARY KEY,
@@ -738,6 +767,19 @@ export function runMigrations() {
     }
   }
 
+  if (v < 15) {
+    d.execSync("BEGIN");
+    try {
+      createIngredientProductSearchCacheTable(d);
+      setUserVersion(d, 15);
+      d.execSync("COMMIT");
+      v = 15;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
   void ensureMigrationRunner().catch(() => undefined);
 }
 
@@ -753,6 +795,7 @@ export function resetOfflineStorage() {
     d.execSync(`DELETE FROM smart_memory_items;`);
     d.execSync(`DELETE FROM smart_memory_candidates;`);
     d.execSync(`DELETE FROM smart_memory_settings;`);
+    d.execSync(`DELETE FROM ingredient_product_search_cache;`);
     d.execSync(`DELETE FROM chat_messages;`);
     d.execSync(`DELETE FROM chat_threads;`);
     d.execSync("COMMIT");

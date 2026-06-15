@@ -183,4 +183,24 @@ CREATE TABLE IF NOT EXISTS smart_memory_settings (
   last_error_message TEXT
 );
 
-PRAGMA user_version=14;
+CREATE TABLE IF NOT EXISTS ingredient_product_search_cache (
+  user_uid TEXT NOT NULL,
+  normalized_query TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  result_rank INTEGER NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  query_echo TEXT NOT NULL,
+  cache_policy TEXT NOT NULL,
+  warnings TEXT NOT NULL,
+  cache_state TEXT,
+  cached_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (user_uid, normalized_query, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_query
+  ON ingredient_product_search_cache(user_uid, normalized_query, result_rank ASC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_user_cached
+  ON ingredient_product_search_cache(user_uid, cached_at DESC);
+
+PRAGMA user_version=15;
