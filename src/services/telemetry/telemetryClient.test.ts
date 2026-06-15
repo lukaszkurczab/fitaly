@@ -16,6 +16,7 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     backendLoggingEnabled: false,
     telemetryEnabled: true,
     smartRemindersEnabled: true,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
     privacyUrl: "",

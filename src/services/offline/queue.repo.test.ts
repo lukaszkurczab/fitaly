@@ -68,6 +68,32 @@ function applyQueueMutation(sql: string, params: unknown[] = []) {
   }
 
   if (sql.includes("DELETE FROM op_queue")) {
+    if (sql.includes("client_mutation_id IN")) {
+      const uid = String(params[0] ?? "");
+      const mutationIds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string")
+          .filter((value) => value.startsWith("mutation-")),
+      );
+      const kinds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string")
+          .filter((value) => !value.startsWith("mutation-")),
+      );
+      const before = queuedOps.length;
+      queuedOps = queuedOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            mutationIds.has(op.clientMutationId) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - queuedOps.length };
+    }
+
     if (sql.includes("WHERE id=?")) {
       const id = Number(params[0]);
       queuedOps = queuedOps.filter((op) => op.id !== id);
@@ -450,6 +476,7 @@ describe("queue.repo", () => {
 
   it("replaces a pending meal edit with a single delete tombstone", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const queueRepo = require("@/services/offline/queue.repo") as
       typeof import("@/services/offline/queue.repo");
     const { enqueueDelete, enqueueUpsert } = queueRepo;
@@ -490,6 +517,67 @@ describe("queue.repo", () => {
         uid: "user-1",
         kind: "delete_mymeal",
         updatedAt: "2026-02-25T12:00:00.000Z",
+      }),
+    ]);
+  });
+
+  it("uses Smart Memory-specific queue kinds for candidate and item controls", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueSmartMemoryCandidateUpsert("user-1", {
+      candidateId: "candidate-1",
+      memoryType: "typical_portion",
+      subject: { kind: "ingredient_alias", aliasHash: "hash-1" },
+      evidenceSummary: { observationCount: 1 },
+      sourceRefs: [{ kind: "meal_review", sourceHash: "source-1" }],
+      confidenceReasonCodes: ["single_observation"],
+      suppressionChecks: { settingsEnabled: true },
+    });
+    await queueRepo.enqueueSmartMemoryItemEdit("user-1", "memory-1", {
+      userValue: { amount: 60, unit: "g" },
+      editedFields: ["userValue"],
+    });
+    await queueRepo.enqueueSmartMemoryItemMute("user-1", "memory-1");
+    await queueRepo.enqueueSmartMemoryItemDelete("user-1", "memory-1");
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "candidate-1",
+        uid: "user-1",
+        kind: "smart_memory_candidate_upsert",
+        clientMutationId:
+          "smart-memory:candidate_upsert:user-1:candidate-1:uuid-generated",
+      }),
+      expect.objectContaining({
+        cloudId: "memory-1",
+        uid: "user-1",
+        kind: "smart_memory_item_delete",
+        clientMutationId: "smart-memory:delete:user-1:memory-1:uuid-generated",
+      }),
+    ]);
+    expect(familyOps("user-1", "memory-1", ["smart_memory_item_edit", "smart_memory_item_mute"])).toEqual(
+      [],
+    );
+  });
+
+  it("coalesces Smart Memory settings enable and disable controls", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueSmartMemorySettingsDisable("user-1");
+    await queueRepo.enqueueSmartMemorySettingsEnable("user-1");
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "settings",
+        uid: "user-1",
+        kind: "smart_memory_settings_enable",
+        payload: { enabled: true },
+        clientMutationId:
+          "smart-memory:settings_enable:user-1:settings:uuid-generated",
       }),
     ]);
   });
@@ -719,6 +807,56 @@ describe("queue.repo", () => {
       "sync:op:discarded",
       expect.anything(),
     );
+  });
+
+  it("discards selected queued ops by client mutation id for failed local recovery", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+    const { discardQueuedOpsByClientMutationIds } = queueRepo;
+
+    queuedOps = [
+      queuedOp({
+        id: 20,
+        uid: "user-1",
+        cloudId: "memory-1",
+        kind: "smart_memory_item_mute",
+        clientMutationId: "mutation-smart-memory-1",
+      }),
+      queuedOp({
+        id: 21,
+        uid: "user-1",
+        cloudId: "meal-1",
+        kind: "upsert",
+        clientMutationId: "mutation-meal-1",
+      }),
+      queuedOp({
+        id: 22,
+        uid: "other-user",
+        cloudId: "memory-1",
+        kind: "smart_memory_item_mute",
+        clientMutationId: "mutation-smart-memory-1",
+      }),
+    ];
+
+    await expect(
+      discardQueuedOpsByClientMutationIds({
+        uid: "user-1",
+        clientMutationIds: ["mutation-smart-memory-1", ""],
+        kinds: ["smart_memory_item_mute"],
+      }),
+    ).resolves.toBe(1);
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({ id: 21, uid: "user-1", kind: "upsert" }),
+      expect.objectContaining({ id: 22, uid: "other-user" }),
+    ]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:discarded", {
+      uid: "user-1",
+      count: 1,
+      clientMutationIds: ["mutation-smart-memory-1"],
+      kinds: ["smart_memory_item_mute"],
+    });
   });
 
   it("replaces an existing pending avatar upload when retrying the same dead avatar reference", async () => {

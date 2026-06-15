@@ -11,6 +11,7 @@ describe("runtimeConfig", () => {
         backendLoggingEnabled: "true",
         telemetryEnabled: true,
         smartRemindersEnabled: "false",
+        reviewMemoryExplanationEnabled: "true",
         billingDisabled: "true",
         sentryEnvironment: "production",
       }),
@@ -20,6 +21,7 @@ describe("runtimeConfig", () => {
       backendLoggingEnabled: true,
       telemetryEnabled: true,
       smartRemindersEnabled: false,
+      reviewMemoryExplanationEnabled: true,
       billingDisabled: true,
       sentryEnvironment: "production",
     });
@@ -30,6 +32,7 @@ describe("runtimeConfig", () => {
       backendLoggingEnabled: false,
       telemetryEnabled: false,
       smartRemindersEnabled: true,
+      reviewMemoryExplanationEnabled: false,
       billingDisabled: false,
       apiVersion: "v1",
       sentryEnvironment: "development",

@@ -31,6 +31,7 @@ import SendFeedbackScreen from "@/feature/UserProfile/screens/SendFeedbackScreen
 import LegalPrivacyHubScreen from "@/feature/UserProfile/screens/LegalPrivacyHubScreen";
 import PrivacyAiSettingsScreen from "@/feature/UserProfile/screens/PrivacyAiSettingsScreen";
 import DataAiClarityScreen from "@/feature/UserProfile/screens/DataAiClarityScreen";
+import MemoryCenterScreen from "@/feature/UserProfile/screens/MemoryCenterScreen";
 import HelpFeedbackHubScreen from "@/feature/UserProfile/screens/HelpFeedbackHubScreen";
 import ContactSupportScreen from "@/feature/UserProfile/screens/ContactSupportScreen";
 import AppSettingsScreen from "@/feature/UserProfile/screens/AppSettingsScreen";
@@ -134,6 +135,7 @@ function renderAppScreens() {
         name="DataAiClarity"
         component={DataAiClarityScreen}
       />
+      <Stack.Screen name="MemoryCenter" component={MemoryCenterScreen} />
       <Stack.Screen name="HelpFeedback" component={HelpFeedbackHubScreen} />
       <Stack.Screen name="ContactSupport" component={ContactSupportScreen} />
       <Stack.Screen

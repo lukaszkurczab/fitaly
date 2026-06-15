@@ -12,6 +12,7 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
     privacyUrl: "",
@@ -379,6 +380,42 @@ describe("apiClient", () => {
     const secondHeaders = fetchMock.mock.calls[1]?.[1]?.headers as Record<string, string>;
     expect(firstHeaders["X-Idempotency-Key"]).toBeTruthy();
     expect(secondHeaders["X-Idempotency-Key"]).toBe(firstHeaders["X-Idempotency-Key"]);
+  });
+
+  it("sends PATCH requests with JSON body and does not retry by default", async () => {
+    jest.useFakeTimers();
+    mockGetAuth.mockReturnValue({
+      currentUser: null,
+    });
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ detail: "temporary failure" }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { patch } = require("@/services/core/apiClient");
+
+    await expect(
+      patch("/api/v2/users/me/smart-memory/settings", { enabled: false }),
+    ).rejects.toMatchObject({
+      code: "api/http-error",
+      status: 500,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v2/users/me/smart-memory/settings",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ enabled: false }),
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": expect.any(String),
+        }),
+      }),
+    );
   });
 
   it("returns api/timeout when request exceeds timeout", async () => {

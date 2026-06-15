@@ -15,6 +15,7 @@ import { getPendingUploads } from "./images.repo";
 import { mealsStrategy } from "./strategies/meals.strategy";
 import { myMealsStrategy } from "./strategies/myMeals.strategy";
 import { chatStrategy } from "./strategies/chat.strategy";
+import { smartMemoryStrategy } from "./strategies/smartMemory.strategy";
 import { userProfileStrategy } from "./strategies/userProfile.strategy";
 import {
   imagesStrategy,
@@ -22,10 +23,12 @@ import {
 } from "./strategies/images.strategy";
 import {
   getLastChatPullTs,
+  getLastSmartMemoryPullTs,
   getLastMyMealsPullTs,
   getLastPullTs,
   getLastPullCheckTs,
   setLastChatPullTs,
+  setLastSmartMemoryPullTs,
   setLastMyMealsPullTs,
   setLastPullTs,
   setLastPullCheckTs,
@@ -47,7 +50,13 @@ function logRuntimeFailure(event: string, payload: unknown): void {
   log.error(event, payload);
 }
 
-export type SyncDomain = "meals" | "myMeals" | "chat" | "images" | "userProfile";
+export type SyncDomain =
+  | "meals"
+  | "myMeals"
+  | "chat"
+  | "smartMemory"
+  | "images"
+  | "userProfile";
 export type SyncReason =
   | "startup"
   | "reconnect"
@@ -86,6 +95,7 @@ const pushStrategies: SyncStrategy[] = [
   mealsStrategy,
   myMealsStrategy,
   chatStrategy,
+  smartMemoryStrategy,
   userProfileStrategy,
   imagesStrategy,
 ];
@@ -108,6 +118,21 @@ const domainConfigs: Record<Exclude<SyncDomain, "images" | "userProfile">, Domai
     queueKinds: [],
     staleAfterMs: CHAT_STALE_MS,
     getLastPullMarker: getLastChatPullTs,
+  },
+  smartMemory: {
+    strategy: smartMemoryStrategy,
+    queueKinds: [
+      "smart_memory_candidate_upsert",
+      "smart_memory_item_edit",
+      "smart_memory_item_mute",
+      "smart_memory_item_restore",
+      "smart_memory_item_delete",
+      "smart_memory_item_source_deleted",
+      "smart_memory_settings_disable",
+      "smart_memory_settings_enable",
+    ],
+    staleAfterMs: DEFAULT_STALE_MS,
+    getLastPullMarker: getLastSmartMemoryPullTs,
   },
 };
 
@@ -339,6 +364,7 @@ async function runReconcile(
         result.skipped.meals = "offline";
         result.skipped.myMeals = "offline";
         result.skipped.chat = "offline";
+        result.skipped.smartMemory = "offline";
         result.skipped.images = "offline";
         runLog.log("skip:offline", { uid });
         return result;
@@ -347,7 +373,7 @@ async function runReconcile(
       const skipRemotePulls = isE2EModeEnabled();
       const domainsSelectedBeforePush = new Set<Exclude<SyncDomain, "images" | "userProfile">>();
       if (!skipRemotePulls) {
-        for (const domain of ["meals", "myMeals", "chat"] as const) {
+        for (const domain of ["meals", "myMeals", "chat", "smartMemory"] as const) {
           if (await shouldPullDomain(uid, domain, reason)) {
             domainsSelectedBeforePush.add(domain);
           }
@@ -377,11 +403,12 @@ async function runReconcile(
         result.skipped.meals = "e2e";
         result.skipped.myMeals = "e2e";
         result.skipped.chat = "e2e";
+        result.skipped.smartMemory = "e2e";
         runLog.log("skip:remote-pull:e2e", { uid });
         return result;
       }
 
-      for (const domain of ["meals", "myMeals", "chat"] as const) {
+      for (const domain of ["meals", "myMeals", "chat", "smartMemory"] as const) {
         const shouldPull =
           domainsSelectedBeforePush.has(domain) ||
           (await shouldPullDomain(uid, domain, reason));
@@ -583,6 +610,10 @@ export async function pullChatChanges(uid: string): Promise<void> {
   await runPull(uid, "chat");
 }
 
+export async function pullSmartMemoryChanges(uid: string): Promise<void> {
+  await runPull(uid, "smartMemory");
+}
+
 export async function processImageUploads(uid: string): Promise<void> {
   await withUidSyncLock(uid, async () => {
     await processImageUploadsStrategy(uid);
@@ -596,6 +627,8 @@ export {
   getLastMyMealsPullTs,
   setLastChatPullTs,
   getLastChatPullTs,
+  setLastSmartMemoryPullTs,
+  getLastSmartMemoryPullTs,
   setLastPullCheckTs,
   getLastPullCheckTs,
 };

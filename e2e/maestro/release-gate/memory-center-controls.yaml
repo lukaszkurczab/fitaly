@@ -1,0 +1,128 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&smartMemory=emptyEnabled"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-smartMemory-emptyEnabled
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-empty-enabled-state
+- tapOn:
+    id: memory-center-account-toggle
+- extendedWaitUntil:
+    visible:
+      id: memory-center-pending-state
+    timeout: 10000
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=sourceDeleted"
+- assertVisible:
+    id: e2e-ready-smartMemory-sourceDeleted
+- assertVisible:
+    id: memory-center-screen
+- tapOn:
+    id: memory-center-refresh-button
+- scrollUntilVisible:
+    element:
+      id: memory-center-item-e2e-memory-portion-yogurt
+    direction: DOWN
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- tapOn:
+    id: memory-center-detail-close-button
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: account-screen
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=emptyDisabled"
+- assertVisible:
+    id: e2e-ready-smartMemory-emptyDisabled
+- scrollUntilVisible:
+    element:
+      id: account-app-settings-row
+    direction: DOWN
+- tapOn:
+    id: account-app-settings-row
+- assertVisible:
+    id: app-settings-screen
+- scrollUntilVisible:
+    element:
+      id: app-settings-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: app-settings-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-empty-disabled-state
+- tapOn:
+    id: memory-center-account-toggle
+- extendedWaitUntil:
+    visible:
+      id: memory-center-pending-state
+    timeout: 10000
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: app-settings-screen
+- tapOn:
+    id: back-title-header-back
+- assertVisible:
+    id: account-screen
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=active"
+- assertVisible:
+    id: e2e-ready-smartMemory-active
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-ready-state
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- tapOn:
+    id: memory-center-delete-open-button
+- assertVisible:
+    id: memory-center-delete-confirm-modal
+- tapOn:
+    id: memory-center-delete-cancel-button
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- tapOn:
+    id: memory-center-delete-open-button
+- assertVisible:
+    id: memory-center-delete-confirm-modal
+- tapOn:
+    id: memory-center-delete-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: memory-center-pending-state
+    timeout: 10000

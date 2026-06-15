@@ -12,6 +12,9 @@ import ReviewMealScreen from "@/feature/Meals/screens/MealAdd/ReviewMealScreen";
 import type { MealAddScreenProps } from "@/feature/Meals/feature/MapMealAddScreens";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import type { Meal, UserAiConsent, UserData, UserReadiness } from "@/types";
+import type { ReviewMemoryExplanation } from "@/services/smartMemory/smartMemoryService";
+import type { RuntimeConfig } from "@/services/core/runtimeConfig";
+import plMeals from "@/locales/pl/meals.json";
 
 type ButtonProps = {
   label: string;
@@ -30,6 +33,9 @@ type CheckboxProps = {
 
 type ModalProps = {
   visible: boolean;
+  testID?: string;
+  title?: string;
+  children?: unknown;
   primaryAction?: { label: string; onPress?: () => void };
   secondaryAction?: { label: string; onPress?: () => void };
 };
@@ -50,6 +56,32 @@ const mockUseMeals = jest.fn();
 const mockGetInfoAsync =
   jest.fn<(uri: string) => Promise<{ exists: boolean }>>();
 const mockBackHandlerAddEventListener = jest.fn();
+const mockGetRuntimeConfig = jest.fn<() => RuntimeConfig>();
+function createRuntimeConfig(
+  overrides?: Partial<RuntimeConfig>,
+): RuntimeConfig {
+  return {
+    apiBaseUrl: "https://api.example.com",
+    apiVersion: "v1",
+    backendLoggingEnabled: false,
+    telemetryEnabled: false,
+    smartRemindersEnabled: true,
+    reviewMemoryExplanationEnabled: false,
+    billingDisabled: false,
+    buildProfile: "",
+    termsUrl: "",
+    privacyUrl: "",
+    sentryDsn: "",
+    sentryEnvironment: "development",
+    sentryOrganization: "",
+    sentryProject: "",
+    revenuecatIosKey: "",
+    revenuecatAndroidKey: "",
+    ...overrides,
+  };
+}
+const mockReadReviewSmartMemoryExplanation =
+  jest.fn<() => Promise<ReviewMemoryExplanation>>();
 
 jest.mock("@/services/core/fileSystem", () => ({
   getInfoAsync: (uri: string) => mockGetInfoAsync(uri),
@@ -73,6 +105,18 @@ jest.mock("@hooks/useMeals", () => ({
 
 jest.mock("@react-native-community/netinfo", () => ({
   useNetInfo: () => mockUseNetInfo(),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockGetRuntimeConfig(),
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackAiMealReviewSaved: jest.fn(),
+}));
+
+jest.mock("@/services/smartMemory/smartMemoryService", () => ({
+  readReviewSmartMemoryExplanation: () => mockReadReviewSmartMemoryExplanation(),
 }));
 
 jest.mock("@/components/AppIcon", () => ({
@@ -99,6 +143,48 @@ jest.mock("react-i18next", () => ({
         review_meal_save_template_update_title: "Update saved meal",
         review_meal_save_template_update_helper:
           "Keeps these changes for the next time you reuse it.",
+        review_memory_row_candidate_title:
+          "Fitaly can remember this after repeated saves.",
+        review_memory_row_candidate_body:
+          "No active personalization is used yet.",
+        review_memory_row_pending_title:
+          "Memory update will sync when online.",
+        review_memory_row_pending_body:
+          "This does not block saving this meal.",
+        review_memory_row_sync_failed_title: "Memory change did not sync.",
+        review_memory_row_sync_failed_body:
+          "Save still works. Manage this later in Smart Memory.",
+        review_memory_row_hint: "Opens Smart Memory details.",
+        review_memory_ingredient_accessibility_label:
+          "Memory details for active memory: {{ingredientName}} amount",
+        review_memory_ingredient_accessibility_hint:
+          "Opens how Smart Memory affected this ingredient.",
+        review_memory_details_title: "Smart Memory details",
+        review_memory_details_type_label: "Memory type",
+        review_memory_details_affected_label: "Applies to",
+        review_memory_details_value_label: "Used value",
+        review_memory_details_state_label: "State",
+        review_memory_details_evidence_label: "Evidence",
+        review_memory_details_summary_portion:
+          "Uses your saved amount for this ingredient.",
+        review_memory_details_summary_product:
+          "Uses your selected product for this ingredient.",
+        review_memory_details_summary_correction:
+          "Uses a repeated Review correction for this meal.",
+        review_memory_details_summary_pending:
+          "This memory update is waiting for sync and is not active yet.",
+        review_memory_details_summary_failed:
+          "This memory change needs attention, but meal saving still works.",
+        review_memory_details_memory_center_cta: "Open Memory Center",
+        review_memory_type_typical_portion: "Typical portion",
+        review_memory_type_ingredient_product_selection: "Selected product",
+        review_memory_type_review_correction: "Review correction",
+        review_memory_type_settings: "Settings",
+        review_memory_state_active: "Active",
+        review_memory_state_pending: "Pending",
+        review_memory_state_failed: "Failed",
+        review_memory_evidence_count: `Based on ${options?.count ?? "{{count}}"} recent saves.`,
+        review_memory_evidence_bounded: "Based on repeated saves.",
       };
       return (
         labels[key] ??
@@ -183,11 +269,20 @@ jest.mock("@/components", () => {
         },
         createElement(Text, null, checked ? "checked" : "unchecked"),
       ),
-    Modal: ({ visible, primaryAction, secondaryAction }: ModalProps) =>
+    Modal: ({
+      visible,
+      testID,
+      title,
+      children,
+      primaryAction,
+      secondaryAction,
+    }: ModalProps) =>
       visible
         ? createElement(
             View,
-            null,
+            { testID },
+            title ? createElement(Text, null, title) : null,
+            children as never,
             primaryAction
               ? createElement(
                   Pressable,
@@ -321,6 +416,68 @@ const buildUserData = (
   },
 });
 
+const activeReviewMemoryExplanation: ReviewMemoryExplanation = {
+  activeIngredients: [
+    {
+      ingredientName: "Chicken",
+      detail: {
+        key: "active-chicken",
+        memoryType: "typical_portion",
+        state: "active",
+        affectedLabel: "Chicken",
+        usedValueLabel: "180 g",
+        evidence: {
+          observationCount: 3,
+          distinctDayCount: 2,
+          selectionCount: null,
+          correctionCount: null,
+        },
+      },
+    },
+  ],
+  row: null,
+};
+
+const pendingReviewMemoryExplanation: ReviewMemoryExplanation = {
+  activeIngredients: [],
+  row: {
+    kind: "pending_offline",
+    detail: {
+      key: "pending-candidate",
+      memoryType: "typical_portion",
+      state: "pending",
+      affectedLabel: "Chicken",
+      usedValueLabel: "",
+      evidence: {
+        observationCount: 1,
+        distinctDayCount: null,
+        selectionCount: null,
+        correctionCount: null,
+      },
+    },
+  },
+};
+
+const failedReviewMemoryExplanation: ReviewMemoryExplanation = {
+  activeIngredients: [],
+  row: {
+    kind: "sync_failed",
+    detail: {
+      key: "failed-candidate",
+      memoryType: "typical_portion",
+      state: "failed",
+      affectedLabel: "Chicken",
+      usedValueLabel: "",
+      evidence: {
+        observationCount: null,
+        distinctDayCount: null,
+        selectionCount: null,
+        correctionCount: null,
+      },
+    },
+  },
+};
+
 const buildProps = () => {
   const navigate = jest.fn<(screen: string, params?: unknown) => void>();
   const dispatch = jest.fn();
@@ -376,6 +533,14 @@ describe("ReviewMealScreen", () => {
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
     mockUseUserContext.mockReturnValue({ userData: { uid: "user-1" } });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: false,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockReset();
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue({
+      activeIngredients: [],
+      row: null,
+    });
     mockUseMeals.mockReturnValue({
       saveMeal: jest.fn(async ({ meal }: { meal: Meal }) => meal),
       meals: [],
@@ -659,6 +824,46 @@ describe("ReviewMealScreen", () => {
     });
   });
 
+  it("keeps save/reset behavior unchanged when memory UI is present", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-info-0")).toBeTruthy();
+    });
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledTimes(1);
+      expect(ctx.clearMeal).toHaveBeenCalledWith("user-1");
+      expect(testProps.dispatch).toHaveBeenCalledWith({
+        type: "RESET",
+        payload: {
+          index: 0,
+          routes: [{ name: "Home" }],
+        },
+      });
+    });
+  });
+
   it("saves a manual draft for a ready profile with revoked AI consent", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
     const ctx = buildDraftContext({
@@ -754,6 +959,160 @@ describe("ReviewMealScreen", () => {
     expect(
       getByText("If something looks off, edit details before saving."),
     ).toBeTruthy();
+  });
+
+  it("keeps Review memory UI suppressed when the explicit gate is off", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(mockReadReviewSmartMemoryExplanation).not.toHaveBeenCalled();
+    });
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+    expect(queryByTestId("review-meal-memory-row")).toBeNull();
+  });
+
+  it("shows no Review memory UI when the gate is on but there is no supported signal", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue({
+      activeIngredients: [],
+      row: null,
+    });
+
+    const { queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(mockReadReviewSmartMemoryExplanation).toHaveBeenCalledTimes(1);
+    });
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+    expect(queryByTestId("review-meal-memory-row")).toBeNull();
+  });
+
+  it("shows active memory as an inline ingredient info icon with bounded details", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { getAllByText, getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-info-0")).toBeTruthy();
+    });
+    expect(queryByTestId("review-meal-memory-row")).toBeNull();
+
+    fireEvent.press(getByTestId("review-meal-memory-info-0"));
+
+    expect(getByTestId("review-meal-memory-details-modal")).toBeTruthy();
+    expect(getByText("Smart Memory details")).toBeTruthy();
+    expect(getByText("Uses your saved amount for this ingredient.")).toBeTruthy();
+    expect(getByText("Applies to")).toBeTruthy();
+    expect(getAllByText("Chicken").length).toBeGreaterThanOrEqual(2);
+    expect(getByText("Memory type")).toBeTruthy();
+    expect(getByText("Typical portion")).toBeTruthy();
+    expect(getByText("Used value")).toBeTruthy();
+    expect(getByText("180 g")).toBeTruthy();
+    expect(getByText("Active")).toBeTruthy();
+    expect(getByText("Based on 3 recent saves.")).toBeTruthy();
+    expect(testProps.flowGoTo).not.toHaveBeenCalled();
+
+    fireEvent.press(getByText("Open Memory Center"));
+    expect(testProps.navigate).toHaveBeenCalledWith("MemoryCenter");
+  });
+
+  it("shows a single non-blocking pending memory row above nutrition", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      pendingReviewMemoryExplanation,
+    );
+
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-row")).toBeTruthy();
+    });
+    expect(getByText("Memory update will sync when online.")).toBeTruthy();
+    expect(getByText("This does not block saving this meal.")).toBeTruthy();
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+  });
+
+  it("shows sync failed memory as one non-blocking row with bounded details", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      failedReviewMemoryExplanation,
+    );
+
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-row")).toBeTruthy();
+    });
+    expect(getByText("Memory change did not sync.")).toBeTruthy();
+    expect(getByText("Save still works. Manage this later in Smart Memory.")).toBeTruthy();
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+
+    fireEvent.press(getByTestId("review-meal-memory-row"));
+    expect(getByText("This memory change needs attention, but meal saving still works.")).toBeTruthy();
+    expect(getByText("Failed")).toBeTruthy();
+  });
+
+  it("keeps Polish Review memory copy compact and bounded", () => {
+    const keys = [
+      "review_memory_row_candidate_title",
+      "review_memory_row_candidate_body",
+      "review_memory_row_pending_title",
+      "review_memory_row_pending_body",
+      "review_memory_row_sync_failed_title",
+      "review_memory_row_sync_failed_body",
+      "review_memory_ingredient_accessibility_label",
+      "review_memory_details_summary_portion",
+      "review_memory_details_summary_pending",
+      "review_memory_details_summary_failed",
+      "review_memory_details_memory_center_cta",
+    ] as const;
+
+    for (const key of keys) {
+      const value = plMeals[key];
+      expect(typeof value).toBe("string");
+      expect(value.length).toBeLessThanOrEqual(80);
+      expect(value).not.toMatch(/zawsze|idealn|wiemy/i);
+    }
   });
 
   it("logs from saved meal without updating template when checkbox is unchecked", async () => {

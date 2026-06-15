@@ -1,6 +1,12 @@
 import { getDB } from "./db";
 import type { Meal } from "@/types/meal";
 import type { UserData } from "@/types";
+import type {
+  SmartMemoryCandidateUpsertInput,
+  SmartMemoryItemEditInput,
+  SmartMemorySourceDeletedInput,
+  SmartMemoryUserControlOperation,
+} from "@/types/smartMemory";
 import type { DeadLetterRow, QueueKind, QueueRow } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { emit } from "@/services/core/events";
@@ -17,12 +23,297 @@ function newClientMutationId(kind: QueueKind, uid: string, cloudId: string): str
   return `meal-sync:${kind}:${uid}:${cloudId}:${uuidv4()}`;
 }
 
+function newSmartMemoryClientMutationId(
+  operation: SmartMemoryUserControlOperation,
+  uid: string,
+  targetId: string,
+): string {
+  return `smart-memory:${operation}:${uid}:${targetId}:${uuidv4()}`;
+}
+
 function safeParse(payload: string): unknown {
   try {
     return JSON.parse(payload);
   } catch {
     return payload;
   }
+}
+
+function deleteQueuedKinds(
+  uid: string,
+  cloudId: string,
+  kinds: QueueKind[],
+): void {
+  if (!kinds.length) return;
+  const db = getDB();
+  db.runSync(
+    `DELETE FROM op_queue
+     WHERE cloud_id=? AND user_uid=? AND kind IN (${kinds.map(() => "?").join(",")})`,
+    [cloudId, uid, ...kinds],
+  );
+}
+
+function insertQueuedOp(params: {
+  uid: string;
+  cloudId: string;
+  kind: QueueKind;
+  payload: unknown;
+  updatedAt: string;
+  clientMutationId: string;
+}): void {
+  const db = getDB();
+  db.runSync(
+    `INSERT INTO op_queue (
+       client_mutation_id, cloud_id, user_uid, kind, payload, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      params.clientMutationId,
+      params.cloudId,
+      params.uid,
+      params.kind,
+      JSON.stringify(params.payload),
+      params.updatedAt,
+    ],
+  );
+}
+
+export async function enqueueSmartMemoryCandidateUpsert(
+  uid: string,
+  input: SmartMemoryCandidateUpsertInput,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  const db = getDB();
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newSmartMemoryClientMutationId(
+    "candidate_upsert",
+    uid,
+    input.candidateId,
+  );
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, input.candidateId, ["smart_memory_candidate_upsert"]);
+    insertQueuedOp({
+      uid,
+      cloudId: input.candidateId,
+      kind: "smart_memory_candidate_upsert",
+      payload: input,
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
+}
+
+export async function enqueueSmartMemoryItemEdit(
+  uid: string,
+  memoryItemId: string,
+  input: SmartMemoryItemEditInput,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemoryItemControl(
+    uid,
+    memoryItemId,
+    "smart_memory_item_edit",
+    "edit",
+    input,
+    ["smart_memory_item_edit"],
+    options,
+  );
+}
+
+export async function enqueueSmartMemoryItemMute(
+  uid: string,
+  memoryItemId: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemoryItemControl(
+    uid,
+    memoryItemId,
+    "smart_memory_item_mute",
+    "mute",
+    {},
+    ["smart_memory_item_mute", "smart_memory_item_restore"],
+    options,
+  );
+}
+
+export async function enqueueSmartMemoryItemRestore(
+  uid: string,
+  memoryItemId: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemoryItemControl(
+    uid,
+    memoryItemId,
+    "smart_memory_item_restore",
+    "restore",
+    {},
+    ["smart_memory_item_mute", "smart_memory_item_restore"],
+    options,
+  );
+}
+
+export async function enqueueSmartMemoryItemDelete(
+  uid: string,
+  memoryItemId: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemoryItemControl(
+    uid,
+    memoryItemId,
+    "smart_memory_item_delete",
+    "delete",
+    {},
+    [
+      "smart_memory_item_edit",
+      "smart_memory_item_mute",
+      "smart_memory_item_restore",
+      "smart_memory_item_delete",
+      "smart_memory_item_source_deleted",
+    ],
+    options,
+  );
+}
+
+export async function enqueueSmartMemoryItemSourceDeleted(
+  uid: string,
+  memoryItemId: string,
+  input: SmartMemorySourceDeletedInput,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemoryItemControl(
+    uid,
+    memoryItemId,
+    "smart_memory_item_source_deleted",
+    "source_deleted",
+    input,
+    [
+      "smart_memory_item_edit",
+      "smart_memory_item_mute",
+      "smart_memory_item_restore",
+      "smart_memory_item_delete",
+      "smart_memory_item_source_deleted",
+    ],
+    options,
+  );
+}
+
+async function enqueueSmartMemoryItemControl(
+  uid: string,
+  memoryItemId: string,
+  kind: Extract<
+    QueueKind,
+    | "smart_memory_item_edit"
+    | "smart_memory_item_mute"
+    | "smart_memory_item_restore"
+    | "smart_memory_item_delete"
+    | "smart_memory_item_source_deleted"
+  >,
+  operation: Extract<
+    SmartMemoryUserControlOperation,
+    "edit" | "mute" | "restore" | "delete" | "source_deleted"
+  >,
+  payload: unknown,
+  supersededKinds: QueueKind[],
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  const db = getDB();
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newSmartMemoryClientMutationId(
+    operation,
+    uid,
+    memoryItemId,
+  );
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, memoryItemId, supersededKinds);
+    insertQueuedOp({
+      uid,
+      cloudId: memoryItemId,
+      kind,
+      payload,
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
+}
+
+export async function enqueueSmartMemorySettingsDisable(
+  uid: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemorySettingsControl(
+    uid,
+    "smart_memory_settings_disable",
+    "settings_disable",
+    false,
+    options,
+  );
+}
+
+export async function enqueueSmartMemorySettingsEnable(
+  uid: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  return enqueueSmartMemorySettingsControl(
+    uid,
+    "smart_memory_settings_enable",
+    "settings_enable",
+    true,
+    options,
+  );
+}
+
+async function enqueueSmartMemorySettingsControl(
+  uid: string,
+  kind: Extract<
+    QueueKind,
+    "smart_memory_settings_disable" | "smart_memory_settings_enable"
+  >,
+  operation: Extract<
+    SmartMemoryUserControlOperation,
+    "settings_disable" | "settings_enable"
+  >,
+  enabled: boolean,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  const db = getDB();
+  const cloudId = "settings";
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newSmartMemoryClientMutationId(
+    operation,
+    uid,
+    cloudId,
+  );
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, cloudId, [
+      "smart_memory_settings_disable",
+      "smart_memory_settings_enable",
+    ]);
+    insertQueuedOp({
+      uid,
+      cloudId,
+      kind,
+      payload: { enabled },
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
 }
 
 export async function enqueueUpsert(uid: string, meal: Meal): Promise<void> {
@@ -315,6 +606,27 @@ function retryConflictFamily(kind: QueueKind): QueueKind[] {
   if (kind === "upsert_mymeal" || kind === "delete_mymeal") {
     return ["upsert_mymeal", "delete_mymeal"];
   }
+  if (
+    kind === "smart_memory_item_edit" ||
+    kind === "smart_memory_item_mute" ||
+    kind === "smart_memory_item_restore" ||
+    kind === "smart_memory_item_delete" ||
+    kind === "smart_memory_item_source_deleted"
+  ) {
+    return [
+      "smart_memory_item_edit",
+      "smart_memory_item_mute",
+      "smart_memory_item_restore",
+      "smart_memory_item_delete",
+      "smart_memory_item_source_deleted",
+    ];
+  }
+  if (
+    kind === "smart_memory_settings_disable" ||
+    kind === "smart_memory_settings_enable"
+  ) {
+    return ["smart_memory_settings_disable", "smart_memory_settings_enable"];
+  }
   return [kind];
 }
 
@@ -431,6 +743,40 @@ export async function discardDeadLetterOps(params: {
     uid: params.uid,
     count: discarded,
     ids,
+    kinds: params.kinds,
+  });
+  return discarded;
+}
+
+export async function discardQueuedOpsByClientMutationIds(params: {
+  uid: string;
+  clientMutationIds: string[];
+  kinds?: QueueKind[];
+}): Promise<number> {
+  if (!params.uid) return 0;
+  const clientMutationIds = Array.from(
+    new Set(
+      params.clientMutationIds
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    ),
+  );
+  if (!clientMutationIds.length) return 0;
+
+  const db = getDB();
+  const kindsClause = buildKindsClause(params.kinds);
+  const result = db.runSync(
+    `DELETE FROM op_queue
+     WHERE user_uid=? AND client_mutation_id IN (${clientMutationIds.map(() => "?").join(",")})${kindsClause.sql}`,
+    [params.uid, ...clientMutationIds, ...kindsClause.args],
+  ) as { changes?: number };
+  const discarded = Number(result.changes ?? 0);
+  if (discarded <= 0) return 0;
+
+  emit("sync:op:discarded", {
+    uid: params.uid,
+    count: discarded,
+    clientMutationIds,
     kinds: params.kinds,
   });
   return discarded;

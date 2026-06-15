@@ -249,6 +249,16 @@ export default function UserProfileScreen({
             testID="account-app-settings-row"
             onPress={() => navigation.navigate("AppSettings")}
           />
+          <SettingsRow
+            {...accountRowProps}
+            leading={renderRowIcon(styles, "sparkles", theme.primaryStrong)}
+            title={t("memoryCenter.rowTitle")}
+            subtitle={t("memoryCenter.rowSubtitle")}
+            subtitleNumberOfLines={2}
+            testID="account-memory-center-row"
+            accessibilityHint={t("memoryCenter.rowHint")}
+            onPress={() => navigation.navigate("MemoryCenter")}
+          />
         </AccountOverviewSection>
 
         <AccountOverviewSection

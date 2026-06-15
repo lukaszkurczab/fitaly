@@ -77,6 +77,79 @@ function columnExists(
   }
 }
 
+function createSmartMemoryProjectionTables(d: SQLite.SQLiteDatabase): void {
+  d.execSync(`
+    CREATE TABLE IF NOT EXISTS smart_memory_items (
+      memory_item_id TEXT PRIMARY KEY,
+      user_uid TEXT NOT NULL,
+      memory_type TEXT NOT NULL,
+      state TEXT NOT NULL,
+      projection_state TEXT NOT NULL,
+      suggestion_use TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      last_synced_at INTEGER NOT NULL DEFAULT 0,
+      sync_state TEXT NOT NULL DEFAULT 'synced',
+      pending_operation TEXT,
+      pending_client_mutation_id TEXT,
+      pending_updated_at TEXT,
+      last_error_code TEXT,
+      last_error_message TEXT
+    );
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_state
+      ON smart_memory_items(user_uid, projection_state, updated_at DESC);
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_type
+      ON smart_memory_items(user_uid, memory_type, updated_at DESC);
+  `);
+  d.execSync(`
+    CREATE TABLE IF NOT EXISTS smart_memory_candidates (
+      candidate_id TEXT PRIMARY KEY,
+      user_uid TEXT NOT NULL,
+      memory_type TEXT NOT NULL,
+      state TEXT NOT NULL,
+      projection_state TEXT NOT NULL,
+      suggestion_use TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      last_synced_at INTEGER NOT NULL DEFAULT 0,
+      sync_state TEXT NOT NULL DEFAULT 'synced',
+      pending_operation TEXT,
+      pending_client_mutation_id TEXT,
+      pending_updated_at TEXT,
+      last_error_code TEXT,
+      last_error_message TEXT
+    );
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_smart_memory_candidates_user_state
+      ON smart_memory_candidates(user_uid, projection_state, updated_at DESC);
+  `);
+  d.execSync(`
+    CREATE TABLE IF NOT EXISTS smart_memory_settings (
+      user_uid TEXT PRIMARY KEY,
+      enabled INTEGER NOT NULL,
+      projection_state TEXT NOT NULL,
+      suggestion_use TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      last_synced_at INTEGER NOT NULL DEFAULT 0,
+      sync_state TEXT NOT NULL DEFAULT 'synced',
+      pending_operation TEXT,
+      pending_client_mutation_id TEXT,
+      pending_updated_at TEXT,
+      last_error_code TEXT,
+      last_error_message TEXT
+    );
+  `);
+}
+
 export function runMigrations() {
   const d = getDB();
   let v = getUserVersion(d);
@@ -153,6 +226,7 @@ export function runMigrations() {
         CREATE INDEX IF NOT EXISTS idx_op_queue_dead_user_failed
           ON op_queue_dead(user_uid, failed_at DESC);
       `);
+      createSmartMemoryProjectionTables(d);
       d.execSync(`
         CREATE TABLE IF NOT EXISTS images (
           image_id TEXT PRIMARY KEY,
@@ -651,6 +725,19 @@ export function runMigrations() {
     }
   }
 
+  if (v < 14) {
+    d.execSync("BEGIN");
+    try {
+      createSmartMemoryProjectionTables(d);
+      setUserVersion(d, 14);
+      d.execSync("COMMIT");
+      v = 14;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
   void ensureMigrationRunner().catch(() => undefined);
 }
 
@@ -663,6 +750,9 @@ export function resetOfflineStorage() {
     d.execSync(`DELETE FROM images;`);
     d.execSync(`DELETE FROM meals;`);
     d.execSync(`DELETE FROM my_meals;`);
+    d.execSync(`DELETE FROM smart_memory_items;`);
+    d.execSync(`DELETE FROM smart_memory_candidates;`);
+    d.execSync(`DELETE FROM smart_memory_settings;`);
     d.execSync(`DELETE FROM chat_messages;`);
     d.execSync(`DELETE FROM chat_threads;`);
     d.execSync("COMMIT");

@@ -250,6 +250,17 @@ describe("UserProfileScreen", () => {
     expect(navigation.navigate).toHaveBeenCalledWith("EditUserData");
   });
 
+  it("links to Memory Center from the profile control area", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(screen.getByTestId("account-memory-center-row"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("MemoryCenter");
+  });
+
   it("shows pending sync copy without retry action", () => {
     mockBaseState.syncState = "pending";
 

@@ -15,9 +15,14 @@ import {
 } from "./queue.repo";
 import { setMealSyncStateLocal } from "./meals.repo";
 import { setMyMealSyncStateLocal } from "./myMeals.repo";
+import {
+  markSmartMemoryProjectionSyncFailed,
+  smartMemoryQueueKinds,
+} from "@/services/smartMemory/smartMemoryProjectionRepository";
 import type { SyncStrategy } from "./sync.strategy";
 
 const log = Sync;
+const SMART_MEMORY_QUEUE_KINDS = new Set(smartMemoryQueueKinds());
 
 export type PushQueueResult = {
   processed: number;
@@ -129,6 +134,15 @@ export async function runPushQueue(
             updatedAt: op.updated_at,
           });
         }
+        if (SMART_MEMORY_QUEUE_KINDS.has(op.kind)) {
+          await markSmartMemoryProjectionSyncFailed({
+            uid,
+            op,
+            dead: shouldDeadLetter,
+            code: err.code,
+            message: err.message,
+          });
+        }
         if (op.kind === "update_user_profile") {
           emit("user:profile:failed", {
             uid,
@@ -139,6 +153,14 @@ export async function runPushQueue(
           emit("user:avatar:failed", {
             uid,
             opId: op.id,
+            dead: shouldDeadLetter,
+          });
+        } else if (SMART_MEMORY_QUEUE_KINDS.has(op.kind)) {
+          emit("smart-memory:failed", {
+            uid,
+            opId: op.id,
+            cloudId: op.cloud_id,
+            kind: op.kind,
             dead: shouldDeadLetter,
           });
         } else {

@@ -9,6 +9,7 @@ const mockRunPushQueue = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockMealsPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockMyMealsPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockChatPull = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockSmartMemoryPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockProcessImageUploads = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetQueuedOpsCount = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockGetPendingUploads = jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
@@ -17,6 +18,9 @@ const mockGetLastMyMealsPullTs = jest.fn<
   (...args: unknown[]) => Promise<string | null>
 >();
 const mockGetLastChatPullTs = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockGetLastSmartMemoryPullTs = jest.fn<
+  (...args: unknown[]) => Promise<string | null>
+>();
 const mockGetLastPullCheckTs = jest.fn<
   (...args: unknown[]) => Promise<string | null>
 >();
@@ -55,6 +59,9 @@ jest.mock("./sync.storage", () => ({
   setLastMyMealsPullTs: jest.fn(),
   getLastChatPullTs: (...args: unknown[]) => mockGetLastChatPullTs(...args),
   setLastChatPullTs: jest.fn(),
+  getLastSmartMemoryPullTs: (...args: unknown[]) =>
+    mockGetLastSmartMemoryPullTs(...args),
+  setLastSmartMemoryPullTs: jest.fn(),
   getLastPullCheckTs: (...args: unknown[]) => mockGetLastPullCheckTs(...args),
   setLastPullCheckTs: (...args: unknown[]) => mockSetLastPullCheckTs(...args),
 }));
@@ -76,6 +83,13 @@ jest.mock("./strategies/myMeals.strategy", () => ({
 jest.mock("./strategies/chat.strategy", () => ({
   chatStrategy: {
     pull: (...args: unknown[]) => mockChatPull(...args),
+    handlePushOp: jest.fn(async () => false),
+  },
+}));
+
+jest.mock("./strategies/smartMemory.strategy", () => ({
+  smartMemoryStrategy: {
+    pull: (...args: unknown[]) => mockSmartMemoryPull(...args),
     handlePushOp: jest.fn(async () => false),
   },
 }));
@@ -116,12 +130,14 @@ describe("offline sync.engine selective coordinator", () => {
     mockMealsPull.mockResolvedValue(0);
     mockMyMealsPull.mockResolvedValue(0);
     mockChatPull.mockResolvedValue(0);
+    mockSmartMemoryPull.mockResolvedValue(0);
     mockProcessImageUploads.mockResolvedValue();
     mockGetQueuedOpsCount.mockResolvedValue(0);
     mockGetPendingUploads.mockResolvedValue([]);
     mockGetLastPullTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockGetLastMyMealsPullTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockGetLastChatPullTs.mockResolvedValue(Date.parse("2026-04-28T09:59:00.000Z"));
+    mockGetLastSmartMemoryPullTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockGetLastPullCheckTs.mockResolvedValue("2026-04-28T09:59:00.000Z");
     mockSetLastPullCheckTs.mockResolvedValue();
   });
@@ -141,6 +157,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledWith("user-1");
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
 
     stopSyncLoop();
     expect(unsub).toHaveBeenCalledTimes(1);
@@ -177,6 +194,7 @@ describe("offline sync.engine selective coordinator", () => {
     mockMealsPull.mockResolvedValue(0);
     mockMyMealsPull.mockResolvedValue(0);
     mockChatPull.mockResolvedValue(0);
+    mockSmartMemoryPull.mockResolvedValue(0);
     mockProcessImageUploads.mockResolvedValue();
     mockGetQueuedOpsCount.mockResolvedValue(0);
     mockGetPendingUploads.mockResolvedValue([]);
@@ -204,6 +222,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
     stopSyncLoop();
     setTimeoutSpy.mockRestore();
   });
@@ -224,6 +243,7 @@ describe("offline sync.engine selective coordinator", () => {
           meals: "clean",
           myMeals: "clean",
           chat: "clean",
+          smartMemory: "clean",
         }),
       }),
     );
@@ -231,6 +251,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
   });
 
   it("keeps E2E reconcile local-first by pushing but skipping remote pulls", async () => {
@@ -254,6 +275,7 @@ describe("offline sync.engine selective coordinator", () => {
           meals: "e2e",
           myMeals: "e2e",
           chat: "e2e",
+          smartMemory: "e2e",
         }),
       }),
     );
@@ -261,6 +283,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
     expect(mockProcessImageUploads).not.toHaveBeenCalled();
   });
 
@@ -285,6 +308,7 @@ describe("offline sync.engine selective coordinator", () => {
           push: "clean",
           myMeals: "clean",
           chat: "clean",
+          smartMemory: "clean",
         }),
       }),
     );
@@ -292,6 +316,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent sync requests so the pending queue pushes once", async () => {
@@ -346,17 +371,20 @@ describe("offline sync.engine selective coordinator", () => {
     const {
       pullMyMealChanges,
       pullChatChanges,
+      pullSmartMemoryChanges,
       processImageUploads,
       pushQueue,
     } = require("@/services/offline/sync.engine");
 
     await pullMyMealChanges("user-1");
     await pullChatChanges("user-1");
+    await pullSmartMemoryChanges("user-1");
     await processImageUploads("user-1");
     await pushQueue("user-1");
 
     expect(mockMyMealsPull).toHaveBeenCalledWith("user-1");
     expect(mockChatPull).toHaveBeenCalledWith("user-1");
+    expect(mockSmartMemoryPull).toHaveBeenCalledWith("user-1");
     expect(mockProcessImageUploads).toHaveBeenCalledWith("user-1");
     expect(mockRunPushQueue).toHaveBeenCalledWith(
       "user-1",
@@ -377,6 +405,23 @@ describe("offline sync.engine selective coordinator", () => {
 
     expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
+  });
+
+  it("routes smart memory local changes through Smart Memory pull after push", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { requestSync } = require("@/services/offline/sync.engine");
+
+    await requestSync({
+      uid: "user-1",
+      domain: "smartMemory",
+      reason: "local-change",
+    });
+
+    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockSmartMemoryPull).toHaveBeenCalledWith("user-1");
+    expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
   });
@@ -422,6 +467,39 @@ describe("offline sync.engine selective coordinator", () => {
     );
     expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
+  });
+
+  it("reconnect pushes once and only pulls Smart Memory for dirty Smart Memory queue", async () => {
+    mockGetQueuedOpsCount.mockImplementation(async (_uid, options) => {
+      if (!options) return 1;
+      const kinds = (options as { kinds?: string[] } | undefined)?.kinds ?? [];
+      return kinds.includes("smart_memory_item_edit") ||
+        kinds.includes("smart_memory_settings_disable")
+        ? 1
+        : 0;
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runReconnectReconcile } = require("@/services/offline/sync.engine");
+
+    const result = await runReconnectReconcile("user-1");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pulled: { smartMemory: 0 },
+        skipped: expect.objectContaining({
+          meals: "clean",
+          myMeals: "clean",
+          chat: "clean",
+        }),
+      }),
+    );
+    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockSmartMemoryPull).toHaveBeenCalledTimes(1);
+    expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
   });

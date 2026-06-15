@@ -9,6 +9,7 @@ export type RuntimeConfig = {
   backendLoggingEnabled: boolean;
   telemetryEnabled: boolean;
   smartRemindersEnabled: boolean;
+  reviewMemoryExplanationEnabled: boolean;
   billingDisabled: boolean;
   buildProfile: string;
   termsUrl: string;
@@ -56,6 +57,10 @@ export function getRuntimeConfigFromExtra(extra: unknown): RuntimeConfig {
     backendLoggingEnabled: normalizeBoolean(record.backendLoggingEnabled, false),
     telemetryEnabled: normalizeBoolean(record.telemetryEnabled, false),
     smartRemindersEnabled: normalizeBoolean(record.smartRemindersEnabled, true),
+    reviewMemoryExplanationEnabled: normalizeBoolean(
+      record.reviewMemoryExplanationEnabled,
+      false,
+    ),
     billingDisabled: normalizeBoolean(record.billingDisabled, false),
     buildProfile: normalizeString(record.buildProfile),
     termsUrl: normalizeString(record.termsUrl),

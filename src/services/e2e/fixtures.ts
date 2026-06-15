@@ -23,7 +23,19 @@ import type {
   WeeklyReport,
   WeeklyReportResult,
 } from "@/services/weeklyReport/weeklyReportTypes";
+import {
+  markSmartMemoryCandidatePending,
+  markSmartMemoryItemPending,
+  markSmartMemoryProjectionSyncFailed,
+  upsertSmartMemoryItemProjection,
+  upsertSmartMemorySettingsProjection,
+} from "@/services/smartMemory/smartMemoryProjectionRepository";
 import type { Ingredient, Meal } from "@/types/meal";
+import type {
+  SmartMemoryCandidateUpsertInput,
+  SmartMemoryItem,
+  SmartMemorySettings,
+} from "@/types/smartMemory";
 import type { UserAiConsent } from "@/types/user";
 
 export type E2EFixtureName =
@@ -69,6 +81,15 @@ export type E2EWeeklyReportSeed =
 export type E2EAiConsentSeed = "granted" | "notGranted" | "revoked";
 export type E2EAiConsentGrantSeed = "success" | "failure";
 export type E2EAiConsentRevokeSeed = "success" | "failure" | "failureOnce";
+export type E2ESmartMemorySeed =
+  | "emptyEnabled"
+  | "emptyDisabled"
+  | "active"
+  | "reviewActive"
+  | "muted"
+  | "sourceDeleted"
+  | "pending"
+  | "syncFailed";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -84,6 +105,7 @@ export type E2ESeedCommand = {
   aiConsent?: E2EAiConsentSeed;
   aiConsentGrant?: E2EAiConsentGrantSeed;
   aiConsentRevoke?: E2EAiConsentRevokeSeed;
+  smartMemory?: E2ESmartMemorySeed;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -158,6 +180,16 @@ const VALID_AI_CONSENT_REVOKE = new Set<E2EAiConsentRevokeSeed>([
   "failure",
   "failureOnce",
 ]);
+const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
+  "emptyEnabled",
+  "emptyDisabled",
+  "active",
+  "reviewActive",
+  "muted",
+  "sourceDeleted",
+  "pending",
+  "syncFailed",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -207,6 +239,7 @@ export function parseE2ESeedCommand(
     aiConsent: asValid(params.aiConsent, VALID_AI_CONSENT),
     aiConsentGrant: asValid(params.aiConsentGrant, VALID_AI_CONSENT_GRANT),
     aiConsentRevoke: asValid(params.aiConsentRevoke, VALID_AI_CONSENT_REVOKE),
+    smartMemory: asValid(params.smartMemory, VALID_SMART_MEMORY),
   };
 }
 
@@ -224,7 +257,8 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.weeklyReport ||
       command.aiConsent ||
       command.aiConsentGrant ||
-      command.aiConsentRevoke,
+      command.aiConsentRevoke ||
+      command.smartMemory,
   );
 }
 
@@ -249,6 +283,7 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   if (command.aiConsentRevoke) {
     markers.push(`aiConsentRevoke-${command.aiConsentRevoke}`);
   }
+  if (command.smartMemory) markers.push(`smartMemory-${command.smartMemory}`);
   return markers;
 }
 
@@ -278,6 +313,153 @@ function aiConsentForSeed(seed: E2EAiConsentSeed): UserAiConsent {
 
 function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
   return { ...aiConsent };
+}
+
+function smartMemorySettings(
+  uid: string,
+  enabled: boolean,
+): SmartMemorySettings {
+  const updatedAt = e2eNowISO();
+  return {
+    ownerUserId: uid,
+    enabled,
+    disabledAt: enabled ? null : updatedAt,
+    updatedAt,
+    serverRevision: 1,
+    clientMutationId: null,
+  };
+}
+
+function smartMemoryItem(
+  uid: string,
+  overrides: Partial<SmartMemoryItem> = {},
+): SmartMemoryItem {
+  const updatedAt = e2eNowISO();
+  return {
+    memoryItemId: "e2e-memory-portion-yogurt",
+    ownerUserId: uid,
+    schemaVersion: 1,
+    memoryType: "typical_portion",
+    state: "active",
+    stateReason: "threshold_met",
+    subject: { kind: "ingredient_alias", aliasHash: "e2e-yogurt" },
+    userValue: { amount: 200, unit: "g" },
+    evidenceSummary: { observationCount: 4, distinctDayCount: 3 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-source" }],
+    threshold: { minObservations: 3 },
+    confidence: { level: "medium" },
+    confidenceReasonCodes: ["distinct_days_met"],
+    control: {},
+    createdAt: updatedAt,
+    updatedAt,
+    lastEvaluatedAt: updatedAt,
+    mutedAt: null,
+    deletedAt: null,
+    editedAt: null,
+    restoredAt: null,
+    sourceDeletedAt: null,
+    serverRevision: 2,
+    ...overrides,
+  };
+}
+
+function smartMemoryCandidateInput(): SmartMemoryCandidateUpsertInput {
+  const updatedAt = e2eNowISO();
+  return {
+    candidateId: "e2e-memory-candidate-portion",
+    memoryType: "typical_portion",
+    subject: { kind: "ingredient_alias", aliasHash: "e2e-candidate" },
+    evidenceSummary: { observationCount: 1 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-candidate-source" }],
+    confidenceReasonCodes: ["single_observation"],
+    suppressionChecks: { settingsEnabled: true },
+    firstSeenAt: updatedAt,
+    lastSeenAt: updatedAt,
+  };
+}
+
+async function applySmartMemoryFixture(
+  uid: string,
+  seed: E2ESmartMemorySeed,
+): Promise<void> {
+  await upsertSmartMemorySettingsProjection(
+    uid,
+    smartMemorySettings(uid, seed !== "emptyDisabled"),
+  );
+
+  if (seed === "emptyEnabled" || seed === "emptyDisabled") return;
+
+  if (seed === "pending") {
+    const updatedAt = e2eNowISO();
+    await markSmartMemoryCandidatePending({
+      uid,
+      input: smartMemoryCandidateInput(),
+      clientMutationId:
+        `smart-memory:candidate_upsert:${uid}:e2e-memory-candidate-portion:e2e`,
+      updatedAt,
+    });
+    return;
+  }
+
+  await upsertSmartMemoryItemProjection(
+    uid,
+    smartMemoryItem(
+      uid,
+      seed === "reviewActive"
+        ? {
+            memoryItemId: "e2e-memory-review-portion-chicken",
+            subject: {
+              displayLabel: "Kurczak grillowany",
+              kind: "ingredient_alias",
+              aliasHash: "e2e-review-chicken",
+            },
+            userValue: { amount: 140, unit: "g" },
+            evidenceSummary: { observationCount: 3, distinctDayCount: 2 },
+          }
+        : seed === "muted"
+        ? {
+            state: "muted",
+            stateReason: "user_muted",
+            mutedAt: e2eNowISO(),
+          }
+        : seed === "sourceDeleted"
+          ? {
+              state: "source_deleted",
+              stateReason: "source_deleted",
+              sourceDeletedAt: e2eNowISO(),
+            }
+        : {},
+    ),
+  );
+
+  if (seed === "syncFailed") {
+    const updatedAt = e2eNowISO();
+    const clientMutationId =
+      `smart-memory:mute:${uid}:e2e-memory-portion-yogurt:e2e`;
+    await markSmartMemoryItemPending({
+      uid,
+      memoryItemId: "e2e-memory-portion-yogurt",
+      operation: "mute",
+      clientMutationId,
+      updatedAt,
+    });
+    await markSmartMemoryProjectionSyncFailed({
+      uid,
+      dead: false,
+      code: "api/e2e-smart-memory-failure",
+      message: "E2E deterministic Smart Memory failure",
+      op: {
+        id: 1,
+        client_mutation_id: clientMutationId,
+        cloud_id: "e2e-memory-portion-yogurt",
+        user_uid: uid,
+        kind: "smart_memory_item_mute",
+        payload: {},
+        updated_at: updatedAt,
+        attempts: 1,
+      },
+    });
+  }
 }
 
 function ingredient(params: {
@@ -763,7 +945,12 @@ export async function applyE2ESeedCommand(params: {
 
   const appliedCommand =
     !params.uid
-      ? { ...params.command, fixture: undefined, aiConsent: undefined }
+      ? {
+          ...params.command,
+          fixture: undefined,
+          aiConsent: undefined,
+          smartMemory: undefined,
+        }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
 
@@ -788,6 +975,10 @@ export async function applyE2ESeedCommand(params: {
       uid: params.uid,
       aiConsent,
     });
+  }
+
+  if (params.uid && appliedCommand.smartMemory) {
+    await applySmartMemoryFixture(params.uid, appliedCommand.smartMemory);
   }
 
   emit("e2e:seeded", fixtureState);

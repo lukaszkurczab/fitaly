@@ -212,6 +212,7 @@ jest.mock("@/services/core/runtimeConfig", () => ({
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "production",
     privacyUrl: "",

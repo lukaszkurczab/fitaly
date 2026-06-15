@@ -130,6 +130,19 @@ export default function AppSettingsScreen({
               testID="app-settings-notifications-row"
               onPress={() => navigation.navigate("Notifications")}
             />
+            <SettingsRow
+              leading={
+                <View style={styles.rowIcon}>
+                  <AppIcon name="sparkles" size={20} color={theme.primaryStrong} />
+                </View>
+              }
+              title={t("memoryCenter.rowTitle")}
+              subtitle={t("memoryCenter.rowSubtitle")}
+              subtitleNumberOfLines={2}
+              testID="app-settings-memory-center-row"
+              accessibilityHint={t("memoryCenter.rowHint")}
+              onPress={() => navigation.navigate("MemoryCenter")}
+            />
           </SettingsSection>
         </View>
       </FormScreenShell>

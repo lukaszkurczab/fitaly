@@ -154,4 +154,20 @@ describe("AppSettingsScreen", () => {
 
     expect(getByTestId("app-settings-dark-mode-toggle")).toBeTruthy();
   });
+
+  it("links to Memory Center from app settings", () => {
+    const navigation = {
+      canGoBack: jest.fn(() => true),
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+    };
+
+    const { getByTestId } = renderWithTheme(
+      <AppSettingsScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(getByTestId("app-settings-memory-center-row"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("MemoryCenter");
+  });
 });

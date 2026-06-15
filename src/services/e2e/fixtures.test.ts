@@ -28,6 +28,16 @@ const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
 const mockGetSampleMealUri = jest.fn<() => Promise<string>>();
+const mockUpsertSmartMemorySettingsProjection =
+  jest.fn<(uid: string, settings: unknown) => Promise<void>>();
+const mockUpsertSmartMemoryItemProjection =
+  jest.fn<(uid: string, item: unknown) => Promise<void>>();
+const mockMarkSmartMemoryCandidatePending =
+  jest.fn<(params: unknown) => Promise<void>>();
+const mockMarkSmartMemoryItemPending =
+  jest.fn<(params: unknown) => Promise<void>>();
+const mockMarkSmartMemoryProjectionSyncFailed =
+  jest.fn<(params: unknown) => Promise<void>>();
 
 let mockE2EEnabled = true;
 
@@ -66,6 +76,19 @@ jest.mock("@/utils/devSamples", () => ({
   getSampleMealUri: () => mockGetSampleMealUri(),
 }));
 
+jest.mock("@/services/smartMemory/smartMemoryProjectionRepository", () => ({
+  upsertSmartMemorySettingsProjection: (uid: string, settings: unknown) =>
+    mockUpsertSmartMemorySettingsProjection(uid, settings),
+  upsertSmartMemoryItemProjection: (uid: string, item: unknown) =>
+    mockUpsertSmartMemoryItemProjection(uid, item),
+  markSmartMemoryCandidatePending: (params: unknown) =>
+    mockMarkSmartMemoryCandidatePending(params),
+  markSmartMemoryItemPending: (params: unknown) =>
+    mockMarkSmartMemoryItemPending(params),
+  markSmartMemoryProjectionSyncFailed: (params: unknown) =>
+    mockMarkSmartMemoryProjectionSyncFailed(params),
+}));
+
 describe("E2E fixtures", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,6 +100,11 @@ describe("E2E fixtures", () => {
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
     mockGetSampleMealUri.mockResolvedValue("file:///sampleMeal-local.jpg");
+    mockUpsertSmartMemorySettingsProjection.mockResolvedValue(undefined);
+    mockUpsertSmartMemoryItemProjection.mockResolvedValue(undefined);
+    mockMarkSmartMemoryCandidatePending.mockResolvedValue(undefined);
+    mockMarkSmartMemoryItemPending.mockResolvedValue(undefined);
+    mockMarkSmartMemoryProjectionSyncFailed.mockResolvedValue(undefined);
     __resetE2EFixturesForTests();
   });
 
@@ -96,6 +124,7 @@ describe("E2E fixtures", () => {
         aiConsent: "revoked",
         aiConsentGrant: "success",
         aiConsentRevoke: "failureOnce",
+        smartMemory: "sourceDeleted",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -111,6 +140,7 @@ describe("E2E fixtures", () => {
       aiConsent: "revoked",
       aiConsentGrant: "success",
       aiConsentRevoke: "failureOnce",
+      smartMemory: "sourceDeleted",
     });
 
     expect(
@@ -128,6 +158,7 @@ describe("E2E fixtures", () => {
         aiConsent: "bad",
         aiConsentGrant: "bad",
         aiConsentRevoke: "bad",
+        smartMemory: "bad",
       }),
     ).toEqual({});
   });
@@ -542,6 +573,97 @@ describe("E2E fixtures", () => {
       expect.objectContaining({
         status: "live_success",
         report: expect.objectContaining({ status: "ready" }),
+      }),
+    );
+  });
+
+  it("seeds Smart Memory local projection for Maestro without backend calls", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "active" },
+    });
+
+    expect(markers).toEqual(["smartMemory-active"]);
+    expect(mockUpsertSmartMemorySettingsProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ enabled: true }),
+    );
+    expect(mockUpsertSmartMemoryItemProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        memoryItemId: "e2e-memory-portion-yogurt",
+        memoryType: "typical_portion",
+        state: "active",
+      }),
+    );
+    expect(mockMarkSmartMemoryCandidatePending).not.toHaveBeenCalled();
+  });
+
+  it("seeds Review-specific active Smart Memory projection for Maestro", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "reviewActive" },
+    });
+
+    expect(markers).toEqual(["smartMemory-reviewActive"]);
+    expect(mockUpsertSmartMemoryItemProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        memoryItemId: "e2e-memory-review-portion-chicken",
+        subject: expect.objectContaining({
+          displayLabel: "Kurczak grillowany",
+        }),
+        userValue: { amount: 140, unit: "g" },
+      }),
+    );
+  });
+
+  it("seeds Smart Memory pending and sync-failed states through projection helpers", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "pending" },
+    });
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "syncFailed" },
+    });
+
+    expect(mockMarkSmartMemoryCandidatePending).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        input: expect.objectContaining({
+          candidateId: "e2e-memory-candidate-portion",
+        }),
+      }),
+    );
+    expect(mockMarkSmartMemoryItemPending).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        memoryItemId: "e2e-memory-portion-yogurt",
+        operation: "mute",
+      }),
+    );
+    expect(mockMarkSmartMemoryProjectionSyncFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        code: "api/e2e-smart-memory-failure",
+      }),
+    );
+  });
+
+  it("seeds a Smart Memory source-deleted row for Memory Center coverage", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "sourceDeleted" },
+    });
+
+    expect(markers).toEqual(["smartMemory-sourceDeleted"]);
+    expect(mockUpsertSmartMemoryItemProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        memoryItemId: "e2e-memory-portion-yogurt",
+        state: "source_deleted",
+        stateReason: "source_deleted",
       }),
     );
   });

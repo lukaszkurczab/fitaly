@@ -31,6 +31,27 @@ import {
   FOOD_LIBRARY_LOGGED_MEAL_OWNER,
   FOOD_LIBRARY_LOGGED_MEAL_SCHEMA,
   FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS,
+  INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
+  INGREDIENT_PRODUCT_BARCODE_MINIMAL_IDENTITY_FIELDS,
+  INGREDIENT_PRODUCT_BARCODE_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_CONFIDENCE_FIELDS,
+  INGREDIENT_PRODUCT_CONFIDENCE_LEVELS,
+  INGREDIENT_PRODUCT_DIETARY_FLAGS,
+  INGREDIENT_PRODUCT_KINDS,
+  INGREDIENT_PRODUCT_LIFECYCLE_STATES,
+  INGREDIENT_PRODUCT_NUTRITION_BASES,
+  INGREDIENT_PRODUCT_NUTRITION_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_NUTRITION_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_PROFILE_COMPATIBILITY_STATUSES,
+  INGREDIENT_PRODUCT_RECORD_SCOPES,
+  INGREDIENT_PRODUCT_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_SIZE_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_UNITS,
+  INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SOURCE_TYPES,
   type FoodLibraryDomainsContract,
 } from "@/types/foodLibrary";
 import type {
@@ -93,6 +114,21 @@ import {
   MEDIA_ASSET_SURFACES,
   type MediaAssetSurface,
 } from "@/services/media/assetLifecycle";
+import {
+  SMART_MEMORY_CANDIDATE_STATES,
+  SMART_MEMORY_CENTER_STATES,
+  SMART_MEMORY_CONFIDENCE_REASON_CODES,
+  SMART_MEMORY_CONTRACT_NAME,
+  SMART_MEMORY_PROJECTION_STATES,
+  SMART_MEMORY_REVIEW_STATES,
+  SMART_MEMORY_SCHEMA_VERSION,
+  SMART_MEMORY_STATE_REASON_CODES,
+  SMART_MEMORY_STATES,
+  SMART_MEMORY_TYPES,
+  SMART_MEMORY_USER_CONTROL_OPERATIONS,
+  SMART_MEMORY_USER_VALUE_REASON_CODES,
+  type SmartMemoryCoreContract,
+} from "@/types/smartMemory";
 
 const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
   "avatarUrl",
@@ -133,6 +169,10 @@ const SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN = [
 ] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
+const BACKEND_FIXTURES_DIR = path.resolve(
+  __dirname,
+  "../../../fitaly-backend/tests/contract_fixtures",
+);
 
 function loadFixture<T = unknown>(name: string): T {
   const raw = fs.readFileSync(path.join(FIXTURES_DIR, name), "utf-8");
@@ -1206,6 +1246,7 @@ describe("Food library domains contract", () => {
       "contract",
       "libraryDomains",
       "domainContracts",
+      "ingredientProductRecordContract",
       "loggedMealBoundary",
       "currentSavedMealsBoundary",
       "barcodeBoundary",
@@ -1250,6 +1291,62 @@ describe("Food library domains contract", () => {
         "ownedFields",
       ]);
     }
+
+    const productContract =
+      rawFixture.ingredientProductRecordContract as Record<string, unknown>;
+    expectExactKeys(productContract, [
+      "recordKinds",
+      "recordScopes",
+      "lifecycleStates",
+      "verifiedMeaning",
+      "requiredFields",
+      "optionalFields",
+      "kindSpecificRequiredFields",
+      "ownership",
+      "sourceAttribution",
+      "confidence",
+      "nutritionPer100",
+      "serving",
+      "profileFlags",
+      "barcodeIdentities",
+      "localCacheBoundary",
+    ]);
+    expectExactKeys(productContract.ownership as Record<string, unknown>, [
+      "scopeField",
+      "ownerField",
+      "userScopedScope",
+      "userScopedRequiresOwnerUserId",
+      "globalScopesMustNotUseOwnerUserId",
+      "globalRecordsAreUserAccountData",
+    ]);
+    expectExactKeys(productContract.sourceAttribution as Record<string, unknown>, [
+      "requiredFields",
+      "optionalFields",
+      "sourceTypes",
+      "candidateOnlySourceTypes",
+      "durableTruthRequiresNonAiSource",
+    ]);
+    expectExactKeys(productContract.confidence as Record<string, unknown>, [
+      "requiredFields",
+      "levels",
+      "unknownMeansNotSafeToAssume",
+    ]);
+    expectExactKeys(productContract.nutritionPer100 as Record<string, unknown>, [
+      "requiredFields",
+      "optionalFields",
+      "allowedBases",
+      "missingNutritionPolicy",
+      "runtimeAiMayBecomeDurableNutritionTruth",
+    ]);
+    expectExactKeys(productContract.profileFlags as Record<string, unknown>, [
+      "requiredFields",
+      "allowedDietaryFlags",
+      "allowedAllergenFlags",
+      "compatibilityStatuses",
+      "missingProfilePolicy",
+      "verifiedIsMedicalOrDietarySafetyClaim",
+      "runtimeAiMayBecomeDurableProfileTruth",
+    ]);
   });
 
   test("declares exact CH-06 library domains", () => {
@@ -1277,6 +1374,134 @@ describe("Food library domains contract", () => {
         ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].ownedFields,
       ]);
     }
+  });
+
+  test("defines exact Ingredient/Product foundation fields", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.recordKinds).toEqual([...INGREDIENT_PRODUCT_KINDS]);
+    expect(productContract.recordScopes).toEqual([
+      ...INGREDIENT_PRODUCT_RECORD_SCOPES,
+    ]);
+    expect(productContract.lifecycleStates).toEqual([
+      ...INGREDIENT_PRODUCT_LIFECYCLE_STATES,
+    ]);
+    expect(productContract.verifiedMeaning).toBe(
+      "verified_for_fitaly_catalog_use_not_medical_or_dietary_safety_claim",
+    );
+    expect(productContract.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.kindSpecificRequiredFields.generic_ingredient).toEqual([
+      "ingredientName",
+    ]);
+    expect(productContract.kindSpecificRequiredFields.branded_product).toEqual([
+      "brandName",
+    ]);
+    expect(productContract.ownership.scopeField).toBe("recordScope");
+    expect(productContract.ownership.ownerField).toBe("ownerUserId");
+    expect(productContract.ownership.userScopedScope).toBe("user_scoped");
+    expect(productContract.ownership.userScopedRequiresOwnerUserId).toBe(true);
+    expect(productContract.ownership.globalScopesMustNotUseOwnerUserId).toEqual([
+      "global_seed",
+      "global_internal",
+    ]);
+    expect(productContract.ownership.globalRecordsAreUserAccountData).toBe(false);
+  });
+
+  test("requires source confidence and blocks guessed durable truth", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.sourceAttribution.sourceTypes).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_TYPES,
+    ]);
+    expect(productContract.sourceAttribution.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.sourceAttribution.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.sourceAttribution.candidateOnlySourceTypes).toEqual([
+      "barcode_identity",
+      "runtime_ai_candidate",
+    ]);
+    expect(productContract.sourceAttribution.durableTruthRequiresNonAiSource).toBe(
+      true,
+    );
+    expect(productContract.confidence.levels).toEqual([
+      ...INGREDIENT_PRODUCT_CONFIDENCE_LEVELS,
+    ]);
+    expect(productContract.confidence.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_CONFIDENCE_FIELDS,
+    ]);
+    expect(productContract.confidence.unknownMeansNotSafeToAssume).toBe(true);
+    expect(productContract.nutritionPer100.missingNutritionPolicy).toBe(
+      "unknown_not_guessed",
+    );
+    expect(
+      productContract.nutritionPer100.runtimeAiMayBecomeDurableNutritionTruth,
+    ).toBe(false);
+    expect(productContract.profileFlags.missingProfilePolicy).toBe(
+      "unknown_not_guessed",
+    );
+    expect(
+      productContract.profileFlags.runtimeAiMayBecomeDurableProfileTruth,
+    ).toBe(false);
+  });
+
+  test("keeps nutrition serving profile cache and barcode boundaries explicit", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.nutritionPer100.allowedBases).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_BASES,
+    ]);
+    expect(productContract.nutritionPer100.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.nutritionPer100.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.serving.allowedUnits).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_UNITS,
+    ]);
+    expect(productContract.serving.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.serving.servingSizeFields).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_SIZE_FIELDS,
+    ]);
+    expect(productContract.profileFlags.allowedDietaryFlags).toEqual([
+      ...INGREDIENT_PRODUCT_DIETARY_FLAGS,
+    ]);
+    expect(productContract.profileFlags.allowedAllergenFlags).toEqual([
+      ...INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
+    ]);
+    expect(productContract.profileFlags.compatibilityStatuses).toEqual([
+      ...INGREDIENT_PRODUCT_PROFILE_COMPATIBILITY_STATUSES,
+    ]);
+    expect(productContract.profileFlags.verifiedIsMedicalOrDietarySafetyClaim).toBe(
+      false,
+    );
+    expect(productContract.barcodeIdentities.minimalIdentityFields).toEqual([
+      ...INGREDIENT_PRODUCT_BARCODE_MINIMAL_IDENTITY_FIELDS,
+    ]);
+    expect(productContract.barcodeIdentities.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_BARCODE_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.barcodeIdentities.noCatalogWriteInThisSlice).toBe(true);
+    expect(productContract.barcodeIdentities.noTopLevelAddMealBarcodePath).toBe(
+      true,
+    );
+    expect(productContract.localCacheBoundary.representedAs).toBe(
+      "projection_only",
+    );
+    expect(productContract.localCacheBoundary.localCacheIsTruth).toBe(false);
+    expect(productContract.localCacheBoundary.mayPromoteToGlobalWithoutReview).toBe(
+      false,
+    );
   });
 
   test("MealTemplate excludes logged-meal-only persistence fields", () => {
@@ -1342,6 +1567,190 @@ describe("Food library domains contract", () => {
     for (const field of fixture.loggedMealBoundary.mustNotGainFields) {
       expect(mealKeys.has(field)).toBe(false);
     }
+  });
+});
+
+describe("Smart Memory core contract", () => {
+  const fixture = loadFixture<SmartMemoryCoreContract>(
+    "smart_memory_core_v1.json",
+  );
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "smart_memory_core_v1.json",
+    );
+
+    expectExactKeys(rawFixture, [
+      "contract",
+      "schemaVersion",
+      "memoryTypes",
+      "memoryStates",
+      "candidateStates",
+      "reasonCodes",
+      "userControlOperations",
+      "offlineProjectionStates",
+      "apiEndpoints",
+      "apiResponseExamples",
+      "stateTransitionExamples",
+      "memoryCenter",
+      "review",
+      "privacyBoundary",
+    ]);
+    expectExactKeys(rawFixture.reasonCodes as Record<string, unknown>, [
+      "stateReasonCodes",
+      "confidenceReasonCodes",
+      "userValueReasonCodes",
+    ]);
+    expectExactKeys(rawFixture.apiResponseExamples as Record<string, unknown>, [
+      "emptyItemsPage",
+      "itemsPage",
+      "candidateResponse",
+      "itemDeleteResponse",
+      "settingsEnabledResponse",
+      "settingsDisabledResponse",
+    ]);
+
+    const stateExamples = rawFixture.stateTransitionExamples as Array<
+      Record<string, unknown>
+    >;
+    for (const example of stateExamples) {
+      expectExactKeys(example, [
+        "case",
+        "memoryType",
+        "backendState",
+        "projectionState",
+        "reviewState",
+        "memoryItemId",
+        "candidateId",
+        "queuedOperation",
+        "suggestionUse",
+      ]);
+    }
+  });
+
+  test("declares exact Smart Memory enums and schema version", () => {
+    expect(fixture.contract).toBe(SMART_MEMORY_CONTRACT_NAME);
+    expect(fixture.schemaVersion).toBe(SMART_MEMORY_SCHEMA_VERSION);
+    expect(fixture.memoryTypes).toEqual([...SMART_MEMORY_TYPES]);
+    expect(fixture.memoryStates).toEqual([...SMART_MEMORY_STATES]);
+    expect(fixture.candidateStates).toEqual([...SMART_MEMORY_CANDIDATE_STATES]);
+    expect(fixture.reasonCodes.stateReasonCodes).toEqual([
+      ...SMART_MEMORY_STATE_REASON_CODES,
+    ]);
+    expect(fixture.reasonCodes.confidenceReasonCodes).toEqual([
+      ...SMART_MEMORY_CONFIDENCE_REASON_CODES,
+    ]);
+    expect(fixture.reasonCodes.userValueReasonCodes).toEqual([
+      ...SMART_MEMORY_USER_VALUE_REASON_CODES,
+    ]);
+    expect(fixture.userControlOperations).toEqual([
+      ...SMART_MEMORY_USER_CONTROL_OPERATIONS,
+    ]);
+    expect(fixture.offlineProjectionStates).toEqual([
+      ...SMART_MEMORY_PROJECTION_STATES,
+    ]);
+    expect(fixture.memoryCenter.states).toEqual([...SMART_MEMORY_CENTER_STATES]);
+    expect(fixture.review.states).toEqual([...SMART_MEMORY_REVIEW_STATES]);
+  });
+
+  test("backend fixture is byte-identical", () => {
+    const mobileFixture = fs.readFileSync(
+      path.join(FIXTURES_DIR, "smart_memory_core_v1.json"),
+    );
+    const backendFixture = fs.readFileSync(
+      path.join(BACKEND_FIXTURES_DIR, "smart_memory_core_v1.json"),
+    );
+
+    expect(mobileFixture.equals(backendFixture)).toBe(true);
+  });
+
+  test("covers all release states before services or UI consume memory", () => {
+    const cases = new Set(fixture.stateTransitionExamples.map((item) => item.case));
+
+    expect(cases).toEqual(new Set(SMART_MEMORY_PROJECTION_STATES));
+    for (const example of fixture.stateTransitionExamples) {
+      if (
+        [
+          "no_signal",
+          "muted",
+          "deleted_suppressed",
+          "disabled",
+          "source_deleted",
+          "sync_failed",
+          "conflicted",
+          "queued_edit",
+          "queued_mute",
+          "queued_delete",
+          "queued_disable",
+        ].includes(example.case)
+      ) {
+        expect(example.suggestionUse).toBe("blocked");
+        expect(example.reviewState).not.toBe("used");
+      }
+
+      if (example.suggestionUse === "allowed") {
+        expect(example.reviewState).toBe("used");
+      }
+
+      if (
+        example.case.startsWith("queued_") ||
+        ["pending_offline_candidate", "sync_failed", "conflicted"].includes(
+          example.case,
+        )
+      ) {
+        expect(example.queuedOperation).not.toBeNull();
+      }
+    }
+  });
+
+  test("API examples expose only backend-owned response shapes", () => {
+    expect(fixture.apiResponseExamples.emptyItemsPage.items).toEqual([]);
+    expect(
+      fixture.apiResponseExamples.itemsPage.items.map((item) => item.state),
+    ).toEqual(["active", "muted"]);
+    expect(fixture.apiResponseExamples.candidateResponse.candidate.state).toBe(
+      "candidate",
+    );
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.state).toBe(
+      "deleted_suppressed",
+    );
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.subject).toEqual({});
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.sourceRefs).toEqual(
+      [],
+    );
+    expect(fixture.apiResponseExamples.settingsEnabledResponse.settings.enabled).toBe(
+      true,
+    );
+    expect(
+      fixture.apiResponseExamples.settingsDisabledResponse.settings.enabled,
+    ).toBe(false);
+  });
+
+  test("keeps private and provider payloads out of the fixture", () => {
+    const forbiddenKeys = [
+      "rawPrompt",
+      "rawResponse",
+      "providerMessages",
+      "fullPayload",
+      "openaiPayload",
+      "providerPayload",
+      "telemetryPayload",
+      "rawReviewDiff",
+      "rawDiff",
+      "mealSnapshot",
+    ];
+
+    const keys = collectObjectKeys(fixture);
+    for (const forbiddenKey of forbiddenKeys) {
+      expect(keys.has(forbiddenKey)).toBe(false);
+    }
+    expect(fixture.privacyBoundary).toEqual({
+      excludesMealNarrativeText: true,
+      excludesReviewDiffs: true,
+      excludesProviderPayloads: true,
+      excludesTelemetryPrivateIdentifiers: true,
+      usesHashedSubjectAndSourceRefs: true,
+    });
   });
 });
 

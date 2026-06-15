@@ -127,6 +127,10 @@ export default {
         "EXPO_PUBLIC_ENABLE_SMART_REMINDERS",
         true,
       ),
+      reviewMemoryExplanationEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION",
+        false,
+      ),
       debugOcr: (process.env.DEBUG_OCR || "false").toLowerCase() === "true",
       e2e: (process.env.E2E || "").toLowerCase() === "true",
       e2eMockChatReply:

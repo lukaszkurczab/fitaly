@@ -71,6 +71,10 @@ jest.mock("@/services/e2e/fixtures", () => ({
     notificationPermission: params.notificationPermission,
     reminder: params.reminder,
     weeklyReport: params.weeklyReport,
+    aiConsent: params.aiConsent,
+    aiConsentGrant: params.aiConsentGrant,
+    aiConsentRevoke: params.aiConsentRevoke,
+    smartMemory: params.smartMemory,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
@@ -138,10 +142,11 @@ describe("handleE2EDeepLink", () => {
     mockApplyE2ESeedCommand.mockResolvedValue([
       "fixture-user-with-today-meal",
       "credits-none",
+      "smartMemory-active",
     ]);
 
     const handled = await handleE2EDeepLink(
-      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none",
+      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none&smartMemory=active",
     );
 
     expect(handled).toBe(true);
@@ -158,11 +163,16 @@ describe("handleE2EDeepLink", () => {
         notificationPermission: undefined,
         reminder: undefined,
         weeklyReport: undefined,
+        aiConsent: undefined,
+        aiConsentGrant: undefined,
+        aiConsentRevoke: undefined,
+        smartMemory: "active",
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([
       "fixture-user-with-today-meal",
       "credits-none",
+      "smartMemory-active",
     ]);
     expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
   });

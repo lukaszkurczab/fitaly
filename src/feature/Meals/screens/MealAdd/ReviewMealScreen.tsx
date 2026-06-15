@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type GestureResponderEvent,
 } from "react-native";
 import * as FileSystem from "@/services/core/fileSystem";
 import { useNetInfo } from "@react-native-community/netinfo";
@@ -15,6 +16,7 @@ import {
   Checkbox,
   KeyboardAwareScrollView,
   Layout,
+  Modal,
   PhotoPreview,
   UnsavedChangesModal,
 } from "@/components";
@@ -38,9 +40,20 @@ import {
 } from "@/services/meals/mealMetadata";
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 import { hasReviewableMealContent } from "@/feature/Meals/utils/reviewMealDraft";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import {
+  readReviewSmartMemoryExplanation,
+  type ReviewMemoryDetail,
+  type ReviewMemoryExplanation,
+  type ReviewMemoryRowKind,
+} from "@/services/smartMemory/smartMemoryService";
 
 const IMAGE_HEIGHT = 164;
 const MACRO_GRAM_UNIT = "g";
+const EMPTY_REVIEW_MEMORY_EXPLANATION: ReviewMemoryExplanation = {
+  activeIngredients: [],
+  row: null,
+};
 
 function isValidIsoDate(value?: string | null) {
   if (!value) return false;
@@ -81,6 +94,10 @@ function buildAiReviewFingerprint(meal: Meal): string {
   });
 }
 
+function normalizeMemoryLabel(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
 export default function ReviewMealScreen({
   navigation,
   flow,
@@ -110,8 +127,14 @@ export default function ReviewMealScreen({
   const [checkingImage, setCheckingImage] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [saveToMyMeals, setSaveToMyMeals] = useState(false);
+  const [reviewMemoryExplanation, setReviewMemoryExplanation] =
+    useState<ReviewMemoryExplanation>(EMPTY_REVIEW_MEMORY_EXPLANATION);
+  const [selectedMemoryDetail, setSelectedMemoryDetail] =
+    useState<ReviewMemoryDetail | null>(null);
   const initialAiReviewMealIdRef = useRef<string | null>(null);
   const initialAiReviewFingerprintRef = useRef<string | null>(null);
+  const reviewMemoryGateEnabled =
+    getRuntimeConfig().reviewMemoryExplanationEnabled;
 
   const image = meal?.photoUrl ?? null;
   const displayImage = image && !imageError ? image : null;
@@ -239,6 +262,46 @@ export default function ReviewMealScreen({
       totalCount: items.length,
     };
   }, [meal?.ingredients]);
+
+  useEffect(() => {
+    if (!reviewMemoryGateEnabled || !uid || !meal) {
+      setReviewMemoryExplanation(EMPTY_REVIEW_MEMORY_EXPLANATION);
+      setSelectedMemoryDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    void readReviewSmartMemoryExplanation({
+      uid,
+      ingredients: meal.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+      })),
+    })
+      .then((nextExplanation) => {
+        if (!cancelled) setReviewMemoryExplanation(nextExplanation);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReviewMemoryExplanation(EMPTY_REVIEW_MEMORY_EXPLANATION);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [meal, reviewMemoryGateEnabled, uid]);
+
+  const activeMemoryByIngredientName = useMemo(() => {
+    const details = new Map<string, ReviewMemoryDetail>();
+    reviewMemoryExplanation.activeIngredients.forEach((entry) => {
+      details.set(normalizeMemoryLabel(entry.ingredientName), entry.detail);
+    });
+    return details;
+  }, [reviewMemoryExplanation.activeIngredients]);
+
+  const reviewMemoryRow = reviewMemoryExplanation.row;
 
   const openCamera = useCallback(() => {
     if (!meal) return;
@@ -372,6 +435,125 @@ export default function ReviewMealScreen({
     if (meal?.inputMethod === "text" || meal?.source === "ai") return "text";
     return "edit";
   }, [meal?.inputMethod, meal?.source]);
+
+  const getMemoryTypeLabel = useCallback(
+    (detail: ReviewMemoryDetail) => {
+      return t(`review_memory_type_${detail.memoryType}`, {
+        ns: "meals",
+        defaultValue: detail.memoryType,
+      });
+    },
+    [t],
+  );
+
+  const getMemoryStateLabel = useCallback(
+    (detail: ReviewMemoryDetail) => {
+      return t(`review_memory_state_${detail.state}`, {
+        ns: "meals",
+        defaultValue: detail.state,
+      });
+    },
+    [t],
+  );
+
+  const getMemoryEvidenceLabel = useCallback(
+    (detail: ReviewMemoryDetail) => {
+      const evidence = detail.evidence;
+      const count =
+        evidence.observationCount ??
+        evidence.selectionCount ??
+        evidence.correctionCount ??
+        null;
+      if (typeof count === "number" && count > 0) {
+        return t("review_memory_evidence_count", {
+          ns: "meals",
+          count,
+          defaultValue: "Based on {{count}} recent saves.",
+        });
+      }
+      return t("review_memory_evidence_bounded", {
+        ns: "meals",
+        defaultValue: "Based on repeated saves.",
+      });
+    },
+    [t],
+  );
+
+  const getMemoryDetailSummary = useCallback(
+    (detail: ReviewMemoryDetail) => {
+      if (detail.state === "failed") {
+        return t("review_memory_details_summary_failed", {
+          ns: "meals",
+          defaultValue:
+            "This memory change needs attention, but meal saving still works.",
+        });
+      }
+      if (detail.state === "pending") {
+        return t("review_memory_details_summary_pending", {
+          ns: "meals",
+          defaultValue:
+            "This memory update is waiting for sync and is not active yet.",
+        });
+      }
+      if (detail.memoryType === "typical_portion") {
+        return t("review_memory_details_summary_portion", {
+          ns: "meals",
+          defaultValue: "Uses your saved amount for this ingredient.",
+        });
+      }
+      if (detail.memoryType === "ingredient_product_selection") {
+        return t("review_memory_details_summary_product", {
+          ns: "meals",
+          defaultValue: "Uses your selected product for this ingredient.",
+        });
+      }
+      return t("review_memory_details_summary_correction", {
+        ns: "meals",
+        defaultValue: "Uses a repeated Review correction for this meal.",
+      });
+    },
+    [t],
+  );
+
+  const getMemoryRowCopy = useCallback(
+    (kind: ReviewMemoryRowKind) => {
+      if (kind === "sync_failed") {
+        return {
+          title: t("review_memory_row_sync_failed_title", {
+            ns: "meals",
+            defaultValue: "Memory change did not sync.",
+          }),
+          body: t("review_memory_row_sync_failed_body", {
+            ns: "meals",
+            defaultValue: "Save still works. Manage this later in Smart Memory.",
+          }),
+        };
+      }
+      if (kind === "pending_offline") {
+        return {
+          title: t("review_memory_row_pending_title", {
+            ns: "meals",
+            defaultValue: "Memory update will sync when online.",
+          }),
+          body: t("review_memory_row_pending_body", {
+            ns: "meals",
+            defaultValue: "This does not block saving this meal.",
+          }),
+        };
+      }
+      return {
+        title: t("review_memory_row_candidate_title", {
+          ns: "meals",
+          defaultValue: "Fitaly can remember this after repeated saves.",
+        }),
+        body: t("review_memory_row_candidate_body", {
+          ns: "meals",
+          defaultValue: "No active personalization is used yet.",
+        }),
+      };
+    },
+    [t],
+  );
 
   if (!meal || !uid) {
     return (
@@ -527,6 +709,43 @@ export default function ReviewMealScreen({
                   })}
                 </Text>
               </View>
+            ) : null}
+
+            {reviewMemoryRow ? (
+              <Pressable
+                testID="review-meal-memory-row"
+                accessibilityRole="button"
+                accessibilityLabel={getMemoryRowCopy(reviewMemoryRow.kind).title}
+                accessibilityHint={t("review_memory_row_hint", {
+                  ns: "meals",
+                  defaultValue: "Opens Smart Memory details.",
+                })}
+                onPress={() => setSelectedMemoryDetail(reviewMemoryRow.detail)}
+                style={({ pressed }) => [
+                  styles.memoryRow,
+                  pressed ? styles.itemPressed : null,
+                ]}
+              >
+                <View style={styles.memoryRowIcon}>
+                  <AppIcon
+                    name="info"
+                    size={16}
+                    color={
+                      reviewMemoryRow.kind === "sync_failed"
+                        ? theme.error.main
+                        : theme.info.text
+                    }
+                  />
+                </View>
+                <View style={styles.memoryRowCopy}>
+                  <Text style={styles.memoryRowTitle} numberOfLines={2}>
+                    {getMemoryRowCopy(reviewMemoryRow.kind).title}
+                  </Text>
+                  <Text style={styles.memoryRowBody} numberOfLines={2}>
+                    {getMemoryRowCopy(reviewMemoryRow.kind).body}
+                  </Text>
+                </View>
+              </Pressable>
             ) : null}
 
             <View style={styles.nutritionCard}>
@@ -707,6 +926,46 @@ export default function ReviewMealScreen({
                               ingredient.unit,
                             )}
                           </Text>
+                          {activeMemoryByIngredientName.get(
+                            normalizeMemoryLabel(ingredient.name),
+                          ) ? (
+                            <Pressable
+                              testID={`review-meal-memory-info-${index}`}
+                              accessibilityRole="button"
+                              accessibilityLabel={t(
+                                "review_memory_ingredient_accessibility_label",
+                                {
+                                  ns: "meals",
+                                  ingredientName: ingredient.name,
+                                  defaultValue:
+                                    "Memory details for active memory: {{ingredientName}} amount",
+                                },
+                              )}
+                              accessibilityHint={t(
+                                "review_memory_ingredient_accessibility_hint",
+                                {
+                                  ns: "meals",
+                                  defaultValue:
+                                    "Opens how Smart Memory affected this ingredient.",
+                                },
+                              )}
+                              onPress={(event?: GestureResponderEvent) => {
+                                event?.stopPropagation();
+                                const detail = activeMemoryByIngredientName.get(
+                                  normalizeMemoryLabel(ingredient.name),
+                                );
+                                if (detail) setSelectedMemoryDetail(detail);
+                              }}
+                              hitSlop={12}
+                              style={styles.memoryInfoButton}
+                            >
+                              <AppIcon
+                                name="info"
+                                size={16}
+                                color={theme.info.text}
+                              />
+                            </Pressable>
+                          ) : null}
                           <AppIcon
                             name="chevron"
                             rotation="180deg"
@@ -845,6 +1104,99 @@ export default function ReviewMealScreen({
         onDiscard={guard.confirmExit}
         onContinueEditing={guard.cancelExit}
       />
+
+      <Modal
+        visible={selectedMemoryDetail !== null}
+        testID="review-meal-memory-details-modal"
+        title={t("review_memory_details_title", {
+          ns: "meals",
+          defaultValue: "Smart Memory details",
+        })}
+        onClose={() => setSelectedMemoryDetail(null)}
+        primaryAction={{
+          label: t("close", { ns: "common" }),
+          onPress: () => setSelectedMemoryDetail(null),
+          testID: "review-meal-memory-details-close",
+        }}
+        secondaryAction={{
+          label: t("review_memory_details_memory_center_cta", {
+            ns: "meals",
+            defaultValue: "Open Memory Center",
+          }),
+          onPress: () => {
+            setSelectedMemoryDetail(null);
+            navigation.navigate("MemoryCenter");
+          },
+          testID: "review-meal-memory-details-memory-center",
+        }}
+      >
+        {selectedMemoryDetail ? (
+          <View style={styles.memoryDetailsStack}>
+            <Text style={styles.memoryDetailsSummary}>
+              {getMemoryDetailSummary(selectedMemoryDetail)}
+            </Text>
+            {selectedMemoryDetail.affectedLabel ? (
+              <View style={styles.memoryDetailsRow}>
+                <Text style={styles.memoryDetailsLabel}>
+                  {t("review_memory_details_affected_label", {
+                    ns: "meals",
+                    defaultValue: "Applies to",
+                  })}
+                </Text>
+                <Text style={styles.memoryDetailsValue}>
+                  {selectedMemoryDetail.affectedLabel}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.memoryDetailsRow}>
+              <Text style={styles.memoryDetailsLabel}>
+                {t("review_memory_details_type_label", {
+                  ns: "meals",
+                  defaultValue: "Memory type",
+                })}
+              </Text>
+              <Text style={styles.memoryDetailsValue}>
+                {getMemoryTypeLabel(selectedMemoryDetail)}
+              </Text>
+            </View>
+            {selectedMemoryDetail.usedValueLabel ? (
+              <View style={styles.memoryDetailsRow}>
+                <Text style={styles.memoryDetailsLabel}>
+                  {t("review_memory_details_value_label", {
+                    ns: "meals",
+                    defaultValue: "Used value",
+                  })}
+                </Text>
+                <Text style={styles.memoryDetailsValue}>
+                  {selectedMemoryDetail.usedValueLabel}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.memoryDetailsRow}>
+              <Text style={styles.memoryDetailsLabel}>
+                {t("review_memory_details_state_label", {
+                  ns: "meals",
+                  defaultValue: "State",
+                })}
+              </Text>
+              <Text style={styles.memoryDetailsValue}>
+                {getMemoryStateLabel(selectedMemoryDetail)}
+              </Text>
+            </View>
+            <View style={styles.memoryDetailsRow}>
+              <Text style={styles.memoryDetailsLabel}>
+                {t("review_memory_details_evidence_label", {
+                  ns: "meals",
+                  defaultValue: "Evidence",
+                })}
+              </Text>
+              <Text style={styles.memoryDetailsValue}>
+                {getMemoryEvidenceLabel(selectedMemoryDetail)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </Modal>
     </Layout>
   );
 }
@@ -916,6 +1268,46 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.text,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    memoryRow: {
+      minHeight: 54,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.info.main,
+      backgroundColor: theme.info.surface,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+    },
+    memoryRowIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 1,
+      backgroundColor: theme.isDark
+        ? "rgba(255, 255, 255, 0.06)"
+        : "rgba(255, 255, 255, 0.58)",
+    },
+    memoryRowCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    memoryRowTitle: {
+      color: theme.info.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    memoryRowBody: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
       fontFamily: theme.typography.fontFamily.medium,
     },
     summaryBlock: {
@@ -1205,6 +1597,13 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.medium,
       textAlign: "right",
     },
+    memoryInfoButton: {
+      width: 20,
+      height: 20,
+      borderRadius: theme.rounded.full,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     ingredientMoreText: {
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
@@ -1276,6 +1675,30 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    memoryDetailsStack: {
+      gap: theme.spacing.sm,
+    },
+    memoryDetailsSummary: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    memoryDetailsRow: {
+      gap: 3,
+    },
+    memoryDetailsLabel: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    memoryDetailsValue: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
     },
     emptyDraftAction: {
       marginTop: theme.spacing.xs,

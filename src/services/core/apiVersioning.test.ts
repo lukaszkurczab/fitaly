@@ -9,6 +9,7 @@ function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
     privacyUrl: "",
