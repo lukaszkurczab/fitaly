@@ -4,6 +4,8 @@ import {
   toSmartReminderConfidenceBucket,
   toSmartReminderScheduledWindow,
   trackAiMealReviewSaved,
+  trackAutocompleteResultSelected,
+  trackAutocompleteSearchOutcome,
   trackCoachInsightTapped,
   trackCoachInsightViewed,
   trackEntitlementConfirmationFailed,
@@ -126,6 +128,21 @@ describe("telemetryInstrumentation", () => {
       actionType: "log_next_meal",
       freshness: "degraded",
     });
+    await trackAutocompleteSearchOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "results",
+      queryLength: 7,
+      resultCount: 4,
+      sourceClass: "remote",
+      latencyMs: 420,
+    });
+    await trackAutocompleteResultSelected({
+      surface: "manual_ingredient_sheet",
+      resultCount: 4,
+      sourceClass: "global",
+      rank: 2,
+      warningReason: "profile_unknown",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
       origin: "app_boot",
@@ -216,6 +233,71 @@ describe("telemetryInstrumentation", () => {
       actionType: "log_next_meal",
       freshness: "degraded",
     });
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      19,
+      "autocomplete_search_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "results",
+        queryLengthBucket: "4_8",
+        resultCountBucket: "4_6",
+        sourceClass: "remote",
+        latencyBucket: "250_750_ms",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      20,
+      "autocomplete_result_selected",
+      {
+        surface: "manual_ingredient_sheet",
+        resultCountBucket: "4_6",
+        sourceClass: "global",
+        rankBucket: "2_3",
+        selectionState: "selected",
+        warningReason: "profile_unknown",
+      },
+    );
+  });
+
+  it("keeps autocomplete telemetry behavioral and bucketed", async () => {
+    await trackAutocompleteSearchOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "no_results",
+      queryLength: 19,
+      resultCount: 0,
+      sourceClass: "none",
+      latencyMs: 1800,
+    });
+    await trackAutocompleteResultSelected({
+      surface: "manual_ingredient_sheet",
+      resultCount: 13,
+      sourceClass: "user_scoped",
+      rank: 13,
+    });
+
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      1,
+      "autocomplete_search_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "no_results",
+        queryLengthBucket: "17_plus",
+        resultCountBucket: "0",
+        sourceClass: "none",
+        latencyBucket: "1500_ms_plus",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      2,
+      "autocomplete_result_selected",
+      {
+        surface: "manual_ingredient_sheet",
+        resultCountBucket: "13_plus",
+        sourceClass: "user_scoped",
+        rankBucket: "13_plus",
+        selectionState: "selected",
+      },
+    );
   });
 
   it("keeps smart reminder telemetry mappings contract-safe", async () => {

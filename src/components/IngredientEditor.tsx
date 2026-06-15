@@ -22,6 +22,10 @@ import { TextInput } from "./TextInput";
 import { Button } from "./Button";
 import { Modal as AppModal } from "./Modal";
 import { searchIngredientProducts } from "@/services/foodLibrary/ingredientProductSearchService";
+import {
+  trackAutocompleteResultSelected,
+  trackAutocompleteSearchOutcome,
+} from "@/services/telemetry/telemetryInstrumentation";
 import type {
   IngredientProductSearchResult,
   IngredientProductSearchRow,
@@ -53,6 +57,21 @@ type NumericIngredientKey = "amount" | "protein" | "carbs" | "fat" | "kcal";
 
 const AMOUNT_MAX_DECIMALS = 1;
 const AUTOCOMPLETE_LIMIT = 6;
+
+type AutocompleteSearchOutcome =
+  | "results"
+  | "no_results"
+  | "offline"
+  | "warning"
+  | "stale"
+  | "backend_degraded"
+  | "error";
+type AutocompleteSourceClass =
+  | "remote"
+  | "cache"
+  | "none"
+  | "global"
+  | "user_scoped";
 
 export type IngredientEditorHandle = {
   submit: () => void;
@@ -110,6 +129,42 @@ function autocompleteStatusTestID(
     return "ingredient-autocomplete-warning";
   }
   return null;
+}
+
+function autocompleteOutcome(
+  result: IngredientProductSearchResult,
+): AutocompleteSearchOutcome {
+  if (
+    result.status === "offline_no_cache" ||
+    result.status === "offline_warm_cache"
+  ) {
+    return "offline";
+  }
+  if (result.status === "idle") return "error";
+  return result.status;
+}
+
+function autocompleteSourceClass(
+  source: IngredientProductSearchResult["source"],
+): AutocompleteSourceClass {
+  return source;
+}
+
+function autocompleteSelectionSourceClass(
+  item: IngredientProductSearchRow,
+): AutocompleteSourceClass {
+  return item.recordScope === "user_scoped" ? "user_scoped" : "global";
+}
+
+function firstAutocompleteWarning(
+  result: IngredientProductSearchResult,
+): string | null {
+  return (
+    result.warnings[0] ??
+    result.items.find((item) => item.warningReasonCodes.length > 0)
+      ?.warningReasonCodes[0] ??
+    null
+  );
 }
 
 const IngredientEditorComponent = (
@@ -400,7 +455,14 @@ const IngredientEditorComponent = (
   };
 
   const applyIngredientSearchSuggestion = useCallback(
-    (ingredient: Ingredient) => {
+    (ingredient: Ingredient, item: IngredientProductSearchRow, index: number) => {
+      void trackAutocompleteResultSelected({
+        surface: "manual_ingredient_sheet",
+        resultCount: autocompleteSuggestions.length,
+        sourceClass: autocompleteSelectionSourceClass(item),
+        rank: index + 1,
+        warningReason: item.warningReasonCodes[0] ?? null,
+      });
       setName(ingredient.name);
       setAmount(String(ingredient.amount));
       setProtein(String(ingredient.protein));
@@ -427,7 +489,7 @@ const IngredientEditorComponent = (
         kcal: ingredient.kcal,
       };
     },
-    [onChangePartial],
+    [autocompleteSuggestions.length, onChangePartial],
   );
 
   const autocompleteStatus = useMemo(() => {
@@ -682,6 +744,7 @@ const IngredientEditorComponent = (
     setAutocompleteLoading(true);
 
     const timeoutId = setTimeout(() => {
+      const startedAt = Date.now();
       searchIngredientProducts({
         uid: autocompleteUid,
         query,
@@ -691,10 +754,27 @@ const IngredientEditorComponent = (
         .then((result) => {
           if (autocompleteRequestId.current !== requestId) return;
           setAutocompleteResult(result);
+          void trackAutocompleteSearchOutcome({
+            surface: "manual_ingredient_sheet",
+            outcome: autocompleteOutcome(result),
+            queryLength: result.queryEcho?.queryLength ?? query.length,
+            resultCount: result.items.length,
+            sourceClass: autocompleteSourceClass(result.source),
+            latencyMs: Date.now() - startedAt,
+            warningReason: firstAutocompleteWarning(result),
+          });
         })
         .catch(() => {
           if (autocompleteRequestId.current !== requestId) return;
           setAutocompleteResult(null);
+          void trackAutocompleteSearchOutcome({
+            surface: "manual_ingredient_sheet",
+            outcome: "error",
+            queryLength: query.length,
+            resultCount: 0,
+            sourceClass: "none",
+            latencyMs: Date.now() - startedAt,
+          });
         })
         .finally(() => {
           if (autocompleteRequestId.current !== requestId) return;
@@ -781,7 +861,9 @@ const IngredientEditorComponent = (
                       ns: "meals",
                       name: item.displayName,
                     })}
-                    onPress={() => applyIngredientSearchSuggestion(ingredient)}
+                    onPress={() =>
+                      applyIngredientSearchSuggestion(ingredient, item, index)
+                    }
                     style={styles.autocompleteOption}
                   >
                     <View style={styles.autocompleteOptionText}>

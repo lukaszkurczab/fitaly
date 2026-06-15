@@ -86,6 +86,43 @@ type WeeklyReportAccessState = "premium" | "locked" | "degraded" | "unknown";
 type CoachInsightFreshness = "fresh" | "degraded" | "stale";
 
 type AiMealReviewInputMethod = "photo" | "text";
+type AutocompleteSurface = "manual_ingredient_sheet";
+type AutocompleteSearchOutcome =
+  | "results"
+  | "no_results"
+  | "offline"
+  | "warning"
+  | "stale"
+  | "backend_degraded"
+  | "error";
+type AutocompleteQueryLengthBucket = "2_3" | "4_8" | "9_16" | "17_plus";
+type AutocompleteResultCountBucket =
+  | "0"
+  | "1"
+  | "2_3"
+  | "4_6"
+  | "7_12"
+  | "13_plus";
+type AutocompleteLatencyBucket =
+  | "under_250_ms"
+  | "250_750_ms"
+  | "750_1500_ms"
+  | "1500_ms_plus";
+type AutocompleteRankBucket = "1" | "2_3" | "4_6" | "7_12" | "13_plus";
+type AutocompleteSourceClass =
+  | "remote"
+  | "cache"
+  | "none"
+  | "global"
+  | "user_scoped";
+type AutocompleteSelectionState = "selected";
+
+type AutocompleteTelemetryInput = {
+  surface: AutocompleteSurface;
+  resultCount: number;
+  sourceClass: AutocompleteSourceClass;
+  warningReason?: string | null;
+};
 
 function normalizeNotificationValue(value: string | null | undefined): string | null {
   if (!value) {
@@ -139,6 +176,54 @@ function buildSmartReminderProps(
     }
   }
   return props;
+}
+
+function toAutocompleteQueryLengthBucket(
+  queryLength: number,
+): AutocompleteQueryLengthBucket {
+  if (queryLength <= 3) return "2_3";
+  if (queryLength <= 8) return "4_8";
+  if (queryLength <= 16) return "9_16";
+  return "17_plus";
+}
+
+function toAutocompleteResultCountBucket(
+  resultCount: number,
+): AutocompleteResultCountBucket {
+  if (resultCount <= 0) return "0";
+  if (resultCount === 1) return "1";
+  if (resultCount <= 3) return "2_3";
+  if (resultCount <= 6) return "4_6";
+  if (resultCount <= 12) return "7_12";
+  return "13_plus";
+}
+
+function toAutocompleteLatencyBucket(
+  latencyMs: number,
+): AutocompleteLatencyBucket {
+  if (latencyMs < 250) return "under_250_ms";
+  if (latencyMs < 750) return "250_750_ms";
+  if (latencyMs < 1500) return "750_1500_ms";
+  return "1500_ms_plus";
+}
+
+function toAutocompleteRankBucket(rank: number): AutocompleteRankBucket {
+  if (rank <= 1) return "1";
+  if (rank <= 3) return "2_3";
+  if (rank <= 6) return "4_6";
+  if (rank <= 12) return "7_12";
+  return "13_plus";
+}
+
+function buildAutocompleteProps(
+  input: AutocompleteTelemetryInput,
+): TelemetryProps {
+  return {
+    surface: input.surface,
+    resultCountBucket: toAutocompleteResultCountBucket(input.resultCount),
+    sourceClass: input.sourceClass,
+    ...(input.warningReason ? { warningReason: input.warningReason } : {}),
+  };
 }
 
 function inferMealInputMethod(meal: Pick<
@@ -231,6 +316,34 @@ export function trackAiMealReviewSaved(input: {
     corrected: input.corrected,
     ingredientCount: input.ingredientCount,
     ...(input.requestId ? { requestId: input.requestId } : {}),
+  });
+}
+
+export function trackAutocompleteSearchOutcome(
+  input: AutocompleteTelemetryInput & {
+    outcome: AutocompleteSearchOutcome;
+    queryLength: number;
+    latencyMs: number;
+  },
+): Promise<void> {
+  return track("autocomplete_search_outcome", {
+    ...buildAutocompleteProps(input),
+    outcome: input.outcome,
+    queryLengthBucket: toAutocompleteQueryLengthBucket(input.queryLength),
+    latencyBucket: toAutocompleteLatencyBucket(input.latencyMs),
+  });
+}
+
+export function trackAutocompleteResultSelected(
+  input: AutocompleteTelemetryInput & {
+    rank: number;
+    selectionState?: AutocompleteSelectionState;
+  },
+): Promise<void> {
+  return track("autocomplete_result_selected", {
+    ...buildAutocompleteProps(input),
+    rankBucket: toAutocompleteRankBucket(input.rank),
+    selectionState: input.selectionState ?? "selected",
   });
 }
 

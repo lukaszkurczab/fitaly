@@ -33,6 +33,8 @@ export const TELEMETRY_EVENT_NAMES = [
   "smart_reminder_noop",
   "smart_reminder_decision_failed",
   "smart_reminder_schedule_failed",
+  "autocomplete_search_outcome",
+  "autocomplete_result_selected",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];
