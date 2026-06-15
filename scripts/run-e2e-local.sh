@@ -377,20 +377,21 @@ if [[ "${SCRIPT_STARTED_EXPO}" -eq 1 ]]; then
 fi
 
 if [[ "${PLATFORM}" == "ios" ]]; then
+  IOS_SIMCTL_TARGET="${UDID:-booted}"
   for BUNDLE_ID in "com.lkurczab.fitaly" "com.lkurczab.foodscannerai"; do
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowFloatingActionButton -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuTouchGestureEnabled -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuMotionGestureEnabled -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowsAtLaunch -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuShowFloatingActionButton -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuTouchGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuMotionGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuShowsAtLaunch -bool false >/dev/null 2>&1 || true
   done
 
   echo "[e2e] Priming iOS dev client with ${EXPO_URL} ..."
-  xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
+  xcrun simctl openurl "${IOS_SIMCTL_TARGET}" "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
 
   IOS_OPEN_PROMPT_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-ios-open-prompt.XXXXXX")"
-  cat >"${IOS_OPEN_PROMPT_FLOW}" <<'YAML'
-appId: com.apple.springboard
+  cat >"${IOS_OPEN_PROMPT_FLOW}" <<YAML
+appId: ${APP_ID}
 ---
 - runFlow:
     when:
@@ -403,7 +404,11 @@ appId: com.apple.springboard
     commands:
       - tapOn: "Open"
 YAML
-  maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  IOS_PROMPT_CMD=(maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}")
+  if [[ -n "${UDID}" ]]; then
+    IOS_PROMPT_CMD+=(--udid "${UDID}")
+  fi
+  "${IOS_PROMPT_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${IOS_OPEN_PROMPT_FLOW}"
 
   DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
@@ -421,7 +426,11 @@ appId: ${APP_ID}
     commands:
       - tapOn: "Close"
 YAML
-  maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  DEV_MENU_DISMISS_CMD=(maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}")
+  if [[ -n "${UDID}" ]]; then
+    DEV_MENU_DISMISS_CMD+=(--udid "${UDID}")
+  fi
+  "${DEV_MENU_DISMISS_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${DEV_MENU_DISMISS_FLOW}"
 fi
 

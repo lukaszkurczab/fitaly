@@ -5,6 +5,19 @@ appId: com.lkurczab.fitaly
 - waitForAnimationToEnd
 - runFlow:
     when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "This is the developer menu"
+    commands:
+      - tapOn:
+          point: "91%,50%"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
       visible: "Close"
     commands:
       - tapOn: "Close"
@@ -17,6 +30,12 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+      - waitForAnimationToEnd
 - assertVisible:
     id: e2e-ready-login
 - assertVisible:
@@ -37,6 +56,12 @@ appId: com.lkurczab.fitaly
       id: tab-home
     timeout: 30000
 - openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- runFlow:
+    when:
+      visible: "Otwórz|Open"
+    commands:
+      - tapOn: "Otwórz|Open"
+      - waitForAnimationToEnd
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
 - tapOn:
