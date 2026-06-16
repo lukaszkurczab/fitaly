@@ -87,6 +87,7 @@ export type E2ESmartMemorySeed =
   | "emptyDisabled"
   | "active"
   | "reviewActive"
+  | "reviewDisabledActive"
   | "muted"
   | "sourceDeleted"
   | "pending"
@@ -187,6 +188,7 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
   "emptyDisabled",
   "active",
   "reviewActive",
+  "reviewDisabledActive",
   "muted",
   "sourceDeleted",
   "pending",
@@ -387,7 +389,10 @@ async function applySmartMemoryFixture(
 ): Promise<void> {
   await upsertSmartMemorySettingsProjection(
     uid,
-    smartMemorySettings(uid, seed !== "emptyDisabled"),
+    smartMemorySettings(
+      uid,
+      seed !== "emptyDisabled" && seed !== "reviewDisabledActive",
+    ),
   );
 
   if (seed === "emptyEnabled" || seed === "emptyDisabled") return;
@@ -408,7 +413,7 @@ async function applySmartMemoryFixture(
     uid,
     smartMemoryItem(
       uid,
-      seed === "reviewActive"
+      seed === "reviewActive" || seed === "reviewDisabledActive"
         ? {
             memoryItemId: "e2e-memory-review-portion-chicken",
             subject: {

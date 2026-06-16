@@ -130,7 +130,7 @@ describe("E2E fixtures", () => {
         aiConsent: "revoked",
         aiConsentGrant: "success",
         aiConsentRevoke: "failureOnce",
-        smartMemory: "backendPull",
+        smartMemory: "reviewDisabledActive",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -146,7 +146,7 @@ describe("E2E fixtures", () => {
       aiConsent: "revoked",
       aiConsentGrant: "success",
       aiConsentRevoke: "failureOnce",
-      smartMemory: "backendPull",
+      smartMemory: "reviewDisabledActive",
     });
 
     expect(
@@ -619,6 +619,27 @@ describe("E2E fixtures", () => {
         subject: expect.objectContaining({
           displayLabel: "Kurczak grillowany",
         }),
+        userValue: { amount: 140, unit: "g" },
+      }),
+    );
+  });
+
+  it("seeds disabled Review Smart Memory precedence fixture for Maestro", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "reviewDisabledActive" },
+    });
+
+    expect(markers).toEqual(["smartMemory-reviewDisabledActive"]);
+    expect(mockUpsertSmartMemorySettingsProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ enabled: false }),
+    );
+    expect(mockUpsertSmartMemoryItemProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        memoryItemId: "e2e-memory-review-portion-chicken",
+        state: "active",
         userValue: { amount: 140, unit: "g" },
       }),
     );

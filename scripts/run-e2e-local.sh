@@ -42,7 +42,7 @@ REVIEW_MEMORY_EXPLANATION_FLOW=0
 SMART_MEMORY_BACKEND_PULL_FLOW=0
 for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   case "${FLOW_PATH}" in
-    *review-memory-explanation.yaml)
+    *review-memory-explanation.yaml|*review-memory-disabled-precedence.yaml)
       REVIEW_MEMORY_EXPLANATION_FLOW=1
       ENABLE_REVIEW_MEMORY_EXPLANATION="true"
       ;;
