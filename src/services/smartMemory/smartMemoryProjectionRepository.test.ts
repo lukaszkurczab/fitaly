@@ -6,6 +6,7 @@ import type {
   SmartMemorySettingsRow,
 } from "@/services/offline/types";
 import type {
+  SmartMemoryCandidate,
   SmartMemoryCandidateUpsertInput,
   SmartMemoryItem,
   SmartMemorySettings,
@@ -81,6 +82,29 @@ function sampleCandidateInput(): SmartMemoryCandidateUpsertInput {
     suppressionChecks: { settingsEnabled: true },
     firstSeenAt: "2026-06-04T09:00:00.000Z",
     lastSeenAt: "2026-06-04T09:00:00.000Z",
+  };
+}
+
+function sampleCandidate(
+  overrides: Partial<SmartMemoryCandidate> = {},
+): SmartMemoryCandidate {
+  return {
+    candidateId: "candidate-1",
+    ownerUserId: "user-1",
+    schemaVersion: 1,
+    memoryType: "review_correction",
+    state: "candidate",
+    subject: { kind: "nutrient_adjustment", subjectHash: "subject-1" },
+    evidenceSummary: { correctionCount: 1 },
+    sourceRefs: [{ kind: "review_confirmation", sourceHash: "source-1" }],
+    confidenceReasonCodes: ["single_observation"],
+    suppressionChecks: { settingsEnabled: true },
+    createdAt: "2026-06-04T09:00:00.000Z",
+    updatedAt: "2026-06-04T10:00:00.000Z",
+    firstSeenAt: "2026-06-04T09:00:00.000Z",
+    lastSeenAt: "2026-06-04T10:00:00.000Z",
+    serverRevision: 1,
+    ...overrides,
   };
 }
 
@@ -212,25 +236,78 @@ function applyRunSync(sql: string, params: unknown[] = []): void {
   }
 
   if (sql.includes("INSERT INTO smart_memory_candidates")) {
-    const [candidateId, uid, memoryType] = params;
-    const isPendingCandidate = sql.includes("'pending_offline_candidate'");
+    if (sql.includes("'pending_offline_candidate'")) {
+      const [
+        candidateId,
+        uid,
+        memoryType,
+        payload,
+        updatedAt,
+        clientMutationId,
+        pendingUpdatedAt,
+      ] = params;
+      candidateRows.set(rowKey(String(uid), String(candidateId)), {
+        candidate_id: String(candidateId),
+        user_uid: String(uid),
+        memory_type: String(memoryType),
+        state: "candidate",
+        projection_state: "pending_offline_candidate",
+        suggestion_use: "pending_only",
+        payload: String(payload),
+        server_revision: 0,
+        updated_at: String(updatedAt),
+        last_synced_at: 0,
+        sync_state: "pending",
+        pending_operation: "candidate_upsert",
+        pending_client_mutation_id: String(clientMutationId),
+        pending_updated_at: String(pendingUpdatedAt),
+        last_error_code: null,
+        last_error_message: null,
+      });
+      return;
+    }
+
+    const [
+      candidateId,
+      uid,
+      memoryType,
+      state,
+      projectionState,
+      suggestionUse,
+      payload,
+      serverRevision,
+      updatedAt,
+      lastSyncedAt,
+      syncState,
+      pendingOperation,
+      pendingClientMutationId,
+      pendingUpdatedAt,
+      lastErrorCode,
+      lastErrorMessage,
+    ] = params;
     candidateRows.set(rowKey(String(uid), String(candidateId)), {
       candidate_id: String(candidateId),
       user_uid: String(uid),
       memory_type: String(memoryType),
-      state: "candidate",
-      projection_state: isPendingCandidate ? "pending_offline_candidate" : "backend_candidate",
-      suggestion_use: "pending_only",
-      payload: String(params[3]),
-      server_revision: 0,
-      updated_at: String(params[4]),
-      last_synced_at: 0,
-      sync_state: isPendingCandidate ? "pending" : "synced",
-      pending_operation: isPendingCandidate ? "candidate_upsert" : null,
-      pending_client_mutation_id: isPendingCandidate ? String(params[5]) : null,
-      pending_updated_at: isPendingCandidate ? String(params[6]) : null,
-      last_error_code: null,
-      last_error_message: null,
+      state: String(state),
+      projection_state: String(projectionState),
+      suggestion_use: String(suggestionUse),
+      payload: String(payload),
+      server_revision: Number(serverRevision),
+      updated_at: String(updatedAt),
+      last_synced_at: Number(lastSyncedAt),
+      sync_state: String(syncState),
+      pending_operation:
+        typeof pendingOperation === "string" ? pendingOperation : null,
+      pending_client_mutation_id:
+        typeof pendingClientMutationId === "string"
+          ? pendingClientMutationId
+          : null,
+      pending_updated_at:
+        typeof pendingUpdatedAt === "string" ? pendingUpdatedAt : null,
+      last_error_code: typeof lastErrorCode === "string" ? lastErrorCode : null,
+      last_error_message:
+        typeof lastErrorMessage === "string" ? lastErrorMessage : null,
     });
     return;
   }
@@ -399,6 +476,37 @@ describe("smartMemoryProjectionRepository", () => {
         queuedOperation: expect.objectContaining({
           operation: "candidate_upsert",
           clientMutationId: "candidate-mutation-1",
+        }),
+      }),
+    ]);
+    await expect(repo.getActiveSmartMemoryItemsForReview("user-1")).resolves.toEqual([]);
+  });
+
+  it("stores activated candidates as blocked activated projection, not deleted", async () => {
+    const repo = require("./smartMemoryProjectionRepository") as typeof import("./smartMemoryProjectionRepository");
+
+    await repo.upsertSmartMemoryCandidateProjection(
+      "user-1",
+      sampleCandidate({
+        state: "activated",
+        suppressionChecks: {
+          promotedToMemoryItemId: "memory-1",
+        },
+        serverRevision: 2,
+      }),
+    );
+
+    const projection = await repo.getSmartMemoryProjection("user-1");
+    expect(projection.candidates).toEqual([
+      expect.objectContaining({
+        projectionState: "activated",
+        suggestionUse: "blocked",
+        syncState: "synced",
+        candidate: expect.objectContaining({
+          state: "activated",
+          suppressionChecks: {
+            promotedToMemoryItemId: "memory-1",
+          },
         }),
       }),
     ]);

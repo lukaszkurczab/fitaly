@@ -72,6 +72,7 @@ export const SMART_MEMORY_PROJECTION_STATES = [
   "no_signal",
   "backend_candidate",
   "pending_offline_candidate",
+  "activated",
   "active",
   "muted",
   "deleted_suppressed",

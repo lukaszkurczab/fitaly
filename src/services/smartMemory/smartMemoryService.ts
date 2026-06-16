@@ -92,6 +92,7 @@ export type MemoryCenterServiceState = {
 const FAILED_SYNC_STATES = new Set(["sync_failed", "dead_letter", "conflicted"]);
 const HIDDEN_PROJECTION_STATES = new Set([
   "muted",
+  "activated",
   "deleted_suppressed",
   "disabled",
   "source_deleted",

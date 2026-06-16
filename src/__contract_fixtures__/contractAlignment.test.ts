@@ -1672,6 +1672,7 @@ describe("Smart Memory core contract", () => {
       if (
         [
           "no_signal",
+          "activated",
           "muted",
           "deleted_suppressed",
           "disabled",

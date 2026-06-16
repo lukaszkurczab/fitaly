@@ -93,6 +93,7 @@ function toProjectionStateFromCandidate(
   candidate: SmartMemoryCandidate,
 ): SmartMemoryProjectionState {
   if (candidate.state === "candidate") return "backend_candidate";
+  if (candidate.state === "activated") return "activated";
   if (candidate.state === "source_deleted") return "source_deleted";
   return "deleted_suppressed";
 }
