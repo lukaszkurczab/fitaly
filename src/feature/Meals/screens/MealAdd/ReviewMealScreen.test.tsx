@@ -36,8 +36,8 @@ type ModalProps = {
   testID?: string;
   title?: string;
   children?: unknown;
-  primaryAction?: { label: string; onPress?: () => void };
-  secondaryAction?: { label: string; onPress?: () => void };
+  primaryAction?: { label: string; onPress?: () => void; testID?: string };
+  secondaryAction?: { label: string; onPress?: () => void; testID?: string };
 };
 
 type UnsavedChangesModalProps = {
@@ -290,6 +290,7 @@ jest.mock("@/components", () => {
                   {
                     onPress: primaryAction.onPress,
                     accessibilityRole: "button",
+                    testID: primaryAction.testID,
                   },
                   createElement(Text, null, primaryAction.label),
                 )
@@ -300,6 +301,7 @@ jest.mock("@/components", () => {
                   {
                     onPress: secondaryAction.onPress,
                     accessibilityRole: "button",
+                    testID: secondaryAction.testID,
                   },
                   createElement(Text, null, secondaryAction.label),
                 )
@@ -1043,6 +1045,48 @@ describe("ReviewMealScreen", () => {
     expect(testProps.navigate).toHaveBeenCalledWith("MemoryCenter");
   });
 
+  it("does not save the meal from active memory details or Memory Center navigation", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-info-0")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("review-meal-memory-info-0"));
+    expect(getByTestId("review-meal-memory-details-modal")).toBeTruthy();
+
+    fireEvent.press(getByText("Open Memory Center"));
+
+    expect(testProps.navigate).toHaveBeenCalledWith("MemoryCenter");
+    expect(saveMeal).not.toHaveBeenCalled();
+    expect(ctx.clearMeal).not.toHaveBeenCalled();
+    expect(testProps.dispatch).not.toHaveBeenCalledWith({
+      type: "RESET",
+      payload: {
+        index: 0,
+        routes: [{ name: "Home" }],
+      },
+    });
+    expect(testProps.flowGoTo).not.toHaveBeenCalled();
+  });
+
   it("shows a single non-blocking pending memory row above nutrition", async () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
@@ -1064,6 +1108,49 @@ describe("ReviewMealScreen", () => {
     expect(getByText("Memory update will sync when online.")).toBeTruthy();
     expect(getByText("This does not block saving this meal.")).toBeTruthy();
     expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+  });
+
+  it("does not save the meal from a pending memory row details modal", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      pendingReviewMemoryExplanation,
+    );
+
+    const { getByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-row")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("review-meal-memory-row"));
+    expect(getByTestId("review-meal-memory-details-modal")).toBeTruthy();
+
+    fireEvent.press(getByTestId("review-meal-memory-details-close"));
+
+    expect(getByTestId("review-meal-save-button")).toBeTruthy();
+    expect(saveMeal).not.toHaveBeenCalled();
+    expect(ctx.clearMeal).not.toHaveBeenCalled();
+    expect(testProps.dispatch).not.toHaveBeenCalledWith({
+      type: "RESET",
+      payload: {
+        index: 0,
+        routes: [{ name: "Home" }],
+      },
+    });
+    expect(testProps.navigate).not.toHaveBeenCalledWith("Home");
+    expect(testProps.flowGoTo).not.toHaveBeenCalled();
   });
 
   it("shows sync failed memory as one non-blocking row with bounded details", async () => {
