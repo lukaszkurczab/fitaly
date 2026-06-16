@@ -160,6 +160,35 @@ describe("smartMemoryStrategy", () => {
     );
   });
 
+  it("pulls promoted active items while preserving activated candidates", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { smartMemoryStrategy } = require("@/services/offline/strategies/smartMemory.strategy");
+    const promotedItem = {
+      ...item,
+      memoryItemId: "memory-promoted-1",
+      control: { sourceCandidateId: "candidate-promoted-1" },
+    };
+    const activatedCandidate = {
+      ...candidate,
+      candidateId: "candidate-promoted-1",
+      memoryType: "typical_portion",
+      state: "activated",
+      suppressionChecks: {
+        promotedToMemoryItemId: "memory-promoted-1",
+      },
+      serverRevision: 2,
+    };
+    mockFetchItems.mockResolvedValueOnce({ items: [promotedItem] });
+    mockFetchCandidates.mockResolvedValueOnce({ items: [activatedCandidate] });
+
+    await expect(smartMemoryStrategy.pull("user-1")).resolves.toBe(3);
+
+    expect(mockReplaceItems).toHaveBeenCalledWith("user-1", [promotedItem]);
+    expect(mockReplaceCandidates).toHaveBeenCalledWith("user-1", [
+      activatedCandidate,
+    ]);
+  });
+
   it("pushes candidate upserts with queued clientMutationId", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { smartMemoryStrategy } = require("@/services/offline/strategies/smartMemory.strategy");

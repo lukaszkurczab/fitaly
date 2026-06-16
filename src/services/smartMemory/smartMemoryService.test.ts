@@ -249,6 +249,35 @@ describe("selectReviewSmartMemoryExplanation", () => {
 
     expect(result).toEqual({ activeIngredients: [], row: null });
   });
+
+  it("uses promoted active item while hiding the activated source candidate", () => {
+    const promotedCandidate = candidate({
+      projectionState: "activated",
+      suggestionUse: "blocked",
+      candidate: {
+        ...candidate().candidate,
+        state: "activated",
+        suppressionChecks: {
+          promotedToMemoryItemId: "memory-1",
+        },
+      },
+    });
+
+    const result = select(
+      projection({
+        items: [item()],
+        candidates: [promotedCandidate],
+      }),
+    );
+
+    expect(result.activeIngredients).toHaveLength(1);
+    expect(result.activeIngredients[0]?.detail).toMatchObject({
+      memoryType: "typical_portion",
+      state: "active",
+      usedValueLabel: "180 g",
+    });
+    expect(result.row).toBeNull();
+  });
 });
 
 describe("selectMemoryCenterState", () => {
