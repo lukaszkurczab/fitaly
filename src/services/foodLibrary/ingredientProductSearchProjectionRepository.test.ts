@@ -185,6 +185,84 @@ describe("ingredientProductSearchProjectionRepository", () => {
     expect(projection.isStale).toBe(false);
   });
 
+  it("replaces only the current user's current query cache rows", async () => {
+    const repo =
+      jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(
+        "./ingredientProductSearchProjectionRepository",
+      );
+
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "user-1-old-owies" }),
+      ]),
+      cachedAt: 1_000,
+    });
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-2",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "user-2-owies" }),
+      ]),
+      cachedAt: 1_100,
+    });
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: {
+        ...sampleResponse([
+          sampleSearchRow({ ingredientProductId: "user-1-smietana" }),
+        ]),
+        queryEcho: {
+          ...sampleResponse().queryEcho,
+          normalizedQuery: "smietana",
+          queryLength: 8,
+        },
+      },
+      cachedAt: 1_200,
+    });
+
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "user-1-new-owies" }),
+      ]),
+      cachedAt: 2_000,
+    });
+
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-1",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ ingredientProductId: "user-1-new-owies" })],
+      }),
+    );
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-2",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ ingredientProductId: "user-2-owies" })],
+      }),
+    );
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-1",
+        query: "smietana",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ ingredientProductId: "user-1-smietana" })],
+      }),
+    );
+  });
+
   it("uses backend-compatible accent folding for offline cache lookups", async () => {
     const repo =
       jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(
