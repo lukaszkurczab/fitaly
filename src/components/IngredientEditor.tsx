@@ -26,7 +26,7 @@ import {
   trackAutocompleteResultSelected,
   trackAutocompleteSearchOutcome,
 } from "@/services/telemetry/telemetryInstrumentation";
-import { createIngredientProductRemote } from "@/services/foodLibrary/ingredientProductSearchApi";
+import { createOrQueueIngredientProduct } from "@/services/foodLibrary/ingredientProductCreateService";
 import type {
   IngredientProductCreateRequest,
   IngredientProductNutritionPer100,
@@ -208,7 +208,7 @@ const IngredientEditorComponent = (
     useState<IngredientProductSearchResult | null>(null);
   const [autocompleteLoading, setAutocompleteLoading] = useState(false);
   const [manualCreateStatus, setManualCreateStatus] = useState<
-    "idle" | "saving" | "saved" | "failed"
+    "idle" | "saving" | "saved" | "queued" | "failed"
   >("idle");
 
   const [nameTouched, setNameTouched] = useState(false);
@@ -259,7 +259,8 @@ const IngredientEditorComponent = (
   const canCreateManualIngredientProduct =
     isSheetVariant &&
     Boolean(autocompleteUid) &&
-    autocompleteResult?.status === "no_results" &&
+    (autocompleteResult?.status === "no_results" ||
+      autocompleteResult?.status === "offline_no_cache") &&
     name.trim().length > 0 &&
     toIngredientUnit(initial.unit) !== null &&
     (parseNum(amount) || 0) > 0;
@@ -554,12 +555,17 @@ const IngredientEditorComponent = (
 
   const createManualIngredientProduct = () => {
     const request = buildManualCreateRequest();
-    if (!request || manualCreateStatus === "saving") return;
+    if (!request || !autocompleteUid || manualCreateStatus === "saving") return;
 
     setManualCreateStatus("saving");
-    createIngredientProductRemote(request)
-      .then(() => {
-        setManualCreateStatus("saved");
+    createOrQueueIngredientProduct({
+      uid: autocompleteUid,
+      request,
+      searchQuery: name,
+      locale: autocompleteLocale,
+    })
+      .then((result) => {
+        setManualCreateStatus(result.status === "queued" ? "queued" : "saved");
       })
       .catch(() => {
         setManualCreateStatus("failed");
@@ -933,9 +939,16 @@ const IngredientEditorComponent = (
                   })}
                   accessibilityState={{
                     busy: manualCreateStatus === "saving",
-                    disabled: manualCreateStatus === "saving",
+                    disabled:
+                      manualCreateStatus === "saving" ||
+                      manualCreateStatus === "saved" ||
+                      manualCreateStatus === "queued",
                   }}
-                  disabled={manualCreateStatus === "saving"}
+                  disabled={
+                    manualCreateStatus === "saving" ||
+                    manualCreateStatus === "saved" ||
+                    manualCreateStatus === "queued"
+                  }
                   testID={`${testIDPrefix}-create-product-button`}
                   onPress={createManualIngredientProduct}
                   style={({ pressed }) => [
@@ -969,6 +982,14 @@ const IngredientEditorComponent = (
                     style={styles.autocompleteStatus}
                   >
                     {t("ingredient_search_create_saved", { ns: "meals" })}
+                  </Text>
+                ) : null}
+                {manualCreateStatus === "queued" ? (
+                  <Text
+                    testID={`${testIDPrefix}-create-product-queued`}
+                    style={styles.autocompleteStatus}
+                  >
+                    {t("ingredient_search_create_queued", { ns: "meals" })}
                   </Text>
                 ) : null}
                 {manualCreateStatus === "failed" ? (

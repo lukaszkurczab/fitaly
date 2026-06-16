@@ -12,7 +12,8 @@ export type QueueKind =
   | "smart_memory_item_delete"
   | "smart_memory_item_source_deleted"
   | "smart_memory_settings_disable"
-  | "smart_memory_settings_enable";
+  | "smart_memory_settings_enable"
+  | "ingredient_product_create";
 
 export type MealRow = {
   cloud_id: string | null;

@@ -1,6 +1,7 @@
 import { getDB } from "@/services/offline/db";
 import type { IngredientProductSearchCacheRow } from "@/services/offline/types";
 import {
+  INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT,
   normalizeIngredientProductSearchQuery,
   normalizeIngredientProductSearchRow,
 } from "@/services/foodLibrary/ingredientProductSearchApi";
@@ -177,6 +178,51 @@ export async function replaceIngredientProductSearchProjection(params: {
     db.execSync("ROLLBACK");
     throw error;
   }
+}
+
+export async function upsertIngredientProductSearchProjectionItem(params: {
+  uid: string;
+  query: string;
+  item: IngredientProductSearchRow;
+  locale?: string | null;
+  warnings?: IngredientProductWarningReasonCode[];
+  cachedAt?: number;
+}): Promise<void> {
+  const normalizedQuery = normalizeIngredientProductSearchQuery(params.query);
+  const existing = await readIngredientProductSearchProjection({
+    uid: params.uid,
+    query: normalizedQuery,
+  });
+  const items = [
+    params.item,
+    ...existing.items.filter(
+      (item) => item.ingredientProductId !== params.item.ingredientProductId,
+    ),
+  ].slice(0, INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT);
+  const warnings = Array.from(
+    new Set([...(params.warnings ?? []), ...existing.warnings]),
+  );
+
+  await replaceIngredientProductSearchProjection({
+    uid: params.uid,
+    response: {
+      items,
+      queryEcho: existing.queryEcho ?? {
+        normalizedQuery,
+        queryLength: normalizedQuery.length,
+        limit: INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT,
+        includeUserScoped: true,
+        includeGlobal: true,
+        locale: params.locale ?? null,
+      },
+      cachePolicy: existing.cachePolicy ?? {
+        cacheGeneration: "ingredient_product_search_v1",
+        maxAgeSeconds: DEFAULT_CACHE_MAX_AGE_SECONDS,
+      },
+      warnings,
+    },
+    cachedAt: params.cachedAt,
+  });
 }
 
 export async function readIngredientProductSearchProjection(params: {

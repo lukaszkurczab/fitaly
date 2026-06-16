@@ -293,6 +293,78 @@ describe("ingredientProductSearchProjectionRepository", () => {
     ]);
   });
 
+  it("upserts queued user records into only the matching uid and query projection", async () => {
+    const repo =
+      jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(
+        "./ingredientProductSearchProjectionRepository",
+      );
+
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "catalog-oats" }),
+        sampleSearchRow({ ingredientProductId: "user-product-1" }),
+      ]),
+      cachedAt: 1_000,
+    });
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-2",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "other-user-product" }),
+      ]),
+      cachedAt: 1_000,
+    });
+
+    await repo.upsertIngredientProductSearchProjectionItem({
+      uid: "user-1",
+      query: " Owies ",
+      locale: "pl-PL",
+      item: sampleSearchRow({
+        ingredientProductId: "user-product-1",
+        recordScope: "user_scoped",
+        displayName: "Owsianka domowa",
+        cacheState: "pending_local",
+        ownerUserId: "user-1",
+        warningReasonCodes: ["pending_user_record"],
+      }),
+      warnings: ["pending_user_record"],
+      cachedAt: 2_000,
+    });
+
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-1",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            ingredientProductId: "user-product-1",
+            displayName: "Owsianka domowa",
+            cacheState: "pending_local",
+          }),
+          expect.objectContaining({ ingredientProductId: "catalog-oats" }),
+        ],
+        warnings: expect.arrayContaining(["profile_unknown", "pending_user_record"]),
+      }),
+    );
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-2",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({ ingredientProductId: "other-user-product" }),
+        ],
+      }),
+    );
+  });
+
   it("marks projection stale after cache expiry", async () => {
     const repo =
       jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(

@@ -8,7 +8,7 @@ import type { IngredientProductSearchResult } from "@/types/foodLibrary";
 const mockSearchIngredientProducts = jest.fn<
   (...args: unknown[]) => Promise<IngredientProductSearchResult>
 >();
-const mockCreateIngredientProductRemote = jest.fn<
+const mockCreateOrQueueIngredientProduct = jest.fn<
   (...args: unknown[]) => Promise<unknown>
 >();
 
@@ -17,9 +17,9 @@ jest.mock("@/services/foodLibrary/ingredientProductSearchService", () => ({
     mockSearchIngredientProducts(...args),
 }));
 
-jest.mock("@/services/foodLibrary/ingredientProductSearchApi", () => ({
-  createIngredientProductRemote: (...args: unknown[]) =>
-    mockCreateIngredientProductRemote(...args),
+jest.mock("@/services/foodLibrary/ingredientProductCreateService", () => ({
+  createOrQueueIngredientProduct: (...args: unknown[]) =>
+    mockCreateOrQueueIngredientProduct(...args),
 }));
 
 jest.mock("uuid", () => ({
@@ -590,9 +590,9 @@ describe("IngredientEditor", () => {
       isStale: false,
       errorCode: null,
     });
-    mockCreateIngredientProductRemote.mockResolvedValue({
+    mockCreateOrQueueIngredientProduct.mockResolvedValue({
+      status: "synced",
       item: { ingredientProductId: "user-uuid-created" },
-      updated: true,
     });
 
     const { getByTestId } = renderWithTheme(
@@ -634,26 +634,31 @@ describe("IngredientEditor", () => {
       expect(getByTestId("ingredient-editor-create-product-success")).toBeTruthy();
     });
 
-    expect(mockCreateIngredientProductRemote).toHaveBeenCalledWith({
-      clientMutationId: "ingredient-product:create:user-1:uuid-created",
-      ingredientProductId: "user-uuid-created",
-      displayName: "Owsianka domowa",
-      kind: "generic_ingredient",
-      defaultServing: {
-        quantity: 50,
-        unit: "g",
-      },
-      nutritionPer100: {
-        basis: "per_100g",
-        unit: "g",
-        kcal: 260,
-        protein: 10,
-        fat: 6,
-        carbs: 40,
-        fiber: null,
-        sugar: null,
-        salt: null,
-        saturatedFat: null,
+    expect(mockCreateOrQueueIngredientProduct).toHaveBeenCalledWith({
+      uid: "user-1",
+      searchQuery: "Owsianka domowa",
+      locale: "pl-PL",
+      request: {
+        clientMutationId: "ingredient-product:create:user-1:uuid-created",
+        ingredientProductId: "user-uuid-created",
+        displayName: "Owsianka domowa",
+        kind: "generic_ingredient",
+        defaultServing: {
+          quantity: 50,
+          unit: "g",
+        },
+        nutritionPer100: {
+          basis: "per_100g",
+          unit: "g",
+          kcal: 260,
+          protein: 10,
+          fat: 6,
+          carbs: 40,
+          fiber: null,
+          sugar: null,
+          salt: null,
+          saturatedFat: null,
+        },
       },
     });
     expect(onCommit).not.toHaveBeenCalled();
@@ -714,7 +719,7 @@ describe("IngredientEditor", () => {
 
     fireEvent.press(getByText("meals:add_ingredient"));
 
-    expect(mockCreateIngredientProductRemote).not.toHaveBeenCalled();
+    expect(mockCreateOrQueueIngredientProduct).not.toHaveBeenCalled();
     expect(onCommit).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "ing-21",
@@ -723,7 +728,7 @@ describe("IngredientEditor", () => {
     );
   });
 
-  it("does not offer private product creation when autocomplete is offline without cache", async () => {
+  it("queues private product creation when autocomplete is offline without cache", async () => {
     mockSearchIngredientProducts.mockResolvedValue({
       status: "offline_no_cache",
       items: [],
@@ -741,8 +746,13 @@ describe("IngredientEditor", () => {
       isStale: false,
       errorCode: "offline",
     });
+    mockCreateOrQueueIngredientProduct.mockResolvedValue({
+      status: "queued",
+      item: { ingredientProductId: "user-uuid-created" },
+      clientMutationId: "ingredient-product:create:user-1:uuid-created",
+    });
 
-    const { getByTestId, queryByTestId } = renderWithTheme(
+    const { getByTestId } = renderWithTheme(
       <IngredientEditor
         initial={{
           id: "ing-22",
@@ -772,7 +782,21 @@ describe("IngredientEditor", () => {
       expect(getByTestId("ingredient-autocomplete-offline")).toBeTruthy();
     });
 
-    expect(queryByTestId("ingredient-editor-create-product-button")).toBeNull();
+    fireEvent.press(getByTestId("ingredient-editor-create-product-button"));
+
+    await waitFor(() => {
+      expect(getByTestId("ingredient-editor-create-product-queued")).toBeTruthy();
+    });
+    expect(mockCreateOrQueueIngredientProduct).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        searchQuery: "Offline bowl",
+        request: expect.objectContaining({
+          displayName: "Offline bowl",
+          ingredientProductId: "user-uuid-created",
+        }),
+      }),
+    );
   });
 
   it("keeps unit read-only in sheet variant commit flow", () => {

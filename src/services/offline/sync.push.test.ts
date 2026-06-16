@@ -11,6 +11,9 @@ const mockSetMyMealSyncStateLocal = jest.fn<(...args: unknown[]) => Promise<void
 const mockMarkSmartMemoryProjectionSyncFailed = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
+const mockMarkIngredientProductCreateSyncFailed = jest.fn<
+  (...args: unknown[]) => Promise<void>
+>();
 const mockEmit = jest.fn();
 
 jest.mock("@react-native-community/netinfo", () => ({
@@ -49,6 +52,15 @@ jest.mock("@/services/smartMemory/smartMemoryProjectionRepository", () => ({
   ],
 }));
 
+jest.mock("@/services/offline/strategies/foodLibrary.strategy", () => ({
+  ingredientProductQueueKinds: () => ["ingredient_product_create"],
+}));
+
+jest.mock("@/services/foodLibrary/ingredientProductCreateQueue", () => ({
+  markIngredientProductCreateSyncFailed: (...args: unknown[]) =>
+    mockMarkIngredientProductCreateSyncFailed(...args),
+}));
+
 jest.mock("@/services/core/events", () => ({
   emit: (...args: unknown[]) => mockEmit(...args),
 }));
@@ -65,6 +77,7 @@ describe("sync.push", () => {
     mockSetMealSyncStateLocal.mockResolvedValue();
     mockSetMyMealSyncStateLocal.mockResolvedValue();
     mockMarkSmartMemoryProjectionSyncFailed.mockResolvedValue();
+    mockMarkIngredientProductCreateSyncFailed.mockResolvedValue();
   });
 
   it("moves unknown ops to dead letter without marking them done", async () => {
@@ -291,5 +304,108 @@ describe("sync.push", () => {
         dead: true,
       }),
     );
+  });
+
+  it("marks Product/Ingredient queued create failures as food library failures", async () => {
+    mockNextBatch
+      .mockResolvedValueOnce([
+        {
+          id: 27,
+          client_mutation_id: "ingredient-product:create:user-1:product-1",
+          cloud_id: "product-1",
+          user_uid: "user-1",
+          kind: "ingredient_product_create",
+          payload: {},
+          updated_at: "2026-06-16T12:00:00.000Z",
+          attempts: 0,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const strategy: SyncStrategy = {
+      pull: async () => 0,
+      handlePushOp: async () => {
+        throw new Error("temporary outage");
+      },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runPushQueue } = require("@/services/offline/sync.push");
+
+    const result = await runPushQueue("user-1", 25, [strategy]);
+
+    expect(result).toEqual({ processed: 0, failed: 1, deadLettered: 0 });
+    expect(mockBumpAttempts).toHaveBeenCalledWith(27);
+    expect(mockMarkIngredientProductCreateSyncFailed).toHaveBeenCalledWith({
+      uid: "user-1",
+      op: expect.objectContaining({
+        id: 27,
+        kind: "ingredient_product_create",
+      }),
+      dead: false,
+    });
+    expect(mockEmit).toHaveBeenCalledWith("food-library:failed", {
+      uid: "user-1",
+      opId: 27,
+      cloudId: "product-1",
+      kind: "ingredient_product_create",
+      dead: false,
+    });
+    expect(mockSetMealSyncStateLocal).not.toHaveBeenCalled();
+    expect(mockEmit).not.toHaveBeenCalledWith(
+      "meal:failed",
+      expect.objectContaining({ opId: 27 }),
+    );
+  });
+
+  it("marks Product/Ingredient dead-lettered creates as observable failures", async () => {
+    mockNextBatch
+      .mockResolvedValueOnce([
+        {
+          id: 28,
+          client_mutation_id: "ingredient-product:create:user-1:product-1",
+          cloud_id: "product-1",
+          user_uid: "user-1",
+          kind: "ingredient_product_create",
+          payload: {},
+          updated_at: "2026-06-16T12:00:00.000Z",
+          attempts: 9,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const strategy: SyncStrategy = {
+      pull: async () => 0,
+      handlePushOp: async () => {
+        throw new Error("invalid payload");
+      },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runPushQueue } = require("@/services/offline/sync.push");
+
+    const result = await runPushQueue("user-1", 25, [strategy]);
+
+    expect(result).toEqual({ processed: 0, failed: 1, deadLettered: 1 });
+    expect(mockMoveToDeadLetter).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 28, kind: "ingredient_product_create" }),
+      10,
+      expect.objectContaining({ code: "sync/unknown" }),
+    );
+    expect(mockMarkIngredientProductCreateSyncFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        dead: true,
+      }),
+    );
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:dead", {
+      uid: "user-1",
+      opId: 28,
+      cloudId: "product-1",
+      kind: "ingredient_product_create",
+      attempts: 10,
+      code: "sync/unknown",
+    });
+    expect(mockSetMealSyncStateLocal).not.toHaveBeenCalled();
   });
 });

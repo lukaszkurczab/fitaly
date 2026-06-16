@@ -10,6 +10,7 @@ const mockMealsPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockMyMealsPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockChatPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockSmartMemoryPull = jest.fn<(...args: unknown[]) => Promise<number>>();
+const mockFoodLibraryPull = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockProcessImageUploads = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockGetQueuedOpsCount = jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockGetPendingUploads = jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
@@ -94,6 +95,14 @@ jest.mock("./strategies/smartMemory.strategy", () => ({
   },
 }));
 
+jest.mock("./strategies/foodLibrary.strategy", () => ({
+  foodLibraryStrategy: {
+    pull: (...args: unknown[]) => mockFoodLibraryPull(...args),
+    handlePushOp: jest.fn(async () => false),
+  },
+  ingredientProductQueueKinds: () => ["ingredient_product_create"],
+}));
+
 jest.mock("./strategies/userProfile.strategy", () => ({
   userProfileStrategy: {
     pull: jest.fn(async () => 0),
@@ -131,6 +140,7 @@ describe("offline sync.engine selective coordinator", () => {
     mockMyMealsPull.mockResolvedValue(0);
     mockChatPull.mockResolvedValue(0);
     mockSmartMemoryPull.mockResolvedValue(0);
+    mockFoodLibraryPull.mockResolvedValue(0);
     mockProcessImageUploads.mockResolvedValue();
     mockGetQueuedOpsCount.mockResolvedValue(0);
     mockGetPendingUploads.mockResolvedValue([]);
@@ -158,6 +168,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     expect(mockSmartMemoryPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
 
     stopSyncLoop();
     expect(unsub).toHaveBeenCalledTimes(1);
@@ -195,6 +206,7 @@ describe("offline sync.engine selective coordinator", () => {
     mockMyMealsPull.mockResolvedValue(0);
     mockChatPull.mockResolvedValue(0);
     mockSmartMemoryPull.mockResolvedValue(0);
+    mockFoodLibraryPull.mockResolvedValue(0);
     mockProcessImageUploads.mockResolvedValue();
     mockGetQueuedOpsCount.mockResolvedValue(0);
     mockGetPendingUploads.mockResolvedValue([]);
@@ -223,6 +235,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     expect(mockSmartMemoryPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
     stopSyncLoop();
     setTimeoutSpy.mockRestore();
   });
@@ -244,6 +257,7 @@ describe("offline sync.engine selective coordinator", () => {
           myMeals: "clean",
           chat: "clean",
           smartMemory: "clean",
+          foodLibrary: "clean",
         }),
       }),
     );
@@ -252,6 +266,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     expect(mockSmartMemoryPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("keeps E2E reconcile local-first by pushing but skipping remote pulls", async () => {
@@ -276,6 +291,7 @@ describe("offline sync.engine selective coordinator", () => {
           myMeals: "e2e",
           chat: "e2e",
           smartMemory: "e2e",
+          foodLibrary: "e2e",
         }),
       }),
     );
@@ -284,6 +300,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     expect(mockSmartMemoryPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
     expect(mockProcessImageUploads).not.toHaveBeenCalled();
   });
 
@@ -309,6 +326,7 @@ describe("offline sync.engine selective coordinator", () => {
           myMeals: "clean",
           chat: "clean",
           smartMemory: "clean",
+          foodLibrary: "clean",
         }),
       }),
     );
@@ -317,6 +335,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
     expect(mockSmartMemoryPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent sync requests so the pending queue pushes once", async () => {
@@ -352,6 +371,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
     expect(mockChatPull).toHaveBeenCalledTimes(1);
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("routes meal pulls through the cursor-based meals strategy", async () => {
@@ -364,6 +384,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledWith("user-1");
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("routes exported pull and upload helpers through their canonical strategies", async () => {
@@ -407,6 +428,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("routes smart memory local changes through Smart Memory pull after push", async () => {
@@ -424,6 +446,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("skips pull after a push-only local change request", async () => {
@@ -462,6 +485,7 @@ describe("offline sync.engine selective coordinator", () => {
         skipped: expect.objectContaining({
           myMeals: "clean",
           chat: "clean",
+          foodLibrary: "clean",
         }),
       }),
     );
@@ -469,6 +493,7 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).toHaveBeenCalledTimes(1);
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
   it("reconnect pushes once and only pulls Smart Memory for dirty Smart Memory queue", async () => {
@@ -494,6 +519,7 @@ describe("offline sync.engine selective coordinator", () => {
           meals: "clean",
           myMeals: "clean",
           chat: "clean",
+          foodLibrary: "clean",
         }),
       }),
     );
@@ -502,6 +528,39 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockMealsPull).not.toHaveBeenCalled();
     expect(mockMyMealsPull).not.toHaveBeenCalled();
     expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockFoodLibraryPull).not.toHaveBeenCalled();
+  });
+
+  it("reconnect pushes once and only pulls Product/Ingredient for dirty food library queue", async () => {
+    mockGetQueuedOpsCount.mockImplementation(async (_uid, options) => {
+      if (!options) return 1;
+      const kinds = (options as { kinds?: string[] } | undefined)?.kinds ?? [];
+      return kinds.includes("ingredient_product_create") ? 1 : 0;
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { runReconnectReconcile } = require("@/services/offline/sync.engine");
+
+    const result = await runReconnectReconcile("user-1");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pulled: { foodLibrary: 0 },
+        skipped: expect.objectContaining({
+          meals: "clean",
+          myMeals: "clean",
+          chat: "clean",
+          smartMemory: "clean",
+        }),
+      }),
+    );
+    expect(mockRunPushQueue).toHaveBeenCalledTimes(1);
+    expect(mockFoodLibraryPull).toHaveBeenCalledTimes(1);
+    expect(mockMealsPull).not.toHaveBeenCalled();
+    expect(mockMyMealsPull).not.toHaveBeenCalled();
+    expect(mockChatPull).not.toHaveBeenCalled();
+    expect(mockSmartMemoryPull).not.toHaveBeenCalled();
   });
 
   it("manual reconcile still pulls meals", async () => {

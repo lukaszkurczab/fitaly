@@ -2,6 +2,9 @@ import { getDB } from "./db";
 import type { Meal } from "@/types/meal";
 import type { UserData } from "@/types";
 import type {
+  IngredientProductCreateQueuePayload,
+} from "@/services/foodLibrary/ingredientProductCreateQueue";
+import type {
   SmartMemoryCandidateUpsertInput,
   SmartMemoryItemEditInput,
   SmartMemorySourceDeletedInput,
@@ -305,6 +308,34 @@ async function enqueueSmartMemorySettingsControl(
       cloudId,
       kind,
       payload: { enabled },
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
+}
+
+export async function enqueueIngredientProductCreate(
+  uid: string,
+  payload: IngredientProductCreateQueuePayload,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  const db = getDB();
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = payload.request.clientMutationId;
+  const cloudId = payload.request.ingredientProductId;
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, cloudId, ["ingredient_product_create"]);
+    insertQueuedOp({
+      uid,
+      cloudId,
+      kind: "ingredient_product_create",
+      payload,
       updatedAt,
       clientMutationId,
     });

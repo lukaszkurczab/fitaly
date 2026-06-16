@@ -19,10 +19,17 @@ import {
   markSmartMemoryProjectionSyncFailed,
   smartMemoryQueueKinds,
 } from "@/services/smartMemory/smartMemoryProjectionRepository";
+import {
+  ingredientProductQueueKinds,
+} from "@/services/offline/strategies/foodLibrary.strategy";
+import {
+  markIngredientProductCreateSyncFailed,
+} from "@/services/foodLibrary/ingredientProductCreateQueue";
 import type { SyncStrategy } from "./sync.strategy";
 
 const log = Sync;
 const SMART_MEMORY_QUEUE_KINDS = new Set(smartMemoryQueueKinds());
+const INGREDIENT_PRODUCT_QUEUE_KINDS = new Set(ingredientProductQueueKinds());
 
 export type PushQueueResult = {
   processed: number;
@@ -143,6 +150,13 @@ export async function runPushQueue(
             message: err.message,
           });
         }
+        if (INGREDIENT_PRODUCT_QUEUE_KINDS.has(op.kind)) {
+          await markIngredientProductCreateSyncFailed({
+            uid,
+            op,
+            dead: shouldDeadLetter,
+          });
+        }
         if (op.kind === "update_user_profile") {
           emit("user:profile:failed", {
             uid,
@@ -157,6 +171,14 @@ export async function runPushQueue(
           });
         } else if (SMART_MEMORY_QUEUE_KINDS.has(op.kind)) {
           emit("smart-memory:failed", {
+            uid,
+            opId: op.id,
+            cloudId: op.cloud_id,
+            kind: op.kind,
+            dead: shouldDeadLetter,
+          });
+        } else if (INGREDIENT_PRODUCT_QUEUE_KINDS.has(op.kind)) {
+          emit("food-library:failed", {
             uid,
             opId: op.id,
             cloudId: op.cloud_id,

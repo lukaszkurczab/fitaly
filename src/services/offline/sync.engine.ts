@@ -18,6 +18,10 @@ import { chatStrategy } from "./strategies/chat.strategy";
 import { smartMemoryStrategy } from "./strategies/smartMemory.strategy";
 import { userProfileStrategy } from "./strategies/userProfile.strategy";
 import {
+  foodLibraryStrategy,
+  ingredientProductQueueKinds,
+} from "./strategies/foodLibrary.strategy";
+import {
   imagesStrategy,
   processImageUploads as processImageUploadsStrategy,
 } from "./strategies/images.strategy";
@@ -55,6 +59,7 @@ export type SyncDomain =
   | "myMeals"
   | "chat"
   | "smartMemory"
+  | "foodLibrary"
   | "images"
   | "userProfile";
 export type SyncReason =
@@ -96,6 +101,7 @@ const pushStrategies: SyncStrategy[] = [
   myMealsStrategy,
   chatStrategy,
   smartMemoryStrategy,
+  foodLibraryStrategy,
   userProfileStrategy,
   imagesStrategy,
 ];
@@ -133,6 +139,11 @@ const domainConfigs: Record<Exclude<SyncDomain, "images" | "userProfile">, Domai
     ],
     staleAfterMs: DEFAULT_STALE_MS,
     getLastPullMarker: getLastSmartMemoryPullTs,
+  },
+  foodLibrary: {
+    strategy: foodLibraryStrategy,
+    queueKinds: ingredientProductQueueKinds(),
+    staleAfterMs: DEFAULT_STALE_MS,
   },
 };
 
@@ -365,6 +376,7 @@ async function runReconcile(
         result.skipped.myMeals = "offline";
         result.skipped.chat = "offline";
         result.skipped.smartMemory = "offline";
+        result.skipped.foodLibrary = "offline";
         result.skipped.images = "offline";
         runLog.log("skip:offline", { uid });
         return result;
@@ -373,7 +385,7 @@ async function runReconcile(
       const skipRemotePulls = isE2EModeEnabled();
       const domainsSelectedBeforePush = new Set<Exclude<SyncDomain, "images" | "userProfile">>();
       if (!skipRemotePulls) {
-        for (const domain of ["meals", "myMeals", "chat", "smartMemory"] as const) {
+        for (const domain of ["meals", "myMeals", "chat", "smartMemory", "foodLibrary"] as const) {
           if (await shouldPullDomain(uid, domain, reason)) {
             domainsSelectedBeforePush.add(domain);
           }
@@ -404,11 +416,12 @@ async function runReconcile(
         result.skipped.myMeals = "e2e";
         result.skipped.chat = "e2e";
         result.skipped.smartMemory = "e2e";
+        result.skipped.foodLibrary = "e2e";
         runLog.log("skip:remote-pull:e2e", { uid });
         return result;
       }
 
-      for (const domain of ["meals", "myMeals", "chat", "smartMemory"] as const) {
+      for (const domain of ["meals", "myMeals", "chat", "smartMemory", "foodLibrary"] as const) {
         const shouldPull =
           domainsSelectedBeforePush.has(domain) ||
           (await shouldPullDomain(uid, domain, reason));

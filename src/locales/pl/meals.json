@@ -271,6 +271,7 @@
   "ingredient_search_warning_badge": "Uwaga",
   "ingredient_search_create_private": "Zapisz jako prywatny produkt",
   "ingredient_search_create_saved": "Zapisano w prywatnych produktach.",
+  "ingredient_search_create_queued": "Zapisano lokalnie. Zsynchronizuje się po powrocie online.",
   "ingredient_search_create_failed": "Nie udało się zapisać. Spróbuj online.",
   "calories": "Kalorie",
   "protein": "Białko",

@@ -582,6 +582,62 @@ describe("queue.repo", () => {
     ]);
   });
 
+  it("uses Product/Ingredient-specific create queue kind and durable client mutation id", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueIngredientProductCreate(
+      "user-1",
+      {
+        searchQuery: "Owsianka domowa",
+        locale: "pl-PL",
+        request: {
+          clientMutationId: "ingredient-product:create:user-1:mutation-1",
+          ingredientProductId: "user-product-1",
+          displayName: "Owsianka domowa",
+          kind: "generic_ingredient",
+          defaultServing: { quantity: 50, unit: "g" },
+          nutritionPer100: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:00:00.000Z" },
+    );
+    await queueRepo.enqueueIngredientProductCreate(
+      "user-1",
+      {
+        searchQuery: "Owsianka domowa",
+        locale: "pl-PL",
+        request: {
+          clientMutationId: "ingredient-product:create:user-1:mutation-2",
+          ingredientProductId: "user-product-1",
+          displayName: "Owsianka domowa",
+          kind: "generic_ingredient",
+          defaultServing: { quantity: 60, unit: "g" },
+          nutritionPer100: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:05:00.000Z" },
+    );
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "user-product-1",
+        uid: "user-1",
+        kind: "ingredient_product_create",
+        clientMutationId: "ingredient-product:create:user-1:mutation-2",
+        updatedAt: "2026-06-16T10:05:00.000Z",
+        payload: expect.objectContaining({
+          searchQuery: "Owsianka domowa",
+          request: expect.objectContaining({
+            ingredientProductId: "user-product-1",
+            defaultServing: { quantity: 60, unit: "g" },
+          }),
+        }),
+      }),
+    ]);
+  });
+
   it("surfaces dead meal ops, retries them without duplicate pending ops, and clears after success", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const queueRepo = require("@/services/offline/queue.repo") as

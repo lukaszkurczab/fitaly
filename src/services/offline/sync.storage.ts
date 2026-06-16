@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type PullCheckDomain = "meals" | "myMeals" | "chat" | "smartMemory";
+export type PullCheckDomain =
+  | "meals"
+  | "myMeals"
+  | "chat"
+  | "smartMemory"
+  | "foodLibrary";
 
 function keyLastPull(uid: string) {
   return `sync:last_pull_ts:${uid}`;
