@@ -300,6 +300,53 @@ describe("telemetryInstrumentation", () => {
     );
   });
 
+  it("does not emit raw autocomplete query, food identity, nutrition, or memory refs", async () => {
+    const forbiddenPropNames = [
+      "query",
+      "rawQuery",
+      "normalizedQuery",
+      "displayName",
+      "ingredientName",
+      "productName",
+      "ingredientProductId",
+      "productId",
+      "barcode",
+      "nutritionPer100",
+      "kcal",
+      "protein",
+      "carbs",
+      "fat",
+      "sourceRef",
+      "memoryId",
+    ];
+
+    await trackAutocompleteSearchOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "warning",
+      queryLength: 12,
+      resultCount: 2,
+      sourceClass: "remote",
+      latencyMs: 620,
+      warningReason: "profile_warning",
+    });
+    await trackAutocompleteResultSelected({
+      surface: "manual_ingredient_sheet",
+      resultCount: 2,
+      sourceClass: "global",
+      rank: 1,
+      warningReason: "profile_warning",
+    });
+
+    for (const [, props] of mockTrack.mock.calls) {
+      expect(Object.keys(props ?? {})).not.toEqual(
+        expect.arrayContaining(forbiddenPropNames),
+      );
+      expect(JSON.stringify(props)).not.toContain("Owies");
+      expect(JSON.stringify(props)).not.toContain("5901234123457");
+      expect(JSON.stringify(props)).not.toContain("ingredient-product");
+    }
+  });
+
   it("keeps smart reminder telemetry mappings contract-safe", async () => {
     expect(toSmartReminderConfidenceBucket(0.2)).toBe("low");
     expect(toSmartReminderConfidenceBucket(0.7)).toBe("medium");

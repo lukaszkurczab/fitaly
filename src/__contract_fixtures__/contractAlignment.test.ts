@@ -221,6 +221,13 @@ type SmartReminderTelemetryFixture = {
   disallowedEventNames: string[];
 };
 
+type AutocompleteTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
+};
+
 type AiRejectionsFixture = {
   rejections: {
     consentRequired: {
@@ -850,6 +857,99 @@ describe("Smart reminder telemetry contract", () => {
   test("disallowed smart reminder telemetry events stay disallowed on mobile", () => {
     expect(fixture.disallowedEventNames.sort()).toEqual(
       ["smart_reminder_decision_computed", "smart_reminder_opened"].sort(),
+    );
+  });
+});
+
+describe("Autocomplete telemetry contract", () => {
+  const fixture = loadFixture<AutocompleteTelemetryFixture>(
+    "autocomplete_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "autocomplete_search_outcome",
+    "autocomplete_result_selected",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    autocomplete_search_outcome: [
+      "surface",
+      "outcome",
+      "queryLengthBucket",
+      "resultCountBucket",
+      "sourceClass",
+      "latencyBucket",
+      "warningReason",
+    ],
+    autocomplete_result_selected: [
+      "surface",
+      "resultCountBucket",
+      "sourceClass",
+      "rankBucket",
+      "selectionState",
+      "warningReason",
+    ],
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "autocomplete_query_submitted",
+    "autocomplete_product_viewed",
+    "manual_product_created",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "query",
+    "rawQuery",
+    "normalizedQuery",
+    "displayName",
+    "ingredientName",
+    "productName",
+    "ingredientProductId",
+    "productId",
+    "barcode",
+    "nutritionPer100",
+    "kcal",
+    "protein",
+    "carbs",
+    "fat",
+    "sourceRef",
+    "memoryId",
+  ] as const;
+
+  test("event names match backend fixture", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("raw food identity props stay disallowed on mobile", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "autocomplete_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(path.join(BACKEND_FIXTURES_DIR, "autocomplete_telemetry.json")),
     );
   });
 });
