@@ -1,0 +1,55 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=active"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-active
+    timeout: 10000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-ready-state
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- openLink: fitaly://e2e/connectivity?offline=1
+- assertVisible:
+    id: e2e-ready-offline
+- assertVisible:
+    id: memory-center-offline-state
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- tapOn:
+    id: memory-center-detail-close-button
+- assertVisible:
+    id: memory-center-offline-state
+- openLink: fitaly://e2e/connectivity?offline=0
+- assertVisible:
+    id: e2e-ready-home
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
