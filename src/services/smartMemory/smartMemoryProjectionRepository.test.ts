@@ -564,6 +564,46 @@ describe("smartMemoryProjectionRepository", () => {
     await expect(repo.getActiveSmartMemoryItemsForReview("user-1")).resolves.toEqual([]);
   });
 
+  it("preserves queued user controls when a stale active item is pulled", async () => {
+    const repo = require("./smartMemoryProjectionRepository") as typeof import("./smartMemoryProjectionRepository");
+
+    await repo.upsertSmartMemorySettingsProjection("user-1", sampleSettings());
+    await repo.upsertSmartMemoryItemProjection("user-1", sampleItem());
+    await repo.markSmartMemoryItemPending({
+      uid: "user-1",
+      memoryItemId: "memory-1",
+      operation: "delete",
+      clientMutationId: "delete-mutation",
+      updatedAt: "2026-06-04T10:33:00.000Z",
+    });
+
+    await repo.replaceSmartMemoryItemsProjection("user-1", [
+      sampleItem({
+        serverRevision: 3,
+        updatedAt: "2026-06-04T10:35:00.000Z",
+      }),
+    ]);
+
+    const projection = await repo.getSmartMemoryProjection("user-1");
+    expect(projection.items[0]).toEqual(
+      expect.objectContaining({
+        projectionState: "queued_delete",
+        suggestionUse: "blocked",
+        syncState: "pending",
+        queuedOperation: expect.objectContaining({
+          operation: "delete",
+          clientMutationId: "delete-mutation",
+        }),
+        item: expect.objectContaining({
+          memoryItemId: "memory-1",
+          state: "active",
+          serverRevision: 3,
+        }),
+      }),
+    );
+    await expect(repo.getActiveSmartMemoryItemsForReview("user-1")).resolves.toEqual([]);
+  });
+
   it("marks sync failed and dead-letter states visible", async () => {
     const repo = require("./smartMemoryProjectionRepository") as typeof import("./smartMemoryProjectionRepository");
 
