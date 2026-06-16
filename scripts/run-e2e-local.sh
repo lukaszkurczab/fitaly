@@ -39,11 +39,15 @@ PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
 ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
 REVIEW_MEMORY_EXPLANATION_FLOW=0
+SMART_MEMORY_BACKEND_PULL_FLOW=0
 for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   case "${FLOW_PATH}" in
     *review-memory-explanation.yaml)
       REVIEW_MEMORY_EXPLANATION_FLOW=1
       ENABLE_REVIEW_MEMORY_EXPLANATION="true"
+      ;;
+    *smart-memory-backend-pull.yaml)
+      SMART_MEMORY_BACKEND_PULL_FLOW=1
       ;;
   esac
 done
@@ -339,6 +343,36 @@ if [[ "${E2E_SKIP_API_HEALTH:-}" != "1" ]]; then
   fi
 fi
 
+if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
+  if [[ "${API_BASE_URL%/}" != "http://127.0.0.1:"* && "${API_BASE_URL%/}" != "http://localhost:"* ]]; then
+    echo "[e2e] smart-memory-backend-pull requires a local backend API. Current API: ${API_BASE_URL}" >&2
+    exit 1
+  fi
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] smart-memory-backend-pull requires FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    exit 1
+  fi
+  if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    export EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST="http://${FIREBASE_AUTH_EMULATOR_HOST}"
+  fi
+  BACKEND_ROOT="${E2E_BACKEND_ROOT:-$(cd "${ROOT_DIR}/.." && pwd)/fitaly-backend}"
+  BACKEND_PYTHON="${E2E_BACKEND_PYTHON:-${BACKEND_ROOT}/.venv/bin/python}"
+  BACKEND_SEED_SCRIPT="${BACKEND_ROOT}/scripts/seed_smart_memory_backend_e2e.py"
+  if [[ ! -x "${BACKEND_PYTHON}" || ! -f "${BACKEND_SEED_SCRIPT}" ]]; then
+    echo "[e2e] Backend Smart Memory seeder not available at ${BACKEND_SEED_SCRIPT}." >&2
+    echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
+    exit 1
+  fi
+  echo "[e2e] Seeding backend Smart Memory state for smart-memory-backend-pull..."
+  (
+    cd "${BACKEND_ROOT}"
+    export E2E_EMAIL E2E_PASSWORD
+    export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+    export FIRESTORE_DATABASE_ID="${FIRESTORE_DATABASE_ID:-(default)}"
+    "${BACKEND_PYTHON}" "${BACKEND_SEED_SCRIPT}"
+  )
+fi
+
 if [[ -z "${E2E_EXPO_URL:-}" ]]; then
   echo "[e2e] Selected Expo port: ${EXPO_PORT}"
   echo "[e2e] Starting Expo dev server (host ${EXPO_HOST}, port ${EXPO_PORT})..."
@@ -361,6 +395,9 @@ fi
 echo "[e2e] Runtime: platform=${PLATFORM} host=${EXPO_HOST} api=${API_BASE_URL} expo=${EXPO_URL} results=${RESULTS_PATH}"
 if [[ "${REVIEW_MEMORY_EXPLANATION_FLOW}" -eq 1 ]]; then
   echo "[e2e] Review memory explanation gate enabled for targeted flow."
+fi
+if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Backend Smart Memory pull seed enabled for targeted flow."
 fi
 if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
   mkdir -p "${TEST_OUTPUT_DIR}"
