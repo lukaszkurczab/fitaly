@@ -8,10 +8,22 @@ import type { IngredientProductSearchResult } from "@/types/foodLibrary";
 const mockSearchIngredientProducts = jest.fn<
   (...args: unknown[]) => Promise<IngredientProductSearchResult>
 >();
+const mockCreateIngredientProductRemote = jest.fn<
+  (...args: unknown[]) => Promise<unknown>
+>();
 
 jest.mock("@/services/foodLibrary/ingredientProductSearchService", () => ({
   searchIngredientProducts: (...args: unknown[]) =>
     mockSearchIngredientProducts(...args),
+}));
+
+jest.mock("@/services/foodLibrary/ingredientProductSearchApi", () => ({
+  createIngredientProductRemote: (...args: unknown[]) =>
+    mockCreateIngredientProductRemote(...args),
+}));
+
+jest.mock("uuid", () => ({
+  v4: () => "uuid-created",
 }));
 
 jest.mock("react-i18next", () => ({
@@ -557,6 +569,210 @@ describe("IngredientEditor", () => {
 
     expect(getByTestId("ingredient-autocomplete-results")).toBeTruthy();
     expect(getByTestId("ingredient-autocomplete-row-0")).toBeTruthy();
+  });
+
+  it("creates a private ingredient product only from the explicit no-results action", async () => {
+    const onCommit = jest.fn();
+    mockSearchIngredientProducts.mockResolvedValue({
+      status: "no_results",
+      items: [],
+      queryEcho: {
+        normalizedQuery: "owsianka domowa",
+        queryLength: 15,
+        limit: 6,
+        includeUserScoped: true,
+        includeGlobal: true,
+        locale: "pl-PL",
+      },
+      warnings: [],
+      cachePolicy: null,
+      source: "remote",
+      isStale: false,
+      errorCode: null,
+    });
+    mockCreateIngredientProductRemote.mockResolvedValue({
+      item: { ingredientProductId: "user-uuid-created" },
+      updated: true,
+    });
+
+    const { getByTestId } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-20",
+          name: "",
+          amount: 50,
+          unit: "g",
+          protein: 5,
+          carbs: 20,
+          fat: 3,
+          kcal: 130,
+        }}
+        variant="sheet"
+        submitLabel="meals:add_ingredient"
+        showDelete={false}
+        autocompleteUid="user-1"
+        autocompleteLocale="pl-PL"
+        autocompleteDebounceMs={0}
+        onCommit={onCommit}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.changeText(
+      getByTestId("ingredient-editor-name-input"),
+      "Owsianka domowa",
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("ingredient-autocomplete-no-results")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("ingredient-editor-create-product-button"));
+
+    await waitFor(() => {
+      expect(getByTestId("ingredient-editor-create-product-success")).toBeTruthy();
+    });
+
+    expect(mockCreateIngredientProductRemote).toHaveBeenCalledWith({
+      clientMutationId: "ingredient-product:create:user-1:uuid-created",
+      ingredientProductId: "user-uuid-created",
+      displayName: "Owsianka domowa",
+      kind: "generic_ingredient",
+      defaultServing: {
+        quantity: 50,
+        unit: "g",
+      },
+      nutritionPer100: {
+        basis: "per_100g",
+        unit: "g",
+        kcal: 260,
+        protein: 10,
+        fat: 6,
+        carbs: 40,
+        fiber: null,
+        sugar: null,
+        salt: null,
+        saturatedFat: null,
+      },
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("does not create a private ingredient product from the ordinary add action", async () => {
+    const onCommit = jest.fn();
+    mockSearchIngredientProducts.mockResolvedValue({
+      status: "no_results",
+      items: [],
+      queryEcho: {
+        normalizedQuery: "kasza domowa",
+        queryLength: 12,
+        limit: 6,
+        includeUserScoped: true,
+        includeGlobal: true,
+        locale: "pl-PL",
+      },
+      warnings: [],
+      cachePolicy: null,
+      source: "remote",
+      isStale: false,
+      errorCode: null,
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-21",
+          name: "",
+          amount: 80,
+          unit: "g",
+          protein: 4,
+          carbs: 34,
+          fat: 1,
+          kcal: 160,
+        }}
+        variant="sheet"
+        submitLabel="meals:add_ingredient"
+        showDelete={false}
+        autocompleteUid="user-1"
+        autocompleteLocale="pl-PL"
+        autocompleteDebounceMs={0}
+        onCommit={onCommit}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.changeText(
+      getByTestId("ingredient-editor-name-input"),
+      "Kasza domowa",
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("ingredient-editor-create-product-button")).toBeTruthy();
+    });
+
+    fireEvent.press(getByText("meals:add_ingredient"));
+
+    expect(mockCreateIngredientProductRemote).not.toHaveBeenCalled();
+    expect(onCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "ing-21",
+        name: "Kasza domowa",
+      }),
+    );
+  });
+
+  it("does not offer private product creation when autocomplete is offline without cache", async () => {
+    mockSearchIngredientProducts.mockResolvedValue({
+      status: "offline_no_cache",
+      items: [],
+      queryEcho: {
+        normalizedQuery: "offline bowl",
+        queryLength: 12,
+        limit: 6,
+        includeUserScoped: true,
+        includeGlobal: true,
+        locale: null,
+      },
+      warnings: ["offline_cache"],
+      cachePolicy: null,
+      source: "none",
+      isStale: false,
+      errorCode: "offline",
+    });
+
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <IngredientEditor
+        initial={{
+          id: "ing-22",
+          name: "",
+          amount: 100,
+          unit: "g",
+          protein: 8,
+          carbs: 20,
+          fat: 4,
+          kcal: 148,
+        }}
+        variant="sheet"
+        autocompleteUid="user-1"
+        autocompleteDebounceMs={0}
+        onCommit={() => undefined}
+        onCancel={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    fireEvent.changeText(
+      getByTestId("ingredient-editor-name-input"),
+      "Offline bowl",
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("ingredient-autocomplete-offline")).toBeTruthy();
+    });
+
+    expect(queryByTestId("ingredient-editor-create-product-button")).toBeNull();
   });
 
   it("keeps unit read-only in sheet variant commit flow", () => {

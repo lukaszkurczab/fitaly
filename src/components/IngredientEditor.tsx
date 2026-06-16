@@ -26,10 +26,14 @@ import {
   trackAutocompleteResultSelected,
   trackAutocompleteSearchOutcome,
 } from "@/services/telemetry/telemetryInstrumentation";
+import { createIngredientProductRemote } from "@/services/foodLibrary/ingredientProductSearchApi";
 import type {
+  IngredientProductCreateRequest,
+  IngredientProductNutritionPer100,
   IngredientProductSearchResult,
   IngredientProductSearchRow,
 } from "@/types/foodLibrary";
+import { v4 as uuidv4 } from "uuid";
 
 type Props = {
   initial: Ingredient;
@@ -203,6 +207,9 @@ const IngredientEditorComponent = (
   const [autocompleteResult, setAutocompleteResult] =
     useState<IngredientProductSearchResult | null>(null);
   const [autocompleteLoading, setAutocompleteLoading] = useState(false);
+  const [manualCreateStatus, setManualCreateStatus] = useState<
+    "idle" | "saving" | "saved" | "failed"
+  >("idle");
 
   const [nameTouched, setNameTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
@@ -249,6 +256,13 @@ const IngredientEditorComponent = (
         .slice(0, 4),
     [autocompleteResult?.items, initial.id],
   );
+  const canCreateManualIngredientProduct =
+    isSheetVariant &&
+    Boolean(autocompleteUid) &&
+    autocompleteResult?.status === "no_results" &&
+    name.trim().length > 0 &&
+    toIngredientUnit(initial.unit) !== null &&
+    (parseNum(amount) || 0) > 0;
 
   const syncBaselineFromState = (keepAmount = true) => {
     const amt = keepAmount ? baseline.current.amount : parseNum(amount) || 0;
@@ -491,6 +505,66 @@ const IngredientEditorComponent = (
     },
     [autocompleteSuggestions.length, onChangePartial],
   );
+
+  const buildManualCreateRequest =
+    (): IngredientProductCreateRequest | null => {
+      const displayName = name.trim();
+      const amountValue = parseNum(amount) || 0;
+      const unit = toIngredientUnit(initial.unit);
+      if (!autocompleteUid || !displayName || !unit || amountValue <= 0) {
+        return null;
+      }
+
+      const proteinValue = parseNum(protein) || 0;
+      const carbsValue = parseNum(carbs) || 0;
+      const fatValue = parseNum(fat) || 0;
+      const kcalValue = parseNum(kcal) || 0;
+      const hasNutrition =
+        proteinValue > 0 || carbsValue > 0 || fatValue > 0 || kcalValue > 0;
+      const factor = 100 / amountValue;
+      const nutritionPer100: IngredientProductNutritionPer100 | null =
+        hasNutrition
+          ? {
+              basis: unit === "ml" ? "per_100ml" : "per_100g",
+              unit,
+              kcal: Math.max(0, Math.round(kcalValue * factor)),
+              protein: Math.max(0, roundMacro(proteinValue * factor)),
+              fat: Math.max(0, roundMacro(fatValue * factor)),
+              carbs: Math.max(0, roundMacro(carbsValue * factor)),
+              fiber: null,
+              sugar: null,
+              salt: null,
+              saturatedFat: null,
+            }
+          : null;
+      const mutationUuid = uuidv4();
+
+      return {
+        clientMutationId: `ingredient-product:create:${autocompleteUid}:${mutationUuid}`,
+        ingredientProductId: `user-${mutationUuid}`,
+        displayName,
+        kind: "generic_ingredient",
+        defaultServing: {
+          quantity: amountValue,
+          unit,
+        },
+        nutritionPer100,
+      };
+    };
+
+  const createManualIngredientProduct = () => {
+    const request = buildManualCreateRequest();
+    if (!request || manualCreateStatus === "saving") return;
+
+    setManualCreateStatus("saving");
+    createIngredientProductRemote(request)
+      .then(() => {
+        setManualCreateStatus("saved");
+      })
+      .catch(() => {
+        setManualCreateStatus("failed");
+      });
+  };
 
   const autocompleteStatus = useMemo(() => {
     const testID = autocompleteStatusTestID(autocompleteResult);
@@ -809,6 +883,7 @@ const IngredientEditorComponent = (
           value={name}
           onChangeText={(v) => {
             setName(v);
+            setManualCreateStatus("idle");
             onChangePartial?.({ name: v });
           }}
           placeholder={t("ingredient_name", { ns: "meals" })}
@@ -841,13 +916,70 @@ const IngredientEditorComponent = (
               </Text>
             ) : null}
 
-            {!autocompleteLoading && autocompleteStatus ? (
+            {!autocompleteLoading &&
+            autocompleteStatus &&
+            canCreateManualIngredientProduct ? (
+              <View style={styles.manualCreateRow}>
+                <Text
+                  style={[styles.autocompleteStatus, styles.manualCreateStatus]}
+                  testID={autocompleteStatus.testID}
+                >
+                  {autocompleteStatus.label}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("ingredient_search_create_private", {
+                    ns: "meals",
+                  })}
+                  accessibilityState={{
+                    busy: manualCreateStatus === "saving",
+                    disabled: manualCreateStatus === "saving",
+                  }}
+                  disabled={manualCreateStatus === "saving"}
+                  testID={`${testIDPrefix}-create-product-button`}
+                  onPress={createManualIngredientProduct}
+                  style={({ pressed }) => [
+                    styles.manualCreateButton,
+                    pressed ? styles.manualCreateButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.manualCreateButtonText}>
+                    {t("ingredient_search_create_private", { ns: "meals" })}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {!autocompleteLoading &&
+            autocompleteStatus &&
+            !canCreateManualIngredientProduct ? (
               <Text
                 style={styles.autocompleteStatus}
                 testID={autocompleteStatus.testID}
               >
                 {autocompleteStatus.label}
               </Text>
+            ) : null}
+
+            {canCreateManualIngredientProduct ? (
+              <View style={styles.manualCreateFeedback}>
+                {manualCreateStatus === "saved" ? (
+                  <Text
+                    testID={`${testIDPrefix}-create-product-success`}
+                    style={styles.autocompleteStatus}
+                  >
+                    {t("ingredient_search_create_saved", { ns: "meals" })}
+                  </Text>
+                ) : null}
+                {manualCreateStatus === "failed" ? (
+                  <Text
+                    testID={`${testIDPrefix}-create-product-failed`}
+                    style={styles.autocompleteStatus}
+                  >
+                    {t("ingredient_search_create_failed", { ns: "meals" })}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
 
             {autocompleteSuggestions.length > 0 ? (
@@ -1149,6 +1281,47 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textSecondary,
       fontSize: theme.typography.size.caption,
       lineHeight: theme.typography.lineHeight.caption,
+    },
+    manualCreateRow: {
+      minHeight: 36,
+      paddingLeft: theme.spacing.sm,
+      paddingRight: theme.spacing.xs,
+      paddingVertical: theme.spacing.xxs,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    manualCreateStatus: {
+      flex: 1,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
+    manualCreateButton: {
+      minHeight: 32,
+      borderRadius: theme.rounded.sm,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+    },
+    manualCreateButtonPressed: {
+      backgroundColor: theme.surfaceAlt,
+    },
+    manualCreateButtonText: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      color: theme.text,
+    },
+    manualCreateFeedback: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.border,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      alignItems: "flex-start",
+      gap: theme.spacing.xxs,
     },
     autocompleteOption: {
       minHeight: 48,
