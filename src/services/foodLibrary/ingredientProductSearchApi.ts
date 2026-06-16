@@ -1,4 +1,4 @@
-import { get, type RequestOptions } from "@/services/core/apiClient";
+import { get, post, type RequestOptions } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
 import {
   INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
@@ -17,6 +17,8 @@ import {
   type IngredientProductAllergenFlag,
   type IngredientProductCacheState,
   type IngredientProductConfidence,
+  type IngredientProductCreateRequest,
+  type IngredientProductCreateResponse,
   type IngredientProductDietaryFlag,
   type IngredientProductNutritionPer100,
   type IngredientProductProfileCompatibility,
@@ -33,6 +35,7 @@ import {
 } from "@/types/foodLibrary";
 
 const SEARCH_ENDPOINT = withV2("/users/me/ingredient-products/search");
+const CREATE_ENDPOINT = withV2("/users/me/ingredient-products");
 export const INGREDIENT_PRODUCT_SEARCH_MIN_QUERY_LENGTH = 2;
 export const INGREDIENT_PRODUCT_SEARCH_DEFAULT_LIMIT = 8;
 export const INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT = 12;
@@ -352,6 +355,20 @@ export function normalizeIngredientProductSearchResponse(
   };
 }
 
+export function normalizeIngredientProductCreateResponse(
+  raw: unknown,
+): IngredientProductCreateResponse {
+  const response = isRecord(raw) ? raw : {};
+  const item = normalizeIngredientProductSearchRow(response.item);
+  if (!item || typeof response.updated !== "boolean") {
+    throw new Error("Invalid Ingredient/Product create response.");
+  }
+  return {
+    item,
+    updated: response.updated,
+  };
+}
+
 function buildSearchPath(request: IngredientProductSearchRequest): string {
   const params = new URLSearchParams();
   params.set("query", request.query.trim());
@@ -376,5 +393,14 @@ export async function searchIngredientProductsRemote(
   return normalizeIngredientProductSearchResponse(
     await get(buildSearchPath(request), options),
     request,
+  );
+}
+
+export async function createIngredientProductRemote(
+  request: IngredientProductCreateRequest,
+  options?: RequestOptions,
+): Promise<IngredientProductCreateResponse> {
+  return normalizeIngredientProductCreateResponse(
+    await post(CREATE_ENDPOINT, request, options),
   );
 }

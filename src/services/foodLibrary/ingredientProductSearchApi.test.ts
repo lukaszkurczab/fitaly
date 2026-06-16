@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
+  post: (...args: unknown[]) => mockPost(...args),
 }));
 
 function sampleRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -132,5 +134,101 @@ describe("ingredientProductSearchApi", () => {
     expect(result.items[0]?.displayName).toBe("Owies verified");
     expect(result.warnings).toEqual(["backend_degraded"]);
     expect(result.cachePolicy).toBeNull();
+  });
+
+  it("calls the v2 create endpoint with the explicit user-created payload", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({
+      item: sampleRow({
+        ingredientProductId: "user-oats-1",
+        recordScope: "user_scoped",
+        lifecycleState: "candidate",
+        displayName: "Owsianka domowa",
+        confidence: { identity: "low", nutrition: "low", profile: "unknown" },
+        sourceAttribution: {
+          sourceType: "user_created",
+          sourceId: "mutation-1",
+          sourceName: "manual_entry",
+        },
+        profileCompatibility: {
+          status: "unknown",
+          dietaryFlags: [],
+          allergenFlags: [],
+        },
+        warningReasonCodes: [
+          "profile_unknown",
+          "nutrition_low_confidence",
+          "pending_user_record",
+        ],
+        rankingSignals: [
+          "user_scoped",
+          "exact_user",
+          "profile_warning",
+          "nutrition_warning",
+          "pending_user_record",
+        ],
+        ownerUserId: "user-1",
+      }),
+      updated: true,
+    });
+
+    const payload = {
+      clientMutationId: "mutation-1",
+      ingredientProductId: "user-oats-1",
+      displayName: "Owsianka domowa",
+      kind: "generic_ingredient" as const,
+      defaultServing: { quantity: 50, unit: "g" as const },
+      nutritionPer100: {
+        basis: "per_100g" as const,
+        unit: "g" as const,
+        kcal: 370,
+        protein: 13,
+        fat: 7,
+        carbs: 60,
+        fiber: null,
+        sugar: null,
+        salt: null,
+        saturatedFat: null,
+      },
+    };
+
+    await expect(api.createIngredientProductRemote(payload)).resolves.toEqual({
+      item: expect.objectContaining({
+        ingredientProductId: "user-oats-1",
+        recordScope: "user_scoped",
+        lifecycleState: "candidate",
+        sourceAttribution: expect.objectContaining({ sourceType: "user_created" }),
+        ownerUserId: "user-1",
+      }),
+      updated: true,
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/v2/users/me/ingredient-products",
+      payload,
+      undefined,
+    );
+  });
+
+  it("rejects malformed create responses instead of treating them as success", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({ item: sampleRow({ displayName: "" }), updated: true });
+
+    await expect(
+      api.createIngredientProductRemote({
+        clientMutationId: "mutation-1",
+        ingredientProductId: "user-oats-1",
+        displayName: "Owsianka domowa",
+        defaultServing: { quantity: 50, unit: "g" },
+      }),
+    ).rejects.toThrow("Invalid Ingredient/Product create response.");
   });
 });

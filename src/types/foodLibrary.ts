@@ -479,6 +479,27 @@ export type IngredientProductSearchRequest = {
   includeGlobal?: boolean;
 };
 
+export type IngredientProductCreateRequest = {
+  clientMutationId: string;
+  ingredientProductId: string;
+  displayName: string;
+  kind?: IngredientProductKind;
+  defaultServing: IngredientProductServing;
+  nutritionPer100?: IngredientProductNutritionPer100 | null;
+  brandName?: string | null;
+  ingredientName?: string | null;
+  packageName?: string | null;
+  category?: string | null;
+  servingSizes?: IngredientProductServingSize[];
+  dietaryFlags?: IngredientProductDietaryFlag[];
+  allergenFlags?: IngredientProductAllergenFlag[];
+};
+
+export type IngredientProductCreateResponse = {
+  item: IngredientProductSearchRow;
+  updated: boolean;
+};
+
 export type IngredientProductSearchStatus =
   | "idle"
   | "results"
