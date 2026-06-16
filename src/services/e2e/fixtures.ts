@@ -5,6 +5,7 @@ import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
 import { resetOfflineStorage } from "@/services/offline/db";
 import { upsertMealLocal } from "@/services/offline/meals.repo";
+import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
 import { getSampleMealUri } from "@/utils/devSamples";
@@ -89,7 +90,8 @@ export type E2ESmartMemorySeed =
   | "muted"
   | "sourceDeleted"
   | "pending"
-  | "syncFailed";
+  | "syncFailed"
+  | "backendPull";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -189,6 +191,7 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
   "sourceDeleted",
   "pending",
   "syncFailed",
+  "backendPull",
 ]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
@@ -978,7 +981,11 @@ export async function applyE2ESeedCommand(params: {
   }
 
   if (params.uid && appliedCommand.smartMemory) {
-    await applySmartMemoryFixture(params.uid, appliedCommand.smartMemory);
+    if (appliedCommand.smartMemory === "backendPull") {
+      await pullSmartMemoryChanges(params.uid);
+    } else {
+      await applySmartMemoryFixture(params.uid, appliedCommand.smartMemory);
+    }
   }
 
   emit("e2e:seeded", fixtureState);

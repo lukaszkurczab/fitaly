@@ -1,0 +1,34 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?smartMemory=backendPull
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-backendPull
+    timeout: 30000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: account-memory-center-row
+    timeout: 10000
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- extendedWaitUntil:
+    visible:
+      id: memory-center-ready-state
+    timeout: 30000
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal

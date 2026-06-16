@@ -23,6 +23,7 @@ const mockSetItem = jest.fn<(key: string, value: string) => Promise<void>>();
 const mockMultiRemove = jest.fn<(keys: string[]) => Promise<void>>();
 const mockRemoveItem = jest.fn<(key: string) => Promise<void>>();
 const mockResetOfflineStorage = jest.fn();
+const mockPullSmartMemoryChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockSaveMealTransaction = jest.fn<(input: unknown) => Promise<unknown>>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
@@ -53,6 +54,10 @@ jest.mock("@/services/e2e/config", () => ({
 
 jest.mock("@/services/offline/db", () => ({
   resetOfflineStorage: () => mockResetOfflineStorage(),
+}));
+
+jest.mock("@/services/offline/sync.engine", () => ({
+  pullSmartMemoryChanges: (uid: string) => mockPullSmartMemoryChanges(uid),
 }));
 
 jest.mock("@/services/meals/mealSaveTransaction", () => ({
@@ -96,6 +101,7 @@ describe("E2E fixtures", () => {
     mockSetItem.mockResolvedValue(undefined);
     mockMultiRemove.mockResolvedValue(undefined);
     mockRemoveItem.mockResolvedValue(undefined);
+    mockPullSmartMemoryChanges.mockResolvedValue(undefined);
     mockSaveMealTransaction.mockResolvedValue({});
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
@@ -124,7 +130,7 @@ describe("E2E fixtures", () => {
         aiConsent: "revoked",
         aiConsentGrant: "success",
         aiConsentRevoke: "failureOnce",
-        smartMemory: "sourceDeleted",
+        smartMemory: "backendPull",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -140,7 +146,7 @@ describe("E2E fixtures", () => {
       aiConsent: "revoked",
       aiConsentGrant: "success",
       aiConsentRevoke: "failureOnce",
-      smartMemory: "sourceDeleted",
+      smartMemory: "backendPull",
     });
 
     expect(
@@ -649,6 +655,21 @@ describe("E2E fixtures", () => {
         code: "api/e2e-smart-memory-failure",
       }),
     );
+  });
+
+  it("pulls Smart Memory from backend without local projection seeding", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "backendPull" },
+    });
+
+    expect(markers).toEqual(["smartMemory-backendPull"]);
+    expect(mockPullSmartMemoryChanges).toHaveBeenCalledWith("user-1");
+    expect(mockUpsertSmartMemorySettingsProjection).not.toHaveBeenCalled();
+    expect(mockUpsertSmartMemoryItemProjection).not.toHaveBeenCalled();
+    expect(mockMarkSmartMemoryCandidatePending).not.toHaveBeenCalled();
+    expect(mockMarkSmartMemoryItemPending).not.toHaveBeenCalled();
+    expect(mockMarkSmartMemoryProjectionSyncFailed).not.toHaveBeenCalled();
   });
 
   it("seeds a Smart Memory source-deleted row for Memory Center coverage", async () => {
