@@ -33,6 +33,8 @@ const mockUpsertSmartMemorySettingsProjection =
   jest.fn<(uid: string, settings: unknown) => Promise<void>>();
 const mockUpsertSmartMemoryItemProjection =
   jest.fn<(uid: string, item: unknown) => Promise<void>>();
+const mockUpsertSmartMemoryCandidateProjection =
+  jest.fn<(uid: string, candidate: unknown) => Promise<void>>();
 const mockMarkSmartMemoryCandidatePending =
   jest.fn<(params: unknown) => Promise<void>>();
 const mockMarkSmartMemoryItemPending =
@@ -86,6 +88,8 @@ jest.mock("@/services/smartMemory/smartMemoryProjectionRepository", () => ({
     mockUpsertSmartMemorySettingsProjection(uid, settings),
   upsertSmartMemoryItemProjection: (uid: string, item: unknown) =>
     mockUpsertSmartMemoryItemProjection(uid, item),
+  upsertSmartMemoryCandidateProjection: (uid: string, candidate: unknown) =>
+    mockUpsertSmartMemoryCandidateProjection(uid, candidate),
   markSmartMemoryCandidatePending: (params: unknown) =>
     mockMarkSmartMemoryCandidatePending(params),
   markSmartMemoryItemPending: (params: unknown) =>
@@ -108,6 +112,7 @@ describe("E2E fixtures", () => {
     mockGetSampleMealUri.mockResolvedValue("file:///sampleMeal-local.jpg");
     mockUpsertSmartMemorySettingsProjection.mockResolvedValue(undefined);
     mockUpsertSmartMemoryItemProjection.mockResolvedValue(undefined);
+    mockUpsertSmartMemoryCandidateProjection.mockResolvedValue(undefined);
     mockMarkSmartMemoryCandidatePending.mockResolvedValue(undefined);
     mockMarkSmartMemoryItemPending.mockResolvedValue(undefined);
     mockMarkSmartMemoryProjectionSyncFailed.mockResolvedValue(undefined);
@@ -130,7 +135,7 @@ describe("E2E fixtures", () => {
         aiConsent: "revoked",
         aiConsentGrant: "success",
         aiConsentRevoke: "failureOnce",
-        smartMemory: "reviewDisabledActive",
+        smartMemory: "reviewCandidate",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -146,7 +151,7 @@ describe("E2E fixtures", () => {
       aiConsent: "revoked",
       aiConsentGrant: "success",
       aiConsentRevoke: "failureOnce",
-      smartMemory: "reviewDisabledActive",
+      smartMemory: "reviewCandidate",
     });
 
     expect(
@@ -676,6 +681,30 @@ describe("E2E fixtures", () => {
         code: "api/e2e-smart-memory-failure",
       }),
     );
+  });
+
+  it("seeds Review Smart Memory candidate as a backend candidate row", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { smartMemory: "reviewCandidate" },
+    });
+
+    expect(mockUpsertSmartMemorySettingsProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ enabled: true }),
+    );
+    expect(mockUpsertSmartMemoryCandidateProjection).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        candidateId: "e2e-memory-candidate-portion",
+        state: "candidate",
+        subject: expect.objectContaining({
+          displayLabel: "Kurczak grillowany",
+        }),
+      }),
+    );
+    expect(mockMarkSmartMemoryCandidatePending).not.toHaveBeenCalled();
+    expect(mockUpsertSmartMemoryItemProjection).not.toHaveBeenCalled();
   });
 
   it("pulls Smart Memory from backend without local projection seeding", async () => {

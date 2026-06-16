@@ -28,11 +28,13 @@ import {
   markSmartMemoryCandidatePending,
   markSmartMemoryItemPending,
   markSmartMemoryProjectionSyncFailed,
+  upsertSmartMemoryCandidateProjection,
   upsertSmartMemoryItemProjection,
   upsertSmartMemorySettingsProjection,
 } from "@/services/smartMemory/smartMemoryProjectionRepository";
 import type { Ingredient, Meal } from "@/types/meal";
 import type {
+  SmartMemoryCandidate,
   SmartMemoryCandidateUpsertInput,
   SmartMemoryItem,
   SmartMemorySettings,
@@ -87,6 +89,7 @@ export type E2ESmartMemorySeed =
   | "emptyDisabled"
   | "active"
   | "reviewActive"
+  | "reviewCandidate"
   | "reviewDisabledActive"
   | "muted"
   | "sourceDeleted"
@@ -188,6 +191,7 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
   "emptyDisabled",
   "active",
   "reviewActive",
+  "reviewCandidate",
   "reviewDisabledActive",
   "muted",
   "sourceDeleted",
@@ -383,6 +387,35 @@ function smartMemoryCandidateInput(): SmartMemoryCandidateUpsertInput {
   };
 }
 
+function smartMemoryCandidate(
+  uid: string,
+  overrides: Partial<SmartMemoryCandidate> = {},
+): SmartMemoryCandidate {
+  const updatedAt = e2eNowISO();
+  return {
+    candidateId: "e2e-memory-candidate-portion",
+    ownerUserId: uid,
+    schemaVersion: 1,
+    memoryType: "typical_portion",
+    state: "candidate",
+    subject: {
+      displayLabel: "Kurczak grillowany",
+      kind: "ingredient_alias",
+      aliasHash: "e2e-review-candidate-chicken",
+    },
+    evidenceSummary: { observationCount: 1 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-candidate-source" }],
+    confidenceReasonCodes: ["single_observation"],
+    suppressionChecks: { settingsEnabled: true },
+    createdAt: updatedAt,
+    updatedAt,
+    firstSeenAt: updatedAt,
+    lastSeenAt: updatedAt,
+    serverRevision: 1,
+    ...overrides,
+  };
+}
+
 async function applySmartMemoryFixture(
   uid: string,
   seed: E2ESmartMemorySeed,
@@ -406,6 +439,14 @@ async function applySmartMemoryFixture(
         `smart-memory:candidate_upsert:${uid}:e2e-memory-candidate-portion:e2e`,
       updatedAt,
     });
+    return;
+  }
+
+  if (seed === "reviewCandidate") {
+    await upsertSmartMemoryCandidateProjection(
+      uid,
+      smartMemoryCandidate(uid),
+    );
     return;
   }
 
