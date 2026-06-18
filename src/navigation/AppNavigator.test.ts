@@ -215,6 +215,10 @@ jest.mock("@/feature/UserProfile/screens/DataAiClarityScreen", () => ({
   __esModule: true,
   default: "DataAiClarityScreen",
 }));
+jest.mock("@/feature/UserProfile/screens/MemoryCenterScreen", () => ({
+  __esModule: true,
+  default: "MemoryCenterScreen",
+}));
 jest.mock("@/feature/UserProfile/screens/HelpFeedbackHubScreen", () => ({
   __esModule: true,
   default: "HelpFeedbackHubScreen",

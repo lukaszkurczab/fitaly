@@ -178,6 +178,32 @@ function createIngredientProductSearchCacheTable(d: SQLite.SQLiteDatabase): void
   `);
 }
 
+function createIngredientProductUserRecordsTable(d: SQLite.SQLiteDatabase): void {
+  d.execSync(`
+    CREATE TABLE IF NOT EXISTS ingredient_product_user_records (
+      user_uid TEXT NOT NULL,
+      ingredient_product_id TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      source_client_mutation_id TEXT,
+      updated_at TEXT NOT NULL,
+      last_synced_at INTEGER NOT NULL DEFAULT 0,
+      sync_state TEXT NOT NULL,
+      last_error_code TEXT,
+      last_error_message TEXT,
+      PRIMARY KEY (user_uid, ingredient_product_id)
+    );
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_sync
+      ON ingredient_product_user_records(user_uid, sync_state, updated_at DESC);
+  `);
+  d.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_updated
+      ON ingredient_product_user_records(user_uid, updated_at DESC, ingredient_product_id ASC);
+  `);
+}
+
 export function runMigrations() {
   const d = getDB();
   let v = getUserVersion(d);
@@ -780,6 +806,19 @@ export function runMigrations() {
     }
   }
 
+  if (v < 16) {
+    d.execSync("BEGIN");
+    try {
+      createIngredientProductUserRecordsTable(d);
+      setUserVersion(d, 16);
+      d.execSync("COMMIT");
+      v = 16;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
   void ensureMigrationRunner().catch(() => undefined);
 }
 
@@ -796,6 +835,7 @@ export function resetOfflineStorage() {
     d.execSync(`DELETE FROM smart_memory_candidates;`);
     d.execSync(`DELETE FROM smart_memory_settings;`);
     d.execSync(`DELETE FROM ingredient_product_search_cache;`);
+    d.execSync(`DELETE FROM ingredient_product_user_records;`);
     d.execSync(`DELETE FROM chat_messages;`);
     d.execSync(`DELETE FROM chat_threads;`);
     d.execSync("COMMIT");

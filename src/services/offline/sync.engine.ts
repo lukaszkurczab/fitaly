@@ -27,6 +27,7 @@ import {
 } from "./strategies/images.strategy";
 import {
   getLastChatPullTs,
+  getLastFoodLibraryPullTs,
   getLastSmartMemoryPullTs,
   getLastMyMealsPullTs,
   getLastPullTs,
@@ -144,6 +145,7 @@ const domainConfigs: Record<Exclude<SyncDomain, "images" | "userProfile">, Domai
     strategy: foodLibraryStrategy,
     queueKinds: ingredientProductQueueKinds(),
     staleAfterMs: DEFAULT_STALE_MS,
+    getLastPullMarker: getLastFoodLibraryPullTs,
   },
 };
 

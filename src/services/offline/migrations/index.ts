@@ -317,4 +317,47 @@ CREATE TABLE IF NOT EXISTS smart_memory_settings (
 PRAGMA user_version=14;
 `,
   },
+  {
+    version: 6,
+    up: `
+CREATE TABLE IF NOT EXISTS ingredient_product_search_cache (
+  user_uid TEXT NOT NULL,
+  normalized_query TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  result_rank INTEGER NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  query_echo TEXT NOT NULL,
+  cache_policy TEXT NOT NULL,
+  warnings TEXT NOT NULL,
+  cache_state TEXT,
+  cached_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (user_uid, normalized_query, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_query
+  ON ingredient_product_search_cache(user_uid, normalized_query, result_rank ASC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_user_cached
+  ON ingredient_product_search_cache(user_uid, cached_at DESC);
+
+CREATE TABLE IF NOT EXISTS ingredient_product_user_records (
+  user_uid TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  source_client_mutation_id TEXT,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL,
+  last_error_code TEXT,
+  last_error_message TEXT,
+  PRIMARY KEY (user_uid, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_sync
+  ON ingredient_product_user_records(user_uid, sync_state, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_updated
+  ON ingredient_product_user_records(user_uid, updated_at DESC, ingredient_product_id ASC);
+PRAGMA user_version=16;
+`,
+  },
 ];

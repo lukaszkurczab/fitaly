@@ -10,6 +10,7 @@ import {
   trackCoachInsightViewed,
   trackEntitlementConfirmationFailed,
   trackEntitlementConfirmed,
+  trackIngredientProductCreateOutcome,
   trackMealLogged,
   trackNotificationOpened,
   trackOnboardingCompleted,
@@ -143,6 +144,10 @@ describe("telemetryInstrumentation", () => {
       rank: 2,
       warningReason: "profile_unknown",
     });
+    await trackIngredientProductCreateOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "synced",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
       origin: "app_boot",
@@ -257,6 +262,14 @@ describe("telemetryInstrumentation", () => {
         warningReason: "profile_unknown",
       },
     );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      21,
+      "ingredient_product_create_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "synced",
+      },
+    );
   });
 
   it("keeps autocomplete telemetry behavioral and bucketed", async () => {
@@ -300,6 +313,61 @@ describe("telemetryInstrumentation", () => {
     );
   });
 
+  it("tracks manual Product/Ingredient create outcomes without raw payload data", async () => {
+    await trackIngredientProductCreateOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "synced",
+    });
+    await trackIngredientProductCreateOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "queued",
+    });
+    await trackIngredientProductCreateOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "failed",
+    });
+
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      1,
+      "ingredient_product_create_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "synced",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      2,
+      "ingredient_product_create_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "queued",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      3,
+      "ingredient_product_create_outcome",
+      {
+        surface: "manual_ingredient_sheet",
+        outcome: "failed",
+      },
+    );
+
+    for (const [, props] of mockTrack.mock.calls) {
+      expect(props).toEqual(
+        expect.not.objectContaining({
+          query: expect.anything(),
+          displayName: expect.anything(),
+          productName: expect.anything(),
+          nutritionPer100: expect.anything(),
+          ingredientProductId: expect.anything(),
+          barcode: expect.anything(),
+          sourceRef: expect.anything(),
+          memoryId: expect.anything(),
+        }),
+      );
+    }
+  });
+
   it("does not emit raw autocomplete query, food identity, nutrition, or memory refs", async () => {
     const forbiddenPropNames = [
       "query",
@@ -335,6 +403,10 @@ describe("telemetryInstrumentation", () => {
       sourceClass: "global",
       rank: 1,
       warningReason: "profile_warning",
+    });
+    await trackIngredientProductCreateOutcome({
+      surface: "manual_ingredient_sheet",
+      outcome: "failed",
     });
 
     for (const [, props] of mockTrack.mock.calls) {

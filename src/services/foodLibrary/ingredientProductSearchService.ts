@@ -11,7 +11,14 @@ import {
   replaceIngredientProductSearchProjection,
   type IngredientProductSearchProjection,
 } from "@/services/foodLibrary/ingredientProductSearchProjectionRepository";
+import {
+  readIngredientProductUserRecordNonSearchableIds,
+  searchIngredientProductUserRecordConflicts,
+  searchIngredientProductUserRecords,
+} from "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository";
 import type {
+  IngredientProductSearchConflict,
+  IngredientProductSearchQueryEcho,
   IngredientProductSearchRequest,
   IngredientProductSearchResponse,
   IngredientProductSearchResult,
@@ -85,12 +92,83 @@ function resultFromResponse(
   };
 }
 
+async function filterLocallyNonSearchableUserRecords(params: {
+  uid: string;
+  items: IngredientProductSearchRow[];
+}): Promise<IngredientProductSearchRow[]> {
+  if (!params.items.length) return params.items;
+  const nonSearchableIds = await readIngredientProductUserRecordNonSearchableIds({
+    uid: params.uid,
+    ingredientProductIds: params.items.map((item) => item.ingredientProductId),
+  });
+  if (!nonSearchableIds.size) return params.items;
+  return params.items.filter(
+    (item) => !nonSearchableIds.has(item.ingredientProductId),
+  );
+}
+
 function errorCode(error: unknown): string | null {
   if (error && typeof error === "object" && "code" in error) {
     const code = (error as { code?: unknown }).code;
     return typeof code === "string" ? code : null;
   }
   return error instanceof Error ? error.name : null;
+}
+
+function localQueryEcho(params: {
+  query: string;
+  limit?: number;
+  includeUserScoped?: boolean;
+  includeGlobal?: boolean;
+  locale?: string | null;
+}): IngredientProductSearchQueryEcho {
+  return {
+    normalizedQuery: params.query,
+    queryLength: params.query.length,
+    limit: params.limit ?? 8,
+    includeUserScoped: params.includeUserScoped ?? true,
+    includeGlobal: params.includeGlobal ?? true,
+    locale: params.locale ?? null,
+  };
+}
+
+function withConflicts(
+  result: IngredientProductSearchResult,
+  conflicts: IngredientProductSearchConflict[],
+): IngredientProductSearchResult {
+  return conflicts.length ? { ...result, conflicts } : result;
+}
+
+async function searchLocalConflicts(params: {
+  uid: string;
+  query: string;
+  limit?: number;
+}): Promise<IngredientProductSearchConflict[]> {
+  const conflicts = await searchIngredientProductUserRecordConflicts({
+    uid: params.uid,
+    query: params.query,
+    limit: params.limit,
+  });
+  return conflicts.map((conflict) => ({
+    item: conflict.item,
+    updatedAt: conflict.updatedAt,
+    lastErrorCode: conflict.lastErrorCode,
+    lastErrorMessage: conflict.lastErrorMessage,
+  }));
+}
+
+function mergeLocalItems(
+  userItems: IngredientProductSearchRow[],
+  projectionItems: IngredientProductSearchRow[],
+): IngredientProductSearchRow[] {
+  const seen = new Set<string>();
+  const merged: IngredientProductSearchRow[] = [];
+  for (const item of [...userItems, ...projectionItems]) {
+    if (seen.has(item.ingredientProductId)) continue;
+    seen.add(item.ingredientProductId);
+    merged.push(item);
+  }
+  return merged;
 }
 
 function resultFromProjection(
@@ -117,22 +195,51 @@ async function readCacheResult(params: {
   warmStatus: IngredientProductSearchStatus;
   error?: unknown;
 }): Promise<IngredientProductSearchResult> {
-  const projection = await readIngredientProductSearchProjection({
+  const [projection, userItems, conflicts] = await Promise.all([
+    readIngredientProductSearchProjection({
+      uid: params.uid,
+      query: params.query,
+    }),
+    searchIngredientProductUserRecords({
+      uid: params.uid,
+      query: params.query,
+    }),
+    searchLocalConflicts({
+      uid: params.uid,
+      query: params.query,
+    }),
+  ]);
+  const projectionItems = await filterLocallyNonSearchableUserRecords({
     uid: params.uid,
-    query: params.query,
+    items: projection.items,
   });
+  const items = mergeLocalItems(userItems, projectionItems);
 
-  if (!projection.items.length) {
-    return {
-      ...emptyResult(params.emptyStatus),
-      errorCode: errorCode(params.error),
-    };
+  if (!items.length) {
+    return withConflicts(
+      {
+        ...emptyResult(params.emptyStatus),
+        errorCode: errorCode(params.error),
+      },
+      conflicts,
+    );
   }
 
-  return resultFromProjection(
-    projection,
-    projection.isStale ? "stale" : params.warmStatus,
-    params.error,
+  return withConflicts(
+    resultFromProjection(
+      {
+        ...projection,
+        items,
+        queryEcho:
+          (projectionItems.length ? projection.queryEcho : null) ??
+          localQueryEcho({
+            query: params.query,
+          }),
+      },
+      projection.isStale ? "stale" : params.warmStatus,
+      params.error,
+    ),
+    conflicts,
   );
 }
 
@@ -162,25 +269,39 @@ export async function searchIngredientProducts(
       includeUserScoped: params.includeUserScoped,
       includeGlobal: params.includeGlobal,
     });
+    const visibleItems = await filterLocallyNonSearchableUserRecords({
+      uid: params.uid,
+      items: response.items,
+    });
+    const visibleResponse =
+      visibleItems === response.items
+        ? response
+        : { ...response, items: visibleItems };
 
-    if (!response.warnings.includes("backend_degraded")) {
+    if (!visibleResponse.warnings.includes("backend_degraded")) {
       await replaceIngredientProductSearchProjection({
         uid: params.uid,
-        response,
+        response: visibleResponse,
       });
     }
 
-    if (response.warnings.includes("backend_degraded")) {
-      const projection = await readIngredientProductSearchProjection({
+    if (visibleResponse.warnings.includes("backend_degraded")) {
+      return readCacheResult({
         uid: params.uid,
         query: normalizedQuery,
+        emptyStatus: "backend_degraded",
+        warmStatus: "backend_degraded",
       });
-      if (projection.items.length) {
-        return resultFromProjection(projection, "backend_degraded");
-      }
     }
 
-    return resultFromResponse(response);
+    return withConflicts(
+      resultFromResponse(visibleResponse),
+      await searchLocalConflicts({
+        uid: params.uid,
+        query: normalizedQuery,
+        limit: params.limit,
+      }),
+    );
   } catch (error) {
     return readCacheResult({
       uid: params.uid,

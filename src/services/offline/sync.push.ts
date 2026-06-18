@@ -4,6 +4,7 @@ import { emit } from "@/services/core/events";
 import { isOfflineNetState } from "@/services/core/networkState";
 import {
   createServiceError,
+  getErrorStatus,
   normalizeServiceError,
 } from "@/services/contracts/serviceError";
 import {
@@ -23,7 +24,7 @@ import {
   ingredientProductQueueKinds,
 } from "@/services/offline/strategies/foodLibrary.strategy";
 import {
-  markIngredientProductCreateSyncFailed,
+  markIngredientProductQueueSyncFailed,
 } from "@/services/foodLibrary/ingredientProductCreateQueue";
 import type { SyncStrategy } from "./sync.strategy";
 
@@ -151,10 +152,12 @@ export async function runPushQueue(
           });
         }
         if (INGREDIENT_PRODUCT_QUEUE_KINDS.has(op.kind)) {
-          await markIngredientProductCreateSyncFailed({
+          const errorStatus = getErrorStatus(err);
+          await markIngredientProductQueueSyncFailed({
             uid,
             op,
             dead: shouldDeadLetter,
+            ...(errorStatus !== undefined ? { status: errorStatus } : {}),
           });
         }
         if (op.kind === "update_user_profile") {

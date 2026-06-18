@@ -35,6 +35,7 @@ export const TELEMETRY_EVENT_NAMES = [
   "smart_reminder_schedule_failed",
   "autocomplete_search_outcome",
   "autocomplete_result_selected",
+  "ingredient_product_create_outcome",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];

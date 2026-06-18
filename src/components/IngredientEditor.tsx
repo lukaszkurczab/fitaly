@@ -25,13 +25,19 @@ import { searchIngredientProducts } from "@/services/foodLibrary/ingredientProdu
 import {
   trackAutocompleteResultSelected,
   trackAutocompleteSearchOutcome,
+  trackIngredientProductCreateOutcome,
 } from "@/services/telemetry/telemetryInstrumentation";
 import { createOrQueueIngredientProduct } from "@/services/foodLibrary/ingredientProductCreateService";
+import { discardIngredientProductConflict } from "@/services/foodLibrary/ingredientProductConflictService";
+import { deleteOrQueueIngredientProduct } from "@/services/foodLibrary/ingredientProductDeleteService";
+import { updateOrQueueIngredientProduct } from "@/services/foodLibrary/ingredientProductUpdateService";
+import { getErrorStatus } from "@/services/contracts/serviceError";
 import type {
   IngredientProductCreateRequest,
   IngredientProductNutritionPer100,
   IngredientProductSearchResult,
   IngredientProductSearchRow,
+  IngredientProductUpdateRequest,
 } from "@/types/foodLibrary";
 import { v4 as uuidv4 } from "uuid";
 
@@ -82,6 +88,11 @@ export type IngredientEditorHandle = {
 };
 
 type IngredientUnit = NonNullable<Ingredient["unit"]>;
+type SelectedUserIngredientProduct = {
+  ingredientProductId: string;
+  displayName: string;
+  baseItem: IngredientProductSearchRow;
+};
 
 function toIngredientUnit(unit: string | null | undefined): IngredientUnit | null {
   return unit === "g" || unit === "ml" ? unit : null;
@@ -208,8 +219,19 @@ const IngredientEditorComponent = (
     useState<IngredientProductSearchResult | null>(null);
   const [autocompleteLoading, setAutocompleteLoading] = useState(false);
   const [manualCreateStatus, setManualCreateStatus] = useState<
-    "idle" | "saving" | "saved" | "queued" | "failed"
+    "idle" | "saving" | "saved" | "queued" | "failed" | "conflict"
   >("idle");
+  const [productDeleteStatus, setProductDeleteStatus] = useState<
+    "idle" | "deleting" | "deleted" | "queued" | "failed"
+  >("idle");
+  const [productUpdateStatus, setProductUpdateStatus] = useState<
+    "idle" | "updating" | "saved" | "queued" | "failed" | "conflict"
+  >("idle");
+  const [conflictDiscardStatus, setConflictDiscardStatus] = useState<
+    "idle" | "discarding" | "failed"
+  >("idle");
+  const [selectedUserIngredientProduct, setSelectedUserIngredientProduct] =
+    useState<SelectedUserIngredientProduct | null>(null);
 
   const [nameTouched, setNameTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
@@ -256,14 +278,52 @@ const IngredientEditorComponent = (
         .slice(0, 4),
     [autocompleteResult?.items, initial.id],
   );
+  const currentUserAutocompleteConflicts = useMemo(
+    () =>
+      (autocompleteResult?.conflicts ?? []).filter(
+        (conflict) =>
+          conflict.item.recordScope === "user_scoped" &&
+          conflict.item.ownerUserId === autocompleteUid &&
+          conflict.item.ingredientProductId.trim().length > 0,
+      ),
+    [autocompleteResult?.conflicts, autocompleteUid],
+  );
+  const visibleAutocompleteConflict = currentUserAutocompleteConflicts[0] ?? null;
+  const hasAutocompleteConflict = visibleAutocompleteConflict !== null;
+  const selectedCurrentUserIngredientProduct =
+    selectedUserIngredientProduct?.baseItem.recordScope === "user_scoped" &&
+    selectedUserIngredientProduct.baseItem.ownerUserId === autocompleteUid
+      ? selectedUserIngredientProduct
+      : null;
   const canCreateManualIngredientProduct =
     isSheetVariant &&
     Boolean(autocompleteUid) &&
+    !hasAutocompleteConflict &&
+    selectedCurrentUserIngredientProduct === null &&
     (autocompleteResult?.status === "no_results" ||
       autocompleteResult?.status === "offline_no_cache") &&
     name.trim().length > 0 &&
     toIngredientUnit(initial.unit) !== null &&
     (parseNum(amount) || 0) > 0;
+  const canUpdateSelectedIngredientProduct =
+    isSheetVariant &&
+    Boolean(autocompleteUid) &&
+    selectedCurrentUserIngredientProduct !== null &&
+    !hasAutocompleteConflict &&
+    !hasBlockingErrors &&
+    name.trim().length > 0 &&
+    toIngredientUnit(initial.unit) !== null &&
+    (parseNum(amount) || 0) > 0;
+  const canDeleteSelectedIngredientProduct =
+    isSheetVariant &&
+    Boolean(autocompleteUid) &&
+    selectedCurrentUserIngredientProduct !== null;
+
+  const clearPrivateProductFeedback = () => {
+    setProductDeleteStatus("idle");
+    setProductUpdateStatus("idle");
+    setConflictDiscardStatus("idle");
+  };
 
   const syncBaselineFromState = (keepAmount = true) => {
     const amt = keepAmount ? baseline.current.amount : parseNum(amount) || 0;
@@ -430,6 +490,7 @@ const IngredientEditorComponent = (
     key: NumericIngredientKey,
   ) => {
     if (recalcPromptVisible) setRecalcPromptVisible(false);
+    setProductUpdateStatus("idle");
     setter(value);
     const numeric = parseNum(value);
     if (!Number.isNaN(numeric)) {
@@ -488,6 +549,17 @@ const IngredientEditorComponent = (
       setAutocompleteResult(null);
       setAutocompleteLoading(false);
       selectedAutocompleteName.current = ingredient.name;
+      clearPrivateProductFeedback();
+      setManualCreateStatus("idle");
+      setSelectedUserIngredientProduct(
+        item.recordScope === "user_scoped" && item.ownerUserId === autocompleteUid
+          ? {
+              ingredientProductId: item.ingredientProductId,
+              displayName: item.displayName,
+              baseItem: item,
+            }
+          : null,
+      );
       onChangePartial?.({
         name: ingredient.name,
         amount: ingredient.amount,
@@ -504,7 +576,7 @@ const IngredientEditorComponent = (
         kcal: ingredient.kcal,
       };
     },
-    [autocompleteSuggestions.length, onChangePartial],
+    [autocompleteSuggestions.length, autocompleteUid, onChangePartial],
   );
 
   const buildManualCreateRequest =
@@ -516,28 +588,6 @@ const IngredientEditorComponent = (
         return null;
       }
 
-      const proteinValue = parseNum(protein) || 0;
-      const carbsValue = parseNum(carbs) || 0;
-      const fatValue = parseNum(fat) || 0;
-      const kcalValue = parseNum(kcal) || 0;
-      const hasNutrition =
-        proteinValue > 0 || carbsValue > 0 || fatValue > 0 || kcalValue > 0;
-      const factor = 100 / amountValue;
-      const nutritionPer100: IngredientProductNutritionPer100 | null =
-        hasNutrition
-          ? {
-              basis: unit === "ml" ? "per_100ml" : "per_100g",
-              unit,
-              kcal: Math.max(0, Math.round(kcalValue * factor)),
-              protein: Math.max(0, roundMacro(proteinValue * factor)),
-              fat: Math.max(0, roundMacro(fatValue * factor)),
-              carbs: Math.max(0, roundMacro(carbsValue * factor)),
-              fiber: null,
-              sugar: null,
-              salt: null,
-              saturatedFat: null,
-            }
-          : null;
       const mutationUuid = uuidv4();
 
       return {
@@ -549,9 +599,93 @@ const IngredientEditorComponent = (
           quantity: amountValue,
           unit,
         },
-        nutritionPer100,
+        nutritionPer100: buildNutritionPer100FromForm(unit, amountValue),
       };
     };
+
+  const buildNutritionPer100FromForm = (
+    unit: IngredientUnit,
+    amountValue: number,
+  ): IngredientProductNutritionPer100 | null => {
+      const proteinValue = parseNum(protein) || 0;
+      const carbsValue = parseNum(carbs) || 0;
+      const fatValue = parseNum(fat) || 0;
+      const kcalValue = parseNum(kcal) || 0;
+      const hasNutrition =
+        proteinValue > 0 || carbsValue > 0 || fatValue > 0 || kcalValue > 0;
+      const factor = 100 / amountValue;
+      return hasNutrition
+        ? {
+            basis: unit === "ml" ? "per_100ml" : "per_100g",
+            unit,
+            kcal: Math.max(0, Math.round(kcalValue * factor)),
+            protein: Math.max(0, roundMacro(proteinValue * factor)),
+            fat: Math.max(0, roundMacro(fatValue * factor)),
+            carbs: Math.max(0, roundMacro(carbsValue * factor)),
+            fiber: null,
+            sugar: null,
+            salt: null,
+            saturatedFat: null,
+          }
+        : null;
+  };
+
+  const buildProductUpdateRequest =
+    (): IngredientProductUpdateRequest | null => {
+      if (!autocompleteUid || !selectedCurrentUserIngredientProduct) {
+        return null;
+      }
+
+      const displayName = name.trim();
+      const amountValue = parseNum(amount) || 0;
+      const unit = toIngredientUnit(initial.unit);
+      if (!displayName || !unit || amountValue <= 0 || hasBlockingErrors) {
+        return null;
+      }
+
+      const mutationUuid = uuidv4();
+      const ingredientProductId =
+        selectedCurrentUserIngredientProduct.ingredientProductId;
+
+      return {
+        clientMutationId: `ingredient-product:update:${autocompleteUid}:${ingredientProductId}:${mutationUuid}`,
+        ingredientProductId,
+        displayName,
+        defaultServing: {
+          quantity: amountValue,
+          unit,
+        },
+        nutritionPer100: buildNutritionPer100FromForm(unit, amountValue),
+      };
+    };
+
+  const setSelectedUserProductFromResult = (
+    item: IngredientProductSearchRow,
+    uid: string,
+  ) => {
+    setSelectedUserIngredientProduct(
+      item.recordScope === "user_scoped" && item.ownerUserId === uid
+        ? {
+            ingredientProductId: item.ingredientProductId,
+            displayName: item.displayName,
+            baseItem: item,
+          }
+        : null,
+    );
+  };
+
+  const trackManualCreateOutcome = (
+    outcome: "synced" | "queued" | "failed",
+  ) => {
+    try {
+      void trackIngredientProductCreateOutcome({
+        surface: "manual_ingredient_sheet",
+        outcome,
+      }).catch(() => undefined);
+    } catch {
+      // Telemetry must never block or alter manual Product/Ingredient creation.
+    }
+  };
 
   const createManualIngredientProduct = () => {
     const request = buildManualCreateRequest();
@@ -565,10 +699,137 @@ const IngredientEditorComponent = (
       locale: autocompleteLocale,
     })
       .then((result) => {
+        const outcome = result.status === "queued" ? "queued" : "synced";
         setManualCreateStatus(result.status === "queued" ? "queued" : "saved");
+        clearPrivateProductFeedback();
+        setSelectedUserProductFromResult(result.item, autocompleteUid);
+        trackManualCreateOutcome(outcome);
+      })
+      .catch((error: unknown) => {
+        setManualCreateStatus(getErrorStatus(error) === 409 ? "conflict" : "failed");
+        trackManualCreateOutcome("failed");
+      });
+  };
+
+  const discardVisibleAutocompleteConflict = () => {
+    if (
+      !autocompleteUid ||
+      !visibleAutocompleteConflict ||
+      conflictDiscardStatus === "discarding"
+    ) {
+      return;
+    }
+
+    const ingredientProductId =
+      visibleAutocompleteConflict.item.ingredientProductId;
+    setConflictDiscardStatus("discarding");
+    discardIngredientProductConflict({
+      uid: autocompleteUid,
+      ingredientProductId,
+    })
+      .then((result) => {
+        if (!result.discarded) {
+          setConflictDiscardStatus("failed");
+          return;
+        }
+        setConflictDiscardStatus("idle");
+        setManualCreateStatus("idle");
+        setAutocompleteResult((current) => {
+          if (!current?.conflicts?.length) return current;
+          const conflicts = current.conflicts.filter(
+            (conflict) =>
+              conflict.item.ingredientProductId !== ingredientProductId ||
+              conflict.item.ownerUserId !== autocompleteUid,
+          );
+          return {
+            ...current,
+            conflicts: conflicts.length ? conflicts : undefined,
+          };
+        });
       })
       .catch(() => {
-        setManualCreateStatus("failed");
+        setConflictDiscardStatus("failed");
+      });
+  };
+
+  const updateSelectedIngredientProduct = () => {
+    const request = buildProductUpdateRequest();
+    if (
+      !request ||
+      !autocompleteUid ||
+      !selectedCurrentUserIngredientProduct ||
+      productUpdateStatus === "updating"
+    ) {
+      return;
+    }
+
+    setProductUpdateStatus("updating");
+    updateOrQueueIngredientProduct({
+      uid: autocompleteUid,
+      request,
+      baseItem: selectedCurrentUserIngredientProduct.baseItem,
+      searchQuery: name.trim(),
+      locale: autocompleteLocale,
+    })
+      .then((result) => {
+        setProductUpdateStatus(result.status === "queued" ? "queued" : "saved");
+        setProductDeleteStatus("idle");
+        setManualCreateStatus("idle");
+        setSelectedUserProductFromResult(result.item, autocompleteUid);
+        setAutocompleteResult((current) =>
+          current
+            ? {
+                ...current,
+                items: current.items.map((item) =>
+                  item.ingredientProductId === result.item.ingredientProductId
+                    ? result.item
+                    : item,
+                ),
+              }
+            : current,
+        );
+      })
+      .catch((error: unknown) => {
+        setProductUpdateStatus(
+          getErrorStatus(error) === 409 ? "conflict" : "failed",
+        );
+      });
+  };
+
+  const deleteSelectedIngredientProduct = () => {
+    if (
+      !autocompleteUid ||
+      !selectedCurrentUserIngredientProduct ||
+      productDeleteStatus === "deleting"
+    ) {
+      return;
+    }
+
+    const ingredientProductId =
+      selectedCurrentUserIngredientProduct.ingredientProductId;
+    setProductDeleteStatus("deleting");
+    deleteOrQueueIngredientProduct({
+      uid: autocompleteUid,
+      ingredientProductId,
+    })
+      .then((result) => {
+        setProductDeleteStatus(result.status === "queued" ? "queued" : "deleted");
+        setProductUpdateStatus("idle");
+        setSelectedUserIngredientProduct(null);
+        setManualCreateStatus("idle");
+        setAutocompleteResult((current) =>
+          current
+            ? {
+                ...current,
+                items: current.items.filter(
+                  (item) => item.ingredientProductId !== ingredientProductId,
+                ),
+              }
+            : current,
+        );
+      })
+      .catch(() => {
+        setProductDeleteStatus("failed");
       });
   };
 
@@ -890,6 +1151,7 @@ const IngredientEditorComponent = (
           onChangeText={(v) => {
             setName(v);
             setManualCreateStatus("idle");
+            clearPrivateProductFeedback();
             onChangePartial?.({ name: v });
           }}
           placeholder={t("ingredient_name", { ns: "meals" })}
@@ -908,6 +1170,7 @@ const IngredientEditorComponent = (
         {isSheetVariant &&
         (autocompleteLoading ||
           autocompleteSuggestions.length > 0 ||
+          hasAutocompleteConflict ||
           autocompleteStatus) ? (
           <View
             style={styles.autocompletePanel}
@@ -920,6 +1183,52 @@ const IngredientEditorComponent = (
               >
                 {t("ingredient_search_loading", { ns: "meals" })}
               </Text>
+            ) : null}
+
+            {!autocompleteLoading && hasAutocompleteConflict ? (
+              <View style={styles.localConflictBlock}>
+                <Text
+                  style={[styles.autocompleteStatus, styles.localConflictStatus]}
+                  testID={`${testIDPrefix}-product-conflict`}
+                >
+                  {t("ingredient_search_local_conflict", { ns: "meals" })}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(
+                    "ingredient_search_discard_conflict_accessibility",
+                    {
+                      ns: "meals",
+                      name:
+                        visibleAutocompleteConflict?.item.displayName ??
+                        name.trim(),
+                    },
+                  )}
+                  accessibilityState={{
+                    busy: conflictDiscardStatus === "discarding",
+                    disabled: conflictDiscardStatus === "discarding",
+                  }}
+                  disabled={conflictDiscardStatus === "discarding"}
+                  testID={`${testIDPrefix}-product-conflict-discard-button`}
+                  onPress={discardVisibleAutocompleteConflict}
+                  style={({ pressed }) => [
+                    styles.localConflictButton,
+                    pressed ? styles.manualCreateButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.localConflictButtonText}>
+                    {t("ingredient_search_discard_conflict", { ns: "meals" })}
+                  </Text>
+                </Pressable>
+                {conflictDiscardStatus === "failed" ? (
+                  <Text
+                    style={[styles.autocompleteStatus, styles.localConflictStatus]}
+                    testID={`${testIDPrefix}-product-conflict-discard-failed`}
+                  >
+                    {t("ingredient_search_discard_failed", { ns: "meals" })}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
 
             {!autocompleteLoading &&
@@ -965,7 +1274,8 @@ const IngredientEditorComponent = (
 
             {!autocompleteLoading &&
             autocompleteStatus &&
-            !canCreateManualIngredientProduct ? (
+            !canCreateManualIngredientProduct &&
+            !hasAutocompleteConflict ? (
               <Text
                 style={styles.autocompleteStatus}
                 testID={autocompleteStatus.testID}
@@ -974,7 +1284,7 @@ const IngredientEditorComponent = (
               </Text>
             ) : null}
 
-            {canCreateManualIngredientProduct ? (
+            {canCreateManualIngredientProduct || manualCreateStatus !== "idle" ? (
               <View style={styles.manualCreateFeedback}>
                 {manualCreateStatus === "saved" ? (
                   <Text
@@ -998,6 +1308,14 @@ const IngredientEditorComponent = (
                     style={styles.autocompleteStatus}
                   >
                     {t("ingredient_search_create_failed", { ns: "meals" })}
+                  </Text>
+                ) : null}
+                {manualCreateStatus === "conflict" ? (
+                  <Text
+                    testID={`${testIDPrefix}-create-product-conflict`}
+                    style={styles.autocompleteStatus}
+                  >
+                    {t("ingredient_search_create_conflict", { ns: "meals" })}
                   </Text>
                 ) : null}
               </View>
@@ -1040,6 +1358,152 @@ const IngredientEditorComponent = (
                   </Pressable>
                 ))}
               </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {canDeleteSelectedIngredientProduct ||
+        productDeleteStatus !== "idle" ||
+        productUpdateStatus !== "idle" ? (
+          <View
+            style={styles.privateProductRow}
+            testID={`${testIDPrefix}-product-delete-panel`}
+          >
+            {selectedCurrentUserIngredientProduct ? (
+              <View style={styles.privateProductHeader}>
+                <View style={styles.privateProductText}>
+                  <Text
+                    style={styles.privateProductLabel}
+                    testID={`${testIDPrefix}-product-delete-label`}
+                    numberOfLines={1}
+                  >
+                    {t("ingredient_search_private_item", { ns: "meals" })}
+                  </Text>
+                  <Text style={styles.privateProductName} numberOfLines={1}>
+                    {selectedCurrentUserIngredientProduct.displayName}
+                  </Text>
+                </View>
+
+                <View style={styles.privateProductActions}>
+                  {canUpdateSelectedIngredientProduct ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t(
+                        "ingredient_search_update_private_accessibility",
+                        {
+                          ns: "meals",
+                          name: selectedCurrentUserIngredientProduct.displayName,
+                        },
+                      )}
+                      accessibilityState={{
+                        busy: productUpdateStatus === "updating",
+                        disabled:
+                          productUpdateStatus === "updating" ||
+                          productUpdateStatus === "saved" ||
+                          productUpdateStatus === "queued",
+                      }}
+                      disabled={
+                        productUpdateStatus === "updating" ||
+                        productUpdateStatus === "saved" ||
+                        productUpdateStatus === "queued"
+                      }
+                      testID={`${testIDPrefix}-product-update-button`}
+                      onPress={updateSelectedIngredientProduct}
+                      style={({ pressed }) => [
+                        styles.privateProductUpdateButton,
+                        pressed ? styles.manualCreateButtonPressed : null,
+                      ]}
+                    >
+                      <Text style={styles.privateProductUpdateText}>
+                        {t("ingredient_search_update_private", { ns: "meals" })}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t(
+                      "ingredient_search_delete_private_accessibility",
+                      {
+                        ns: "meals",
+                        name: selectedCurrentUserIngredientProduct.displayName,
+                      },
+                    )}
+                    accessibilityState={{
+                      busy: productDeleteStatus === "deleting",
+                      disabled: productDeleteStatus === "deleting",
+                    }}
+                    disabled={productDeleteStatus === "deleting"}
+                    testID={`${testIDPrefix}-product-delete-button`}
+                    onPress={deleteSelectedIngredientProduct}
+                    style={({ pressed }) => [
+                      styles.privateProductDeleteButton,
+                      pressed ? styles.manualCreateButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.privateProductDeleteText}>
+                      {t("ingredient_search_delete_private", { ns: "meals" })}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {productUpdateStatus === "saved" ? (
+              <Text
+                testID={`${testIDPrefix}-product-update-success`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_update_saved", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productUpdateStatus === "queued" ? (
+              <Text
+                testID={`${testIDPrefix}-product-update-queued`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_update_queued", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productUpdateStatus === "failed" ? (
+              <Text
+                testID={`${testIDPrefix}-product-update-failed`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_update_failed", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productUpdateStatus === "conflict" ? (
+              <Text
+                testID={`${testIDPrefix}-product-update-conflict`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_update_conflict", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productDeleteStatus === "deleted" ? (
+              <Text
+                testID={`${testIDPrefix}-product-delete-success`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_delete_saved", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productDeleteStatus === "queued" ? (
+              <Text
+                testID={`${testIDPrefix}-product-delete-queued`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_delete_queued", { ns: "meals" })}
+              </Text>
+            ) : null}
+            {productDeleteStatus === "failed" ? (
+              <Text
+                testID={`${testIDPrefix}-product-delete-failed`}
+                style={styles.autocompleteStatus}
+              >
+                {t("ingredient_search_delete_failed", { ns: "meals" })}
+              </Text>
             ) : null}
           </View>
         ) : null}
@@ -1343,6 +1807,104 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingVertical: theme.spacing.xs,
       alignItems: "flex-start",
       gap: theme.spacing.xxs,
+    },
+    localConflictBlock: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      alignItems: "flex-start",
+      gap: theme.spacing.xxs,
+    },
+    localConflictStatus: {
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
+    localConflictButton: {
+      minHeight: 32,
+      borderRadius: theme.rounded.sm,
+      borderWidth: 1,
+      borderColor: theme.error.border,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+    },
+    localConflictButtonText: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      color: theme.error.text,
+    },
+    privateProductRow: {
+      minHeight: 44,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.surface,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      marginTop: theme.spacing.xs,
+      marginBottom: theme.spacing.xs,
+      gap: theme.spacing.xs,
+    },
+    privateProductHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    privateProductText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    privateProductLabel: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    privateProductName: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    privateProductActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xxs,
+      flexShrink: 0,
+    },
+    privateProductUpdateButton: {
+      minHeight: 32,
+      borderRadius: theme.rounded.sm,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+    },
+    privateProductUpdateText: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      color: theme.text,
+    },
+    privateProductDeleteButton: {
+      minHeight: 32,
+      borderRadius: theme.rounded.sm,
+      borderWidth: 1,
+      borderColor: theme.error.border,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+    },
+    privateProductDeleteText: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      color: theme.error.text,
     },
     autocompleteOption: {
       minHeight: 48,

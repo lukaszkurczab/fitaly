@@ -136,6 +136,141 @@ describe("ingredientProductSearchApi", () => {
     expect(result.cachePolicy).toBeNull();
   });
 
+  it("rejects malformed Product/Ingredient pull records", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockGet.mockResolvedValueOnce({
+      records: [
+        {
+          item: sampleRow({
+            ingredientProductId: "user-oats-1",
+            recordScope: "user_scoped",
+            ownerUserId: "user-1",
+            sourceAttribution: {
+              sourceType: "user_created",
+              sourceId: "mutation-1",
+              sourceName: "manual_entry",
+            },
+            warningReasonCodes: ["pending_user_record"],
+            rankingSignals: ["user_scoped", "pending_user_record"],
+          }),
+          updatedAt: "2026-06-16T10:00:00.000Z",
+          creationClientMutationId: "mutation-1",
+        },
+        {
+          item: sampleRow({ ingredientProductId: "" }),
+          updatedAt: "2026-06-16T11:00:00.000Z",
+        },
+      ],
+      removedRecords: [
+        {
+          ingredientProductId: "user-oats-rejected",
+          updatedAt: "2026-06-16T12:00:00.000Z",
+          removalReason: "rejected",
+        },
+      ],
+      nextUpdatedAfter: "2026-06-16T10:00:00.000Z|user-oats",
+    });
+
+    await expect(
+      api.pullIngredientProductsRemote({
+        updatedAfter: "2026-06-15T10:00:00.000Z",
+        limit: 999,
+      }),
+    ).rejects.toThrow("Invalid Ingredient/Product pull response.");
+  });
+
+  it("pulls current-user Product/Ingredient records with bounded params", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockGet.mockResolvedValueOnce({
+      records: [
+        {
+          item: sampleRow({
+            ingredientProductId: "user-oats-1",
+            recordScope: "user_scoped",
+            ownerUserId: "user-1",
+            sourceAttribution: {
+              sourceType: "user_created",
+              sourceId: "mutation-1",
+              sourceName: "manual_entry",
+            },
+            warningReasonCodes: ["pending_user_record"],
+            rankingSignals: ["user_scoped", "pending_user_record"],
+          }),
+          updatedAt: "2026-06-16T10:00:00.000Z",
+          creationClientMutationId: "mutation-1",
+        },
+      ],
+      removedRecords: [
+        {
+          ingredientProductId: "user-oats-rejected",
+          updatedAt: "2026-06-16T12:00:00.000Z",
+          removalReason: "rejected",
+        },
+      ],
+      nextUpdatedAfter: "2026-06-16T10:00:00.000Z|user-oats",
+    });
+
+    const result = await api.pullIngredientProductsRemote({
+      updatedAfter: "2026-06-15T10:00:00.000Z",
+      limit: 999,
+    });
+
+    expect(result.records).toEqual([
+      expect.objectContaining({
+        item: expect.objectContaining({
+          ingredientProductId: "user-oats-1",
+          recordScope: "user_scoped",
+          ownerUserId: "user-1",
+        }),
+        updatedAt: "2026-06-16T10:00:00.000Z",
+        creationClientMutationId: "mutation-1",
+      }),
+    ]);
+    expect(result.removedRecords).toEqual([
+      {
+        ingredientProductId: "user-oats-rejected",
+        updatedAt: "2026-06-16T12:00:00.000Z",
+        removalReason: "rejected",
+      },
+    ]);
+    expect(result.nextUpdatedAfter).toBe("2026-06-16T10:00:00.000Z|user-oats");
+    expect(mockGet).toHaveBeenCalledWith(
+      "/api/v2/users/me/ingredient-products/pull?limit=250&updatedAfter=2026-06-15T10%3A00%3A00.000Z",
+      undefined,
+    );
+  });
+
+  it("rejects malformed removed Product/Ingredient pull records", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockGet.mockResolvedValueOnce({
+      records: [],
+      removedRecords: [
+        {
+          ingredientProductId: "user-oats-unknown",
+          updatedAt: "2026-06-16T14:00:00.000Z",
+          removalReason: "unknown",
+        },
+      ],
+      nextUpdatedAfter: null,
+    });
+
+    await expect(api.pullIngredientProductsRemote({})).rejects.toThrow(
+      "Invalid Ingredient/Product pull response.",
+    );
+  });
+
   it("calls the v2 create endpoint with the explicit user-created payload", async () => {
     const api =
       jest.requireActual<typeof import("./ingredientProductSearchApi")>(
@@ -230,5 +365,148 @@ describe("ingredientProductSearchApi", () => {
         defaultServing: { quantity: 50, unit: "g" },
       }),
     ).rejects.toThrow("Invalid Ingredient/Product create response.");
+  });
+
+  it("calls the v2 update endpoint with an encoded path id and explicit partial payload", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({
+      item: sampleRow({
+        ingredientProductId: "user oats 1",
+        recordScope: "user_scoped",
+        lifecycleState: "candidate",
+        displayName: "Owsianka po edycji",
+        nutritionPer100: null,
+        brandName: null,
+        sourceAttribution: {
+          sourceType: "user_created",
+          sourceId: "mutation-1",
+          sourceName: "manual_entry",
+        },
+        ownerUserId: "user-1",
+      }),
+      updated: true,
+    });
+
+    await expect(
+      api.updateIngredientProductRemote({
+        clientMutationId: "update-mutation-1",
+        ingredientProductId: "user oats 1",
+        displayName: "Owsianka po edycji",
+        nutritionPer100: null,
+        brandName: null,
+        dietaryFlags: null,
+      }),
+    ).resolves.toEqual({
+      item: expect.objectContaining({
+        ingredientProductId: "user oats 1",
+        displayName: "Owsianka po edycji",
+        nutritionPer100: null,
+        brandName: null,
+        ownerUserId: "user-1",
+      }),
+      updated: true,
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/v2/users/me/ingredient-products/user%20oats%201/update",
+      {
+        clientMutationId: "update-mutation-1",
+        displayName: "Owsianka po edycji",
+        nutritionPer100: null,
+        brandName: null,
+        dietaryFlags: null,
+      },
+      undefined,
+    );
+  });
+
+  it("rejects empty update requests before making a request", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    await expect(
+      api.updateIngredientProductRemote({
+        clientMutationId: "update-mutation-1",
+        ingredientProductId: "user-oats-1",
+      }),
+    ).rejects.toThrow(
+      "At least one editable Ingredient/Product update field is required.",
+    );
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed update responses instead of treating them as success", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({
+      item: sampleRow({ displayName: "" }),
+      updated: true,
+    });
+
+    await expect(
+      api.updateIngredientProductRemote({
+        clientMutationId: "update-mutation-1",
+        ingredientProductId: "user-oats-1",
+        brandName: null,
+      }),
+    ).rejects.toThrow("Invalid Ingredient/Product update response.");
+  });
+
+  it("calls the v2 delete endpoint with the explicit user-scoped tombstone payload", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({
+      ingredientProductId: "user-oats-1",
+      updatedAt: "2026-06-16T12:00:00.000Z",
+      updated: true,
+    });
+
+    await expect(
+      api.deleteIngredientProductRemote({
+        ingredientProductId: "user-oats-1",
+        clientMutationId: "delete-mutation-1",
+      }),
+    ).resolves.toEqual({
+      ingredientProductId: "user-oats-1",
+      updatedAt: "2026-06-16T12:00:00.000Z",
+      updated: true,
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/v2/users/me/ingredient-products/user-oats-1/delete",
+      { clientMutationId: "delete-mutation-1" },
+      undefined,
+    );
+  });
+
+  it("rejects malformed delete responses instead of treating them as success", async () => {
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    mockPost.mockResolvedValueOnce({
+      ingredientProductId: "user-oats-1",
+      updated: true,
+    });
+
+    await expect(
+      api.deleteIngredientProductRemote({
+        ingredientProductId: "user-oats-1",
+        clientMutationId: "delete-mutation-1",
+      }),
+    ).rejects.toThrow("Invalid Ingredient/Product delete response.");
   });
 });

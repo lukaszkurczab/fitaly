@@ -155,6 +155,10 @@ export const INGREDIENT_PRODUCT_LIFECYCLE_STATES = [
   "rejected",
 ] as const;
 
+export const INGREDIENT_PRODUCT_REMOVAL_REASONS = [
+  "rejected",
+] as const;
+
 export const INGREDIENT_PRODUCT_SOURCE_TYPES = [
   "internal_seed",
   "internal_review",
@@ -338,6 +342,8 @@ export type IngredientProductRecordScope =
   (typeof INGREDIENT_PRODUCT_RECORD_SCOPES)[number];
 export type IngredientProductLifecycleState =
   (typeof INGREDIENT_PRODUCT_LIFECYCLE_STATES)[number];
+export type IngredientProductRemovalReason =
+  (typeof INGREDIENT_PRODUCT_REMOVAL_REASONS)[number];
 export type IngredientProductSourceType =
   (typeof INGREDIENT_PRODUCT_SOURCE_TYPES)[number];
 export type IngredientProductConfidenceLevel =
@@ -471,6 +477,13 @@ export type IngredientProductSearchResponse = {
   warnings: IngredientProductWarningReasonCode[];
 };
 
+export type IngredientProductSearchConflict = {
+  item: IngredientProductSearchRow;
+  updatedAt: string;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+};
+
 export type IngredientProductSearchRequest = {
   query: string;
   locale?: string | null;
@@ -500,6 +513,56 @@ export type IngredientProductCreateResponse = {
   updated: boolean;
 };
 
+export type IngredientProductUpdateRequest = {
+  clientMutationId: string;
+  ingredientProductId: string;
+  displayName?: string;
+  kind?: IngredientProductKind;
+  defaultServing?: IngredientProductServing;
+  nutritionPer100?: IngredientProductNutritionPer100 | null;
+  brandName?: string | null;
+  ingredientName?: string | null;
+  packageName?: string | null;
+  category?: string | null;
+  servingSizes?: IngredientProductServingSize[] | null;
+  dietaryFlags?: IngredientProductDietaryFlag[] | null;
+  allergenFlags?: IngredientProductAllergenFlag[] | null;
+};
+
+export type IngredientProductUpdateResponse = {
+  item: IngredientProductSearchRow;
+  updated: boolean;
+};
+
+export type IngredientProductDeleteRequest = {
+  clientMutationId: string;
+  ingredientProductId: string;
+};
+
+export type IngredientProductDeleteResponse = {
+  ingredientProductId: string;
+  updatedAt: string;
+  updated: boolean;
+};
+
+export type IngredientProductPulledRecord = {
+  item: IngredientProductSearchRow;
+  updatedAt: string;
+  creationClientMutationId: string | null;
+};
+
+export type IngredientProductRemovedRecord = {
+  ingredientProductId: string;
+  updatedAt: string;
+  removalReason: IngredientProductRemovalReason;
+};
+
+export type IngredientProductPullResponse = {
+  records: IngredientProductPulledRecord[];
+  removedRecords: IngredientProductRemovedRecord[];
+  nextUpdatedAfter: string | null;
+};
+
 export type IngredientProductSearchStatus =
   | "idle"
   | "results"
@@ -513,6 +576,7 @@ export type IngredientProductSearchStatus =
 export type IngredientProductSearchResult = {
   status: IngredientProductSearchStatus;
   items: IngredientProductSearchRow[];
+  conflicts?: IngredientProductSearchConflict[];
   queryEcho: IngredientProductSearchQueryEcho | null;
   warnings: IngredientProductWarningReasonCode[];
   cachePolicy: IngredientProductSearchCachePolicy | null;

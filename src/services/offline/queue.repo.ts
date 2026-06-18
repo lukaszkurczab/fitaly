@@ -3,6 +3,8 @@ import type { Meal } from "@/types/meal";
 import type { UserData } from "@/types";
 import type {
   IngredientProductCreateQueuePayload,
+  IngredientProductDeleteQueuePayload,
+  IngredientProductUpdateQueuePayload,
 } from "@/services/foodLibrary/ingredientProductCreateQueue";
 import type {
   SmartMemoryCandidateUpsertInput,
@@ -22,6 +24,20 @@ export type DeadLetterOp = Omit<DeadLetterRow, "payload"> & {
 };
 export const MAX_QUEUE_ATTEMPTS = 10;
 
+const INGREDIENT_PRODUCT_UPDATE_PAYLOAD_FIELDS = [
+  "displayName",
+  "kind",
+  "defaultServing",
+  "nutritionPer100",
+  "brandName",
+  "ingredientName",
+  "packageName",
+  "category",
+  "servingSizes",
+  "dietaryFlags",
+  "allergenFlags",
+] as const;
+
 function newClientMutationId(kind: QueueKind, uid: string, cloudId: string): string {
   return `meal-sync:${kind}:${uid}:${cloudId}:${uuidv4()}`;
 }
@@ -34,12 +50,48 @@ function newSmartMemoryClientMutationId(
   return `smart-memory:${operation}:${uid}:${targetId}:${uuidv4()}`;
 }
 
+function newIngredientProductClientMutationId(
+  operation: "delete",
+  uid: string,
+  ingredientProductId: string,
+): string {
+  return `ingredient-product:${operation}:${uid}:${ingredientProductId}:${uuidv4()}`;
+}
+
 function safeParse(payload: string): unknown {
   try {
     return JSON.parse(payload);
   } catch {
     return payload;
   }
+}
+
+function isCurrentUserScopedIngredientProductUpdatePayload(
+  uid: string,
+  payload: IngredientProductUpdateQueuePayload,
+): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const request = payload.request;
+  const baseItem = payload.baseItem;
+  if (!request || typeof request !== "object") return false;
+  const requestId = request.ingredientProductId?.trim();
+  const clientMutationId = request.clientMutationId?.trim();
+  const hasUpdateField = INGREDIENT_PRODUCT_UPDATE_PAYLOAD_FIELDS.some(
+    (field) =>
+      Object.prototype.hasOwnProperty.call(request, field) &&
+      request[field] !== undefined,
+  );
+  const displayName = request.displayName;
+  return Boolean(
+    requestId &&
+      clientMutationId &&
+      hasUpdateField &&
+      (displayName === undefined ||
+        (typeof displayName === "string" && displayName.trim().length > 0)) &&
+      baseItem?.ingredientProductId === requestId &&
+      baseItem.recordScope === "user_scoped" &&
+      baseItem.ownerUserId === uid,
+  );
 }
 
 function deleteQueuedKinds(
@@ -336,6 +388,86 @@ export async function enqueueIngredientProductCreate(
       cloudId,
       kind: "ingredient_product_create",
       payload,
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
+}
+
+export async function enqueueIngredientProductDelete(
+  uid: string,
+  ingredientProductId: string,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  const productId = ingredientProductId.trim();
+  if (!productId) {
+    throw new Error("ingredientProductId must be non-empty");
+  }
+  const payload: IngredientProductDeleteQueuePayload = {
+    ingredientProductId: productId,
+  };
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const clientMutationId = newIngredientProductClientMutationId(
+    "delete",
+    uid,
+    productId,
+  );
+  const db = getDB();
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, productId, ["ingredient_product_delete"]);
+    insertQueuedOp({
+      uid,
+      cloudId: productId,
+      kind: "ingredient_product_delete",
+      payload,
+      updatedAt,
+      clientMutationId,
+    });
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+  return { clientMutationId, updatedAt };
+}
+
+export async function enqueueIngredientProductUpdate(
+  uid: string,
+  payload: IngredientProductUpdateQueuePayload,
+  options?: { updatedAt?: string },
+): Promise<{ clientMutationId: string; updatedAt: string }> {
+  if (!isCurrentUserScopedIngredientProductUpdatePayload(uid, payload)) {
+    throw new Error(
+      "Ingredient/Product update payload must target a current-user record.",
+    );
+  }
+  const productId = payload.request.ingredientProductId.trim();
+  const clientMutationId = payload.request.clientMutationId.trim();
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  const normalizedPayload: IngredientProductUpdateQueuePayload = {
+    ...payload,
+    request: {
+      ...payload.request,
+      ingredientProductId: productId,
+      clientMutationId,
+    },
+    locale: payload.locale ?? null,
+  };
+  const db = getDB();
+  db.execSync("BEGIN");
+  try {
+    deleteQueuedKinds(uid, productId, ["ingredient_product_update"]);
+    insertQueuedOp({
+      uid,
+      cloudId: productId,
+      kind: "ingredient_product_update",
+      payload: normalizedPayload,
       updatedAt,
       clientMutationId,
     });
@@ -811,6 +943,60 @@ export async function discardQueuedOpsByClientMutationIds(params: {
     kinds: params.kinds,
   });
   return discarded;
+}
+
+export async function discardQueuedAndDeadLetterOpsByCloudIds(params: {
+  uid: string;
+  cloudIds: string[];
+  kinds: QueueKind[];
+}): Promise<{ queued: number; dead: number }> {
+  if (!params.uid) return { queued: 0, dead: 0 };
+  const cloudIds = Array.from(
+    new Set(params.cloudIds.map((id) => id.trim()).filter(Boolean)),
+  );
+  const kinds = Array.from(
+    new Set(params.kinds.filter((kind): kind is QueueKind => Boolean(kind))),
+  );
+  if (!cloudIds.length || !kinds.length) return { queued: 0, dead: 0 };
+
+  const db = getDB();
+  const cloudIdPlaceholders = cloudIds.map(() => "?").join(",");
+  const kindsClause = buildKindsClause(kinds);
+  let queued = 0;
+  let dead = 0;
+
+  db.execSync("BEGIN");
+  try {
+    const queuedResult = db.runSync(
+      `DELETE FROM op_queue
+       WHERE user_uid=? AND cloud_id IN (${cloudIdPlaceholders})${kindsClause.sql}`,
+      [params.uid, ...cloudIds, ...kindsClause.args],
+    ) as { changes?: number };
+    queued = Number(queuedResult.changes ?? 0);
+
+    const deadResult = db.runSync(
+      `DELETE FROM op_queue_dead
+       WHERE user_uid=? AND cloud_id IN (${cloudIdPlaceholders})${kindsClause.sql}`,
+      [params.uid, ...cloudIds, ...kindsClause.args],
+    ) as { changes?: number };
+    dead = Number(deadResult.changes ?? 0);
+
+    db.execSync("COMMIT");
+  } catch (error) {
+    db.execSync("ROLLBACK");
+    throw error;
+  }
+
+  const discarded = queued + dead;
+  if (discarded <= 0) return { queued, dead };
+
+  emit("sync:op:discarded", {
+    uid: params.uid,
+    count: discarded,
+    cloudIds,
+    kinds,
+  });
+  return { queued, dead };
 }
 
 export async function retryDeadLetterOps(params: {

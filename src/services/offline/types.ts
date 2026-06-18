@@ -13,7 +13,9 @@ export type QueueKind =
   | "smart_memory_item_source_deleted"
   | "smart_memory_settings_disable"
   | "smart_memory_settings_enable"
-  | "ingredient_product_create";
+  | "ingredient_product_create"
+  | "ingredient_product_update"
+  | "ingredient_product_delete";
 
 export type MealRow = {
   cloud_id: string | null;
@@ -152,6 +154,28 @@ export type IngredientProductSearchCacheRow = {
   cache_state: string | null;
   cached_at: number;
   expires_at: number;
+};
+
+export type IngredientProductUserRecordSyncState =
+  | "pending"
+  | "pending_update"
+  | "synced"
+  | "failed"
+  | "conflict"
+  | "pending_delete"
+  | "delete_failed";
+
+export type IngredientProductUserRecordRow = {
+  user_uid: string;
+  ingredient_product_id: string;
+  display_name: string;
+  payload: string;
+  source_client_mutation_id: string | null;
+  updated_at: string;
+  last_synced_at: number;
+  sync_state: IngredientProductUserRecordSyncState;
+  last_error_code: string | null;
+  last_error_message: string | null;
 };
 
 export type ChatThreadRow = {

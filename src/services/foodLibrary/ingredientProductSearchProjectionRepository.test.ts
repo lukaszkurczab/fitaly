@@ -99,6 +99,16 @@ function sampleResponse(
 
 function applyRunSync(sql: string, params: unknown[] = []): void {
   if (sql.includes("DELETE FROM ingredient_product_search_cache")) {
+    if (sql.includes("ingredient_product_id=?")) {
+      const uid = String(params[0]);
+      const productId = String(params[1]);
+      for (const [key, row] of rows.entries()) {
+        if (row.user_uid === uid && row.ingredient_product_id === productId) {
+          rows.delete(key);
+        }
+      }
+      return;
+    }
     if (sql.includes("normalized_query=?")) {
       const uid = String(params[0]);
       const query = String(params[1]);
@@ -141,8 +151,22 @@ function applyRunSync(sql: string, params: unknown[] = []): void {
   }
 }
 
-function applyGetAllSync(_sql: string, params: unknown[] = []): unknown[] {
+function applyGetAllSync(sql: string, params: unknown[] = []): unknown[] {
   const uid = String(params[0]);
+  if (sql.includes("ingredient_product_id=?")) {
+    const productId = String(params[1]);
+    return Array.from(rows.values())
+      .filter(
+        (row) =>
+          row.user_uid === uid && row.ingredient_product_id === productId,
+      )
+      .sort((a, b) => {
+        if (a.cached_at !== b.cached_at) return b.cached_at - a.cached_at;
+        return a.result_rank - b.result_rank;
+      })
+      .slice(0, 1);
+  }
+
   const query = String(params[1]);
   return Array.from(rows.values())
     .filter((row) => row.user_uid === uid && row.normalized_query === query)
@@ -261,6 +285,115 @@ describe("ingredientProductSearchProjectionRepository", () => {
         items: [expect.objectContaining({ ingredientProductId: "user-1-smietana" })],
       }),
     );
+  });
+
+  it("removes a product from all cached queries for only the matching user", async () => {
+    const repo =
+      jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(
+        "./ingredientProductSearchProjectionRepository",
+      );
+
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "user-product-1" }),
+        sampleSearchRow({ ingredientProductId: "catalog-oats" }),
+      ]),
+      cachedAt: 1_000,
+    });
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: {
+        ...sampleResponse([
+          sampleSearchRow({ ingredientProductId: "user-product-1" }),
+        ]),
+        queryEcho: {
+          ...sampleResponse().queryEcho,
+          normalizedQuery: "owsianka",
+          queryLength: 8,
+        },
+      },
+      cachedAt: 1_000,
+    });
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-2",
+      response: sampleResponse([
+        sampleSearchRow({ ingredientProductId: "user-product-1" }),
+      ]),
+      cachedAt: 1_000,
+    });
+
+    await repo.removeIngredientProductSearchProjectionItem({
+      uid: "user-1",
+      ingredientProductId: "user-product-1",
+    });
+
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-1",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ ingredientProductId: "catalog-oats" })],
+      }),
+    );
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-1",
+        query: "owsianka",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ items: [] }));
+    await expect(
+      repo.readIngredientProductSearchProjection({
+        uid: "user-2",
+        query: "owies",
+        now: 2_000,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ ingredientProductId: "user-product-1" })],
+      }),
+    );
+  });
+
+  it("reads a cached product by id before delete projection removal", async () => {
+    const repo =
+      jest.requireActual<typeof import("./ingredientProductSearchProjectionRepository")>(
+        "./ingredientProductSearchProjectionRepository",
+      );
+
+    await repo.replaceIngredientProductSearchProjection({
+      uid: "user-1",
+      response: sampleResponse([
+        sampleSearchRow({
+          ingredientProductId: "user-product-1",
+          recordScope: "user_scoped",
+          ownerUserId: "user-1",
+        }),
+      ]),
+      cachedAt: 1_000,
+    });
+
+    await expect(
+      repo.readIngredientProductSearchProjectionItem({
+        uid: "user-1",
+        ingredientProductId: "user-product-1",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ingredientProductId: "user-product-1",
+        recordScope: "user_scoped",
+      }),
+    );
+    await expect(
+      repo.readIngredientProductSearchProjectionItem({
+        uid: "user-2",
+        ingredientProductId: "user-product-1",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("uses backend-compatible accent folding for offline cache lookups", async () => {

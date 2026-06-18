@@ -203,4 +203,22 @@ CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_query
 CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_user_cached
   ON ingredient_product_search_cache(user_uid, cached_at DESC);
 
-PRAGMA user_version=15;
+CREATE TABLE IF NOT EXISTS ingredient_product_user_records (
+  user_uid TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  source_client_mutation_id TEXT,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL,
+  last_error_code TEXT,
+  last_error_message TEXT,
+  PRIMARY KEY (user_uid, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_sync
+  ON ingredient_product_user_records(user_uid, sync_state, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_updated
+  ON ingredient_product_user_records(user_uid, updated_at DESC, ingredient_product_id ASC);
+
+PRAGMA user_version=16;

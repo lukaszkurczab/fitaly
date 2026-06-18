@@ -869,6 +869,7 @@ describe("Autocomplete telemetry contract", () => {
   const MOBILE_EVENT_NAMES = [
     "autocomplete_search_outcome",
     "autocomplete_result_selected",
+    "ingredient_product_create_outcome",
   ] as const;
 
   const MOBILE_PROPS_BY_EVENT = {
@@ -888,6 +889,10 @@ describe("Autocomplete telemetry contract", () => {
       "rankBucket",
       "selectionState",
       "warningReason",
+    ],
+    ingredient_product_create_outcome: [
+      "surface",
+      "outcome",
     ],
   } as const;
 

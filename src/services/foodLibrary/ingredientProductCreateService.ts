@@ -50,6 +50,7 @@ export async function createOrQueueIngredientProduct(params: {
       uid: params.uid,
       payload,
       item,
+      syncState: "pending",
     });
     void requestSync({
       uid: params.uid,

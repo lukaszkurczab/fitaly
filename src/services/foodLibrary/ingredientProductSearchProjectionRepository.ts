@@ -225,6 +225,36 @@ export async function upsertIngredientProductSearchProjectionItem(params: {
   });
 }
 
+export async function removeIngredientProductSearchProjectionItem(params: {
+  uid: string;
+  ingredientProductId: string;
+}): Promise<void> {
+  const db = getDB();
+  db.runSync(
+    `DELETE FROM ingredient_product_search_cache
+     WHERE user_uid=? AND ingredient_product_id=?`,
+    [params.uid, params.ingredientProductId],
+  );
+}
+
+export async function readIngredientProductSearchProjectionItem(params: {
+  uid: string;
+  ingredientProductId: string;
+}): Promise<IngredientProductSearchRow | null> {
+  const db = getDB();
+  const rows = db.getAllSync(
+    `SELECT *
+     FROM ingredient_product_search_cache
+     WHERE user_uid=? AND ingredient_product_id=?
+     ORDER BY cached_at DESC, result_rank ASC, display_name COLLATE NOCASE ASC
+     LIMIT 1`,
+    [params.uid, params.ingredientProductId],
+  ) as IngredientProductSearchCacheRow[];
+  const row = rows[0];
+  if (!row) return null;
+  return normalizeIngredientProductSearchRow(parseJson<unknown>(row.payload));
+}
+
 export async function readIngredientProductSearchProjection(params: {
   uid: string;
   query: string;

@@ -100,7 +100,11 @@ jest.mock("./strategies/foodLibrary.strategy", () => ({
     pull: (...args: unknown[]) => mockFoodLibraryPull(...args),
     handlePushOp: jest.fn(async () => false),
   },
-  ingredientProductQueueKinds: () => ["ingredient_product_create"],
+  ingredientProductQueueKinds: () => [
+    "ingredient_product_create",
+    "ingredient_product_update",
+    "ingredient_product_delete",
+  ],
 }));
 
 jest.mock("./strategies/userProfile.strategy", () => ({
@@ -531,11 +535,11 @@ describe("offline sync.engine selective coordinator", () => {
     expect(mockFoodLibraryPull).not.toHaveBeenCalled();
   });
 
-  it("reconnect pushes once and only pulls Product/Ingredient for dirty food library queue", async () => {
+  it("reconnect pushes once and only pulls Product/Ingredient for dirty update food library queue", async () => {
     mockGetQueuedOpsCount.mockImplementation(async (_uid, options) => {
       if (!options) return 1;
       const kinds = (options as { kinds?: string[] } | undefined)?.kinds ?? [];
-      return kinds.includes("ingredient_product_create") ? 1 : 0;
+      return kinds.includes("ingredient_product_update") ? 1 : 0;
     });
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires

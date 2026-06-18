@@ -1,0 +1,83 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: fitaly://e2e/seed?fixture=user-with-private-product-conflict
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-user-with-private-product-conflict
+    timeout: 10000
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- inputText: Private Conflict Discard Bowl
+- hideKeyboard
+- tapOn:
+    id: meal-type-picker-trigger
+- assertVisible:
+    id: meal-type-picker-sheet
+- tapOn:
+    id: meal-type-picker-option-lunch
+- tapOn:
+    id: meal-type-picker-apply-button
+- tapOn:
+    id: meal-time-picker-trigger
+- assertVisible:
+    id: meal-time-picker-sheet
+- tapOn:
+    id: meal-time-picker-apply-button
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Prywatny konflikt QA
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-product-conflict
+    timeout: 10000
+- assertVisible:
+    id: ingredient-editor-product-conflict-discard-button
+- assertNotVisible:
+    id: ingredient-autocomplete-row-0
+- tapOn:
+    id: ingredient-editor-product-conflict-discard-button
+- extendedWaitUntil:
+    notVisible:
+      id: ingredient-editor-product-conflict
+    timeout: 10000
+- assertVisible:
+    id: ingredient-editor-create-product-button
+- assertNotVisible:
+    id: ingredient-autocomplete-row-0
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-editor-protein-input
+- inputText: "8"
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0

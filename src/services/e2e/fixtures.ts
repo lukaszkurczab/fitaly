@@ -8,6 +8,7 @@ import { upsertMealLocal } from "@/services/offline/meals.repo";
 import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
+import { upsertLocalIngredientProductUserRecord } from "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository";
 import { getSampleMealUri } from "@/utils/devSamples";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
 import type {
@@ -33,6 +34,7 @@ import {
   upsertSmartMemorySettingsProjection,
 } from "@/services/smartMemory/smartMemoryProjectionRepository";
 import type { Ingredient, Meal } from "@/types/meal";
+import type { IngredientProductSearchRow } from "@/types/foodLibrary";
 import type {
   SmartMemoryCandidate,
   SmartMemoryCandidateUpsertInput,
@@ -49,7 +51,8 @@ export type E2EFixtureName =
   | "user-with-saved-meals"
   | "user-with-draft"
   | "user-with-failed-meal"
-  | "user-with-conflict-meal";
+  | "user-with-conflict-meal"
+  | "user-with-private-product-conflict";
 export type E2ECreditsSeed = "ok" | "low" | "none";
 export type E2EAiSeed =
   | "textSuccess"
@@ -125,6 +128,7 @@ const VALID_FIXTURES = new Set<E2EFixtureName>([
   "user-with-draft",
   "user-with-failed-meal",
   "user-with-conflict-meal",
+  "user-with-private-product-conflict",
 ]);
 const VALID_CREDITS = new Set<E2ECreditsSeed>(["ok", "low", "none"]);
 const VALID_AI = new Set<E2EAiSeed>([
@@ -548,6 +552,62 @@ function dayKeyFromISO(value: string): string {
   return value.slice(0, 10);
 }
 
+function privateIngredientProductConflictRow(
+  uid: string,
+): IngredientProductSearchRow {
+  return {
+    ingredientProductId: "e2e-private-product-conflict",
+    recordScope: "user_scoped",
+    lifecycleState: "candidate",
+    displayName: "Prywatny konflikt QA",
+    kind: "generic_ingredient",
+    defaultServing: { quantity: 100, unit: "g" },
+    nutritionPer100: {
+      basis: "per_100g",
+      unit: "g",
+      kcal: 120,
+      protein: 8,
+      fat: 4,
+      carbs: 12,
+      fiber: null,
+      sugar: null,
+      salt: null,
+      saturatedFat: null,
+    },
+    confidence: {
+      identity: "medium",
+      nutrition: "medium",
+      profile: "unknown",
+    },
+    sourceAttribution: {
+      sourceType: "user_created",
+      sourceId: "e2e-private-product-conflict-mutation",
+      sourceName: "User",
+      provider: null,
+      license: null,
+      observedAt: null,
+      reviewedAt: null,
+      reviewedBy: null,
+    },
+    profileCompatibility: {
+      status: "unknown",
+      dietaryFlags: [],
+      allergenFlags: [],
+    },
+    warningReasonCodes: [],
+    rankingSignals: ["user_scoped"],
+    brandName: null,
+    ingredientName: "Prywatny konflikt QA",
+    packageName: null,
+    category: null,
+    servingSizes: [],
+    dietaryFlags: [],
+    allergenFlags: [],
+    cacheState: "stale",
+    ownerUserId: uid,
+  };
+}
+
 function meal(params: {
   uid: string;
   id: string;
@@ -838,6 +898,20 @@ async function applyNamedFixture(
         syncState: "conflict",
       },
     );
+    return;
+  }
+
+  if (fixture === "user-with-private-product-conflict") {
+    await upsertLocalIngredientProductUserRecord({
+      uid,
+      item: privateIngredientProductConflictRow(uid),
+      syncState: "conflict",
+      updatedAt: e2eNowISO(),
+      lastSyncedAt: 0,
+      lastErrorCode: "food-library/conflict",
+      lastErrorMessage:
+        "Remote Product/Ingredient record conflicts with pending local create.",
+    });
     return;
   }
 

@@ -8,6 +8,11 @@ const SOURCE_ROOT = path.join(PROJECT_ROOT, "src");
 const LOCALES_ROOT = path.join(SOURCE_ROOT, "locales");
 const EN_LOCALES = path.join(LOCALES_ROOT, "en");
 const PL_LOCALES = path.join(LOCALES_ROOT, "pl");
+const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"] as const;
+const REQUIRED_PLURAL_SUFFIXES = {
+  en: ["one", "other"],
+  pl: ["one", "few", "many", "other"],
+} as const;
 
 function flattenObject(value: unknown, prefix = "", out: FlatMap = {}): FlatMap {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -80,13 +85,72 @@ function hasLocaleKey(
   return Boolean(locales.en[ns]?.[key] !== undefined && locales.pl[ns]?.[key] !== undefined);
 }
 
+function splitPluralKey(key: string): { base: string; suffix: string } | null {
+  for (const suffix of PLURAL_SUFFIXES) {
+    const marker = `_${suffix}`;
+    if (key.endsWith(marker)) {
+      return {
+        base: key.slice(0, -marker.length),
+        suffix,
+      };
+    }
+  }
+  return null;
+}
+
+function normalizePluralKeys(keyMap: FlatMap): string[] {
+  return Array.from(
+    new Set(
+      Object.keys(keyMap).map((key) => splitPluralKey(key)?.base ?? key),
+    ),
+  ).sort();
+}
+
+function listPluralGroupGaps(
+  namespace: string,
+  locale: keyof typeof REQUIRED_PLURAL_SUFFIXES,
+  keyMap: FlatMap,
+): string[] {
+  const groups = new Map<string, Set<string>>();
+  for (const key of Object.keys(keyMap)) {
+    const pluralKey = splitPluralKey(key);
+    if (!pluralKey) continue;
+
+    const suffixes = groups.get(pluralKey.base) ?? new Set<string>();
+    suffixes.add(pluralKey.suffix);
+    groups.set(pluralKey.base, suffixes);
+  }
+
+  const gaps: string[] = [];
+  for (const [base, suffixes] of groups) {
+    for (const requiredSuffix of REQUIRED_PLURAL_SUFFIXES[locale]) {
+      if (!suffixes.has(requiredSuffix)) {
+        gaps.push(`${locale}.${namespace}.${base}_${requiredSuffix}`);
+      }
+    }
+  }
+  return gaps;
+}
+
+function hasLocalePluralGroup(
+  localeMap: Record<string, FlatMap>,
+  ns: string,
+  key: string,
+): boolean {
+  return PLURAL_SUFFIXES.some(
+    (suffix) => localeMap[ns]?.[`${key}_${suffix}`] !== undefined,
+  );
+}
+
 function hasPluralLocaleKey(
   locales: Record<string, Record<string, FlatMap>>,
   ns: string,
   key: string,
 ): boolean {
-  const variants = ["one", "few", "many", "other"];
-  return variants.some((suffix) => hasLocaleKey(locales, ns, `${key}_${suffix}`));
+  return (
+    hasLocalePluralGroup(locales.en, ns, key) &&
+    hasLocalePluralGroup(locales.pl, ns, key)
+  );
 }
 
 describe("i18n locale audit", () => {
@@ -102,11 +166,22 @@ describe("i18n locale audit", () => {
   });
 
   it("keeps key parity between en and pl in every namespace", () => {
+    const pluralGaps: string[] = [];
+
     for (const namespace of Object.keys(locales.en)) {
-      const enKeys = Object.keys(locales.en[namespace] || {}).sort();
-      const plKeys = Object.keys(locales.pl[namespace] || {}).sort();
+      const enMap = locales.en[namespace] || {};
+      const plMap = locales.pl[namespace] || {};
+      const enKeys = normalizePluralKeys(enMap);
+      const plKeys = normalizePluralKeys(plMap);
       expect(plKeys).toEqual(enKeys);
+
+      pluralGaps.push(
+        ...listPluralGroupGaps(namespace, "en", enMap),
+        ...listPluralGroupGaps(namespace, "pl", plMap),
+      );
     }
+
+    expect(pluralGaps).toEqual([]);
   });
 
   it("does not leave known English/technical leakage in pl copy", () => {
@@ -169,7 +244,7 @@ describe("i18n locale audit", () => {
         if (!ns || !key || key.includes("${")) continue;
 
         const hasKey = hasLocaleKey(locales, ns, key);
-        const usesCount = /\bcount\s*:/u.test(optionsSnippet);
+        const usesCount = /\bcount\s*(?::|,)/u.test(optionsSnippet);
         const hasPluralKey = usesCount && hasPluralLocaleKey(locales, ns, key);
 
         if (!hasKey && !hasPluralKey) {

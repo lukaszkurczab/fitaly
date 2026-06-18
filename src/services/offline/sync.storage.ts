@@ -23,6 +23,10 @@ function keyLastSmartMemoryPull(uid: string) {
   return `sync:last_pull_smart_memory:${uid}`;
 }
 
+function keyLastFoodLibraryPull(uid: string) {
+  return `sync:last_pull_food_library:${uid}`;
+}
+
 function keyLastPullCheck(uid: string, domain: PullCheckDomain) {
   return `sync:last_pull_check:${domain}:${uid}`;
 }
@@ -67,6 +71,19 @@ export async function getLastSmartMemoryPullTs(
   uid: string,
 ): Promise<string | null> {
   return AsyncStorage.getItem(keyLastSmartMemoryPull(uid));
+}
+
+export async function setLastFoodLibraryPullTs(
+  uid: string,
+  iso: string,
+): Promise<void> {
+  await AsyncStorage.setItem(keyLastFoodLibraryPull(uid), iso);
+}
+
+export async function getLastFoodLibraryPullTs(
+  uid: string,
+): Promise<string | null> {
+  return AsyncStorage.getItem(keyLastFoodLibraryPull(uid));
 }
 
 export async function setLastPullCheckTs(

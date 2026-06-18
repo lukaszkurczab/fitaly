@@ -116,12 +116,18 @@ type AutocompleteSourceClass =
   | "global"
   | "user_scoped";
 type AutocompleteSelectionState = "selected";
+type IngredientProductCreateOutcome = "synced" | "queued" | "failed";
 
 type AutocompleteTelemetryInput = {
   surface: AutocompleteSurface;
   resultCount: number;
   sourceClass: AutocompleteSourceClass;
   warningReason?: string | null;
+};
+
+type IngredientProductCreateTelemetryInput = {
+  surface: AutocompleteSurface;
+  outcome: IngredientProductCreateOutcome;
 };
 
 function normalizeNotificationValue(value: string | null | undefined): string | null {
@@ -344,6 +350,15 @@ export function trackAutocompleteResultSelected(
     ...buildAutocompleteProps(input),
     rankBucket: toAutocompleteRankBucket(input.rank),
     selectionState: input.selectionState ?? "selected",
+  });
+}
+
+export function trackIngredientProductCreateOutcome(
+  input: IngredientProductCreateTelemetryInput,
+): Promise<void> {
+  return track("ingredient_product_create_outcome", {
+    surface: input.surface,
+    outcome: input.outcome,
   });
 }
 

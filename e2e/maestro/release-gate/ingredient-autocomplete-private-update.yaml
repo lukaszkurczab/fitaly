@@ -1,0 +1,91 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Prywatny update QA
+- extendedWaitUntil:
+    visible:
+      id: ingredient-autocomplete-warning
+    timeout: 10000
+- assertVisible:
+    id: ingredient-autocomplete-results
+- assertVisible:
+    id: ingredient-autocomplete-row-0
+- tapOn:
+    id: ingredient-autocomplete-row-0
+- assertVisible: Prywatny update QA
+- assertVisible:
+    id: ingredient-editor-product-delete-panel
+- assertVisible:
+    id: ingredient-editor-product-update-button
+- assertVisible:
+    id: ingredient-editor-product-delete-button
+- assertNotVisible:
+    id: ingredient-editor-delete-button
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Prywatny update QA Runtime
+- assertVisible:
+    id: ingredient-editor-product-update-button
+- tapOn:
+    id: ingredient-editor-product-update-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-product-update-success
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Prywatny update QA Runtime
+- extendedWaitUntil:
+    visible:
+      id: ingredient-autocomplete-results
+    timeout: 10000
+- assertVisible:
+    id: ingredient-autocomplete-row-0
+- assertVisible: Prywatny update QA Runtime

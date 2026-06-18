@@ -11,6 +11,7 @@ import {
   INGREDIENT_PRODUCT_PROFILE_COMPATIBILITY_STATUSES,
   INGREDIENT_PRODUCT_RANKING_SIGNALS,
   INGREDIENT_PRODUCT_RECORD_SCOPES,
+  INGREDIENT_PRODUCT_REMOVAL_REASONS,
   INGREDIENT_PRODUCT_SERVING_UNITS,
   INGREDIENT_PRODUCT_SOURCE_TYPES,
   INGREDIENT_PRODUCT_WARNING_REASON_CODES,
@@ -19,8 +20,13 @@ import {
   type IngredientProductConfidence,
   type IngredientProductCreateRequest,
   type IngredientProductCreateResponse,
+  type IngredientProductDeleteRequest,
+  type IngredientProductDeleteResponse,
   type IngredientProductDietaryFlag,
   type IngredientProductNutritionPer100,
+  type IngredientProductPulledRecord,
+  type IngredientProductPullResponse,
+  type IngredientProductRemovedRecord,
   type IngredientProductProfileCompatibility,
   type IngredientProductRankingSignal,
   type IngredientProductSearchCachePolicy,
@@ -31,14 +37,24 @@ import {
   type IngredientProductServing,
   type IngredientProductServingSize,
   type IngredientProductSourceAttribution,
+  type IngredientProductUpdateRequest,
+  type IngredientProductUpdateResponse,
   type IngredientProductWarningReasonCode,
 } from "@/types/foodLibrary";
 
 const SEARCH_ENDPOINT = withV2("/users/me/ingredient-products/search");
 const CREATE_ENDPOINT = withV2("/users/me/ingredient-products");
+const PULL_ENDPOINT = withV2("/users/me/ingredient-products/pull");
 export const INGREDIENT_PRODUCT_SEARCH_MIN_QUERY_LENGTH = 2;
 export const INGREDIENT_PRODUCT_SEARCH_DEFAULT_LIMIT = 8;
 export const INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT = 12;
+export const INGREDIENT_PRODUCT_PULL_DEFAULT_LIMIT = 100;
+export const INGREDIENT_PRODUCT_PULL_MAX_LIMIT = 250;
+
+type IngredientProductUpdateBody = Omit<
+  IngredientProductUpdateRequest,
+  "ingredientProductId"
+>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -101,6 +117,14 @@ export function clampIngredientProductSearchLimit(limit: number | undefined): nu
   return Math.max(
     1,
     Math.min(Math.floor(Number(limit)), INGREDIENT_PRODUCT_SEARCH_MAX_LIMIT),
+  );
+}
+
+export function clampIngredientProductPullLimit(limit: number | undefined): number {
+  if (!Number.isFinite(limit)) return INGREDIENT_PRODUCT_PULL_DEFAULT_LIMIT;
+  return Math.max(
+    1,
+    Math.min(Math.floor(Number(limit)), INGREDIENT_PRODUCT_PULL_MAX_LIMIT),
   );
 }
 
@@ -369,6 +393,101 @@ export function normalizeIngredientProductCreateResponse(
   };
 }
 
+export function normalizeIngredientProductUpdateResponse(
+  raw: unknown,
+): IngredientProductUpdateResponse {
+  const response = isRecord(raw) ? raw : {};
+  const item = normalizeIngredientProductSearchRow(response.item);
+  if (!item || typeof response.updated !== "boolean") {
+    throw new Error("Invalid Ingredient/Product update response.");
+  }
+  return {
+    item,
+    updated: response.updated,
+  };
+}
+
+export function normalizeIngredientProductDeleteResponse(
+  raw: unknown,
+): IngredientProductDeleteResponse {
+  const response = isRecord(raw) ? raw : {};
+  const ingredientProductId = requiredString(response.ingredientProductId);
+  const updatedAt = requiredString(response.updatedAt);
+  if (
+    !ingredientProductId ||
+    !updatedAt ||
+    typeof response.updated !== "boolean"
+  ) {
+    throw new Error("Invalid Ingredient/Product delete response.");
+  }
+  return {
+    ingredientProductId,
+    updatedAt,
+    updated: response.updated,
+  };
+}
+
+export function normalizeIngredientProductPullResponse(
+  raw: unknown,
+): IngredientProductPullResponse {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.records) ||
+    !Array.isArray(raw.removedRecords)
+  ) {
+    throw new Error("Invalid Ingredient/Product pull response.");
+  }
+
+  const records: IngredientProductPulledRecord[] = raw.records.map(
+    (rawRecord): IngredientProductPulledRecord => {
+      if (!isRecord(rawRecord) || typeof rawRecord.updatedAt !== "string") {
+        throw new Error("Invalid Ingredient/Product pull response.");
+      }
+      const item = normalizeIngredientProductSearchRow(rawRecord.item);
+      if (!item) {
+        throw new Error("Invalid Ingredient/Product pull response.");
+      }
+      return {
+        item,
+        updatedAt: rawRecord.updatedAt,
+        creationClientMutationId: optionalString(
+          rawRecord.creationClientMutationId,
+        ),
+      };
+    },
+  );
+  const removedRecords: IngredientProductRemovedRecord[] = raw.removedRecords.map(
+    (rawRecord): IngredientProductRemovedRecord => {
+      if (!isRecord(rawRecord)) {
+        throw new Error("Invalid Ingredient/Product pull response.");
+      }
+      const ingredientProductId = requiredString(rawRecord.ingredientProductId);
+      const updatedAt = requiredString(rawRecord.updatedAt);
+      if (
+        !ingredientProductId ||
+        !updatedAt ||
+        !isOneOf(rawRecord.removalReason, INGREDIENT_PRODUCT_REMOVAL_REASONS)
+      ) {
+        throw new Error("Invalid Ingredient/Product pull response.");
+      }
+      return {
+        ingredientProductId,
+        updatedAt,
+        removalReason: rawRecord.removalReason,
+      };
+    },
+  );
+  const nextUpdatedAfter = optionalString(raw.nextUpdatedAfter);
+  if (raw.nextUpdatedAfter != null && nextUpdatedAfter === null) {
+    throw new Error("Invalid Ingredient/Product pull response.");
+  }
+  return {
+    records,
+    removedRecords,
+    nextUpdatedAfter,
+  };
+}
+
 function buildSearchPath(request: IngredientProductSearchRequest): string {
   const params = new URLSearchParams();
   params.set("query", request.query.trim());
@@ -384,6 +503,111 @@ function buildSearchPath(request: IngredientProductSearchRequest): string {
     params.set("includeGlobal", String(request.includeGlobal));
   }
   return `${SEARCH_ENDPOINT}?${params.toString()}`;
+}
+
+function buildPullPath(request: {
+  updatedAfter?: string | null;
+  limit?: number;
+}): string {
+  const params = new URLSearchParams();
+  params.set("limit", String(clampIngredientProductPullLimit(request.limit)));
+  if (request.updatedAfter) params.set("updatedAfter", request.updatedAfter);
+  return `${PULL_ENDPOINT}?${params.toString()}`;
+}
+
+function buildDeletePath(ingredientProductId: string): string {
+  return withV2(
+    `/users/me/ingredient-products/${encodeURIComponent(ingredientProductId)}/delete`,
+  );
+}
+
+function buildUpdatePath(ingredientProductId: string): string {
+  return withV2(
+    `/users/me/ingredient-products/${encodeURIComponent(ingredientProductId)}/update`,
+  );
+}
+
+function buildUpdateBody(
+  request: IngredientProductUpdateRequest,
+): IngredientProductUpdateBody {
+  const body: IngredientProductUpdateBody = {
+    clientMutationId: request.clientMutationId,
+  };
+
+  if (
+    Object.prototype.hasOwnProperty.call(request, "displayName") &&
+    request.displayName !== undefined
+  ) {
+    body.displayName = request.displayName;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "kind") &&
+    request.kind !== undefined
+  ) {
+    body.kind = request.kind;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "defaultServing") &&
+    request.defaultServing !== undefined
+  ) {
+    body.defaultServing = request.defaultServing;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "nutritionPer100") &&
+    request.nutritionPer100 !== undefined
+  ) {
+    body.nutritionPer100 = request.nutritionPer100;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "brandName") &&
+    request.brandName !== undefined
+  ) {
+    body.brandName = request.brandName;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "ingredientName") &&
+    request.ingredientName !== undefined
+  ) {
+    body.ingredientName = request.ingredientName;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "packageName") &&
+    request.packageName !== undefined
+  ) {
+    body.packageName = request.packageName;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "category") &&
+    request.category !== undefined
+  ) {
+    body.category = request.category;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "servingSizes") &&
+    request.servingSizes !== undefined
+  ) {
+    body.servingSizes = request.servingSizes;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "dietaryFlags") &&
+    request.dietaryFlags !== undefined
+  ) {
+    body.dietaryFlags = request.dietaryFlags;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(request, "allergenFlags") &&
+    request.allergenFlags !== undefined
+  ) {
+    body.allergenFlags = request.allergenFlags;
+  }
+
+  if (Object.keys(body).length === 1) {
+    throw new Error(
+      "At least one editable Ingredient/Product update field is required.",
+    );
+  }
+
+  return body;
 }
 
 export async function searchIngredientProductsRemote(
@@ -402,5 +626,40 @@ export async function createIngredientProductRemote(
 ): Promise<IngredientProductCreateResponse> {
   return normalizeIngredientProductCreateResponse(
     await post(CREATE_ENDPOINT, request, options),
+  );
+}
+
+export async function updateIngredientProductRemote(
+  request: IngredientProductUpdateRequest,
+  options?: RequestOptions,
+): Promise<IngredientProductUpdateResponse> {
+  return normalizeIngredientProductUpdateResponse(
+    await post(
+      buildUpdatePath(request.ingredientProductId),
+      buildUpdateBody(request),
+      options,
+    ),
+  );
+}
+
+export async function deleteIngredientProductRemote(
+  request: IngredientProductDeleteRequest,
+  options?: RequestOptions,
+): Promise<IngredientProductDeleteResponse> {
+  return normalizeIngredientProductDeleteResponse(
+    await post(
+      buildDeletePath(request.ingredientProductId),
+      { clientMutationId: request.clientMutationId },
+      options,
+    ),
+  );
+}
+
+export async function pullIngredientProductsRemote(
+  request: { updatedAfter?: string | null; limit?: number } = {},
+  options?: RequestOptions,
+): Promise<IngredientProductPullResponse> {
+  return normalizeIngredientProductPullResponse(
+    await get(buildPullPath(request), options),
   );
 }

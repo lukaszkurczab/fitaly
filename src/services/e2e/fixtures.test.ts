@@ -27,6 +27,8 @@ const mockPullSmartMemoryChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockSaveMealTransaction = jest.fn<(input: unknown) => Promise<unknown>>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
+const mockUpsertLocalIngredientProductUserRecord =
+  jest.fn<(params: unknown) => Promise<void>>();
 const mockEmit = jest.fn<(event: string, payload?: unknown) => void>();
 const mockGetSampleMealUri = jest.fn<() => Promise<string>>();
 const mockUpsertSmartMemorySettingsProjection =
@@ -75,6 +77,14 @@ jest.mock("@/services/meals/myMealService", () => ({
     mockUpsertMyMealLocal(uid, meal),
 }));
 
+jest.mock(
+  "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository",
+  () => ({
+    upsertLocalIngredientProductUserRecord: (params: unknown) =>
+      mockUpsertLocalIngredientProductUserRecord(params),
+  }),
+);
+
 jest.mock("@/services/core/events", () => ({
   emit: (event: string, payload?: unknown) => mockEmit(event, payload),
 }));
@@ -109,6 +119,7 @@ describe("E2E fixtures", () => {
     mockSaveMealTransaction.mockResolvedValue({});
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
+    mockUpsertLocalIngredientProductUserRecord.mockResolvedValue(undefined);
     mockGetSampleMealUri.mockResolvedValue("file:///sampleMeal-local.jpg");
     mockUpsertSmartMemorySettingsProjection.mockResolvedValue(undefined);
     mockUpsertSmartMemoryItemProjection.mockResolvedValue(undefined);
@@ -156,6 +167,14 @@ describe("E2E fixtures", () => {
 
     expect(
       parseE2ESeedCommand({
+        fixture: "user-with-private-product-conflict",
+      }),
+    ).toEqual({
+      fixture: "user-with-private-product-conflict",
+    });
+
+    expect(
+      parseE2ESeedCommand({
         fixture: "unknown",
         credits: "bad",
         ai: "bad",
@@ -186,6 +205,7 @@ describe("E2E fixtures", () => {
     expect(mockResetOfflineStorage).not.toHaveBeenCalled();
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
     expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+    expect(mockUpsertLocalIngredientProductUserRecord).not.toHaveBeenCalled();
     expect(getE2EAccessState("user-1")).toBeNull();
     expect(resolveE2EBarcodeLookup()).toBeNull();
     expect(resolveE2ENotificationPermission()).toBeNull();
@@ -515,6 +535,40 @@ describe("E2E fixtures", () => {
         meal: expect.objectContaining({ syncState: "failed" }),
       }),
     );
+  });
+
+  it("seeds a current-user private Product/Ingredient conflict projection for Maestro", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { fixture: "user-with-private-product-conflict" },
+    });
+
+    expect(markers).toEqual(["fixture-user-with-private-product-conflict"]);
+    expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
+    expect(mockUpsertLocalIngredientProductUserRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        syncState: "conflict",
+        updatedAt: expect.stringMatching(/T10:30:00\.000Z$/),
+        lastSyncedAt: 0,
+        lastErrorCode: "food-library/conflict",
+        lastErrorMessage:
+          "Remote Product/Ingredient record conflicts with pending local create.",
+        item: expect.objectContaining({
+          ingredientProductId: "e2e-private-product-conflict",
+          recordScope: "user_scoped",
+          ownerUserId: "user-1",
+          displayName: "Prywatny konflikt QA",
+          ingredientName: "Prywatny konflikt QA",
+          sourceAttribution: expect.objectContaining({
+            sourceType: "user_created",
+            sourceId: "e2e-private-product-conflict-mutation",
+          }),
+        }),
+      }),
+    );
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
   });
 
   it("applies deterministic credits, barcode, AI, billing, and chat state", async () => {
