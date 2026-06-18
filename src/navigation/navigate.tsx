@@ -50,6 +50,7 @@ export type RootStackParamList = {
   PrivacyAiSettings: undefined;
   DataAiClarity: undefined;
   MemoryCenter: undefined;
+  RecipeCatalog: undefined;
   HelpFeedback: undefined;
   ContactSupport: undefined;
   AppSettings: undefined;

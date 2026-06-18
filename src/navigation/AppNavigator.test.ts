@@ -219,6 +219,10 @@ jest.mock("@/feature/UserProfile/screens/MemoryCenterScreen", () => ({
   __esModule: true,
   default: "MemoryCenterScreen",
 }));
+jest.mock("@/feature/Recipes/screens/RecipeCatalogScreen", () => ({
+  __esModule: true,
+  default: "RecipeCatalogScreen",
+}));
 jest.mock("@/feature/UserProfile/screens/HelpFeedbackHubScreen", () => ({
   __esModule: true,
   default: "HelpFeedbackHubScreen",
@@ -364,7 +368,13 @@ describe("AppNavigator onboarding gate", () => {
     expect(registeredRouteNames).toContain("LegalPrivacyHub");
     expect(registeredRouteNames).toContain("PrivacyAiSettings");
     expect(registeredRouteNames).toContain("DataAiClarity");
+    expect(registeredRouteNames).toContain("RecipeCatalog");
     expect(privacyAiSettingsRoute?.component).toBe("PrivacyAiSettingsScreen");
+    expect(
+      mockRegisteredStackScreens.find(
+        (screen) => screen.name === "RecipeCatalog",
+      )?.component,
+    ).toBe("RecipeCatalogScreen");
     expect(
       registeredRouteNames.filter((name) => name === "PrivacyAiSettings"),
     ).toHaveLength(1);

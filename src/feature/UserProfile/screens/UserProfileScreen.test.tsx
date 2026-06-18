@@ -261,6 +261,17 @@ describe("UserProfileScreen", () => {
     expect(navigation.navigate).toHaveBeenCalledWith("MemoryCenter");
   });
 
+  it("links to the read-only recipe catalog from the profile area", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(screen.getByTestId("account-recipe-catalog-row"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("RecipeCatalog");
+  });
+
   it("shows pending sync copy without retry action", () => {
     mockBaseState.syncState = "pending";
 

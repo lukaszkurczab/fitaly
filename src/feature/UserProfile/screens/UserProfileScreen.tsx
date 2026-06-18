@@ -212,6 +212,16 @@ export default function UserProfileScreen({
           />
           <SettingsRow
             {...accountRowProps}
+            leading={renderRowIcon(styles, "saved-items", theme.primaryStrong)}
+            title={t("recipeCatalog.rowTitle")}
+            subtitle={t("recipeCatalog.rowSubtitle")}
+            subtitleNumberOfLines={2}
+            testID="account-recipe-catalog-row"
+            accessibilityHint={t("recipeCatalog.rowHint")}
+            onPress={() => navigation.navigate("RecipeCatalog")}
+          />
+          <SettingsRow
+            {...accountRowProps}
             leading={renderRowIcon(styles, "star", theme.primaryStrong)}
             title={t("manageSubscription.title")}
             testID="account-manage-subscription-row"
