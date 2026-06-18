@@ -7,6 +7,7 @@ import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@contexts/MealDraftContext";
 import type { RootStackParamList } from "@/navigation/navigate";
 import type { Meal, MealInputMethod } from "@/types/meal";
+import type { KnownPatternCandidate } from "@/types/knownPatterns";
 import type { AppIconName } from "@/components/AppIcon";
 import { debugScope } from "@/utils/debug";
 import { emit, on } from "@/services/core/events";
@@ -14,6 +15,11 @@ import {
   isE2EModeEnabled,
 } from "@/services/e2e/config";
 import { getPhotoFullscreenPreference } from "@/feature/Meals/services/photoFullscreenPreference";
+import {
+  fetchKnownPatternCandidatesRemote,
+  markKnownPatternCandidateRemote,
+  openKnownPatternReviewDraftRemote,
+} from "@/services/knownPatterns/knownPatternCandidatesApi";
 
 type MealAddMethodNavigationProp = {
   navigate: Pick<
@@ -193,6 +199,7 @@ export function useMealAddMethodState(params: {
   replaceOnStart?: boolean;
   persistSelection?: boolean;
   resetStackOnStart?: boolean;
+  loadKnownPatternCandidate?: boolean;
 }) {
   const { uid } = useAuthContext();
   const { setMeal, saveDraft, setLastScreen, loadDraft, removeDraft } =
@@ -204,7 +211,12 @@ export function useMealAddMethodState(params: {
   const [resumeScreen, setResumeScreen] =
     useState<DraftResumeScreen | null>(null);
   const [pendingOption, setPendingOption] = useState<MethodOption | null>(null);
+  const [pendingKnownPatternCandidate, setPendingKnownPatternCandidate] =
+    useState<KnownPatternCandidate | null>(null);
   const [resumeDraftMeal, setResumeDraftMeal] = useState<Meal | null>(null);
+  const [knownPatternCandidate, setKnownPatternCandidate] =
+    useState<KnownPatternCandidate | null>(null);
+  const [knownPatternBusy, setKnownPatternBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,6 +319,34 @@ export function useMealAddMethodState(params: {
     [params.navigation, params.replaceOnStart, params.resetStackOnStart],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadKnownPatternCandidate = async () => {
+      if (!params.loadKnownPatternCandidate || !uid) {
+        setKnownPatternCandidate(null);
+        return;
+      }
+
+      try {
+        const response = await fetchKnownPatternCandidatesRemote({ limit: 1 });
+        if (!cancelled) {
+          setKnownPatternCandidate(response.items[0] ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setKnownPatternCandidate(null);
+        }
+      }
+    };
+
+    void loadKnownPatternCandidate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.loadKnownPatternCandidate, uid]);
+
   const executeOption = useCallback(
     async (option: MethodOption) => {
       if (option.key === "saved") {
@@ -362,6 +402,7 @@ export function useMealAddMethodState(params: {
         }
 
         setPendingOption(option);
+        setPendingKnownPatternCandidate(null);
         setResumeScreen(normalizedResumeScreen);
         setResumeDraftMeal(parsed as Meal);
         setShowResumeModal(true);
@@ -378,6 +419,141 @@ export function useMealAddMethodState(params: {
     },
     [removeDraft, uid],
   );
+
+  const checkDraftBeforeKnownPatternLaunch = useCallback(
+    async (candidate: KnownPatternCandidate): Promise<boolean> => {
+      if (!uid) return false;
+
+      const [draftRaw, lastScreenStored] = await Promise.all([
+        AsyncStorage.getItem(getDraftKey(uid)),
+        AsyncStorage.getItem(getScreenKey(uid)),
+      ]);
+
+      if (!draftRaw) {
+        return false;
+      }
+
+      try {
+        const parsed = JSON.parse(draftRaw) as unknown;
+        if (!hasMeaningfulDraft(parsed)) {
+          log.log("Removing inactive meal draft before known-pattern launch.");
+          await removeDraft(uid);
+          return false;
+        }
+
+        const normalizedResumeScreen =
+          normalizeDraftResumeScreen(lastScreenStored);
+
+        if (!normalizedResumeScreen) {
+          log.log("Active draft found but no resumable screen.", {
+            lastScreenStored: lastScreenStored ?? null,
+          });
+          return false;
+        }
+
+        setPendingOption(null);
+        setPendingKnownPatternCandidate(candidate);
+        setResumeScreen(normalizedResumeScreen);
+        setResumeDraftMeal(parsed as Meal);
+        setShowResumeModal(true);
+        return true;
+      } catch {
+        log.log("Removing malformed meal draft payload.");
+        await removeDraft(uid);
+        return false;
+      }
+    },
+    [removeDraft, uid],
+  );
+
+  const executeKnownPatternReview = useCallback(
+    async (candidate: KnownPatternCandidate) => {
+      if (!uid) return;
+
+      setKnownPatternBusy(true);
+      try {
+        const response = await openKnownPatternReviewDraftRemote(
+          candidate.candidateId,
+          {
+            clientMutationId: `known-pattern:review:${uid}:${candidate.candidateId}:${uuidv4()}`,
+            subjectKeyHash: candidate.subjectKeyHash,
+            createdByRuleVersion: candidate.createdByRuleVersion,
+          },
+        );
+        const now = new Date().toISOString();
+        const draft: Meal = {
+          mealId: uuidv4(),
+          userUid: uid,
+          name: response.draft.name,
+          photoUrl: null,
+          ingredients: response.draft.ingredients,
+          totals: response.draft.totals,
+          createdAt: now,
+          updatedAt: now,
+          syncState: "pending",
+          tags: response.draft.tags,
+          deleted: false,
+          notes: response.draft.notes,
+          type: response.draft.type,
+          timestamp: "",
+          source: null,
+          inputMethod: "manual",
+          aiMeta: null,
+        };
+
+        setMeal(draft);
+        await saveDraft(uid, draft);
+        await setLastScreen(uid, "ReviewMeal");
+        setKnownPatternCandidate((current) =>
+          current?.candidateId === candidate.candidateId
+            ? { ...current, state: "shown" }
+            : current,
+        );
+        openAddMeal({ start: "ReviewMeal" });
+      } finally {
+        setKnownPatternBusy(false);
+      }
+    },
+    [openAddMeal, saveDraft, setLastScreen, setMeal, uid],
+  );
+
+  const handleKnownPatternReview = useCallback(async () => {
+    if (!knownPatternCandidate || knownPatternBusy) return;
+
+    const shouldPauseForDraft = await checkDraftBeforeKnownPatternLaunch(
+      knownPatternCandidate,
+    );
+    if (shouldPauseForDraft) {
+      return;
+    }
+
+    await executeKnownPatternReview(knownPatternCandidate);
+  }, [
+    checkDraftBeforeKnownPatternLaunch,
+    executeKnownPatternReview,
+    knownPatternBusy,
+    knownPatternCandidate,
+  ]);
+
+  const handleKnownPatternDismiss = useCallback(async () => {
+    if (!knownPatternCandidate || !uid || knownPatternBusy) return;
+
+    setKnownPatternBusy(true);
+    const dismissedCandidate = knownPatternCandidate;
+    setKnownPatternCandidate(null);
+    try {
+      await markKnownPatternCandidateRemote(dismissedCandidate.candidateId, {
+        clientMutationId: `known-pattern:decline:${uid}:${dismissedCandidate.candidateId}:${uuidv4()}`,
+        subjectKeyHash: dismissedCandidate.subjectKeyHash,
+        createdByRuleVersion: dismissedCandidate.createdByRuleVersion,
+        action: "declined",
+      });
+    } catch {
+      setKnownPatternCandidate(dismissedCandidate);
+    } finally {
+      setKnownPatternBusy(false);
+    }
+  }, [knownPatternBusy, knownPatternCandidate, uid]);
 
   const handleOptionPress = useCallback(
     async (option: MethodOption) => {
@@ -414,6 +590,7 @@ export function useMealAddMethodState(params: {
     setPendingOption(null);
     setResumeScreen(null);
     setResumeDraftMeal(null);
+    setPendingKnownPatternCandidate(null);
 
     if (resumeScreen === "AddMeal") {
       log.log("Resuming AddMeal draft at ReviewMeal.");
@@ -430,17 +607,29 @@ export function useMealAddMethodState(params: {
     setResumeScreen(null);
     setResumeDraftMeal(null);
 
+    const nextKnownPatternCandidate = pendingKnownPatternCandidate;
+    setPendingKnownPatternCandidate(null);
     const nextOption = pendingOption;
     setPendingOption(null);
 
-    if (nextOption) {
+    if (nextKnownPatternCandidate) {
+      await executeKnownPatternReview(nextKnownPatternCandidate);
+    } else if (nextOption) {
       await executeOption(nextOption);
     }
-  }, [executeOption, pendingOption, removeDraft, uid]);
+  }, [
+    executeKnownPatternReview,
+    executeOption,
+    pendingKnownPatternCandidate,
+    pendingOption,
+    removeDraft,
+    uid,
+  ]);
 
   const closeResumeModal = useCallback(() => {
     setShowResumeModal(false);
     setPendingOption(null);
+    setPendingKnownPatternCandidate(null);
     setResumeScreen(null);
     setResumeDraftMeal(null);
   }, []);
@@ -456,5 +645,9 @@ export function useMealAddMethodState(params: {
     handleContinueDraft,
     handleDiscardDraft,
     closeResumeModal,
+    knownPatternCandidate,
+    knownPatternBusy,
+    handleKnownPatternReview,
+    handleKnownPatternDismiss,
   };
 }

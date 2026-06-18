@@ -22,6 +22,7 @@ export const KNOWN_PATTERN_REASON_CODES = [
 export const KNOWN_PATTERN_SUGGESTED_ACTIONS = [
   "open_review_draft",
 ] as const;
+export const KNOWN_PATTERN_CONTROL_ACTIONS = ["shown", "declined"] as const;
 
 export type KnownPatternCandidateType =
   (typeof KNOWN_PATTERN_CANDIDATE_TYPES)[number];
@@ -37,6 +38,8 @@ export type KnownPatternReasonCode =
   (typeof KNOWN_PATTERN_REASON_CODES)[number];
 export type KnownPatternSuggestedAction =
   (typeof KNOWN_PATTERN_SUGGESTED_ACTIONS)[number];
+export type KnownPatternControlAction =
+  (typeof KNOWN_PATTERN_CONTROL_ACTIONS)[number];
 
 export type KnownPatternSourceRef = {
   sourceType: KnownPatternSourceType;
@@ -80,4 +83,64 @@ export type KnownPatternCandidatesResponse = {
 
 export type KnownPatternCandidatesRequest = {
   limit?: number;
+};
+
+export type KnownPatternCandidateControl = {
+  controlId: string;
+  candidateId: string;
+  subjectKeyHash: string;
+  state: KnownPatternControlAction;
+  createdByRuleVersion: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type KnownPatternCandidateControlRequest = {
+  clientMutationId: string;
+  subjectKeyHash: string;
+  createdByRuleVersion: string;
+  action: KnownPatternControlAction;
+};
+
+export type KnownPatternCandidateControlResponse = {
+  control: KnownPatternCandidateControl;
+  updated: boolean;
+};
+
+export type KnownPatternReviewDraftRequest = {
+  clientMutationId: string;
+  subjectKeyHash: string;
+  createdByRuleVersion: string;
+};
+
+export type KnownPatternReviewDraftIngredient = {
+  id: string;
+  name: string;
+  amount: number;
+  unit?: "g" | "ml";
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+};
+
+export type KnownPatternReviewDraft = {
+  name: string | null;
+  type: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+  ingredients: KnownPatternReviewDraftIngredient[];
+  totals: {
+    protein: number;
+    fat: number;
+    carbs: number;
+    kcal: number;
+  };
+  notes: null;
+  tags: string[];
+};
+
+export type KnownPatternReviewDraftResponse = {
+  draft: KnownPatternReviewDraft;
+  control: KnownPatternCandidateControl;
+  updated: boolean;
 };

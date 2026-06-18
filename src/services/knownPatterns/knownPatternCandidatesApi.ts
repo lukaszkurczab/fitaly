@@ -1,18 +1,26 @@
-import { get, type RequestOptions } from "@/services/core/apiClient";
+import { get, post, type RequestOptions } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
 import {
   KNOWN_PATTERN_CANDIDATE_STATES,
   KNOWN_PATTERN_CANDIDATE_TYPES,
+  KNOWN_PATTERN_CONTROL_ACTIONS,
   KNOWN_PATTERN_CONFIDENCE_BUCKETS,
   KNOWN_PATTERN_COUNT_BUCKETS,
   KNOWN_PATTERN_REASON_CODES,
   KNOWN_PATTERN_SOURCE_TYPES,
   KNOWN_PATTERN_SUGGESTED_ACTIONS,
   type KnownPatternCandidate,
+  type KnownPatternCandidateControl,
+  type KnownPatternCandidateControlRequest,
+  type KnownPatternCandidateControlResponse,
   type KnownPatternCandidateQueryEcho,
   type KnownPatternCandidatesRequest,
   type KnownPatternCandidatesResponse,
   type KnownPatternExplanation,
+  type KnownPatternReviewDraft,
+  type KnownPatternReviewDraftIngredient,
+  type KnownPatternReviewDraftRequest,
+  type KnownPatternReviewDraftResponse,
   type KnownPatternSourceRef,
 } from "@/types/knownPatterns";
 
@@ -40,6 +48,37 @@ const CANDIDATE_KEYS = [
 
 const SOURCE_REF_KEYS = ["sourceType", "sourceHash"] as const;
 const EXPLANATION_KEYS = ["key", "reasonCode"] as const;
+const CONTROL_KEYS = [
+  "controlId",
+  "candidateId",
+  "subjectKeyHash",
+  "state",
+  "createdByRuleVersion",
+  "expiresAt",
+  "createdAt",
+  "updatedAt",
+] as const;
+const CONTROL_RESPONSE_KEYS = ["control", "updated"] as const;
+const REVIEW_DRAFT_INGREDIENT_KEYS = [
+  "id",
+  "name",
+  "amount",
+  "unit",
+  "kcal",
+  "protein",
+  "fat",
+  "carbs",
+] as const;
+const REVIEW_DRAFT_TOTALS_KEYS = ["protein", "fat", "carbs", "kcal"] as const;
+const REVIEW_DRAFT_KEYS = [
+  "name",
+  "type",
+  "ingredients",
+  "totals",
+  "notes",
+  "tags",
+] as const;
+const REVIEW_DRAFT_RESPONSE_KEYS = ["draft", "control", "updated"] as const;
 const QUERY_ECHO_KEYS = [
   "ruleVersion",
   "minSourceCount",
@@ -82,6 +121,10 @@ function nonNegativeInteger(value: unknown): number | null {
 
 function positiveInteger(value: unknown): number | null {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function normalizeSourceRef(raw: unknown): KnownPatternSourceRef | null {
@@ -194,6 +237,135 @@ function normalizeCandidate(raw: unknown): KnownPatternCandidate | null {
   };
 }
 
+function normalizeControl(raw: unknown): KnownPatternCandidateControl | null {
+  if (!isRecord(raw) || !hasOnlyKeys(raw, CONTROL_KEYS)) return null;
+
+  const controlId = requiredHash(raw.controlId);
+  const candidateId = requiredHash(raw.candidateId);
+  const subjectKeyHash = requiredHash(raw.subjectKeyHash);
+  const state = isOneOf(raw.state, KNOWN_PATTERN_CONTROL_ACTIONS)
+    ? raw.state
+    : null;
+  const createdByRuleVersion = requiredString(raw.createdByRuleVersion);
+  const expiresAt = requiredString(raw.expiresAt);
+  const createdAt = requiredString(raw.createdAt);
+  const updatedAt = requiredString(raw.updatedAt);
+  if (
+    !controlId ||
+    !candidateId ||
+    !subjectKeyHash ||
+    !state ||
+    !createdByRuleVersion ||
+    !expiresAt ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return null;
+  }
+
+  return {
+    controlId,
+    candidateId,
+    subjectKeyHash,
+    state,
+    createdByRuleVersion,
+    expiresAt,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function normalizeReviewDraftIngredient(
+  raw: unknown,
+): KnownPatternReviewDraftIngredient | null {
+  if (!isRecord(raw) || !hasOnlyKeys(raw, REVIEW_DRAFT_INGREDIENT_KEYS)) {
+    return null;
+  }
+
+  const id = requiredString(raw.id);
+  const name = requiredString(raw.name);
+  const amount = finiteNumber(raw.amount);
+  const kcal = finiteNumber(raw.kcal);
+  const protein = finiteNumber(raw.protein);
+  const fat = finiteNumber(raw.fat);
+  const carbs = finiteNumber(raw.carbs);
+  if (
+    !id ||
+    !name ||
+    amount === null ||
+    kcal === null ||
+    protein === null ||
+    fat === null ||
+    carbs === null
+  ) {
+    return null;
+  }
+
+  const unit = raw.unit === "g" || raw.unit === "ml" ? raw.unit : undefined;
+  return { id, name, amount, unit, kcal, protein, fat, carbs };
+}
+
+function normalizeReviewDraft(raw: unknown): KnownPatternReviewDraft | null {
+  if (!isRecord(raw) || !hasOnlyKeys(raw, REVIEW_DRAFT_KEYS)) return null;
+
+  const name = raw.name === null ? null : requiredString(raw.name);
+  const hasValidName = raw.name === null || name !== null;
+  const mealType = isOneOf(raw.type, [
+    "breakfast",
+    "lunch",
+    "dinner",
+    "snack",
+    "other",
+  ] as const)
+    ? raw.type
+    : null;
+  const ingredients = Array.isArray(raw.ingredients)
+    ? raw.ingredients.map(normalizeReviewDraftIngredient)
+    : null;
+  const totals =
+    isRecord(raw.totals) && hasOnlyKeys(raw.totals, REVIEW_DRAFT_TOTALS_KEYS)
+      ? {
+          protein: finiteNumber(raw.totals.protein),
+          fat: finiteNumber(raw.totals.fat),
+          carbs: finiteNumber(raw.totals.carbs),
+          kcal: finiteNumber(raw.totals.kcal),
+        }
+      : null;
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.filter((tag): tag is string => typeof tag === "string")
+    : null;
+
+  if (
+    !hasValidName ||
+    !mealType ||
+    !ingredients ||
+    ingredients.some((item) => item === null) ||
+    !totals ||
+    totals.protein === null ||
+    totals.fat === null ||
+    totals.carbs === null ||
+    totals.kcal === null ||
+    raw.notes !== null ||
+    !tags
+  ) {
+    return null;
+  }
+
+  return {
+    name,
+    type: mealType,
+    ingredients: ingredients as KnownPatternReviewDraftIngredient[],
+    totals: {
+      protein: totals.protein,
+      fat: totals.fat,
+      carbs: totals.carbs,
+      kcal: totals.kcal,
+    },
+    notes: null,
+    tags,
+  };
+}
+
 function normalizeQueryEcho(raw: unknown): KnownPatternCandidateQueryEcho | null {
   if (!isRecord(raw) || !hasOnlyKeys(raw, QUERY_ECHO_KEYS)) return null;
 
@@ -243,6 +415,35 @@ export function normalizeKnownPatternCandidatesResponse(
   };
 }
 
+export function normalizeKnownPatternCandidateControlResponse(
+  raw: unknown,
+): KnownPatternCandidateControlResponse {
+  if (!isRecord(raw) || !hasOnlyKeys(raw, CONTROL_RESPONSE_KEYS)) {
+    throw new Error(INVALID_KNOWN_PATTERN_RESPONSE);
+  }
+
+  const control = normalizeControl(raw.control);
+  if (!control || typeof raw.updated !== "boolean") {
+    throw new Error(INVALID_KNOWN_PATTERN_RESPONSE);
+  }
+  return { control, updated: raw.updated };
+}
+
+export function normalizeKnownPatternReviewDraftResponse(
+  raw: unknown,
+): KnownPatternReviewDraftResponse {
+  if (!isRecord(raw) || !hasOnlyKeys(raw, REVIEW_DRAFT_RESPONSE_KEYS)) {
+    throw new Error(INVALID_KNOWN_PATTERN_RESPONSE);
+  }
+
+  const draft = normalizeReviewDraft(raw.draft);
+  const control = normalizeControl(raw.control);
+  if (!draft || !control || typeof raw.updated !== "boolean") {
+    throw new Error(INVALID_KNOWN_PATTERN_RESPONSE);
+  }
+  return { draft, control, updated: raw.updated };
+}
+
 function buildKnownPatternCandidatesPath(
   request: KnownPatternCandidatesRequest = {},
 ): string {
@@ -269,5 +470,48 @@ export async function fetchKnownPatternCandidatesRemote(
 ): Promise<KnownPatternCandidatesResponse> {
   return normalizeKnownPatternCandidatesResponse(
     await get(buildKnownPatternCandidatesPath(request), options),
+  );
+}
+
+function buildKnownPatternCandidateActionPath(
+  candidateId: string,
+  action: "control" | "review-draft",
+): string {
+  const normalizedCandidateId = candidateId.trim();
+  if (!HASH_RE.test(normalizedCandidateId)) {
+    throw new Error("Known Pattern candidate id is invalid.");
+  }
+  return `${KNOWN_PATTERN_CANDIDATES_ENDPOINT}/${encodeURIComponent(
+    normalizedCandidateId,
+  )}/${action}`;
+}
+
+export async function markKnownPatternCandidateRemote(
+  candidateId: string,
+  request: KnownPatternCandidateControlRequest,
+  options?: RequestOptions,
+): Promise<KnownPatternCandidateControlResponse> {
+  return normalizeKnownPatternCandidateControlResponse(
+    await post(buildKnownPatternCandidateActionPath(candidateId, "control"), request, {
+      ...options,
+      retryMode: options?.retryMode ?? "idempotent",
+    }),
+  );
+}
+
+export async function openKnownPatternReviewDraftRemote(
+  candidateId: string,
+  request: KnownPatternReviewDraftRequest,
+  options?: RequestOptions,
+): Promise<KnownPatternReviewDraftResponse> {
+  return normalizeKnownPatternReviewDraftResponse(
+    await post(
+      buildKnownPatternCandidateActionPath(candidateId, "review-draft"),
+      request,
+      {
+        ...options,
+        retryMode: options?.retryMode ?? "idempotent",
+      },
+    ),
   );
 }

@@ -13,6 +13,12 @@ const mockSetLastScreen = jest.fn<(uid: string, screen: string) => Promise<void>
 const mockLoadDraft = jest.fn<(uid: string) => Promise<void>>();
 const mockRemoveDraft = jest.fn<(uid: string) => Promise<void>>();
 const mockUseAuthContext = jest.fn();
+const mockFetchKnownPatternCandidatesRemote =
+  jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockMarkKnownPatternCandidateRemote =
+  jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockOpenKnownPatternReviewDraftRemote =
+  jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
@@ -52,6 +58,73 @@ jest.mock("@/services/e2e/config", () => ({
   isE2EModeEnabled: () => false,
 }));
 
+jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
+  fetchKnownPatternCandidatesRemote: (...args: unknown[]) =>
+    mockFetchKnownPatternCandidatesRemote(...args),
+  markKnownPatternCandidateRemote: (...args: unknown[]) =>
+    mockMarkKnownPatternCandidateRemote(...args),
+  openKnownPatternReviewDraftRemote: (...args: unknown[]) =>
+    mockOpenKnownPatternReviewDraftRemote(...args),
+}));
+
+const knownPatternCandidate = {
+  candidateId: "a1b2c3d4e5f6a1b2",
+  candidateType: "repeated_meal_snapshot",
+  subjectKeyHash: "b2c3d4e5f6a1b2c3",
+  state: "candidate",
+  confidenceBucket: "medium",
+  sourceCountBucket: "3_4",
+  distinctDayCountBucket: "3_4",
+  firstSeenAt: "2026-06-15T07:30:00.000Z",
+  lastSeenAt: "2026-06-17T07:40:00.000Z",
+  expiresAt: "2026-07-01T07:40:00.000Z",
+  sourceRefs: [
+    {
+      sourceType: "meal_snapshot",
+      sourceHash: "c3d4e5f6a1b2c3d4",
+    },
+  ],
+  explanation: {
+    key: "knownPattern.explanation.repeatedMealSnapshot",
+    reasonCode: "repeated_meal_recent_distinct_days",
+  },
+  suggestedAction: "open_review_draft",
+  createdByRuleVersion: "known-pattern-v1",
+} as const;
+
+const knownPatternDraftResponse = {
+  draft: {
+    name: "Owsianka z owocami",
+    type: "breakfast",
+    ingredients: [
+      {
+        id: "ingredient-1",
+        name: "Płatki owsiane",
+        amount: 50,
+        unit: "g",
+        kcal: 180,
+        protein: 6,
+        fat: 3,
+        carbs: 32,
+      },
+    ],
+    totals: { kcal: 180, protein: 6, fat: 3, carbs: 32 },
+    notes: null,
+    tags: [],
+  },
+  control: {
+    controlId: "d4e5f6a1b2c3d4e5",
+    candidateId: knownPatternCandidate.candidateId,
+    subjectKeyHash: knownPatternCandidate.subjectKeyHash,
+    state: "shown",
+    createdByRuleVersion: "known-pattern-v1",
+    expiresAt: "2026-07-01T07:40:00.000Z",
+    createdAt: "2026-06-18T07:40:00.000Z",
+    updatedAt: "2026-06-18T07:40:00.000Z",
+  },
+  updated: true,
+} as const;
+
 describe("useMealAddMethodState", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -62,6 +135,14 @@ describe("useMealAddMethodState", () => {
     mockSetLastScreen.mockResolvedValue(undefined);
     mockLoadDraft.mockResolvedValue(undefined);
     mockRemoveDraft.mockResolvedValue(undefined);
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({ items: [] });
+    mockMarkKnownPatternCandidateRemote.mockResolvedValue({
+      control: knownPatternDraftResponse.control,
+      updated: true,
+    });
+    mockOpenKnownPatternReviewDraftRemote.mockResolvedValue(
+      knownPatternDraftResponse,
+    );
   });
 
   it("broadcasts persisted default method changes to other hook instances", async () => {
@@ -389,5 +470,159 @@ describe("useMealAddMethodState", () => {
     expect(mockSetMeal).not.toHaveBeenCalled();
     expect(mockSaveDraft).not.toHaveBeenCalled();
     expect(mockSetLastScreen).not.toHaveBeenCalled();
+  });
+
+  it("opens known-pattern review as an editable local draft without saving a meal", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate],
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate?.candidateId).toBe(
+        knownPatternCandidate.candidateId,
+      );
+    });
+
+    await act(async () => {
+      await result.current.handleKnownPatternReview();
+    });
+
+    expect(mockOpenKnownPatternReviewDraftRemote).toHaveBeenCalledWith(
+      knownPatternCandidate.candidateId,
+      expect.objectContaining({
+        clientMutationId: expect.stringContaining("known-pattern:review:user-1:"),
+        subjectKeyHash: knownPatternCandidate.subjectKeyHash,
+        createdByRuleVersion: "known-pattern-v1",
+      }),
+    );
+    expect(mockSetMeal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Owsianka z owocami",
+        type: "breakfast",
+        inputMethod: "manual",
+        source: null,
+        syncState: "pending",
+        ingredients: knownPatternDraftResponse.draft.ingredients,
+        totals: knownPatternDraftResponse.draft.totals,
+      }),
+    );
+    expect(mockSaveDraft).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ name: "Owsianka z owocami" }),
+    );
+    expect(mockSetLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
+    expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("declines a known-pattern candidate and removes it from the chooser", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate],
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).not.toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.handleKnownPatternDismiss();
+    });
+
+    expect(mockMarkKnownPatternCandidateRemote).toHaveBeenCalledWith(
+      knownPatternCandidate.candidateId,
+      expect.objectContaining({
+        clientMutationId: expect.stringContaining("known-pattern:decline:user-1:"),
+        subjectKeyHash: knownPatternCandidate.subjectKeyHash,
+        createdByRuleVersion: "known-pattern-v1",
+        action: "declined",
+      }),
+    );
+    expect(result.current.knownPatternCandidate).toBeNull();
+    expect(mockSetMeal).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite an active draft before opening a known-pattern review", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate],
+    });
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key === "meal-add-preferred-method") return null;
+      if (key === "draft:user-1") {
+        return JSON.stringify({
+          mealId: "draft-1",
+          createdAt: "2026-06-18T08:00:00.000Z",
+          ingredients: [{ name: "Existing", amount: 120, kcal: 220 }],
+        });
+      }
+      if (key === "screen:user-1") return "AddMeal";
+      return null;
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).not.toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.handleKnownPatternReview();
+    });
+
+    expect(result.current.showResumeModal).toBe(true);
+    expect(mockOpenKnownPatternReviewDraftRemote).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.handleDiscardDraft();
+    });
+
+    expect(mockRemoveDraft).toHaveBeenCalledWith("user-1");
+    expect(mockOpenKnownPatternReviewDraftRemote).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
   });
 });
