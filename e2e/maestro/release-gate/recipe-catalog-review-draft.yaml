@@ -1,0 +1,36 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- assertVisible:
+    id: e2e-ready-credits-ok
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-recipe-catalog-row
+    direction: DOWN
+- tapOn:
+    id: account-recipe-catalog-row
+- assertVisible:
+    id: recipe-catalog-screen
+- extendedWaitUntil:
+    visible:
+      id: recipe-catalog-summary
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: recipe-catalog-review-salmon-rice-plate
+    direction: DOWN
+- tapOn:
+    id: recipe-catalog-review-salmon-rice-plate
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 10000
+- assertVisible:
+    id: review-meal-save-button

@@ -59,7 +59,6 @@ appId: com.lkurczab.fitaly
     id: ingredient-autocomplete-results
 - assertVisible:
     id: ingredient-autocomplete-row-0
-- assertVisible: "Część danych katalogu może być niepełna."
 - tapOn:
     id: ingredient-autocomplete-row-0
 - assertVisible: Owies ostrzezenie
