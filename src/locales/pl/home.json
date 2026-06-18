@@ -20,6 +20,16 @@
   "methodSelector": "Metoda: {{method}}",
   "viewHistory": "Zobacz pełną historię",
   "viewHistoryShort": "Historia",
+  "nextAction": {
+    "dismiss": "Nie teraz",
+    "reviewDraft": {
+      "title": "Dokończ sprawdzanie posiłku",
+      "description": "Masz niedokończony posiłek gotowy do sprawdzenia.",
+      "cta": "Kontynuuj",
+      "unavailable": "Nie udało się otworzyć tego szkicu. Spróbuj z ekranu dodawania posiłku.",
+      "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi. Spróbuj ponownie za chwilę."
+    }
+  },
   "hero": {
     "greeting": {
       "morning": "Dzień dobry, {{name}}",

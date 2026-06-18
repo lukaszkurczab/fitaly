@@ -1,3 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import type { Meal } from "@/types/meal";
+
 export type HomeNextActionType =
   | "log_missing_meal"
   | "continue_review"
@@ -105,6 +109,19 @@ export type SelectHomeNextActionParams = {
   now?: Date | string | number;
 };
 
+export type BuildHomeReviewDraftNextActionParams = {
+  uid: string | null | undefined;
+  dismissedCandidateIds?: readonly string[];
+  now?: Date | string | number;
+};
+
+export type DismissHomeReviewDraftNextActionParams = {
+  uid: string;
+  candidateId: string;
+  sourceVersion: string | null | undefined;
+  now?: Date | string | number;
+};
+
 const ACTION_RANK: Record<HomeNextActionType, number> = {
   continue_review: 1,
   inspect_memory: 2,
@@ -134,6 +151,221 @@ const SOURCE_DOMAINS_BY_ACTION: Record<
   confirm_known_pattern: ["known_pattern_candidate"],
   log_missing_meal: ["home_day"],
 };
+
+const REVIEW_DRAFT_CANDIDATE_ID = "review-draft:local";
+const REVIEW_DRAFT_PRIORITY_BUCKET = 1;
+const REVIEW_DRAFT_DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const RESUMABLE_REVIEW_DRAFT_SCREENS = new Set(["AddMeal", "ReviewMeal"]);
+
+type StoredNextActionDismissal = {
+  candidateId: string;
+  sourceVersion: string | null;
+  dismissedAt: string;
+  dismissedUntil: string;
+};
+
+type StoredNextActionDismissals = Record<string, StoredNextActionDismissal>;
+
+export function getHomeNextActionDismissalsKey(uid: string): string {
+  return `home-next-action-dismissals:${uid}`;
+}
+
+function getDismissalRecordKey(
+  candidateId: string,
+  sourceVersion: string | null | undefined,
+): string {
+  return `${candidateId}:${sourceVersion ?? "none"}`;
+}
+
+const hasNonEmptyText = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const isPositiveNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value > 0;
+
+function ingredientHasMeaningfulContent(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const ingredient = payload as Partial<Meal["ingredients"][number]>;
+
+  return Boolean(
+    hasNonEmptyText(ingredient.name) ||
+      isPositiveNumber(ingredient.amount) ||
+      isPositiveNumber(ingredient.kcal) ||
+      isPositiveNumber(ingredient.protein) ||
+      isPositiveNumber(ingredient.carbs) ||
+      isPositiveNumber(ingredient.fat),
+  );
+}
+
+export function hasMeaningfulReviewDraft(payload: unknown): payload is Meal {
+  if (!payload || typeof payload !== "object") return false;
+  const draft = payload as Partial<Meal> & { isDirty?: unknown };
+  const hasIdentity =
+    hasNonEmptyText(draft.mealId) || hasNonEmptyText(draft.createdAt);
+  if (!hasIdentity) return false;
+
+  const hasIngredients =
+    Array.isArray(draft.ingredients) &&
+    draft.ingredients.some((ingredient) =>
+      ingredientHasMeaningfulContent(ingredient),
+    );
+  const hasPhoto =
+    hasNonEmptyText(draft.photoUrl) ||
+    hasNonEmptyText(draft.localPhotoUrl) ||
+    hasNonEmptyText(draft.photoLocalPath) ||
+    hasNonEmptyText(draft.imageRef?.downloadUrl);
+  const hasTotals =
+    !!draft.totals &&
+    (isPositiveNumber(draft.totals.kcal) ||
+      isPositiveNumber(draft.totals.protein) ||
+      isPositiveNumber(draft.totals.carbs) ||
+      isPositiveNumber(draft.totals.fat));
+  const hasDirtyFlag = draft.isDirty === true;
+
+  return hasIngredients || hasPhoto || hasTotals || hasDirtyFlag;
+}
+
+function reviewDraftNoAction(
+  reasonCode: HomeNextActionReasonCode,
+): HomeNextActionNoActionCandidate {
+  return {
+    candidateId: REVIEW_DRAFT_CANDIDATE_ID,
+    sourceDomain: "review_draft",
+    state: "no_action",
+    priorityBucket: REVIEW_DRAFT_PRIORITY_BUCKET,
+    reasonCode,
+  };
+}
+
+function parseStoredDismissals(raw: string | null): StoredNextActionDismissals {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed as StoredNextActionDismissals;
+  } catch {
+    return {};
+  }
+}
+
+function isDismissalActive(
+  dismissals: StoredNextActionDismissals,
+  candidateId: string,
+  sourceVersion: string | null | undefined,
+  nowTimestamp: number,
+): boolean {
+  const record =
+    dismissals[getDismissalRecordKey(candidateId, sourceVersion)] ?? null;
+  if (!record || record.candidateId !== candidateId) return false;
+  if ((record.sourceVersion ?? null) !== (sourceVersion ?? null)) return false;
+
+  const dismissedUntilTimestamp = toTimestamp(record.dismissedUntil);
+  return (
+    dismissedUntilTimestamp !== null &&
+    dismissedUntilTimestamp > nowTimestamp
+  );
+}
+
+function buildReviewDraftAction(sourceVersion: string | null): HomeNextActionCandidate {
+  return {
+    candidateId: REVIEW_DRAFT_CANDIDATE_ID,
+    actionType: "continue_review",
+    sourceDomain: "review_draft",
+    state: "eligible",
+    priorityBucket: REVIEW_DRAFT_PRIORITY_BUCKET,
+    reasonCode: "review_draft_available",
+    ownerFlow: "ReviewMeal",
+    deepLink: {
+      targetOwnerFlow: "ReviewMeal",
+      params: { route: "AddMeal", start: "ReviewMeal" },
+    },
+    sourceVersion,
+  };
+}
+
+export async function buildHomeReviewDraftNextActionCandidate({
+  uid,
+  dismissedCandidateIds = [],
+  now,
+}: BuildHomeReviewDraftNextActionParams): Promise<HomeNextActionInput> {
+  if (!uid) {
+    return reviewDraftNoAction("context_unavailable");
+  }
+
+  let draftRaw: string | null;
+  let lastScreenStored: string | null;
+  let dismissalsRaw: string | null;
+  try {
+    [draftRaw, lastScreenStored, dismissalsRaw] = await Promise.all([
+      AsyncStorage.getItem(getDraftKey(uid)),
+      AsyncStorage.getItem(getScreenKey(uid)),
+      AsyncStorage.getItem(getHomeNextActionDismissalsKey(uid)),
+    ]);
+  } catch {
+    return reviewDraftNoAction("source_unavailable");
+  }
+
+  if (!draftRaw) {
+    return reviewDraftNoAction("inputs_insufficient");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(draftRaw);
+  } catch {
+    return reviewDraftNoAction("inputs_degraded");
+  }
+
+  if (!hasMeaningfulReviewDraft(parsed)) {
+    return reviewDraftNoAction("inputs_insufficient");
+  }
+
+  if (!lastScreenStored || !RESUMABLE_REVIEW_DRAFT_SCREENS.has(lastScreenStored)) {
+    return reviewDraftNoAction("owner_flow_missing");
+  }
+
+  const draft = parsed as Partial<Meal>;
+  const sourceVersion = draft.updatedAt ?? draft.createdAt ?? null;
+  if (
+    dismissedCandidateIds.includes(REVIEW_DRAFT_CANDIDATE_ID) ||
+    isDismissalActive(
+      parseStoredDismissals(dismissalsRaw),
+      REVIEW_DRAFT_CANDIDATE_ID,
+      sourceVersion,
+      toTimestamp(now) ?? Date.now(),
+    )
+  ) {
+    return reviewDraftNoAction("candidate_dismissed");
+  }
+
+  return buildReviewDraftAction(sourceVersion);
+}
+
+export async function dismissHomeReviewDraftNextAction({
+  uid,
+  candidateId,
+  sourceVersion,
+  now,
+}: DismissHomeReviewDraftNextActionParams): Promise<void> {
+  const nowTimestamp = toTimestamp(now) ?? Date.now();
+  const dismissedAt = new Date(nowTimestamp).toISOString();
+  const dismissedUntil = new Date(
+    nowTimestamp + REVIEW_DRAFT_DISMISS_COOLDOWN_MS,
+  ).toISOString();
+  const storageKey = getHomeNextActionDismissalsKey(uid);
+  const existing = parseStoredDismissals(await AsyncStorage.getItem(storageKey));
+
+  existing[getDismissalRecordKey(candidateId, sourceVersion)] = {
+    candidateId,
+    sourceVersion: sourceVersion ?? null,
+    dismissedAt,
+    dismissedUntil,
+  };
+
+  await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
+}
 
 function getStateSuppressionReason(
   candidate: HomeNextActionCandidate,

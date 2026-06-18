@@ -1,5 +1,10 @@
-import { describe, expect, it } from "@jest/globals";
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
 import {
+  buildHomeReviewDraftNextActionCandidate,
+  dismissHomeReviewDraftNextAction,
+  getHomeNextActionDismissalsKey,
   rankHomeNextActionCandidates,
   selectHomeNextAction,
 } from "@/feature/Home/services/homeNextActionSelector";
@@ -10,10 +15,40 @@ import type {
   HomeNextActionReasonCode,
   HomeNextActionType,
 } from "@/feature/Home/services/homeNextActionSelector";
+import type { Meal } from "@/types/meal";
 
 const NOW = "2026-06-18T12:00:00.000Z";
 const FUTURE = "2026-06-18T13:00:00.000Z";
 const PAST = "2026-06-18T11:00:00.000Z";
+
+const meaningfulDraft: Meal = {
+  userUid: "user-1",
+  mealId: "draft-1",
+  timestamp: "",
+  type: "breakfast",
+  name: "Draft breakfast",
+  ingredients: [
+    {
+      id: "ingredient-1",
+      name: "Oats",
+      amount: 80,
+      unit: "g",
+      kcal: 300,
+      protein: 10,
+      fat: 6,
+      carbs: 52,
+    },
+  ],
+  createdAt: "2026-06-18T10:00:00.000Z",
+  updatedAt: "2026-06-18T10:05:00.000Z",
+  syncState: "pending",
+  source: null,
+  inputMethod: "manual",
+  aiMeta: null,
+  tags: [],
+  deleted: false,
+  notes: null,
+};
 
 const OWNER_BY_ACTION: Record<HomeNextActionType, HomeNextActionCandidate["ownerFlow"]> = {
   log_missing_meal: "MealAddMethod",
@@ -75,6 +110,10 @@ function selectedActionType(candidates: HomeNextActionInput[]): HomeNextActionTy
 }
 
 describe("homeNextActionSelector", () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
   it("returns explicit no_action for a new user with no candidates", () => {
     expect(selectHomeNextAction({ candidates: [], now: NOW })).toEqual({
       type: "no_action",
@@ -367,5 +406,170 @@ describe("homeNextActionSelector", () => {
       "memory-b",
       "memory-z",
     ]);
+  });
+
+  it("builds an eligible continue_review candidate for a meaningful AddMeal review draft", async () => {
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1" }),
+    ).resolves.toEqual({
+      candidateId: "review-draft:local",
+      actionType: "continue_review",
+      sourceDomain: "review_draft",
+      state: "eligible",
+      priorityBucket: 1,
+      reasonCode: "review_draft_available",
+      ownerFlow: "ReviewMeal",
+      deepLink: {
+        targetOwnerFlow: "ReviewMeal",
+        params: { route: "AddMeal", start: "ReviewMeal" },
+      },
+      sourceVersion: "2026-06-18T10:05:00.000Z",
+    });
+  });
+
+  it("also treats legacy ReviewMeal last-screen storage as resumable", async () => {
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "ReviewMeal");
+
+    const candidate = await buildHomeReviewDraftNextActionCandidate({
+      uid: "user-1",
+    });
+
+    expect(candidate).toEqual(
+      expect.objectContaining({
+        actionType: "continue_review",
+        state: "eligible",
+        ownerFlow: "ReviewMeal",
+      }),
+    );
+  });
+
+  it("persists review draft dismissal only for the current source version and cooldown window", async () => {
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+
+    await dismissHomeReviewDraftNextAction({
+      uid: "user-1",
+      candidateId: "review-draft:local",
+      sourceVersion: meaningfulDraft.updatedAt,
+      now: NOW,
+    });
+
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "candidate_dismissed",
+      }),
+    );
+    await expect(
+      AsyncStorage.getItem(getHomeNextActionDismissalsKey("user-1")),
+    ).resolves.toContain("review-draft:local");
+
+    await AsyncStorage.setItem(
+      getDraftKey("user-1"),
+      JSON.stringify({
+        ...meaningfulDraft,
+        updatedAt: "2026-06-18T10:06:00.000Z",
+      }),
+    );
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        actionType: "continue_review",
+        state: "eligible",
+      }),
+    );
+
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({
+        uid: "user-1",
+        now: "2026-06-19T12:01:00.000Z",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        actionType: "continue_review",
+        state: "eligible",
+      }),
+    );
+  });
+
+  it("returns explicit no_action for missing uid, missing draft, malformed draft, nonmeaningful draft, nonresumable screen, and dismissed state", async () => {
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: null }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "context_unavailable",
+      }),
+    );
+
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_insufficient",
+      }),
+    );
+
+    await AsyncStorage.setItem(getDraftKey("user-1"), "{bad-json");
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_degraded",
+      }),
+    );
+
+    await AsyncStorage.setItem(
+      getDraftKey("user-1"),
+      JSON.stringify({
+        ...meaningfulDraft,
+        ingredients: [],
+        totals: undefined,
+        photoUrl: null,
+      }),
+    );
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_insufficient",
+      }),
+    );
+
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "DescribeMeal");
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "owner_flow_missing",
+      }),
+    );
+
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({
+        uid: "user-1",
+        dismissedCandidateIds: ["review-draft:local"],
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "candidate_dismissed",
+      }),
+    );
   });
 });

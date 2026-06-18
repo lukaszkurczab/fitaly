@@ -18,6 +18,16 @@
   "methodSelector": "Method: {{method}}",
   "viewHistory": "See full history",
   "viewHistoryShort": "History",
+  "nextAction": {
+    "dismiss": "Not now",
+    "reviewDraft": {
+      "title": "Finish reviewing your meal",
+      "description": "You have an unfinished meal ready to review.",
+      "cta": "Continue",
+      "unavailable": "Couldn't open that draft. Try again from Add meal.",
+      "dismissUnavailable": "Couldn't hide this prompt. Try again in a moment."
+    }
+  },
   "hero": {
     "greeting": {
       "morning": "Good morning, {{name}}",

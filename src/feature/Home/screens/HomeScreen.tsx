@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Layout, Modal } from "@/components";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "@/theme/useTheme";
 import { useTranslation } from "react-i18next";
 import { useUserProfileContext } from "@/context/UserProfileContext";
@@ -18,6 +19,7 @@ import CoachInsightCard from "../components/CoachInsightCard";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { useMealAddMethodState } from "@/feature/Meals/hooks/useMealAddMethodState";
+import { useMealDraftContext } from "@/context/MealDraftContext";
 import { formatMealDayKey } from "@/services/meals/mealMetadata";
 import { useHomeMealDeadLetterRecovery } from "@/feature/Home/hooks/useHomeMealDeadLetterRecovery";
 import { useHomeTodayState } from "@/feature/Home/hooks/useHomeTodayState";
@@ -28,7 +30,17 @@ import {
   shouldRequestHomeCoach,
   shouldRequestHomeWeeklyReport,
 } from "@/feature/Home/services/homeRetentionPresenter";
+import {
+  buildHomeReviewDraftNextActionCandidate,
+  dismissHomeReviewDraftNextAction,
+  selectHomeNextAction,
+} from "@/feature/Home/services/homeNextActionSelector";
+import type {
+  HomeNextActionInput,
+  HomeNextActionSelection,
+} from "@/feature/Home/services/homeNextActionSelector";
 import type { Meal } from "@/types/meal";
+import { emit } from "@/services/core/events";
 
 function buildLast7Days(): WeekDayItem[] {
   const now = new Date();
@@ -70,6 +82,16 @@ type HomeDeadLetterRecoveryBannerProps = {
   retrying: boolean;
   onRetry: () => void;
   onSecondaryAction?: () => void;
+  styles: ReturnType<typeof makeStyles>;
+};
+
+type HomeNextActionPromptProps = {
+  title: string;
+  description: string;
+  actionLabel: string;
+  dismissLabel: string;
+  onAction: () => void;
+  onDismiss: () => void;
   styles: ReturnType<typeof makeStyles>;
 };
 
@@ -147,6 +169,58 @@ function HomeDeadLetterRecoveryBanner({
   );
 }
 
+function HomeNextActionPrompt({
+  title,
+  description,
+  actionLabel,
+  dismissLabel,
+  onAction,
+  onDismiss,
+  styles,
+}: HomeNextActionPromptProps) {
+  return (
+    <View testID="home-next-action-prompt" style={styles.nextActionPrompt}>
+      <View style={styles.nextActionCopy}>
+        <Text testID="home-next-action-title" style={styles.nextActionTitle}>
+          {title}
+        </Text>
+        <Text
+          testID="home-next-action-description"
+          style={styles.nextActionDescription}
+        >
+          {description}
+        </Text>
+      </View>
+      <View style={styles.nextActionButtons}>
+        <Pressable
+          testID="home-next-action-dismiss-button"
+          onPress={onDismiss}
+          accessibilityRole="button"
+          accessibilityLabel={dismissLabel}
+          style={({ pressed }) => [
+            styles.nextActionDismiss,
+            pressed ? styles.nextActionButtonPressed : null,
+          ]}
+        >
+          <Text style={styles.nextActionDismissLabel}>{dismissLabel}</Text>
+        </Pressable>
+        <Pressable
+          testID="home-next-action-continue-button"
+          onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          style={({ pressed }) => [
+            styles.nextActionContinue,
+            pressed ? styles.nextActionButtonPressed : null,
+          ]}
+        >
+          <Text style={styles.nextActionContinueLabel}>{actionLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function getHomeAddMethodPresentation(
   key: string | undefined,
 ): HomeAddMethodPresentation {
@@ -173,7 +247,13 @@ export default function HomeScreen({ navigation }: Props) {
   const { userData } = useUserProfileContext();
   const { uid } = useAuthContext();
   const { canUseFeature } = useAccessContext();
+  const { loadDraft } = useMealDraftContext();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [homeNextActionInput, setHomeNextActionInput] =
+    useState<HomeNextActionInput | null>(null);
+  const homeNextActionInputRef = useRef<HomeNextActionInput | null>(null);
+  const homeNextActionRequestRef = useRef(0);
+  const homeNextActionMountedRef = useRef(false);
   const selectedDayKey = useMemo(
     () => formatMealDayKey(selectedDate),
     [selectedDate],
@@ -193,6 +273,72 @@ export default function HomeScreen({ navigation }: Props) {
     () => getHomeAddMethodPresentation(mealAddEntry.preferredOption.key),
     [mealAddEntry.preferredOption.key],
   );
+
+  useEffect(() => {
+    homeNextActionMountedRef.current = true;
+    return () => {
+      homeNextActionMountedRef.current = false;
+    };
+  }, []);
+
+  const refreshHomeNextAction = useCallback(() => {
+    const requestId = homeNextActionRequestRef.current + 1;
+    homeNextActionRequestRef.current = requestId;
+
+    void buildHomeReviewDraftNextActionCandidate({ uid })
+      .then((candidate) => {
+        if (
+          !homeNextActionMountedRef.current ||
+          homeNextActionRequestRef.current !== requestId
+        ) {
+          return;
+        }
+
+        const nextInput = candidate.state === "no_action" ? null : candidate;
+        if (homeNextActionInputRef.current === null && nextInput === null) {
+          return;
+        }
+
+        homeNextActionInputRef.current = nextInput;
+        setHomeNextActionInput(nextInput);
+      })
+      .catch(() => {
+        if (
+          !homeNextActionMountedRef.current ||
+          homeNextActionRequestRef.current !== requestId
+        ) {
+          return;
+        }
+
+        homeNextActionInputRef.current = null;
+        setHomeNextActionInput(null);
+      });
+  }, [uid]);
+
+  useEffect(() => {
+    refreshHomeNextAction();
+  }, [refreshHomeNextAction]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshHomeNextAction();
+      return undefined;
+    }, [refreshHomeNextAction]),
+  );
+
+  const homeNextActionSelection: HomeNextActionSelection = useMemo(() => {
+    if (!homeNextActionInput) {
+      return {
+        type: "no_action",
+        reasonCode: "inputs_pending",
+        sourceCandidateId: null,
+      };
+    }
+
+    return selectHomeNextAction({
+      candidates: [homeNextActionInput],
+    });
+  }, [homeNextActionInput]);
 
   const { dayMeals, mealCount, consumed, macroTargets } = homeDay;
   const canAccessWeeklyReport =
@@ -431,6 +577,65 @@ export default function HomeScreen({ navigation }: Props) {
     });
   }, [navigation]);
 
+  const showReviewDraftUnavailable = useCallback(() => {
+    homeNextActionInputRef.current = null;
+    setHomeNextActionInput(null);
+    emit("ui:toast", {
+      key: "nextAction.reviewDraft.unavailable",
+      ns: "home",
+    });
+  }, []);
+
+  const handleNextActionContinue = useCallback(() => {
+    if (
+      homeNextActionSelection.type !== "action" ||
+      homeNextActionSelection.action.actionType !== "continue_review" ||
+      !uid
+    ) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await loadDraft(uid);
+        const candidate = await buildHomeReviewDraftNextActionCandidate({ uid });
+        if (candidate.state === "no_action") {
+          showReviewDraftUnavailable();
+          return;
+        }
+        navigation.navigate("AddMeal", { start: "ReviewMeal" });
+      } catch {
+        showReviewDraftUnavailable();
+      }
+    })();
+  }, [
+    homeNextActionSelection,
+    loadDraft,
+    navigation,
+    showReviewDraftUnavailable,
+    uid,
+  ]);
+
+  const handleNextActionDismiss = useCallback(() => {
+    if (homeNextActionSelection.type !== "action" || !uid) {
+      return;
+    }
+
+    const { candidateId, sourceVersion } = homeNextActionSelection.action;
+    homeNextActionInputRef.current = null;
+    setHomeNextActionInput(null);
+    void dismissHomeReviewDraftNextAction({
+      uid,
+      candidateId,
+      sourceVersion,
+    }).catch(() => {
+      emit("ui:toast", {
+        key: "nextAction.reviewDraft.dismissUnavailable",
+        ns: "home",
+      });
+    });
+  }, [homeNextActionSelection, uid]);
+
   return (
     <Layout>
       <View style={[styles.screen, styles.screenGap]} testID="home-screen">
@@ -484,6 +689,20 @@ export default function HomeScreen({ navigation }: Props) {
             styles={styles}
           />
         ))}
+
+        {!mealAddEntry.showResumeModal &&
+        homeNextActionSelection.type === "action" &&
+        homeNextActionSelection.action.actionType === "continue_review" ? (
+          <HomeNextActionPrompt
+            title={t("home:nextAction.reviewDraft.title")}
+            description={t("home:nextAction.reviewDraft.description")}
+            actionLabel={t("home:nextAction.reviewDraft.cta")}
+            dismissLabel={t("home:nextAction.dismiss")}
+            onAction={handleNextActionContinue}
+            onDismiss={handleNextActionDismiss}
+            styles={styles}
+          />
+        ) : null}
 
         {macroTargets ? (
           <MacroTargetsRow
@@ -691,6 +910,67 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     },
     deadLetterSecondaryLabel: {
       color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    nextActionPrompt: {
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+    nextActionCopy: {
+      gap: theme.spacing.xxs,
+    },
+    nextActionTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    nextActionDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    nextActionButtons: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      flexWrap: "wrap",
+      gap: theme.spacing.xs,
+    },
+    nextActionDismiss: {
+      minHeight: 32,
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      borderRadius: theme.rounded.full,
+      backgroundColor: "transparent",
+    },
+    nextActionContinue: {
+      minHeight: 32,
+      justifyContent: "center",
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xxs,
+      borderRadius: theme.rounded.full,
+      backgroundColor: theme.primary,
+    },
+    nextActionButtonPressed: {
+      opacity: 0.82,
+    },
+    nextActionDismissLabel: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    nextActionContinueLabel: {
+      color: theme.cta.primaryText,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
       fontFamily: theme.typography.fontFamily.medium,
