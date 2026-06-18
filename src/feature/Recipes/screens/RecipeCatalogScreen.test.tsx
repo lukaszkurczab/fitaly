@@ -4,11 +4,19 @@ import type { ReactNode } from "react";
 import RecipeCatalogScreen from "@/feature/Recipes/screens/RecipeCatalogScreen";
 import { fetchRecipeCatalogRemote } from "@/services/recipes/recipeCatalogApi";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import type { Meal } from "@/types/meal";
 import type {
   RecipeCatalogFilterResponse,
   RecipeCatalogFilterResult,
   RecipeCatalogRecord,
 } from "@/types/recipes";
+
+const mockUseAuthContext = jest.fn();
+const mockSetMeal = jest.fn<(meal: Meal) => void>();
+const mockSaveDraft = jest.fn<(uid: string, meal?: Meal | null) => Promise<void>>();
+const mockRemoveDraft = jest.fn<(uid: string) => Promise<void>>();
+const mockSetLastScreen = jest.fn<(uid: string, screen: string) => Promise<void>>();
+const mockUuid = jest.fn<() => string>();
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -21,6 +29,23 @@ jest.mock("@/services/recipes/recipeCatalogApi", () => ({
   fetchRecipeCatalogRemote: jest.fn(),
 }));
 
+jest.mock("@/context/AuthContext", () => ({
+  useAuthContext: () => mockUseAuthContext(),
+}));
+
+jest.mock("@/context/MealDraftContext", () => ({
+  useMealDraftContext: () => ({
+    setMeal: mockSetMeal,
+    saveDraft: mockSaveDraft,
+    removeDraft: mockRemoveDraft,
+    setLastScreen: mockSetLastScreen,
+  }),
+}));
+
+jest.mock("uuid", () => ({
+  v4: () => mockUuid(),
+}));
+
 jest.mock("@/components", () => {
   const { Pressable, Text, View } =
     jest.requireActual<typeof import("react-native")>("react-native");
@@ -30,12 +55,19 @@ jest.mock("@/components", () => {
       label,
       onPress,
       testID,
+      disabled,
     }: {
       label?: string;
       onPress?: () => void;
       testID?: string;
+      disabled?: boolean;
     }) => (
-      <Pressable onPress={onPress} testID={testID}>
+      <Pressable
+        accessibilityState={{ disabled: Boolean(disabled) }}
+        disabled={disabled}
+        onPress={disabled ? undefined : onPress}
+        testID={testID}
+      >
         <Text>{label}</Text>
       </Pressable>
     ),
@@ -206,6 +238,11 @@ function response(
 describe("RecipeCatalogScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockSaveDraft.mockResolvedValue(undefined);
+    mockRemoveDraft.mockResolvedValue(undefined);
+    mockSetLastScreen.mockResolvedValue(undefined);
+    mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length + 1}`);
     navigation.canGoBack.mockReturnValue(true);
   });
 
@@ -339,6 +376,9 @@ describe("RecipeCatalogScreen", () => {
     expect(
       await screen.findByTestId("recipe-catalog-hard-recipe-excluded"),
     ).toBeTruthy();
+    expect(
+      screen.queryByTestId("recipe-catalog-review-recipe-excluded"),
+    ).toBeNull();
 
     fireEvent.press(screen.getByTestId("recipe-catalog-reveal-unknown-toggle"));
 
@@ -350,6 +390,9 @@ describe("RecipeCatalogScreen", () => {
     });
     expect(
       await screen.findByTestId("recipe-catalog-unknown-recipe-unknown"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("recipe-catalog-review-recipe-unknown"),
     ).toBeTruthy();
   });
 
@@ -383,5 +426,183 @@ describe("RecipeCatalogScreen", () => {
       expect(mockFetchRecipeCatalogRemote).toHaveBeenCalledTimes(2);
     });
     expect(await screen.findByText("Recipe catalog is empty")).toBeTruthy();
+  });
+
+  it("creates a local Review draft from an explicit visible recipe CTA", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(response());
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Oat bowl");
+    fireEvent.press(screen.getByTestId("recipe-catalog-review-recipe-visible"));
+
+    await waitFor(() => {
+      expect(mockSetMeal).toHaveBeenCalledTimes(1);
+    });
+
+    const draft = mockSetMeal.mock.calls[0][0];
+    expect(draft).toEqual(
+      expect.objectContaining({
+        userUid: "user-1",
+        name: "Oat bowl",
+        source: "manual",
+        inputMethod: "manual",
+        syncState: "pending",
+        totals: {
+          kcal: 420,
+          protein: 18,
+          fat: 12,
+          carbs: 56,
+        },
+      }),
+    );
+    expect(draft.source).not.toBe("recipe");
+    expect(draft.ingredients).toHaveLength(1);
+    expect(draft.ingredients[0]).toEqual(
+      expect.objectContaining({
+        name: "Oats",
+        kcal: 420,
+        protein: 18,
+        fat: 12,
+        carbs: 56,
+      }),
+    );
+    expect(draft.notes).toContain("Recipe catalog estimate");
+    expect(mockSaveDraft).toHaveBeenCalledWith("user-1", draft);
+    expect(mockSetLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("does not render a Review CTA for hard-excluded recipes", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(
+      response({
+        items: [
+          result({
+            recipe: recipe({ recipeId: "recipe-excluded" }),
+            status: "hidden_hard_exclusion",
+            hardExclusionReasons: [
+              {
+                code: "explicit_allergen_match",
+                filterType: "allergy",
+                profileValue: "gluten",
+                catalogFlag: "gluten",
+              },
+            ],
+          }),
+        ],
+        hiddenHardExclusionCount: 1,
+      }),
+    );
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    expect(
+      await screen.findByTestId("recipe-catalog-hard-recipe-excluded"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByTestId("recipe-catalog-review-recipe-excluded"),
+    ).toBeNull();
+    expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps unknown warnings visible and waits for explicit CTA before Review", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(
+      response({
+        items: [
+          result({
+            recipe: recipe({
+              recipeId: "recipe-unknown",
+              profileFlagState: "unknown",
+              unknownAllergenFlags: ["gluten"],
+            }),
+            status: "unknown_reveal_required",
+            unknownReasons: [
+              {
+                code: "unknown_allergen_flag",
+                filterType: "allergy",
+                profileValue: "gluten",
+                catalogFlag: "gluten",
+              },
+            ],
+          }),
+        ],
+        unknownRevealRequiredCount: 1,
+      }),
+    );
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    expect(
+      await screen.findByTestId("recipe-catalog-unknown-recipe-unknown"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("recipe-catalog-estimate-recipe-unknown"),
+    ).toBeTruthy();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+
+    fireEvent.press(screen.getByTestId("recipe-catalog-review-recipe-unknown"));
+
+    await waitFor(() => {
+      expect(mockSetMeal).toHaveBeenCalledTimes(1);
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("keeps Review CTA disabled without uid and does not create a draft", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: null });
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(response());
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Oat bowl");
+    const cta = screen.getByTestId("recipe-catalog-review-recipe-visible");
+    expect(cta.props.accessibilityState).toEqual({ disabled: true });
+
+    fireEvent.press(cta);
+
+    expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(mockSetLastScreen).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("rolls back a partially persisted recipe draft when Review handoff fails", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(response());
+    mockSetLastScreen.mockRejectedValueOnce(new Error("storage failed"));
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Oat bowl");
+    fireEvent.press(screen.getByTestId("recipe-catalog-review-recipe-visible"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("recipe-catalog-review-error")).toBeTruthy();
+    });
+
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1);
+    expect(mockRemoveDraft).toHaveBeenCalledWith("user-1");
+    expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
   });
 });

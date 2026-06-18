@@ -9,8 +9,14 @@ import {
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import EmptyState from "@/components/EmptyState";
+import { useAuthContext } from "@/context/AuthContext";
+import { useMealDraftContext } from "@/context/MealDraftContext";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { fetchRecipeCatalogRemote } from "@/services/recipes/recipeCatalogApi";
+import {
+  buildRecipeReviewDraft,
+  recipeNeedsReviewEstimateNote,
+} from "@/feature/Recipes/services/recipeReviewDraft";
 import type {
   RecipeCatalogFilterResponse,
   RecipeCatalogFilterResult,
@@ -46,8 +52,15 @@ export default function RecipeCatalogScreen({
   const { t } = useTranslation("profile");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { uid } = useAuthContext();
+  const { setMeal, saveDraft, removeDraft, setLastScreen } =
+    useMealDraftContext();
   const [showHidden, setShowHidden] = useState(false);
   const [revealUnknown, setRevealUnknown] = useState(false);
+  const [reviewDraftError, setReviewDraftError] = useState<string | null>(null);
+  const [reviewBusyRecipeId, setReviewBusyRecipeId] = useState<string | null>(
+    null,
+  );
   const [state, setState] = useState<CatalogState>({
     status: "loading",
     data: null,
@@ -108,6 +121,39 @@ export default function RecipeCatalogScreen({
 
     navigation.navigate("Profile");
   };
+
+  const handleReviewRecipe = useCallback(
+    async (item: RecipeCatalogFilterResult) => {
+      if (!uid) {
+        setReviewDraftError(item.recipe.recipeId);
+        return;
+      }
+
+      const draft = buildRecipeReviewDraft({
+        recipe: item.recipe,
+        uid,
+      });
+
+      setReviewDraftError(null);
+      setReviewBusyRecipeId(item.recipe.recipeId);
+      let draftPersisted = false;
+      try {
+        await saveDraft(uid, draft);
+        draftPersisted = true;
+        await setLastScreen(uid, "ReviewMeal");
+        setMeal(draft);
+        navigation.navigate("AddMeal", { start: "ReviewMeal" });
+      } catch {
+        if (draftPersisted) {
+          await removeDraft(uid).catch(() => undefined);
+        }
+        setReviewDraftError(item.recipe.recipeId);
+      } finally {
+        setReviewBusyRecipeId(null);
+      }
+    },
+    [navigation, removeDraft, saveDraft, setLastScreen, setMeal, uid],
+  );
 
   return (
     <FormScreenShell
@@ -178,6 +224,28 @@ export default function RecipeCatalogScreen({
         />
       ) : null}
 
+      {reviewDraftError ? (
+        <InfoBlock
+          testID="recipe-catalog-review-error"
+          tone="error"
+          title={t("recipeCatalog.reviewErrorTitle", {
+            defaultValue: "Review could not start",
+          })}
+          body={
+            uid
+              ? t("recipeCatalog.reviewErrorBody", {
+                  defaultValue:
+                    "Try again. The recipe was not saved or logged.",
+                })
+              : t("recipeCatalog.reviewAuthErrorBody", {
+                  defaultValue:
+                    "Sign in again before reviewing this recipe. Nothing was saved or logged.",
+                })
+          }
+          icon={<AppIcon name="info" size={18} color={theme.error.text} />}
+        />
+      ) : null}
+
       {data ? <CatalogSummary data={data} /> : null}
 
       {isLoading ? (
@@ -214,7 +282,13 @@ export default function RecipeCatalogScreen({
       ) : (
         <View style={styles.list} testID="recipe-catalog-list">
           {data?.items.map((item) => (
-            <RecipeRow key={item.recipe.recipeId} item={item} />
+            <RecipeRow
+              key={item.recipe.recipeId}
+              item={item}
+              canReview={!!uid}
+              reviewBusy={reviewBusyRecipeId === item.recipe.recipeId}
+              onReview={handleReviewRecipe}
+            />
           ))}
         </View>
       )}
@@ -283,7 +357,17 @@ function SummaryPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RecipeRow({ item }: { item: RecipeCatalogFilterResult }) {
+function RecipeRow({
+  item,
+  canReview,
+  reviewBusy,
+  onReview,
+}: {
+  item: RecipeCatalogFilterResult;
+  canReview: boolean;
+  reviewBusy: boolean;
+  onReview: (item: RecipeCatalogFilterResult) => void;
+}) {
   const { t } = useTranslation("profile");
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -291,6 +375,7 @@ function RecipeRow({ item }: { item: RecipeCatalogFilterResult }) {
   const nutrition = recipe.nutritionSnapshot;
   const isUnknown = item.status === "unknown_reveal_required";
   const isExcluded = item.status === "hidden_hard_exclusion";
+  const needsEstimateNote = recipeNeedsReviewEstimateNote(recipe);
 
   return (
     <View
@@ -370,6 +455,18 @@ function RecipeRow({ item }: { item: RecipeCatalogFilterResult }) {
         </Text>
       ) : null}
 
+      {needsEstimateNote ? (
+        <Text
+          style={styles.warningText}
+          testID={`recipe-catalog-estimate-${recipe.recipeId}`}
+        >
+          {t("recipeCatalog.reviewEstimateWarning", {
+            defaultValue:
+              "Nutrition or profile flags are incomplete. Review this estimate before saving.",
+          })}
+        </Text>
+      ) : null}
+
       {item.softPreferenceStatus !== "not_applicable" ? (
         <Text style={styles.mutedText}>
           {t("recipeCatalog.softPreference", {
@@ -378,6 +475,24 @@ function RecipeRow({ item }: { item: RecipeCatalogFilterResult }) {
             status: item.softPreferenceStatus,
           })}
         </Text>
+      ) : null}
+
+      {!isExcluded ? (
+        <Button
+          label={
+            needsEstimateNote
+              ? t("recipeCatalog.reviewEstimateCta", {
+                  defaultValue: "Review estimate",
+                })
+              : t("recipeCatalog.reviewCta", {
+                  defaultValue: "Review recipe",
+                })
+          }
+          variant="secondary"
+          testID={`recipe-catalog-review-${recipe.recipeId}`}
+          disabled={!canReview || reviewBusy}
+          onPress={() => onReview(item)}
+        />
       ) : null}
     </View>
   );

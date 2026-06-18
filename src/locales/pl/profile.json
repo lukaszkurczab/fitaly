@@ -295,7 +295,13 @@
     "statusExcluded": "Wykluczone",
     "hardReasons": "Wykluczone przez jawne flagi katalogu.",
     "unknownReasons": "Niektóre flagi alergenu lub diety są nieznane. Ten przepis nie jest oznaczony jako bezpieczny.",
-    "softPreference": "Dopasowanie preferencji: {{status}}"
+    "softPreference": "Dopasowanie preferencji: {{status}}",
+    "reviewCta": "Sprawdź przepis",
+    "reviewEstimateCta": "Sprawdź estymację",
+    "reviewEstimateWarning": "Dane żywieniowe lub flagi profilu są niepełne. Sprawdź tę estymację przed zapisem.",
+    "reviewErrorTitle": "Nie udało się rozpocząć przeglądu",
+    "reviewErrorBody": "Spróbuj ponownie. Przepis nie został zapisany ani dodany do historii.",
+    "reviewAuthErrorBody": "Zaloguj się ponownie przed sprawdzeniem tego przepisu. Nic nie zostało zapisane ani dodane do historii."
   },
   "accountActionsSectionTitle": "Działania na koncie",
   "logOutSubtitle": "Wyloguj się na tym urządzeniu",

@@ -295,7 +295,13 @@
     "statusExcluded": "Excluded",
     "hardReasons": "Excluded by explicit catalog flags.",
     "unknownReasons": "Some allergen or dietary flags are unknown. This is not marked safe.",
-    "softPreference": "Preference match: {{status}}"
+    "softPreference": "Preference match: {{status}}",
+    "reviewCta": "Review recipe",
+    "reviewEstimateCta": "Review estimate",
+    "reviewEstimateWarning": "Nutrition or profile flags are incomplete. Review this estimate before saving.",
+    "reviewErrorTitle": "Review could not start",
+    "reviewErrorBody": "Try again. The recipe was not saved or logged.",
+    "reviewAuthErrorBody": "Sign in again before reviewing this recipe. Nothing was saved or logged."
   },
   "accountActionsSectionTitle": "Account actions",
   "logOutSubtitle": "Sign out from this device",
