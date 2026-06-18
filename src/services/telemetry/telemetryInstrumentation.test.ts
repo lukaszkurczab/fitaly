@@ -10,6 +10,9 @@ import {
   trackCoachInsightViewed,
   trackEntitlementConfirmationFailed,
   trackEntitlementConfirmed,
+  trackHomeNextActionDismissed,
+  trackHomeNextActionShown,
+  trackHomeNextActionStarted,
   trackIngredientProductCreateOutcome,
   trackMealLogged,
   trackNotificationOpened,
@@ -148,6 +151,22 @@ describe("telemetryInstrumentation", () => {
       surface: "manual_ingredient_sheet",
       outcome: "synced",
     });
+    await trackHomeNextActionShown({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
       origin: "app_boot",
@@ -270,6 +289,22 @@ describe("telemetryInstrumentation", () => {
         outcome: "synced",
       },
     );
+    expect(mockTrack).toHaveBeenNthCalledWith(22, "home_next_action_shown", {
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(23, "home_next_action_started", {
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(24, "home_next_action_dismissed", {
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
   });
 
   it("keeps autocomplete telemetry behavioral and bucketed", async () => {
@@ -365,6 +400,95 @@ describe("telemetryInstrumentation", () => {
           memoryId: expect.anything(),
         }),
       );
+    }
+  });
+
+  it("keeps Home Next Action telemetry behavioral and bounded", async () => {
+    await trackHomeNextActionShown({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+
+    expect(mockTrack).toHaveBeenNthCalledWith(1, "home_next_action_shown", {
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(2, "home_next_action_started", {
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(3, "home_next_action_dismissed", {
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+  });
+
+  it("does not emit raw Home Next Action content, identity, or nutrition props", async () => {
+    const forbiddenPropNames = [
+      "suggestionText",
+      "rawSuggestionText",
+      "mealText",
+      "recipeName",
+      "productName",
+      "ingredientName",
+      "candidateId",
+      "mealId",
+      "barcode",
+      "kcal",
+      "calories",
+      "macros",
+      "protein",
+      "carbs",
+      "fat",
+      "sourceRef",
+      "memoryId",
+      "patternId",
+      "profileHealth",
+      "profileFreeText",
+      "rawProviderPayload",
+      "userId",
+    ];
+
+    await trackHomeNextActionShown({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+
+    for (const [, props] of mockTrack.mock.calls) {
+      expect(Object.keys(props ?? {})).not.toEqual(
+        expect.arrayContaining(forbiddenPropNames),
+      );
+      expect(JSON.stringify(props)).not.toContain("Oats");
+      expect(JSON.stringify(props)).not.toContain("5901234123457");
+      expect(JSON.stringify(props)).not.toContain("draft-1");
     }
   });
 

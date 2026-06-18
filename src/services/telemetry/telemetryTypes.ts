@@ -36,6 +36,9 @@ export const TELEMETRY_EVENT_NAMES = [
   "autocomplete_search_outcome",
   "autocomplete_result_selected",
   "ingredient_product_create_outcome",
+  "home_next_action_shown",
+  "home_next_action_started",
+  "home_next_action_dismissed",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];

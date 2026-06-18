@@ -37,6 +37,12 @@ const mockDiscardFailedUploads =
   jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
+const mockTrackHomeNextActionShown =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockTrackHomeNextActionStarted =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockTrackHomeNextActionDismissed =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
 const mockFocusEffectCallbacks: Array<() => void | (() => void)> = [];
 
@@ -144,6 +150,15 @@ jest.mock("@/services/core/events", () => ({
       handlers.delete(handler);
     };
   },
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackHomeNextActionShown: (...args: unknown[]) =>
+    mockTrackHomeNextActionShown(...args),
+  trackHomeNextActionStarted: (...args: unknown[]) =>
+    mockTrackHomeNextActionStarted(...args),
+  trackHomeNextActionDismissed: (...args: unknown[]) =>
+    mockTrackHomeNextActionDismissed(...args),
 }));
 
 jest.mock("react-i18next", () => ({
@@ -555,6 +570,9 @@ describe("HomeScreen", () => {
     mockRetryFailedUploads.mockResolvedValue(0);
     mockDiscardFailedUploads.mockResolvedValue(0);
     mockRequestSync.mockResolvedValue(undefined);
+    mockTrackHomeNextActionShown.mockResolvedValue(undefined);
+    mockTrackHomeNextActionStarted.mockResolvedValue(undefined);
+    mockTrackHomeNextActionDismissed.mockResolvedValue(undefined);
 
     mockUseUserProfileContext.mockReturnValue({
       userData: {
@@ -888,6 +906,13 @@ describe("HomeScreen", () => {
     ]);
     expect(getByText("Finish reviewing your meal")).toBeTruthy();
     expect(getByText("You have an unfinished meal ready to review.")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
 
     fireEvent.press(getByTestId("home-next-action-continue-button"));
 
@@ -897,7 +922,35 @@ describe("HomeScreen", () => {
     expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    expect(mockTrackHomeNextActionDismissed).not.toHaveBeenCalled();
     expect(handleContinueDraft).not.toHaveBeenCalled();
+  });
+
+  it("emits shown once for the same visible review draft source version", async () => {
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
+
+    await runLatestFocusEffect();
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
   });
 
   it("hides the review draft next action and persists cooldown when dismissed", async () => {
@@ -921,6 +974,13 @@ describe("HomeScreen", () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
     await expect(
       AsyncStorage.getItem("home-next-action-dismissals:user-1"),
     ).resolves.toContain("review-draft:local");
@@ -970,6 +1030,7 @@ describe("HomeScreen", () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(queryByTestId("home-next-action-prompt")).toBeNull();
     });
@@ -1001,6 +1062,7 @@ describe("HomeScreen", () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(queryByTestId("home-next-action-prompt")).toBeNull();
     });
@@ -1030,6 +1092,7 @@ describe("HomeScreen", () => {
       expect(getByText("meals:continue_draft_title")).toBeTruthy();
     });
     expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
   });
 
   it("does not render the review draft next action when the local draft is not eligible", async () => {
@@ -1059,6 +1122,7 @@ describe("HomeScreen", () => {
       });
     });
     expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
   });
 
   it("renders Home photo upload recovery when failed photos exist without meal dead letters", async () => {

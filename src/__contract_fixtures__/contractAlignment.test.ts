@@ -129,6 +129,7 @@ import {
   SMART_MEMORY_USER_VALUE_REASON_CODES,
   type SmartMemoryCoreContract,
 } from "@/types/smartMemory";
+import { TELEMETRY_EVENT_NAMES } from "@/services/telemetry/telemetryTypes";
 
 const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
   "avatarUrl",
@@ -222,6 +223,13 @@ type SmartReminderTelemetryFixture = {
 };
 
 type AutocompleteTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
+};
+
+type HomeNextActionTelemetryFixture = {
   eventNames: string[];
   propsByEvent: Record<string, string[]>;
   disallowedEventNames: string[];
@@ -955,6 +963,112 @@ describe("Autocomplete telemetry contract", () => {
       fs.readFileSync(path.join(FIXTURES_DIR, "autocomplete_telemetry.json")),
     ).toEqual(
       fs.readFileSync(path.join(BACKEND_FIXTURES_DIR, "autocomplete_telemetry.json")),
+    );
+  });
+});
+
+describe("Home Next Action telemetry contract", () => {
+  const fixture = loadFixture<HomeNextActionTelemetryFixture>(
+    "home_next_action_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "home_next_action_shown",
+    "home_next_action_started",
+    "home_next_action_dismissed",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    home_next_action_shown: [
+      "actionType",
+      "state",
+      "reasonCode",
+      "sourceDomain",
+    ],
+    home_next_action_started: ["actionType", "ownerFlow", "state"],
+    home_next_action_dismissed: [
+      "actionType",
+      "reasonCode",
+      "cooldownBucket",
+    ],
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "home_next_action_available",
+    "home_next_action_completed",
+    "home_next_action_failed",
+    "home_next_action_candidate_logged",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "suggestionText",
+    "rawSuggestionText",
+    "mealText",
+    "recipeName",
+    "productName",
+    "ingredientName",
+    "candidateId",
+    "mealId",
+    "userId",
+    "anonymousId",
+    "barcode",
+    "kcal",
+    "calories",
+    "macros",
+    "protein",
+    "carbs",
+    "fat",
+    "sourceRef",
+    "memoryId",
+    "patternId",
+    "profileHealth",
+    "profileFreeText",
+    "healthConditions",
+    "rawPrompt",
+    "rawResponse",
+    "providerPayload",
+    "rawProviderPayload",
+  ] as const;
+
+  test("event names match backend fixture", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+    for (const eventName of fixture.eventNames) {
+      expect(TELEMETRY_EVENT_NAMES).toContain(eventName);
+    }
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("content, identity, nutrition, and provider props stay disallowed on mobile", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "home_next_action_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(
+        path.join(BACKEND_FIXTURES_DIR, "home_next_action_telemetry.json"),
+      ),
     );
   });
 });

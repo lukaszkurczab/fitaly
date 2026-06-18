@@ -130,6 +130,13 @@ type IngredientProductCreateTelemetryInput = {
   outcome: IngredientProductCreateOutcome;
 };
 
+type HomeNextActionTelemetryActionType = "continue_review";
+type HomeNextActionTelemetryState = "eligible";
+type HomeNextActionTelemetryReasonCode = "review_draft_available";
+type HomeNextActionTelemetrySourceDomain = "review_draft";
+type HomeNextActionTelemetryOwnerFlow = "ReviewMeal";
+type HomeNextActionTelemetryCooldownBucket = "24h";
+
 function normalizeNotificationValue(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -359,6 +366,44 @@ export function trackIngredientProductCreateOutcome(
   return track("ingredient_product_create_outcome", {
     surface: input.surface,
     outcome: input.outcome,
+  });
+}
+
+export function trackHomeNextActionShown(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  state: HomeNextActionTelemetryState;
+  reasonCode: HomeNextActionTelemetryReasonCode;
+  sourceDomain: HomeNextActionTelemetrySourceDomain;
+}): Promise<void> {
+  return track("home_next_action_shown", {
+    actionType: input.actionType,
+    state: input.state,
+    reasonCode: input.reasonCode,
+    sourceDomain: input.sourceDomain,
+  });
+}
+
+export function trackHomeNextActionStarted(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  ownerFlow: HomeNextActionTelemetryOwnerFlow;
+  state: HomeNextActionTelemetryState;
+}): Promise<void> {
+  return track("home_next_action_started", {
+    actionType: input.actionType,
+    ownerFlow: input.ownerFlow,
+    state: input.state,
+  });
+}
+
+export function trackHomeNextActionDismissed(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  reasonCode: HomeNextActionTelemetryReasonCode;
+  cooldownBucket: HomeNextActionTelemetryCooldownBucket;
+}): Promise<void> {
+  return track("home_next_action_dismissed", {
+    actionType: input.actionType,
+    reasonCode: input.reasonCode,
+    cooldownBucket: input.cooldownBucket,
   });
 }
 

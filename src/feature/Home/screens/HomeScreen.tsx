@@ -41,6 +41,11 @@ import type {
 } from "@/feature/Home/services/homeNextActionSelector";
 import type { Meal } from "@/types/meal";
 import { emit } from "@/services/core/events";
+import {
+  trackHomeNextActionDismissed,
+  trackHomeNextActionShown,
+  trackHomeNextActionStarted,
+} from "@/services/telemetry/telemetryInstrumentation";
 
 function buildLast7Days(): WeekDayItem[] {
   const now = new Date();
@@ -254,6 +259,7 @@ export default function HomeScreen({ navigation }: Props) {
   const homeNextActionInputRef = useRef<HomeNextActionInput | null>(null);
   const homeNextActionRequestRef = useRef(0);
   const homeNextActionMountedRef = useRef(false);
+  const shownHomeNextActionKeysRef = useRef<Set<string>>(new Set());
   const selectedDayKey = useMemo(
     () => formatMealDayKey(selectedDate),
     [selectedDate],
@@ -339,6 +345,19 @@ export default function HomeScreen({ navigation }: Props) {
       candidates: [homeNextActionInput],
     });
   }, [homeNextActionInput]);
+  const visibleHomeNextAction =
+    !mealAddEntry.showResumeModal &&
+    homeNextActionSelection.type === "action" &&
+    homeNextActionSelection.action.actionType === "continue_review"
+      ? homeNextActionSelection.action
+      : null;
+  const visibleHomeNextActionKey = visibleHomeNextAction
+    ? [
+        visibleHomeNextAction.actionType,
+        visibleHomeNextAction.candidateId,
+        visibleHomeNextAction.sourceVersion ?? "none",
+      ].join(":")
+    : null;
 
   const { dayMeals, mealCount, consumed, macroTargets } = homeDay;
   const canAccessWeeklyReport =
@@ -364,6 +383,24 @@ export default function HomeScreen({ navigation }: Props) {
     dayKey: selectedDayKey,
     active: coachActive,
   });
+
+  useEffect(() => {
+    if (!visibleHomeNextAction || !visibleHomeNextActionKey) {
+      return;
+    }
+
+    if (shownHomeNextActionKeysRef.current.has(visibleHomeNextActionKey)) {
+      return;
+    }
+
+    shownHomeNextActionKeysRef.current.add(visibleHomeNextActionKey);
+    void trackHomeNextActionShown({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    }).catch(() => undefined);
+  }, [visibleHomeNextAction, visibleHomeNextActionKey]);
 
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language || undefined),
@@ -603,6 +640,11 @@ export default function HomeScreen({ navigation }: Props) {
           showReviewDraftUnavailable();
           return;
         }
+        void trackHomeNextActionStarted({
+          actionType: "continue_review",
+          ownerFlow: "ReviewMeal",
+          state: "eligible",
+        }).catch(() => undefined);
         navigation.navigate("AddMeal", { start: "ReviewMeal" });
       } catch {
         showReviewDraftUnavailable();
@@ -622,6 +664,11 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     const { candidateId, sourceVersion } = homeNextActionSelection.action;
+    void trackHomeNextActionDismissed({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    }).catch(() => undefined);
     homeNextActionInputRef.current = null;
     setHomeNextActionInput(null);
     void dismissHomeReviewDraftNextAction({
@@ -690,9 +737,7 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ))}
 
-        {!mealAddEntry.showResumeModal &&
-        homeNextActionSelection.type === "action" &&
-        homeNextActionSelection.action.actionType === "continue_review" ? (
+        {visibleHomeNextAction ? (
           <HomeNextActionPrompt
             title={t("home:nextAction.reviewDraft.title")}
             description={t("home:nextAction.reviewDraft.description")}
