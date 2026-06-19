@@ -11,7 +11,9 @@ import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import HomeScreen from "@/feature/Home/screens/HomeScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
+import type { KnownPatternCandidate } from "@/types/knownPatterns";
 import type { PlannedMealItem } from "@/types/plannedMeals";
 
 const mockReact = React;
@@ -45,6 +47,10 @@ const mockTrackHomeNextActionStarted =
   jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockTrackHomeNextActionDismissed =
   jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockFetchKnownPatternCandidatesRemote =
+  fetchKnownPatternCandidatesRemote as jest.MockedFunction<
+    typeof fetchKnownPatternCandidatesRemote
+  >;
 const mockFetchPlannedMealsRemote =
   fetchPlannedMealsRemote as jest.MockedFunction<typeof fetchPlannedMealsRemote>;
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
@@ -165,6 +171,10 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
     mockTrackHomeNextActionDismissed(...args),
 }));
 
+jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
+  fetchKnownPatternCandidatesRemote: jest.fn(),
+}));
+
 jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
   fetchPlannedMealsRemote: jest.fn(),
 }));
@@ -208,6 +218,13 @@ jest.mock("react-i18next", () => ({
         return "You have a planned item due soon. Open Planning to review it before logging.";
       }
       if (key === "home:nextAction.plannedItem.cta") return "Open Planning";
+      if (key === "home:nextAction.knownPattern.title") {
+        return "Review a recent meal pattern";
+      }
+      if (key === "home:nextAction.knownPattern.description") {
+        return "A repeated meal is ready in Add meal. Review it before saving anything.";
+      }
+      if (key === "home:nextAction.knownPattern.cta") return "Open Add meal";
       if (key === "home:nextAction.dismiss") return "Not now";
       if (key === "home:planningEntry.title") return "Plan next meals";
       if (key === "home:planningEntry.description") {
@@ -591,6 +608,36 @@ function createPlannedItem(
   };
 }
 
+function createKnownPatternCandidate(
+  overrides: Partial<KnownPatternCandidate> = {},
+): KnownPatternCandidate {
+  return {
+    candidateId: "a1b2c3d4e5f6a1b2",
+    candidateType: "repeated_meal_snapshot",
+    subjectKeyHash: "b1c2d3e4f5a6b1c2",
+    state: "candidate",
+    confidenceBucket: "high",
+    sourceCountBucket: "3_4",
+    distinctDayCountBucket: "3_4",
+    firstSeenAt: "2026-03-15T08:00:00.000Z",
+    lastSeenAt: "2026-03-18T08:00:00.000Z",
+    expiresAt: "2026-03-18T13:00:00.000Z",
+    sourceRefs: [
+      {
+        sourceType: "meal_snapshot",
+        sourceHash: "c1d2e3f4a5b6c1d2",
+      },
+    ],
+    explanation: {
+      key: "knownPattern.explanation.repeatedMealSnapshot",
+      reasonCode: "repeated_meal_recent_distinct_days",
+    },
+    suggestedAction: "open_review_draft",
+    createdByRuleVersion: "known-pattern-v1",
+    ...overrides,
+  };
+}
+
 function createCoachInsight(overrides: Record<string, unknown> = {}) {
   return {
     id: "2026-03-18:stable",
@@ -643,6 +690,16 @@ describe("HomeScreen", () => {
     mockTrackHomeNextActionShown.mockResolvedValue(undefined);
     mockTrackHomeNextActionStarted.mockResolvedValue(undefined);
     mockTrackHomeNextActionDismissed.mockResolvedValue(undefined);
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 0,
+      },
+    });
     mockFetchPlannedMealsRemote.mockResolvedValue({
       items: [],
       queryEcho: {
@@ -1061,6 +1118,141 @@ describe("HomeScreen", () => {
     await expect(
       AsyncStorage.getItem("home-next-action-dismissals:user-1"),
     ).resolves.toContain("planned-meal:planned-1");
+  });
+
+  it("renders a known-pattern next action and opens MealAddMethod without loading Review draft", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Review a recent meal pattern")).toBeTruthy();
+    expect(
+      getByText(
+        "A repeated meal is ready in Add meal. Review it before saving anything.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("a1b2c3d4e5f6a1b2")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      state: "eligible",
+      reasonCode: "known_pattern_available",
+      sourceDomain: "known_pattern_candidate",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "temporary",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      ownerFlow: "MealAddMethod",
+      state: "eligible",
+    });
+  });
+
+  it("dismisses a known-pattern next action without declining or opening a draft", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-dismiss-button"));
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "temporary",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      reasonCode: "known_pattern_available",
+      cooldownBucket: "24h",
+    });
+    await expect(
+      AsyncStorage.getItem("home-next-action-dismissals:user-1"),
+    ).resolves.toContain("known-pattern:a1b2c3d4e5f6a1b2");
+  });
+
+  it("keeps planned item as the primary next action when a known pattern also exists", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Check your next planned meal")).toBeTruthy();
+    expect(queryByText("Review a recent meal pattern")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
   });
 
   it("falls back to the review draft next action when planned meals are unavailable", async () => {

@@ -1,7 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
 import type { Meal } from "@/types/meal";
+import type {
+  KnownPatternCandidate,
+  KnownPatternCandidateState,
+} from "@/types/knownPatterns";
 import type {
   PlannedMealItem,
   PlannedMealStatus,
@@ -133,6 +138,11 @@ export type BuildHomePlannedMealNextActionParams = {
   now?: Date | string | number;
 };
 
+export type BuildHomeKnownPatternNextActionParams = {
+  uid: string | null | undefined;
+  now?: Date | string | number;
+};
+
 export type DismissHomeNextActionCandidateParams =
   DismissHomeReviewDraftNextActionParams;
 
@@ -151,7 +161,7 @@ const OWNER_FLOWS_BY_ACTION: Record<
   continue_review: ["ReviewMeal"],
   inspect_memory: ["MemoryCenter"],
   continue_planned_item: ["Planning", "ReviewMeal"],
-  confirm_known_pattern: ["KnownPatternConfirmation"],
+  confirm_known_pattern: ["MealAddMethod", "KnownPatternConfirmation"],
   log_missing_meal: ["MealAddMethod"],
 };
 
@@ -169,6 +179,7 @@ const SOURCE_DOMAINS_BY_ACTION: Record<
 const REVIEW_DRAFT_CANDIDATE_ID = "review-draft:local";
 const REVIEW_DRAFT_PRIORITY_BUCKET = 1;
 const PLANNED_ITEM_PRIORITY_OFFSET = 10;
+const KNOWN_PATTERN_PRIORITY_OFFSET = 20;
 const REVIEW_DRAFT_DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const RESUMABLE_REVIEW_DRAFT_SCREENS = new Set(["AddMeal", "ReviewMeal"]);
 const HOME_PLANNED_ITEM_WINDOW_DAYS = 3;
@@ -176,6 +187,10 @@ const REVIEWABLE_PLANNED_STATUSES = new Set<PlannedMealStatus>([
   "planned",
   "edited",
   "rescheduled",
+]);
+const ACTIONABLE_KNOWN_PATTERN_STATES = new Set<KnownPatternCandidateState>([
+  "candidate",
+  "shown",
 ]);
 const TIME_BUCKET_ORDER: Record<PlannedMealTimeBucket, number> = {
   breakfast: 1,
@@ -387,6 +402,42 @@ function buildPlannedMealAction(
   };
 }
 
+function isHomeActionableKnownPatternCandidate(
+  candidate: KnownPatternCandidate,
+  nowTimestamp: number,
+): boolean {
+  const expiresAt = toTimestamp(candidate.expiresAt);
+  return (
+    ACTIONABLE_KNOWN_PATTERN_STATES.has(candidate.state) &&
+    candidate.suggestedAction === "open_review_draft" &&
+    expiresAt !== null &&
+    expiresAt > nowTimestamp
+  );
+}
+
+function buildKnownPatternAction(
+  candidate: KnownPatternCandidate,
+): HomeNextActionCandidate {
+  return {
+    candidateId: `known-pattern:${candidate.candidateId}`,
+    actionType: "confirm_known_pattern",
+    sourceDomain: "known_pattern_candidate",
+    state: "eligible",
+    priorityBucket: KNOWN_PATTERN_PRIORITY_OFFSET,
+    reasonCode: "known_pattern_available",
+    ownerFlow: "MealAddMethod",
+    deepLink: {
+      targetOwnerFlow: "MealAddMethod",
+      params: { route: "MealAddMethod" },
+    },
+    sourceVersion: [
+      candidate.createdByRuleVersion,
+      candidate.lastSeenAt,
+      candidate.expiresAt,
+    ].join(":"),
+  };
+}
+
 export async function buildHomeReviewDraftNextActionCandidate({
   uid,
   dismissedCandidateIds = [],
@@ -541,6 +592,65 @@ export async function buildHomePlannedMealNextActionCandidate({
       sourceDomain: "planned_meal",
       state: "no_action",
       priorityBucket: PLANNED_ITEM_PRIORITY_OFFSET,
+      reasonCode: "inputs_insufficient",
+    };
+  }
+
+  return candidate;
+}
+
+export async function buildHomeKnownPatternNextActionCandidate({
+  uid,
+  now,
+}: BuildHomeKnownPatternNextActionParams): Promise<HomeNextActionInput> {
+  if (!uid) {
+    return {
+      candidateId: "known-pattern:window",
+      sourceDomain: "known_pattern_candidate",
+      state: "no_action",
+      priorityBucket: KNOWN_PATTERN_PRIORITY_OFFSET,
+      reasonCode: "context_unavailable",
+    };
+  }
+
+  let response;
+  let dismissalsRaw: string | null;
+  try {
+    [response, dismissalsRaw] = await Promise.all([
+      fetchKnownPatternCandidatesRemote({ limit: 1 }),
+      AsyncStorage.getItem(getHomeNextActionDismissalsKey(uid)),
+    ]);
+  } catch {
+    return {
+      candidateId: "known-pattern:window",
+      sourceDomain: "known_pattern_candidate",
+      state: "no_action",
+      priorityBucket: KNOWN_PATTERN_PRIORITY_OFFSET,
+      reasonCode: "source_unavailable",
+    };
+  }
+
+  const nowTimestamp = toTimestamp(now) ?? Date.now();
+  const dismissals = parseStoredDismissals(dismissalsRaw);
+  const candidate = response.items
+    .filter((item) => isHomeActionableKnownPatternCandidate(item, nowTimestamp))
+    .map(buildKnownPatternAction)
+    .find(
+      (item) =>
+        !isDismissalActive(
+          dismissals,
+          item.candidateId,
+          item.sourceVersion,
+          nowTimestamp,
+        ),
+    );
+
+  if (!candidate) {
+    return {
+      candidateId: "known-pattern:window",
+      sourceDomain: "known_pattern_candidate",
+      state: "no_action",
+      priorityBucket: KNOWN_PATTERN_PRIORITY_OFFSET,
       reasonCode: "inputs_insufficient",
     };
   }

@@ -10,6 +10,7 @@ import { resetOfflineStorage } from "@/services/offline/db";
 import { setE2EForcedOffline } from "@/services/e2e/connectivity";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
+  markE2ESeedError,
   markE2ESeedReady,
   markE2EResetReady,
   markE2EResetStarted,
@@ -80,6 +81,21 @@ function isSeedDeepLink(url: string): boolean {
 function isConnectivityDeepLink(url: string): boolean {
   const normalized = url.trim().toLowerCase();
   return normalized.startsWith(CONNECTIVITY_PATH);
+}
+
+function seedErrorTarget(error: unknown): E2EReadyTarget {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : null;
+  if (typeof code !== "string") return "seed";
+
+  const normalized = code
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized ? `seed-${normalized}` : "seed";
 }
 
 function resolveNavigationTarget(logout: boolean): "Login" | "Home" {
@@ -159,11 +175,20 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
   if (isSeedDeepLink(url)) {
     const params = parseQueryParams(url);
     const auth = getAuth(getApp());
-    const markers = await applyE2ESeedCommand({
-      uid: auth.currentUser?.uid ?? null,
-      command: parseE2ESeedCommand(params),
-    });
-    if (markers.length === 0) return false;
+    let markers: string[];
+    try {
+      markers = await applyE2ESeedCommand({
+        uid: auth.currentUser?.uid ?? null,
+        command: parseE2ESeedCommand(params),
+      });
+    } catch (error) {
+      markE2ESeedError(seedErrorTarget(error));
+      return false;
+    }
+    if (markers.length === 0) {
+      markE2ESeedError("seed-empty");
+      return false;
+    }
     markE2ESeedReady(markers);
     return true;
   }

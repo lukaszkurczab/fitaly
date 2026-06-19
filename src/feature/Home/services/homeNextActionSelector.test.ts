@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
 import {
+  buildHomeKnownPatternNextActionCandidate,
   buildHomePlannedMealNextActionCandidate,
   buildHomeReviewDraftNextActionCandidate,
   dismissHomeReviewDraftNextAction,
@@ -18,12 +20,21 @@ import type {
   HomeNextActionType,
 } from "@/feature/Home/services/homeNextActionSelector";
 import type { Meal } from "@/types/meal";
+import type { KnownPatternCandidate } from "@/types/knownPatterns";
 import type { PlannedMealItem } from "@/types/plannedMeals";
+
+jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
+  fetchKnownPatternCandidatesRemote: jest.fn(),
+}));
 
 jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
   fetchPlannedMealsRemote: jest.fn(),
 }));
 
+const mockFetchKnownPatternCandidatesRemote =
+  fetchKnownPatternCandidatesRemote as jest.MockedFunction<
+    typeof fetchKnownPatternCandidatesRemote
+  >;
 const mockFetchPlannedMealsRemote =
   fetchPlannedMealsRemote as jest.MockedFunction<typeof fetchPlannedMealsRemote>;
 
@@ -111,11 +122,41 @@ function plannedItem(
   };
 }
 
+function knownPatternCandidate(
+  overrides: Partial<KnownPatternCandidate> = {},
+): KnownPatternCandidate {
+  return {
+    candidateId: "a1b2c3d4e5f6a1b2",
+    candidateType: "repeated_meal_snapshot",
+    subjectKeyHash: "b1c2d3e4f5a6b1c2",
+    state: "candidate",
+    confidenceBucket: "high",
+    sourceCountBucket: "3_4",
+    distinctDayCountBucket: "3_4",
+    firstSeenAt: "2026-06-15T08:00:00.000Z",
+    lastSeenAt: "2026-06-18T08:00:00.000Z",
+    expiresAt: FUTURE,
+    sourceRefs: [
+      {
+        sourceType: "meal_snapshot",
+        sourceHash: "c1d2e3f4a5b6c1d2",
+      },
+    ],
+    explanation: {
+      key: "knownPattern.explanation.repeatedMealSnapshot",
+      reasonCode: "repeated_meal_recent_distinct_days",
+    },
+    suggestedAction: "open_review_draft",
+    createdByRuleVersion: "known-pattern-v1",
+    ...overrides,
+  };
+}
+
 const OWNER_BY_ACTION: Record<HomeNextActionType, HomeNextActionCandidate["ownerFlow"]> = {
   log_missing_meal: "MealAddMethod",
   continue_review: "ReviewMeal",
   continue_planned_item: "Planning",
-  confirm_known_pattern: "KnownPatternConfirmation",
+  confirm_known_pattern: "MealAddMethod",
   inspect_memory: "MemoryCenter",
 };
 
@@ -173,6 +214,7 @@ function selectedActionType(candidates: HomeNextActionInput[]): HomeNextActionTy
 describe("homeNextActionSelector", () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
+    mockFetchKnownPatternCandidatesRemote.mockReset();
     mockFetchPlannedMealsRemote.mockReset();
   });
 
@@ -714,6 +756,158 @@ describe("homeNextActionSelector", () => {
 
     await expect(
       buildHomePlannedMealNextActionCandidate({
+        uid: "user-1",
+        now: NOW,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_insufficient",
+      }),
+    );
+  });
+
+  it("builds an eligible known-pattern candidate for the existing MealAddMethod surface", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [knownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    await expect(
+      buildHomeKnownPatternNextActionCandidate({
+        uid: "user-1",
+        now: NOW,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        candidateId: "known-pattern:a1b2c3d4e5f6a1b2",
+        actionType: "confirm_known_pattern",
+        sourceDomain: "known_pattern_candidate",
+        state: "eligible",
+        reasonCode: "known_pattern_available",
+        ownerFlow: "MealAddMethod",
+        sourceVersion:
+          "known-pattern-v1:2026-06-18T08:00:00.000Z:2026-06-18T13:00:00.000Z",
+      }),
+    );
+    expect(mockFetchKnownPatternCandidatesRemote).toHaveBeenCalledWith({
+      limit: 1,
+    });
+  });
+
+  it("keeps planned items above known-pattern candidates", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [plannedItem()],
+      queryEcho: {
+        startDate: "2026-06-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [knownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const plannedCandidate = await buildHomePlannedMealNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+    const knownCandidate = await buildHomeKnownPatternNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+
+    expect(
+      selectHomeNextAction({
+        candidates: [knownCandidate, plannedCandidate],
+        now: NOW,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        type: "action",
+        action: expect.objectContaining({
+          actionType: "continue_planned_item",
+        }),
+      }),
+    );
+  });
+
+  it("suppresses unsafe or unavailable known-pattern states", async () => {
+    for (const state of [
+      "declined",
+      "expired",
+      "unavailable",
+      "suppressed",
+      "converted_to_review",
+    ] as const) {
+      mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+        items: [knownPatternCandidate({ state })],
+        queryEcho: {
+          ruleVersion: "known-pattern-v1",
+          minSourceCount: 3,
+          minDistinctDays: 3,
+          maxHistoryItems: 20,
+          returnedCandidates: 1,
+        },
+      });
+
+      await expect(
+        buildHomeKnownPatternNextActionCandidate({
+          uid: "user-1",
+          now: NOW,
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          state: "no_action",
+          reasonCode: "inputs_insufficient",
+        }),
+      );
+    }
+  });
+
+  it("persists known-pattern Home dismissal without declining the candidate", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const firstCandidate = await buildHomeKnownPatternNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+    if (firstCandidate.state === "no_action") {
+      throw new Error("Expected known-pattern action candidate.");
+    }
+
+    await dismissHomeReviewDraftNextAction({
+      uid: "user-1",
+      candidateId: firstCandidate.candidateId,
+      sourceVersion: firstCandidate.sourceVersion,
+      now: NOW,
+    });
+
+    await expect(
+      buildHomeKnownPatternNextActionCandidate({
         uid: "user-1",
         now: NOW,
       }),

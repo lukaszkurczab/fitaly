@@ -7,7 +7,8 @@ export type E2EReadyTarget = string;
 type E2EStatus =
   | { phase: "idle"; target: null }
   | { phase: "resetting"; target: null }
-  | { phase: "ready"; target: E2EReadyTarget; targets: E2EReadyTarget[] };
+  | { phase: "ready"; target: E2EReadyTarget; targets: E2EReadyTarget[] }
+  | { phase: "error"; target: E2EReadyTarget; targets: E2EReadyTarget[] };
 
 type Listener = (status: E2EStatus) => void;
 
@@ -65,6 +66,13 @@ export function markE2ESeedReady(targets: E2EReadyTarget[]): void {
   emitStatus({ phase: "ready", target: safeTargets[0], targets: safeTargets });
 }
 
+export function markE2ESeedError(target: E2EReadyTarget): void {
+  if (!isE2EModeEnabled()) return;
+  const safeTarget = target.trim();
+  if (!safeTarget) return;
+  emitStatus({ phase: "error", target: safeTarget, targets: [safeTarget] });
+}
+
 export function __resetE2EStatusForTests(): void {
   currentStatus = { phase: "idle", target: null };
   listeners.clear();
@@ -112,6 +120,22 @@ export function E2EStatusOverlay() {
               style={[styles.text, styles.marker]}
             >
               {`e2e-ready:${target}`}
+            </Text>
+          ))
+        : null}
+      {status.phase === "error" ? (
+        <Text testID="e2e-error" style={[styles.text, styles.marker]}>
+          {`e2e-error:${status.target}`}
+        </Text>
+      ) : null}
+      {status.phase === "error"
+        ? status.targets.map((target) => (
+            <Text
+              key={target}
+              testID={`e2e-error-${target}`}
+              style={[styles.text, styles.marker]}
+            >
+              {`e2e-error:${target}`}
             </Text>
           ))
         : null}

@@ -8,7 +8,11 @@ import { upsertMealLocal } from "@/services/offline/meals.repo";
 import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
-import { saveMealRemote } from "@/services/meals/mealsRepository";
+import {
+  fetchMealsPageRemote,
+  markMealDeletedRemote,
+  saveMealRemote,
+} from "@/services/meals/mealsRepository";
 import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import {
   createPlannedMealRemote,
@@ -228,6 +232,7 @@ let knownPatternSeedCounter = 0;
 const KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS = 10;
 const KNOWN_PATTERN_SEED_VERIFY_DELAY_MS = 750;
 const KNOWN_PATTERN_SEED_DAY_OFFSETS = [-4, -3, -2, -1, 0] as const;
+const KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX = "Znany wzorzec QA ";
 
 type KnownPatternSeedExpectation = {
   firstSeenAt: string;
@@ -775,8 +780,12 @@ async function waitForKnownPatternSeedCandidate(
           (candidate) =>
             candidate.firstSeenAt === expected.firstSeenAt &&
             candidate.lastSeenAt === expected.lastSeenAt &&
-            candidate.sourceCountBucket === "5_plus" &&
-            candidate.distinctDayCountBucket === "5_plus",
+            (candidate.state === "candidate" || candidate.state === "shown") &&
+            candidate.suggestedAction === "open_review_draft" &&
+            (candidate.sourceCountBucket === "3_4" ||
+              candidate.sourceCountBucket === "5_plus") &&
+            (candidate.distinctDayCountBucket === "3_4" ||
+              candidate.distinctDayCountBucket === "5_plus"),
         )
       ) {
         return;
@@ -798,9 +807,11 @@ async function waitForKnownPatternSeedCandidate(
 }
 
 async function applyKnownPatternFixture(uid: string): Promise<void> {
+  await clearKnownPatternFixtureMeals(uid);
+
   knownPatternSeedCounter += 1;
   const seedToken = `${Date.now()}-${knownPatternSeedCounter}`;
-  const name = `Znany wzorzec QA ${seedToken}`;
+  const name = `${KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX}${seedToken}`;
   const timestamps = KNOWN_PATTERN_SEED_DAY_OFFSETS.map(isoFromTodayOffset);
   const expectedCandidate: KnownPatternSeedExpectation = {
     firstSeenAt: timestamps[0],
@@ -845,6 +856,36 @@ async function applyKnownPatternFixture(uid: string): Promise<void> {
     }),
   );
   await waitForKnownPatternSeedCandidate(expectedCandidate);
+}
+
+async function clearKnownPatternFixtureMeals(uid: string): Promise<void> {
+  let cursor: string | null = null;
+
+  do {
+    const page = await fetchMealsPageRemote({
+      uid,
+      pageSize: 100,
+      cursor,
+    });
+
+    await Promise.all(
+      page.items
+        .filter(
+          (item) =>
+            !item.deleted &&
+            typeof item.name === "string" &&
+            item.name.startsWith(KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX) &&
+            item.cloudId,
+        )
+        .map((item) =>
+          markMealDeletedRemote(uid, item.cloudId as string, item.updatedAt, {
+            clientMutationId: `e2e-known-pattern-cleanup:${uid}:${item.cloudId}`,
+          }),
+        ),
+    );
+
+    cursor = page.nextCursor;
+  } while (cursor);
 }
 
 async function clearPlanningWindow(uid: string): Promise<void> {

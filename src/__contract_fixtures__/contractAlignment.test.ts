@@ -996,19 +996,43 @@ describe("Home Next Action telemetry contract", () => {
 
   const MOBILE_ENUM_VALUES_BY_EVENT = {
     home_next_action_shown: {
-      actionType: ["continue_planned_item", "continue_review"],
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
       state: ["eligible"],
-      reasonCode: ["planned_item_due", "review_draft_available"],
-      sourceDomain: ["planned_meal", "review_draft"],
+      reasonCode: [
+        "known_pattern_available",
+        "planned_item_due",
+        "review_draft_available",
+      ],
+      sourceDomain: [
+        "known_pattern_candidate",
+        "planned_meal",
+        "review_draft",
+      ],
     },
     home_next_action_started: {
-      actionType: ["continue_planned_item", "continue_review"],
-      ownerFlow: ["Planning", "ReviewMeal"],
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
+      ownerFlow: ["MealAddMethod", "Planning", "ReviewMeal"],
       state: ["eligible"],
     },
     home_next_action_dismissed: {
-      actionType: ["continue_planned_item", "continue_review"],
-      reasonCode: ["planned_item_due", "review_draft_available"],
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
+      reasonCode: [
+        "known_pattern_available",
+        "planned_item_due",
+        "review_draft_available",
+      ],
       cooldownBucket: ["24h"],
     },
   } as const;

@@ -31,6 +31,7 @@ import {
   shouldRequestHomeWeeklyReport,
 } from "@/feature/Home/services/homeRetentionPresenter";
 import {
+  buildHomeKnownPatternNextActionCandidate,
   buildHomePlannedMealNextActionCandidate,
   buildHomeReviewDraftNextActionCandidate,
   dismissHomeNextActionCandidate,
@@ -121,7 +122,42 @@ type VisibleHomeNextActionCandidate =
       reasonCode: "planned_item_due";
       sourceDomain: "planned_meal";
       ownerFlow: "Planning";
+    })
+  | (HomeNextActionCandidate & {
+      actionType: "confirm_known_pattern";
+      reasonCode: "known_pattern_available";
+      sourceDomain: "known_pattern_candidate";
+      ownerFlow: "MealAddMethod";
     });
+
+function getHomeNextActionCopyKeys(
+  actionType: VisibleHomeNextActionCandidate["actionType"],
+): {
+  title: string;
+  description: string;
+  cta: string;
+} {
+  switch (actionType) {
+    case "continue_planned_item":
+      return {
+        title: "home:nextAction.plannedItem.title",
+        description: "home:nextAction.plannedItem.description",
+        cta: "home:nextAction.plannedItem.cta",
+      };
+    case "confirm_known_pattern":
+      return {
+        title: "home:nextAction.knownPattern.title",
+        description: "home:nextAction.knownPattern.description",
+        cta: "home:nextAction.knownPattern.cta",
+      };
+    case "continue_review":
+      return {
+        title: "home:nextAction.reviewDraft.title",
+        description: "home:nextAction.reviewDraft.description",
+        cta: "home:nextAction.reviewDraft.cta",
+      };
+  }
+}
 
 function isVisibleHomeNextActionCandidate(
   candidate: HomeNextActionCandidate,
@@ -139,6 +175,14 @@ function isVisibleHomeNextActionCandidate(
       candidate.reasonCode === "planned_item_due" &&
       candidate.sourceDomain === "planned_meal" &&
       candidate.ownerFlow === "Planning"
+    );
+  }
+
+  if (candidate.actionType === "confirm_known_pattern") {
+    return (
+      candidate.reasonCode === "known_pattern_available" &&
+      candidate.sourceDomain === "known_pattern_candidate" &&
+      candidate.ownerFlow === "MealAddMethod"
     );
   }
 
@@ -372,6 +416,7 @@ export default function HomeScreen({ navigation }: Props) {
     void Promise.all([
       buildHomeReviewDraftNextActionCandidate({ uid }),
       buildHomePlannedMealNextActionCandidate({ uid }),
+      buildHomeKnownPatternNextActionCandidate({ uid }),
     ])
       .then((candidates) => {
         if (
@@ -442,6 +487,9 @@ export default function HomeScreen({ navigation }: Props) {
         visibleHomeNextAction.candidateId,
         visibleHomeNextAction.sourceVersion ?? "none",
       ].join(":")
+    : null;
+  const visibleHomeNextActionCopyKeys = visibleHomeNextAction
+    ? getHomeNextActionCopyKeys(visibleHomeNextAction.actionType)
     : null;
 
   const { dayMeals, mealCount, consumed, macroTargets } = homeDay;
@@ -732,6 +780,16 @@ export default function HomeScreen({ navigation }: Props) {
       return;
     }
 
+    if (action.actionType === "confirm_known_pattern") {
+      void trackHomeNextActionStarted({
+        actionType: "confirm_known_pattern",
+        ownerFlow: "MealAddMethod",
+        state: "eligible",
+      }).catch(() => undefined);
+      navigation.navigate("MealAddMethod", { selectionMode: "temporary" });
+      return;
+    }
+
     if (action.actionType !== "continue_review") {
       return;
     }
@@ -789,7 +847,9 @@ export default function HomeScreen({ navigation }: Props) {
         key:
           actionType === "continue_planned_item"
             ? "nextAction.plannedItem.dismissUnavailable"
-            : "nextAction.reviewDraft.dismissUnavailable",
+            : actionType === "confirm_known_pattern"
+              ? "nextAction.knownPattern.dismissUnavailable"
+              : "nextAction.reviewDraft.dismissUnavailable",
         ns: "home",
       });
     });
@@ -851,21 +911,9 @@ export default function HomeScreen({ navigation }: Props) {
 
         {visibleHomeNextAction ? (
           <HomeNextActionPrompt
-            title={t(
-              visibleHomeNextAction.actionType === "continue_planned_item"
-                ? "home:nextAction.plannedItem.title"
-                : "home:nextAction.reviewDraft.title",
-            )}
-            description={t(
-              visibleHomeNextAction.actionType === "continue_planned_item"
-                ? "home:nextAction.plannedItem.description"
-                : "home:nextAction.reviewDraft.description",
-            )}
-            actionLabel={t(
-              visibleHomeNextAction.actionType === "continue_planned_item"
-                ? "home:nextAction.plannedItem.cta"
-                : "home:nextAction.reviewDraft.cta",
-            )}
+            title={t(visibleHomeNextActionCopyKeys?.title ?? "")}
+            description={t(visibleHomeNextActionCopyKeys?.description ?? "")}
+            actionLabel={t(visibleHomeNextActionCopyKeys?.cta ?? "")}
             dismissLabel={t("home:nextAction.dismiss")}
             onAction={handleNextActionContinue}
             onDismiss={handleNextActionDismiss}

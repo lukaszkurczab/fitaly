@@ -132,13 +132,21 @@ type IngredientProductCreateTelemetryInput = {
 
 type HomeNextActionTelemetryActionType =
   | "continue_review"
-  | "continue_planned_item";
+  | "continue_planned_item"
+  | "confirm_known_pattern";
 type HomeNextActionTelemetryState = "eligible";
 type HomeNextActionTelemetryReasonCode =
   | "review_draft_available"
-  | "planned_item_due";
-type HomeNextActionTelemetrySourceDomain = "review_draft" | "planned_meal";
-type HomeNextActionTelemetryOwnerFlow = "ReviewMeal" | "Planning";
+  | "planned_item_due"
+  | "known_pattern_available";
+type HomeNextActionTelemetrySourceDomain =
+  | "review_draft"
+  | "planned_meal"
+  | "known_pattern_candidate";
+type HomeNextActionTelemetryOwnerFlow =
+  | "ReviewMeal"
+  | "Planning"
+  | "MealAddMethod";
 type HomeNextActionTelemetryCooldownBucket = "24h";
 
 function normalizeNotificationValue(value: string | null | undefined): string | null {

@@ -436,6 +436,22 @@ describe("telemetryInstrumentation", () => {
       reasonCode: "planned_item_due",
       cooldownBucket: "24h",
     });
+    await trackHomeNextActionShown({
+      actionType: "confirm_known_pattern",
+      state: "eligible",
+      reasonCode: "known_pattern_available",
+      sourceDomain: "known_pattern_candidate",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "confirm_known_pattern",
+      ownerFlow: "MealAddMethod",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "confirm_known_pattern",
+      reasonCode: "known_pattern_available",
+      cooldownBucket: "24h",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "home_next_action_shown", {
       actionType: "continue_review",
@@ -467,6 +483,22 @@ describe("telemetryInstrumentation", () => {
     expect(mockTrack).toHaveBeenNthCalledWith(6, "home_next_action_dismissed", {
       actionType: "continue_planned_item",
       reasonCode: "planned_item_due",
+      cooldownBucket: "24h",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(7, "home_next_action_shown", {
+      actionType: "confirm_known_pattern",
+      state: "eligible",
+      reasonCode: "known_pattern_available",
+      sourceDomain: "known_pattern_candidate",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(8, "home_next_action_started", {
+      actionType: "confirm_known_pattern",
+      ownerFlow: "MealAddMethod",
+      state: "eligible",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(9, "home_next_action_dismissed", {
+      actionType: "confirm_known_pattern",
+      reasonCode: "known_pattern_available",
       cooldownBucket: "24h",
     });
   });
@@ -527,6 +559,22 @@ describe("telemetryInstrumentation", () => {
     await trackHomeNextActionDismissed({
       actionType: "continue_planned_item",
       reasonCode: "planned_item_due",
+      cooldownBucket: "24h",
+    });
+    await trackHomeNextActionShown({
+      actionType: "confirm_known_pattern",
+      state: "eligible",
+      reasonCode: "known_pattern_available",
+      sourceDomain: "known_pattern_candidate",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "confirm_known_pattern",
+      ownerFlow: "MealAddMethod",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "confirm_known_pattern",
+      reasonCode: "known_pattern_available",
       cooldownBucket: "24h",
     });
 

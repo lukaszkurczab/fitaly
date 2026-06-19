@@ -32,6 +32,12 @@
       "description": "You have a planned item due soon. Open Planning to review it before logging.",
       "cta": "Open Planning",
       "dismissUnavailable": "Couldn't hide this planning prompt. Try again in a moment."
+    },
+    "knownPattern": {
+      "title": "Review a recent meal pattern",
+      "description": "A repeated meal is ready in Add meal. Review it before saving anything.",
+      "cta": "Open Add meal",
+      "dismissUnavailable": "Couldn't hide this pattern prompt. Try again in a moment."
     }
   },
   "planningEntry": {
