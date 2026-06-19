@@ -25,6 +25,17 @@ const mockRemoveItem = jest.fn<(key: string) => Promise<void>>();
 const mockResetOfflineStorage = jest.fn();
 const mockPullSmartMemoryChanges = jest.fn<(uid: string) => Promise<void>>();
 const mockSaveMealTransaction = jest.fn<(input: unknown) => Promise<unknown>>();
+const mockSaveMealRemote = jest.fn<(input: unknown) => Promise<void>>();
+const mockFetchKnownPatternCandidatesRemote = jest.fn<
+  (request?: unknown, options?: unknown) => Promise<{
+    items: Array<{
+      firstSeenAt: string;
+      lastSeenAt: string;
+      sourceCountBucket: "5_plus";
+      distinctDayCountBucket: "5_plus";
+    }>;
+  }>
+>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockUpsertLocalIngredientProductUserRecord =
@@ -66,6 +77,15 @@ jest.mock("@/services/offline/sync.engine", () => ({
 
 jest.mock("@/services/meals/mealSaveTransaction", () => ({
   saveMealTransaction: (input: unknown) => mockSaveMealTransaction(input),
+}));
+
+jest.mock("@/services/meals/mealsRepository", () => ({
+  saveMealRemote: (input: unknown) => mockSaveMealRemote(input),
+}));
+
+jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
+  fetchKnownPatternCandidatesRemote: (request?: unknown, options?: unknown) =>
+    mockFetchKnownPatternCandidatesRemote(request, options),
 }));
 
 jest.mock("@/services/offline/meals.repo", () => ({
@@ -117,6 +137,25 @@ describe("E2E fixtures", () => {
     mockRemoveItem.mockResolvedValue(undefined);
     mockPullSmartMemoryChanges.mockResolvedValue(undefined);
     mockSaveMealTransaction.mockResolvedValue({});
+    mockSaveMealRemote.mockResolvedValue(undefined);
+    mockFetchKnownPatternCandidatesRemote.mockImplementation(async () => {
+      const timestamps = mockSaveMealRemote.mock.calls.map(
+        (call) => (call[0] as { meal: { timestamp: string } }).meal.timestamp,
+      );
+      return {
+        items:
+          timestamps.length > 0
+            ? [
+                {
+                  firstSeenAt: timestamps[0],
+                  lastSeenAt: timestamps[timestamps.length - 1],
+                  sourceCountBucket: "5_plus",
+                  distinctDayCountBucket: "5_plus",
+                },
+              ]
+            : [],
+      };
+    });
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
     mockUpsertLocalIngredientProductUserRecord.mockResolvedValue(undefined);
@@ -147,6 +186,7 @@ describe("E2E fixtures", () => {
         aiConsentGrant: "success",
         aiConsentRevoke: "failureOnce",
         smartMemory: "reviewCandidate",
+        knownPattern: "candidate",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -163,6 +203,7 @@ describe("E2E fixtures", () => {
       aiConsentGrant: "success",
       aiConsentRevoke: "failureOnce",
       smartMemory: "reviewCandidate",
+      knownPattern: "candidate",
     });
 
     expect(
@@ -189,6 +230,7 @@ describe("E2E fixtures", () => {
         aiConsentGrant: "bad",
         aiConsentRevoke: "bad",
         smartMemory: "bad",
+        knownPattern: "bad",
       }),
     ).toEqual({});
   });
@@ -204,6 +246,7 @@ describe("E2E fixtures", () => {
     expect(markers).toEqual([]);
     expect(mockResetOfflineStorage).not.toHaveBeenCalled();
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
     expect(mockUpsertMealLocal).not.toHaveBeenCalled();
     expect(mockUpsertLocalIngredientProductUserRecord).not.toHaveBeenCalled();
     expect(getE2EAccessState("user-1")).toBeNull();
@@ -486,6 +529,53 @@ describe("E2E fixtures", () => {
         source: "saved",
         inputMethod: "manual",
       }),
+    );
+  });
+
+  it("seeds a known-pattern candidate through the backend meal API", async () => {
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { knownPattern: "candidate" },
+    });
+
+    expect(markers).toEqual(["knownPattern-candidate"]);
+    expect(mockSaveMealRemote).toHaveBeenCalledTimes(5);
+    expect(mockFetchKnownPatternCandidatesRemote).toHaveBeenCalledWith(
+      { limit: 10 },
+      { timeout: 10000 },
+    );
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+
+    const calls = mockSaveMealRemote.mock.calls.map((call) => call[0]);
+    const mealNames = calls.map(
+      (input) => (input as { meal: { name: string } }).meal.name,
+    );
+    const dayKeys = calls.map(
+      (input) => (input as { meal: { dayKey: string } }).meal.dayKey,
+    );
+    expect(new Set(mealNames).size).toBe(1);
+    expect(mealNames[0]).toMatch(/^Znany wzorzec QA /);
+    expect(dayKeys).toHaveLength(5);
+    expect(new Set(dayKeys).size).toBe(5);
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          uid: "user-1",
+          clientMutationId: expect.stringMatching(
+            /^e2e-known-pattern:user-1:/,
+          ),
+          meal: expect.objectContaining({
+            userUid: "user-1",
+            inputMethod: "manual",
+            type: "lunch",
+            ingredients: expect.arrayContaining([
+              expect.objectContaining({ name: "Owsianka QA" }),
+              expect.objectContaining({ name: "Jogurt QA" }),
+            ]),
+          }),
+        }),
+      ]),
     );
   });
 

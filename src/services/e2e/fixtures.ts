@@ -8,6 +8,8 @@ import { upsertMealLocal } from "@/services/offline/meals.repo";
 import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
+import { saveMealRemote } from "@/services/meals/mealsRepository";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import { upsertLocalIngredientProductUserRecord } from "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository";
 import { getSampleMealUri } from "@/utils/devSamples";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
@@ -99,6 +101,7 @@ export type E2ESmartMemorySeed =
   | "pending"
   | "syncFailed"
   | "backendPull";
+export type E2EKnownPatternSeed = "candidate";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -115,6 +118,7 @@ export type E2ESeedCommand = {
   aiConsentGrant?: E2EAiConsentGrantSeed;
   aiConsentRevoke?: E2EAiConsentRevokeSeed;
   smartMemory?: E2ESmartMemorySeed;
+  knownPattern?: E2EKnownPatternSeed;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -203,6 +207,7 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
   "syncFailed",
   "backendPull",
 ]);
+const VALID_KNOWN_PATTERN = new Set<E2EKnownPatternSeed>(["candidate"]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -210,6 +215,16 @@ const E2E_AI_CONSENT_REVOKED_AT = "2026-05-02T10:00:00.000Z";
 let fixtureState: E2EFixtureState = {};
 let aiConsentRevokeFailureOnceConsumed = new Set<string>();
 let aiConsentSeedByUid = new Map<string, UserAiConsent>();
+let knownPatternSeedCounter = 0;
+
+const KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS = 10;
+const KNOWN_PATTERN_SEED_VERIFY_DELAY_MS = 750;
+const KNOWN_PATTERN_SEED_DAY_OFFSETS = [-4, -3, -2, -1, 0] as const;
+
+type KnownPatternSeedExpectation = {
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
 
 function todayDayKey(): string {
   const now = new Date();
@@ -221,6 +236,16 @@ function todayDayKey(): string {
 
 function e2eNowISO(): string {
   return `${todayDayKey()}T10:30:00.000Z`;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isoFromTodayOffset(offsetDays: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString();
 }
 
 function asValid<T extends string>(
@@ -253,6 +278,7 @@ export function parseE2ESeedCommand(
     aiConsentGrant: asValid(params.aiConsentGrant, VALID_AI_CONSENT_GRANT),
     aiConsentRevoke: asValid(params.aiConsentRevoke, VALID_AI_CONSENT_REVOKE),
     smartMemory: asValid(params.smartMemory, VALID_SMART_MEMORY),
+    knownPattern: asValid(params.knownPattern, VALID_KNOWN_PATTERN),
   };
 }
 
@@ -271,7 +297,8 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.aiConsent ||
       command.aiConsentGrant ||
       command.aiConsentRevoke ||
-      command.smartMemory,
+      command.smartMemory ||
+      command.knownPattern,
   );
 }
 
@@ -297,6 +324,7 @@ function seedMarkers(command: E2ESeedCommand): string[] {
     markers.push(`aiConsentRevoke-${command.aiConsentRevoke}`);
   }
   if (command.smartMemory) markers.push(`smartMemory-${command.smartMemory}`);
+  if (command.knownPattern) markers.push(`knownPattern-${command.knownPattern}`);
   return markers;
 }
 
@@ -716,6 +744,98 @@ async function seedSavedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
   });
 }
 
+async function waitForKnownPatternSeedCandidate(
+  expected: KnownPatternSeedExpectation,
+): Promise<void> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt < KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS;
+    attempt += 1
+  ) {
+    try {
+      const response = await fetchKnownPatternCandidatesRemote(
+        { limit: 10 },
+        { timeout: 10000 },
+      );
+      if (
+        response.items.some(
+          (candidate) =>
+            candidate.firstSeenAt === expected.firstSeenAt &&
+            candidate.lastSeenAt === expected.lastSeenAt &&
+            candidate.sourceCountBucket === "5_plus" &&
+            candidate.distinctDayCountBucket === "5_plus",
+        )
+      ) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+
+    await delay(KNOWN_PATTERN_SEED_VERIFY_DELAY_MS);
+  }
+
+  throw createServiceError({
+    code: "e2e/known-pattern-seed-unavailable",
+    source: "E2EFixtures",
+    retryable: true,
+    message: "Known Pattern candidate was not available after E2E seed.",
+    cause: lastError,
+  });
+}
+
+async function applyKnownPatternFixture(uid: string): Promise<void> {
+  knownPatternSeedCounter += 1;
+  const seedToken = `${Date.now()}-${knownPatternSeedCounter}`;
+  const name = `Znany wzorzec QA ${seedToken}`;
+  const timestamps = KNOWN_PATTERN_SEED_DAY_OFFSETS.map(isoFromTodayOffset);
+  const expectedCandidate: KnownPatternSeedExpectation = {
+    firstSeenAt: timestamps[0],
+    lastSeenAt: timestamps[timestamps.length - 1],
+  };
+
+  await Promise.all(
+    timestamps.map((timestamp, index) => {
+      const fixtureMeal = meal({
+        uid,
+        id: `e2e-known-pattern-${seedToken}-${index + 1}`,
+        name,
+        timestamp,
+        inputMethod: "manual",
+        ingredients: [
+          ingredient({
+            id: `e2e-known-pattern-${seedToken}-oats-${index + 1}`,
+            name: "Owsianka QA",
+            amount: 60,
+            kcal: 230,
+            protein: 8,
+            carbs: 38,
+            fat: 5,
+          }),
+          ingredient({
+            id: `e2e-known-pattern-${seedToken}-yogurt-${index + 1}`,
+            name: "Jogurt QA",
+            amount: 150,
+            kcal: 110,
+            protein: 15,
+            carbs: 7,
+            fat: 3,
+          }),
+        ],
+      });
+
+      return saveMealRemote({
+        uid,
+        meal: fixtureMeal,
+        clientMutationId: `e2e-known-pattern:${uid}:${seedToken}:${index + 1}`,
+      });
+    }),
+  );
+  await waitForKnownPatternSeedCandidate(expectedCandidate);
+}
+
 async function applyNamedFixture(
   uid: string,
   fixture: E2EFixtureName,
@@ -1073,6 +1193,7 @@ export async function applyE2ESeedCommand(params: {
           fixture: undefined,
           aiConsent: undefined,
           smartMemory: undefined,
+          knownPattern: undefined,
         }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
@@ -1106,6 +1227,10 @@ export async function applyE2ESeedCommand(params: {
     } else {
       await applySmartMemoryFixture(params.uid, appliedCommand.smartMemory);
     }
+  }
+
+  if (params.uid && appliedCommand.knownPattern) {
+    await applyKnownPatternFixture(params.uid);
   }
 
   emit("e2e:seeded", fixtureState);
@@ -1670,6 +1795,7 @@ export function __resetE2EFixturesForTests(): void {
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
+  knownPatternSeedCounter = 0;
 }
 
 export async function resetE2EFixtureState(): Promise<void> {
@@ -1677,6 +1803,7 @@ export async function resetE2EFixtureState(): Promise<void> {
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
+  knownPatternSeedCounter = 0;
   await AsyncStorage.removeItem(E2E_FIXTURE_STATE_KEY);
   emit("e2e:seeded", fixtureState);
 }
