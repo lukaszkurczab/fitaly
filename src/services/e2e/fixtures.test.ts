@@ -95,6 +95,9 @@ const mockMarkSmartMemoryItemPending =
   jest.fn<(params: unknown) => Promise<void>>();
 const mockMarkSmartMemoryProjectionSyncFailed =
   jest.fn<(params: unknown) => Promise<void>>();
+const mockApiGet = jest.fn<(url: string, options?: unknown) => Promise<unknown>>();
+const mockFlushTelemetry = jest.fn<() => Promise<void>>();
+const mockSetTelemetryUserId = jest.fn<(uid: string | null) => void>();
 
 let mockE2EEnabled = true;
 
@@ -106,6 +109,15 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 jest.mock("@/services/e2e/config", () => ({
   isE2EModeEnabled: () => mockE2EEnabled,
+}));
+
+jest.mock("@/services/core/apiClient", () => ({
+  get: (url: string, options?: unknown) => mockApiGet(url, options),
+}));
+
+jest.mock("@/services/telemetry/telemetryClient", () => ({
+  flush: () => mockFlushTelemetry(),
+  setTelemetryUserId: (uid: string | null) => mockSetTelemetryUserId(uid),
 }));
 
 jest.mock("@/services/offline/db", () => ({
@@ -238,6 +250,8 @@ describe("E2E fixtures", () => {
     mockMarkSmartMemoryCandidatePending.mockResolvedValue(undefined);
     mockMarkSmartMemoryItemPending.mockResolvedValue(undefined);
     mockMarkSmartMemoryProjectionSyncFailed.mockResolvedValue(undefined);
+    mockApiGet.mockResolvedValue({ buckets: [] });
+    mockFlushTelemetry.mockResolvedValue(undefined);
     __resetE2EFixturesForTests();
   });
 
@@ -261,6 +275,8 @@ describe("E2E fixtures", () => {
         knownPattern: "candidate",
         planning: "reviewReady",
         historyAssert: "noRecipeReviewDraft",
+        telemetryBaseline: "homeNextActionStarted",
+        telemetryAssert: "homeNextActionStarted",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -280,6 +296,8 @@ describe("E2E fixtures", () => {
       knownPattern: "candidate",
       planning: "reviewReady",
       historyAssert: "noRecipeReviewDraft",
+      telemetryBaseline: "homeNextActionStarted",
+      telemetryAssert: "homeNextActionStarted",
     });
 
     expect(
@@ -309,6 +327,8 @@ describe("E2E fixtures", () => {
         knownPattern: "bad",
         planning: "bad",
         historyAssert: "bad",
+        telemetryBaseline: "bad",
+        telemetryAssert: "bad",
       }),
     ).toEqual({});
   });
@@ -943,6 +963,62 @@ describe("E2E fixtures", () => {
     expect(mockSaveMealRemote).not.toHaveBeenCalled();
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
     expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+  });
+
+  it("records and asserts telemetry count increases through backend summary", async () => {
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [
+            { name: "home_next_action_started", count: 2 },
+            { name: "home_next_action_shown", count: 4 },
+          ],
+        },
+      ],
+    });
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [
+            { name: "home_next_action_started", count: 3 },
+          ],
+        },
+      ],
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryBaseline: "homeNextActionStarted" },
+      }),
+    ).resolves.toEqual(["telemetryBaseline-homeNextActionStarted"]);
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryAssert: "homeNextActionStarted" },
+      }),
+    ).resolves.toEqual(["telemetryAssert-homeNextActionStarted"]);
+
+    expect(mockFlushTelemetry).toHaveBeenCalledTimes(2);
+    expect(mockSetTelemetryUserId).toHaveBeenCalledTimes(2);
+    expect(mockSetTelemetryUserId).toHaveBeenCalledWith("user-1");
+    expect(mockApiGet).toHaveBeenCalledWith(
+      "/api/v2/telemetry/events/summary/daily?days=1",
+      { timeout: 10000 },
+    );
+  });
+
+  it("fails telemetry assertion when baseline is missing", async () => {
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryAssert: "homeNextActionStarted" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/telemetry-baseline-missing",
+    });
+    expect(mockFlushTelemetry).not.toHaveBeenCalled();
+    expect(mockApiGet).not.toHaveBeenCalled();
   });
 
   it("seeds draft data through the canonical draft storage keys", async () => {

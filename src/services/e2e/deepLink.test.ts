@@ -80,6 +80,8 @@ jest.mock("@/services/e2e/fixtures", () => ({
     knownPattern: params.knownPattern,
     planning: params.planning,
     historyAssert: params.historyAssert,
+    telemetryBaseline: params.telemetryBaseline,
+    telemetryAssert: params.telemetryAssert,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
@@ -175,6 +177,8 @@ describe("handleE2EDeepLink", () => {
       knownPattern: undefined,
       planning: undefined,
       historyAssert: undefined,
+      telemetryBaseline: undefined,
+      telemetryAssert: undefined,
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([

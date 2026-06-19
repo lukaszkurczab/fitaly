@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { emit } from "@/services/core/events";
+import { get } from "@/services/core/apiClient";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
@@ -16,6 +17,10 @@ import {
   markMealDeletedRemote,
   saveMealRemote,
 } from "@/services/meals/mealsRepository";
+import {
+  flush as flushTelemetry,
+  setTelemetryUserId,
+} from "@/services/telemetry/telemetryClient";
 import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import {
   createPlannedMealRemote,
@@ -118,6 +123,7 @@ export type E2EPlanningSeed = "empty" | "reviewReady";
 export type E2EHistoryAssert =
   | "noRecipeReviewDraft"
   | "noPlanningReviewDraft";
+export type E2ETelemetryEventAssert = "homeNextActionStarted";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -137,6 +143,8 @@ export type E2ESeedCommand = {
   knownPattern?: E2EKnownPatternSeed;
   planning?: E2EPlanningSeed;
   historyAssert?: E2EHistoryAssert;
+  telemetryBaseline?: E2ETelemetryEventAssert;
+  telemetryAssert?: E2ETelemetryEventAssert;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -231,6 +239,9 @@ const VALID_HISTORY_ASSERT = new Set<E2EHistoryAssert>([
   "noRecipeReviewDraft",
   "noPlanningReviewDraft",
 ]);
+const VALID_TELEMETRY_EVENT_ASSERT = new Set<E2ETelemetryEventAssert>([
+  "homeNextActionStarted",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -239,6 +250,7 @@ let fixtureState: E2EFixtureState = {};
 let aiConsentRevokeFailureOnceConsumed = new Set<string>();
 let aiConsentSeedByUid = new Map<string, UserAiConsent>();
 let knownPatternSeedCounter = 0;
+let telemetryBaselineCounts = new Map<string, number>();
 
 const KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS = 10;
 const KNOWN_PATTERN_SEED_VERIFY_DELAY_MS = 750;
@@ -249,6 +261,11 @@ const HISTORY_ASSERT_MEAL_NAMES: Record<E2EHistoryAssert, string> = {
   noRecipeReviewDraft: "Salmon rice plate",
   noPlanningReviewDraft: "E2E Planning Bowl",
 };
+const TELEMETRY_ASSERT_EVENT_NAMES: Record<E2ETelemetryEventAssert, string> = {
+  homeNextActionStarted: "home_next_action_started",
+};
+const TELEMETRY_ASSERT_ATTEMPTS = 10;
+const TELEMETRY_ASSERT_DELAY_MS = 750;
 
 type KnownPatternSeedExpectation = {
   firstSeenAt: string;
@@ -310,6 +327,11 @@ export function parseE2ESeedCommand(
     knownPattern: asValid(params.knownPattern, VALID_KNOWN_PATTERN),
     planning: asValid(params.planning, VALID_PLANNING),
     historyAssert: asValid(params.historyAssert, VALID_HISTORY_ASSERT),
+    telemetryBaseline: asValid(
+      params.telemetryBaseline,
+      VALID_TELEMETRY_EVENT_ASSERT,
+    ),
+    telemetryAssert: asValid(params.telemetryAssert, VALID_TELEMETRY_EVENT_ASSERT),
   };
 }
 
@@ -331,7 +353,9 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.smartMemory ||
       command.knownPattern ||
       command.planning ||
-      command.historyAssert,
+      command.historyAssert ||
+      command.telemetryBaseline ||
+      command.telemetryAssert,
   );
 }
 
@@ -361,6 +385,12 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   if (command.planning) markers.push(`planning-${command.planning}`);
   if (command.historyAssert) {
     markers.push(`historyAssert-${command.historyAssert}`);
+  }
+  if (command.telemetryBaseline) {
+    markers.push(`telemetryBaseline-${command.telemetryBaseline}`);
+  }
+  if (command.telemetryAssert) {
+    markers.push(`telemetryAssert-${command.telemetryAssert}`);
   }
   return markers;
 }
@@ -982,6 +1012,95 @@ async function assertNoMealByName(uid: string, targetName: string): Promise<void
   await assertNoRemoteMealByName(uid, targetName);
 }
 
+type TelemetrySummaryResponse = {
+  buckets?: Array<{
+    eventCounts?: Array<{
+      name?: string;
+      count?: number;
+    }>;
+  }>;
+};
+
+function telemetryBaselineKey(uid: string, assertName: E2ETelemetryEventAssert) {
+  return `${uid}:${assertName}`;
+}
+
+function telemetryEventName(assertName: E2ETelemetryEventAssert): string {
+  return TELEMETRY_ASSERT_EVENT_NAMES[assertName];
+}
+
+function countTelemetryEvents(
+  summary: TelemetrySummaryResponse,
+  eventName: string,
+): number {
+  return (summary.buckets ?? []).reduce((total, bucket) => {
+    const bucketCount = (bucket.eventCounts ?? []).reduce((sum, item) => {
+      return item.name === eventName ? sum + Number(item.count ?? 0) : sum;
+    }, 0);
+    return total + bucketCount;
+  }, 0);
+}
+
+async function readTelemetryEventCount(
+  eventName: string,
+): Promise<number> {
+  await flushTelemetry();
+  const summary = await get<TelemetrySummaryResponse>(
+    "/api/v2/telemetry/events/summary/daily?days=1",
+    { timeout: 10000 },
+  );
+  return countTelemetryEvents(summary, eventName);
+}
+
+async function recordTelemetryBaseline(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  setTelemetryUserId(uid);
+  const count = await readTelemetryEventCount(telemetryEventName(assertName));
+  telemetryBaselineCounts.set(telemetryBaselineKey(uid, assertName), count);
+}
+
+async function assertTelemetryCountIncreased(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  const baselineKey = telemetryBaselineKey(uid, assertName);
+  const baselineCount = telemetryBaselineCounts.get(baselineKey);
+  if (baselineCount === undefined) {
+    throw createServiceError({
+      code: "e2e/telemetry-baseline-missing",
+      source: "E2EFixtures",
+      retryable: false,
+      message: `E2E telemetry baseline missing for "${assertName}".`,
+    });
+  }
+
+  const eventName = telemetryEventName(assertName);
+  let lastCount = baselineCount;
+  let lastError: unknown = null;
+  setTelemetryUserId(uid);
+  for (let attempt = 0; attempt < TELEMETRY_ASSERT_ATTEMPTS; attempt += 1) {
+    try {
+      lastCount = await readTelemetryEventCount(eventName);
+      if (lastCount > baselineCount) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(TELEMETRY_ASSERT_DELAY_MS);
+  }
+
+  throw createServiceError({
+    code: "e2e/telemetry-assertion-failed",
+    source: "E2EFixtures",
+    retryable: true,
+    message: `E2E telemetry assertion failed for "${eventName}": baseline=${baselineCount}, current=${lastCount}.`,
+    cause: lastError,
+  });
+}
+
 async function clearPlanningWindow(uid: string): Promise<void> {
   const response = await fetchPlannedMealsRemote(
     {
@@ -1421,6 +1540,8 @@ export async function applyE2ESeedCommand(params: {
           knownPattern: undefined,
           planning: undefined,
           historyAssert: undefined,
+          telemetryBaseline: undefined,
+          telemetryAssert: undefined,
         }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
@@ -1469,6 +1590,14 @@ export async function applyE2ESeedCommand(params: {
       params.uid,
       HISTORY_ASSERT_MEAL_NAMES[appliedCommand.historyAssert],
     );
+  }
+
+  if (params.uid && appliedCommand.telemetryBaseline) {
+    await recordTelemetryBaseline(params.uid, appliedCommand.telemetryBaseline);
+  }
+
+  if (params.uid && appliedCommand.telemetryAssert) {
+    await assertTelemetryCountIncreased(params.uid, appliedCommand.telemetryAssert);
   }
 
   emit("e2e:seeded", fixtureState);
@@ -2034,6 +2163,7 @@ export function __resetE2EFixturesForTests(): void {
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
   knownPatternSeedCounter = 0;
+  telemetryBaselineCounts = new Map<string, number>();
 }
 
 export async function resetE2EFixtureState(): Promise<void> {
@@ -2042,6 +2172,7 @@ export async function resetE2EFixtureState(): Promise<void> {
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
   knownPatternSeedCounter = 0;
+  telemetryBaselineCounts = new Map<string, number>();
   await AsyncStorage.removeItem(E2E_FIXTURE_STATE_KEY);
   emit("e2e:seeded", fixtureState);
 }

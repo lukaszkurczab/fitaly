@@ -38,6 +38,7 @@ SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
 PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
 ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
+ENABLE_TELEMETRY="${E2E_ENABLE_TELEMETRY:-${EXPO_PUBLIC_ENABLE_TELEMETRY:-}}"
 REVIEW_MEMORY_EXPLANATION_FLOW=0
 SMART_MEMORY_BACKEND_PULL_FLOW=0
 PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=0
@@ -56,6 +57,7 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   esac
 done
 export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
+export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
 
 if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
   API_BASE_URL="${E2E_API_BASE_URL}"
@@ -416,6 +418,7 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export E2E=true
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
     export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
+    export EXPO_PUBLIC_ENABLE_TELEMETRY
     export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
     exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
   ) >"${EXPO_LOG}" 2>&1 &
