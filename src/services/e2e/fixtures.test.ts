@@ -36,6 +36,21 @@ const mockFetchKnownPatternCandidatesRemote = jest.fn<
     }>;
   }>
 >();
+const mockFetchPlannedMealsRemote = jest.fn<
+  (request?: unknown, options?: unknown) => Promise<{
+    items: Array<{
+      plannedMealId: string;
+      version: number;
+      status: string;
+    }>;
+  }>
+>();
+const mockCreatePlannedMealRemote = jest.fn<
+  (request: unknown, options?: unknown) => Promise<unknown>
+>();
+const mockDeletePlannedMealRemote = jest.fn<
+  (plannedMealId: string, request: unknown, options?: unknown) => Promise<unknown>
+>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockUpsertLocalIngredientProductUserRecord =
@@ -86,6 +101,18 @@ jest.mock("@/services/meals/mealsRepository", () => ({
 jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
   fetchKnownPatternCandidatesRemote: (request?: unknown, options?: unknown) =>
     mockFetchKnownPatternCandidatesRemote(request, options),
+}));
+
+jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
+  createPlannedMealRemote: (request: unknown, options?: unknown) =>
+    mockCreatePlannedMealRemote(request, options),
+  fetchPlannedMealsRemote: (request?: unknown, options?: unknown) =>
+    mockFetchPlannedMealsRemote(request, options),
+  deletePlannedMealRemote: (
+    plannedMealId: string,
+    request: unknown,
+    options?: unknown,
+  ) => mockDeletePlannedMealRemote(plannedMealId, request, options),
 }));
 
 jest.mock("@/services/offline/meals.repo", () => ({
@@ -156,6 +183,9 @@ describe("E2E fixtures", () => {
             : [],
       };
     });
+    mockFetchPlannedMealsRemote.mockResolvedValue({ items: [] });
+    mockCreatePlannedMealRemote.mockResolvedValue({ updated: true });
+    mockDeletePlannedMealRemote.mockResolvedValue({ updated: true });
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
     mockUpsertLocalIngredientProductUserRecord.mockResolvedValue(undefined);
@@ -187,6 +217,7 @@ describe("E2E fixtures", () => {
         aiConsentRevoke: "failureOnce",
         smartMemory: "reviewCandidate",
         knownPattern: "candidate",
+        planning: "reviewReady",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -204,6 +235,7 @@ describe("E2E fixtures", () => {
       aiConsentRevoke: "failureOnce",
       smartMemory: "reviewCandidate",
       knownPattern: "candidate",
+      planning: "reviewReady",
     });
 
     expect(
@@ -231,6 +263,7 @@ describe("E2E fixtures", () => {
         aiConsentRevoke: "bad",
         smartMemory: "bad",
         knownPattern: "bad",
+        planning: "bad",
       }),
     ).toEqual({});
   });
@@ -577,6 +610,105 @@ describe("E2E fixtures", () => {
         }),
       ]),
     );
+  });
+
+  it("clears active planned meals through the planned meal API only", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [
+        {
+          plannedMealId: "planned-1",
+          version: 2,
+          status: "planned",
+        },
+        {
+          plannedMealId: "planned-deleted",
+          version: 4,
+          status: "deleted",
+        },
+      ],
+    });
+
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { planning: "empty" },
+    });
+
+    expect(markers).toEqual(["planning-empty"]);
+    expect(mockFetchPlannedMealsRemote).toHaveBeenCalledWith(
+      {
+        startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        days: 3,
+        includeDeleted: false,
+      },
+      { timeout: 10000 },
+    );
+    expect(mockDeletePlannedMealRemote).toHaveBeenCalledTimes(1);
+    expect(mockDeletePlannedMealRemote).toHaveBeenCalledWith(
+      "planned-1",
+      {
+        clientMutationId: "e2e-planning-delete:user-1:planned-1:2",
+        expectedVersion: 2,
+      },
+      { timeout: 10000 },
+    );
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+  });
+
+  it("creates a review-ready planned item through the planned meal API only", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({ items: [] });
+
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { planning: "reviewReady" },
+    });
+
+    expect(markers).toEqual(["planning-reviewReady"]);
+    expect(mockFetchPlannedMealsRemote).toHaveBeenCalledWith(
+      {
+        startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        days: 3,
+        includeDeleted: false,
+      },
+      { timeout: 10000 },
+    );
+    expect(mockCreatePlannedMealRemote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientMutationId: expect.stringMatching(/^e2e-planning-create:user-1:/),
+        plannedMealId: expect.stringMatching(/^e2e-planning-/),
+        dateBucket: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        timeBucket: "lunch",
+        sourceType: "manual",
+        sourceRef: null,
+        draftSnapshot: expect.objectContaining({
+          name: "E2E Planning Bowl",
+          type: "lunch",
+          totals: {
+            kcal: 400,
+            protein: 25,
+            fat: 14,
+            carbs: 45,
+          },
+        }),
+        nutritionEstimate: {
+          state: "known",
+          totals: {
+            kcal: 400,
+            protein: 25,
+            fat: 14,
+            carbs: 45,
+          },
+          missingFields: [],
+          confidence: "medium",
+        },
+      }),
+      { timeout: 10000 },
+    );
+    expect(mockDeletePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
   });
 
   it("seeds draft data through the canonical draft storage keys", async () => {

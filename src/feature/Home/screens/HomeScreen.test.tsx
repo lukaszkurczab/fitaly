@@ -194,6 +194,10 @@ jest.mock("react-i18next", () => ({
       }
       if (key === "home:nextAction.reviewDraft.cta") return "Continue";
       if (key === "home:nextAction.dismiss") return "Not now";
+      if (key === "home:planningEntry.title") return "Plan next meals";
+      if (key === "home:planningEntry.description") {
+        return "Prepare 1-3 days without logging anything yet.";
+      }
       if (key === "home:mealCount") {
         return options?.count === 1 ? "1 meal" : `${options?.count ?? 0} meals`;
       }
@@ -863,6 +867,40 @@ describe("HomeScreen", () => {
 
     expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
     expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+  });
+
+  it("opens Planning from Home without starting meal logging or draft resume", async () => {
+    const handleDirectStart = jest.fn(async () => undefined);
+    const handleContinueDraft = jest.fn(async () => undefined);
+    mockUseMealAddMethodState.mockReturnValue({
+      preferredOption: {
+        key: "photo",
+        icon: "camera",
+        titleKey: "photoTitle",
+      },
+      showResumeModal: false,
+      handleDirectStart,
+      handleContinueDraft,
+      handleDiscardDraft: jest.fn(async () => undefined),
+      closeResumeModal: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(getByText("Plan next meals")).toBeTruthy();
+    expect(
+      getByText("Prepare 1-3 days without logging anything yet."),
+    ).toBeTruthy();
+
+    fireEvent.press(getByTestId("home-planning-entry"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("Planning");
+    expect(handleDirectStart).not.toHaveBeenCalled();
+    expect(handleContinueDraft).not.toHaveBeenCalled();
+    expect(mockLoadDraft).not.toHaveBeenCalled();
   });
 
   it("renders a compact review draft next action after recovery banners and continues to AddMeal review", async () => {

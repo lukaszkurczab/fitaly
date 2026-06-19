@@ -30,6 +30,10 @@
       "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi. Spróbuj ponownie za chwilę."
     }
   },
+  "planningEntry": {
+    "title": "Zaplanuj kolejne posiłki",
+    "description": "Przygotuj 1-3 dni bez zapisywania posiłku."
+  },
   "hero": {
     "greeting": {
       "morning": "Dzień dobry, {{name}}",

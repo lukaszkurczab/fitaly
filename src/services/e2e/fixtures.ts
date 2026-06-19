@@ -10,6 +10,11 @@ import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
 import { saveMealRemote } from "@/services/meals/mealsRepository";
 import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
+import {
+  createPlannedMealRemote,
+  deletePlannedMealRemote,
+  fetchPlannedMealsRemote,
+} from "@/services/plannedMeals/plannedMealsApi";
 import { upsertLocalIngredientProductUserRecord } from "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository";
 import { getSampleMealUri } from "@/utils/devSamples";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
@@ -102,6 +107,7 @@ export type E2ESmartMemorySeed =
   | "syncFailed"
   | "backendPull";
 export type E2EKnownPatternSeed = "candidate";
+export type E2EPlanningSeed = "empty" | "reviewReady";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -119,6 +125,7 @@ export type E2ESeedCommand = {
   aiConsentRevoke?: E2EAiConsentRevokeSeed;
   smartMemory?: E2ESmartMemorySeed;
   knownPattern?: E2EKnownPatternSeed;
+  planning?: E2EPlanningSeed;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -208,6 +215,7 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
   "backendPull",
 ]);
 const VALID_KNOWN_PATTERN = new Set<E2EKnownPatternSeed>(["candidate"]);
+const VALID_PLANNING = new Set<E2EPlanningSeed>(["empty", "reviewReady"]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -279,6 +287,7 @@ export function parseE2ESeedCommand(
     aiConsentRevoke: asValid(params.aiConsentRevoke, VALID_AI_CONSENT_REVOKE),
     smartMemory: asValid(params.smartMemory, VALID_SMART_MEMORY),
     knownPattern: asValid(params.knownPattern, VALID_KNOWN_PATTERN),
+    planning: asValid(params.planning, VALID_PLANNING),
   };
 }
 
@@ -298,7 +307,8 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.aiConsentGrant ||
       command.aiConsentRevoke ||
       command.smartMemory ||
-      command.knownPattern,
+      command.knownPattern ||
+      command.planning,
   );
 }
 
@@ -325,6 +335,7 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   }
   if (command.smartMemory) markers.push(`smartMemory-${command.smartMemory}`);
   if (command.knownPattern) markers.push(`knownPattern-${command.knownPattern}`);
+  if (command.planning) markers.push(`planning-${command.planning}`);
   return markers;
 }
 
@@ -836,6 +847,85 @@ async function applyKnownPatternFixture(uid: string): Promise<void> {
   await waitForKnownPatternSeedCandidate(expectedCandidate);
 }
 
+async function clearPlanningWindow(uid: string): Promise<void> {
+  const response = await fetchPlannedMealsRemote(
+    {
+      startDate: todayDayKey(),
+      days: 3,
+      includeDeleted: false,
+    },
+    { timeout: 10000 },
+  );
+
+  await Promise.all(
+    response.items
+      .filter((item) => item.status !== "deleted")
+      .map((item) =>
+        deletePlannedMealRemote(
+          item.plannedMealId,
+          {
+            clientMutationId: `e2e-planning-delete:${uid}:${item.plannedMealId}:${item.version}`,
+            expectedVersion: item.version,
+          },
+          { timeout: 10000 },
+        ),
+      ),
+  );
+}
+
+async function applyPlanningFixture(uid: string, seed: E2EPlanningSeed): Promise<void> {
+  await clearPlanningWindow(uid);
+
+  if (seed !== "reviewReady") return;
+
+  const mutationStamp = `${Date.now()}`;
+  await createPlannedMealRemote(
+    {
+      clientMutationId: `e2e-planning-create:${uid}:${mutationStamp}`,
+      plannedMealId: `e2e-planning-${mutationStamp}`,
+      dateBucket: todayDayKey(),
+      timeBucket: "lunch",
+      sourceType: "manual",
+      sourceRef: null,
+      draftSnapshot: {
+        name: "E2E Planning Bowl",
+        type: "lunch",
+        ingredients: [
+          {
+            id: `e2e-planning-ingredient-${mutationStamp}`,
+            name: "E2E Planning Bowl",
+            amount: 1,
+            kcal: 400,
+            protein: 25,
+            fat: 14,
+            carbs: 45,
+          },
+        ],
+        totals: {
+          kcal: 400,
+          protein: 25,
+          fat: 14,
+          carbs: 45,
+        },
+        notes: null,
+        tags: [],
+      },
+      nutritionEstimate: {
+        state: "known",
+        totals: {
+          kcal: 400,
+          protein: 25,
+          fat: 14,
+          carbs: 45,
+        },
+        missingFields: [],
+        confidence: "medium",
+      },
+    },
+    { timeout: 10000 },
+  );
+}
+
 async function applyNamedFixture(
   uid: string,
   fixture: E2EFixtureName,
@@ -1194,6 +1284,7 @@ export async function applyE2ESeedCommand(params: {
           aiConsent: undefined,
           smartMemory: undefined,
           knownPattern: undefined,
+          planning: undefined,
         }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
@@ -1210,6 +1301,10 @@ export async function applyE2ESeedCommand(params: {
 
   if (params.uid && appliedCommand.fixture) {
     await applyNamedFixture(params.uid, appliedCommand.fixture);
+  }
+
+  if (params.uid && appliedCommand.planning) {
+    await applyPlanningFixture(params.uid, appliedCommand.planning);
   }
 
   if (params.uid && appliedCommand.aiConsent) {

@@ -100,6 +100,13 @@ type HomeNextActionPromptProps = {
   styles: ReturnType<typeof makeStyles>;
 };
 
+type HomePlanningEntryProps = {
+  title: string;
+  description: string;
+  onPress: () => void;
+  styles: ReturnType<typeof makeStyles>;
+};
+
 function HomeDeadLetterRecoveryBanner({
   testID = "home-dead-letter-recovery",
   titleTestID = "home-dead-letter-title",
@@ -223,6 +230,39 @@ function HomeNextActionPrompt({
         </Pressable>
       </View>
     </View>
+  );
+}
+
+function HomePlanningEntry({
+  title,
+  description,
+  onPress,
+  styles,
+}: HomePlanningEntryProps) {
+  return (
+    <Pressable
+      testID="home-planning-entry"
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={({ pressed }) => [
+        styles.planningEntry,
+        pressed ? styles.planningEntryPressed : null,
+      ]}
+    >
+      <View style={styles.planningEntryCopy}>
+        <Text testID="home-planning-entry-title" style={styles.planningEntryTitle}>
+          {title}
+        </Text>
+        <Text
+          testID="home-planning-entry-description"
+          style={styles.planningEntryDescription}
+        >
+          {description}
+        </Text>
+      </View>
+      <Text style={styles.planningEntryArrow}>→</Text>
+    </Pressable>
   );
 }
 
@@ -614,6 +654,10 @@ export default function HomeScreen({ navigation }: Props) {
     });
   }, [navigation]);
 
+  const openPlanning = useCallback(() => {
+    navigation.navigate("Planning");
+  }, [navigation]);
+
   const showReviewDraftUnavailable = useCallback(() => {
     homeNextActionInputRef.current = null;
     setHomeNextActionInput(null);
@@ -736,6 +780,13 @@ export default function HomeScreen({ navigation }: Props) {
             styles={styles}
           />
         ))}
+
+        <HomePlanningEntry
+          title={t("home:planningEntry.title")}
+          description={t("home:planningEntry.description")}
+          onPress={openPlanning}
+          styles={styles}
+        />
 
         {visibleHomeNextAction ? (
           <HomeNextActionPrompt
@@ -957,6 +1008,41 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.textSecondary,
       fontSize: theme.typography.size.overline,
       lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    planningEntry: {
+      minHeight: 56,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.surfaceAlt,
+    },
+    planningEntryPressed: {
+      opacity: 0.82,
+    },
+    planningEntryCopy: {
+      flex: 1,
+      gap: theme.spacing.xxs,
+    },
+    planningEntryTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.medium,
+    },
+    planningEntryDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.overline,
+      lineHeight: theme.typography.lineHeight.overline,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    planningEntryArrow: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyL,
+      lineHeight: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.medium,
     },
     nextActionPrompt: {
