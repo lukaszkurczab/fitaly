@@ -79,6 +79,7 @@ jest.mock("@/services/e2e/fixtures", () => ({
     smartMemory: params.smartMemory,
     knownPattern: params.knownPattern,
     planning: params.planning,
+    historyAssert: params.historyAssert,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
@@ -173,6 +174,7 @@ describe("handleE2EDeepLink", () => {
       smartMemory: "active",
       knownPattern: undefined,
       planning: undefined,
+      historyAssert: undefined,
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([

@@ -4,7 +4,10 @@ import { createServiceError } from "@/services/contracts/serviceError";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
 import { resetOfflineStorage } from "@/services/offline/db";
-import { upsertMealLocal } from "@/services/offline/meals.repo";
+import {
+  getAllMealsLocal,
+  upsertMealLocal,
+} from "@/services/offline/meals.repo";
 import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
@@ -112,6 +115,9 @@ export type E2ESmartMemorySeed =
   | "backendPull";
 export type E2EKnownPatternSeed = "candidate";
 export type E2EPlanningSeed = "empty" | "reviewReady";
+export type E2EHistoryAssert =
+  | "noRecipeReviewDraft"
+  | "noPlanningReviewDraft";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -130,6 +136,7 @@ export type E2ESeedCommand = {
   smartMemory?: E2ESmartMemorySeed;
   knownPattern?: E2EKnownPatternSeed;
   planning?: E2EPlanningSeed;
+  historyAssert?: E2EHistoryAssert;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -220,6 +227,10 @@ const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
 ]);
 const VALID_KNOWN_PATTERN = new Set<E2EKnownPatternSeed>(["candidate"]);
 const VALID_PLANNING = new Set<E2EPlanningSeed>(["empty", "reviewReady"]);
+const VALID_HISTORY_ASSERT = new Set<E2EHistoryAssert>([
+  "noRecipeReviewDraft",
+  "noPlanningReviewDraft",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -233,6 +244,11 @@ const KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS = 10;
 const KNOWN_PATTERN_SEED_VERIFY_DELAY_MS = 750;
 const KNOWN_PATTERN_SEED_DAY_OFFSETS = [-4, -3, -2, -1, 0] as const;
 const KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX = "Znany wzorzec QA ";
+const HISTORY_ASSERT_PAGE_LIMIT = 25;
+const HISTORY_ASSERT_MEAL_NAMES: Record<E2EHistoryAssert, string> = {
+  noRecipeReviewDraft: "Salmon rice plate",
+  noPlanningReviewDraft: "E2E Planning Bowl",
+};
 
 type KnownPatternSeedExpectation = {
   firstSeenAt: string;
@@ -293,6 +309,7 @@ export function parseE2ESeedCommand(
     smartMemory: asValid(params.smartMemory, VALID_SMART_MEMORY),
     knownPattern: asValid(params.knownPattern, VALID_KNOWN_PATTERN),
     planning: asValid(params.planning, VALID_PLANNING),
+    historyAssert: asValid(params.historyAssert, VALID_HISTORY_ASSERT),
   };
 }
 
@@ -313,7 +330,8 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.aiConsentRevoke ||
       command.smartMemory ||
       command.knownPattern ||
-      command.planning,
+      command.planning ||
+      command.historyAssert,
   );
 }
 
@@ -341,6 +359,9 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   if (command.smartMemory) markers.push(`smartMemory-${command.smartMemory}`);
   if (command.knownPattern) markers.push(`knownPattern-${command.knownPattern}`);
   if (command.planning) markers.push(`planning-${command.planning}`);
+  if (command.historyAssert) {
+    markers.push(`historyAssert-${command.historyAssert}`);
+  }
   return markers;
 }
 
@@ -888,6 +909,79 @@ async function clearKnownPatternFixtureMeals(uid: string): Promise<void> {
   } while (cursor);
 }
 
+function normalizeHistoryAssertName(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+async function assertNoRemoteMealByName(
+  uid: string,
+  targetName: string,
+): Promise<void> {
+  const expectedName = normalizeHistoryAssertName(targetName);
+  let cursor: string | null = null;
+  let pageCount = 0;
+
+  do {
+    pageCount += 1;
+    const page = await fetchMealsPageRemote({
+      uid,
+      pageSize: 100,
+      cursor,
+    });
+    const foundMeal = page.items.find(
+      (item) =>
+        !item.deleted &&
+        normalizeHistoryAssertName(item.name) === expectedName,
+    );
+
+    if (foundMeal) {
+      throw createServiceError({
+        code: "e2e/history-assertion-failed",
+        source: "E2EFixtures",
+        retryable: false,
+        message: `E2E history assertion failed: found saved meal "${targetName}".`,
+      });
+    }
+
+    cursor = page.nextCursor;
+  } while (cursor && pageCount < HISTORY_ASSERT_PAGE_LIMIT);
+
+  if (cursor) {
+    throw createServiceError({
+      code: "e2e/history-assertion-incomplete",
+      source: "E2EFixtures",
+      retryable: true,
+      message: `E2E history assertion could not scan all meal history pages for "${targetName}".`,
+    });
+  }
+}
+
+async function assertNoLocalMealByName(
+  uid: string,
+  targetName: string,
+): Promise<void> {
+  const expectedName = normalizeHistoryAssertName(targetName);
+  const foundMeal = (await getAllMealsLocal(uid)).find(
+    (item) =>
+      !item.deleted &&
+      normalizeHistoryAssertName(item.name) === expectedName,
+  );
+
+  if (foundMeal) {
+    throw createServiceError({
+      code: "e2e/local-history-assertion-failed",
+      source: "E2EFixtures",
+      retryable: false,
+      message: `E2E local history assertion failed: found saved meal "${targetName}".`,
+    });
+  }
+}
+
+async function assertNoMealByName(uid: string, targetName: string): Promise<void> {
+  await assertNoLocalMealByName(uid, targetName);
+  await assertNoRemoteMealByName(uid, targetName);
+}
+
 async function clearPlanningWindow(uid: string): Promise<void> {
   const response = await fetchPlannedMealsRemote(
     {
@@ -1326,6 +1420,7 @@ export async function applyE2ESeedCommand(params: {
           smartMemory: undefined,
           knownPattern: undefined,
           planning: undefined,
+          historyAssert: undefined,
         }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
@@ -1367,6 +1462,13 @@ export async function applyE2ESeedCommand(params: {
 
   if (params.uid && appliedCommand.knownPattern) {
     await applyKnownPatternFixture(params.uid);
+  }
+
+  if (params.uid && appliedCommand.historyAssert) {
+    await assertNoMealByName(
+      params.uid,
+      HISTORY_ASSERT_MEAL_NAMES[appliedCommand.historyAssert],
+    );
   }
 
   emit("e2e:seeded", fixtureState);

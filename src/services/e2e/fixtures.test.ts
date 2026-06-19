@@ -74,6 +74,9 @@ const mockCreatePlannedMealRemote = jest.fn<
 const mockDeletePlannedMealRemote = jest.fn<
   (plannedMealId: string, request: unknown, options?: unknown) => Promise<unknown>
 >();
+const mockGetAllMealsLocal = jest.fn<
+  (uid: string) => Promise<Array<{ name: string | null; deleted?: boolean }>>
+>();
 const mockUpsertMealLocal = jest.fn<(meal: unknown) => Promise<void>>();
 const mockUpsertMyMealLocal = jest.fn<(uid: string, meal: unknown) => Promise<void>>();
 const mockUpsertLocalIngredientProductUserRecord =
@@ -146,6 +149,7 @@ jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
 }));
 
 jest.mock("@/services/offline/meals.repo", () => ({
+  getAllMealsLocal: (uid: string) => mockGetAllMealsLocal(uid),
   upsertMealLocal: (meal: unknown) => mockUpsertMealLocal(meal),
 }));
 
@@ -223,6 +227,7 @@ describe("E2E fixtures", () => {
     mockFetchPlannedMealsRemote.mockResolvedValue({ items: [] });
     mockCreatePlannedMealRemote.mockResolvedValue({ updated: true });
     mockDeletePlannedMealRemote.mockResolvedValue({ updated: true });
+    mockGetAllMealsLocal.mockResolvedValue([]);
     mockUpsertMealLocal.mockResolvedValue(undefined);
     mockUpsertMyMealLocal.mockResolvedValue(undefined);
     mockUpsertLocalIngredientProductUserRecord.mockResolvedValue(undefined);
@@ -255,6 +260,7 @@ describe("E2E fixtures", () => {
         smartMemory: "reviewCandidate",
         knownPattern: "candidate",
         planning: "reviewReady",
+        historyAssert: "noRecipeReviewDraft",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -273,6 +279,7 @@ describe("E2E fixtures", () => {
       smartMemory: "reviewCandidate",
       knownPattern: "candidate",
       planning: "reviewReady",
+      historyAssert: "noRecipeReviewDraft",
     });
 
     expect(
@@ -301,6 +308,7 @@ describe("E2E fixtures", () => {
         smartMemory: "bad",
         knownPattern: "bad",
         planning: "bad",
+        historyAssert: "bad",
       }),
     ).toEqual({});
   });
@@ -840,6 +848,98 @@ describe("E2E fixtures", () => {
       { timeout: 10000 },
     );
     expect(mockDeletePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+  });
+
+  it("asserts review drafts were not silently saved in remote history", async () => {
+    mockFetchMealsPageRemote.mockResolvedValueOnce({
+      items: [
+        {
+          name: "Unrelated meal",
+          cloudId: "meal-1",
+          updatedAt: "2026-06-18T08:00:00.000Z",
+        },
+      ],
+      nextCursor: "history-page-2",
+    });
+    mockFetchMealsPageRemote.mockResolvedValueOnce({
+      items: [
+        {
+          name: "Salmon rice plate",
+          cloudId: "deleted-recipe-draft",
+          updatedAt: "2026-06-18T09:00:00.000Z",
+          deleted: true,
+        },
+      ],
+      nextCursor: null,
+    });
+
+    const markers = await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { historyAssert: "noRecipeReviewDraft" },
+    });
+
+    expect(markers).toEqual(["historyAssert-noRecipeReviewDraft"]);
+    expect(mockGetAllMealsLocal).toHaveBeenCalledWith("user-1");
+    expect(mockFetchMealsPageRemote).toHaveBeenNthCalledWith(1, {
+      uid: "user-1",
+      pageSize: 100,
+      cursor: null,
+    });
+    expect(mockFetchMealsPageRemote).toHaveBeenNthCalledWith(2, {
+      uid: "user-1",
+      pageSize: 100,
+      cursor: "history-page-2",
+    });
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+  });
+
+  it("fails history assertion when a review draft was saved locally only", async () => {
+    mockGetAllMealsLocal.mockResolvedValueOnce([
+      {
+        name: "E2E Planning Bowl",
+        deleted: false,
+      },
+    ]);
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { historyAssert: "noPlanningReviewDraft" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/local-history-assertion-failed",
+    });
+    expect(mockFetchMealsPageRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveMealTransaction).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+  });
+
+  it("fails history assertion when a review draft was saved remotely", async () => {
+    mockFetchMealsPageRemote.mockResolvedValueOnce({
+      items: [
+        {
+          name: "E2E Planning Bowl",
+          cloudId: "saved-planning-draft",
+          updatedAt: "2026-06-18T09:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { historyAssert: "noPlanningReviewDraft" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/history-assertion-failed",
+    });
     expect(mockSaveMealRemote).not.toHaveBeenCalled();
     expect(mockSaveMealTransaction).not.toHaveBeenCalled();
     expect(mockUpsertMealLocal).not.toHaveBeenCalled();
