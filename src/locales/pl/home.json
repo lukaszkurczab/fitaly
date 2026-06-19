@@ -28,6 +28,12 @@
       "cta": "Kontynuuj",
       "unavailable": "Nie udało się otworzyć tego szkicu. Spróbuj z ekranu dodawania posiłku.",
       "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi. Spróbuj ponownie za chwilę."
+    },
+    "plannedItem": {
+      "title": "Sprawdź kolejny zaplanowany posiłek",
+      "description": "Masz zaplanowaną pozycję na najbliższy czas. Otwórz plan i sprawdź ją przed zapisaniem.",
+      "cta": "Otwórz plan",
+      "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi planowania. Spróbuj ponownie za chwilę."
     }
   },
   "planningEntry": {

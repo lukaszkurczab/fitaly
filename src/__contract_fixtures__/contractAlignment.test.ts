@@ -232,6 +232,7 @@ type AutocompleteTelemetryFixture = {
 type HomeNextActionTelemetryFixture = {
   eventNames: string[];
   propsByEvent: Record<string, string[]>;
+  enumValuesByEvent: Record<string, Record<string, string[]>>;
   disallowedEventNames: string[];
   disallowedPropNames: string[];
 };
@@ -993,6 +994,25 @@ describe("Home Next Action telemetry contract", () => {
     ],
   } as const;
 
+  const MOBILE_ENUM_VALUES_BY_EVENT = {
+    home_next_action_shown: {
+      actionType: ["continue_planned_item", "continue_review"],
+      state: ["eligible"],
+      reasonCode: ["planned_item_due", "review_draft_available"],
+      sourceDomain: ["planned_meal", "review_draft"],
+    },
+    home_next_action_started: {
+      actionType: ["continue_planned_item", "continue_review"],
+      ownerFlow: ["Planning", "ReviewMeal"],
+      state: ["eligible"],
+    },
+    home_next_action_dismissed: {
+      actionType: ["continue_planned_item", "continue_review"],
+      reasonCode: ["planned_item_due", "review_draft_available"],
+      cooldownBucket: ["24h"],
+    },
+  } as const;
+
   const DISALLOWED_EVENT_NAMES = [
     "home_next_action_available",
     "home_next_action_completed",
@@ -1050,6 +1070,26 @@ describe("Home Next Action telemetry contract", () => {
       expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
         [...propNames].sort(),
       );
+    }
+  });
+
+  test("bounded enum values match backend fixture", () => {
+    expect(Object.keys(fixture.enumValuesByEvent).sort()).toEqual(
+      Object.keys(MOBILE_ENUM_VALUES_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propValues] of Object.entries(
+      MOBILE_ENUM_VALUES_BY_EVENT,
+    )) {
+      expect(Object.keys(fixture.enumValuesByEvent[eventName]).sort()).toEqual(
+        Object.keys(propValues).sort(),
+      );
+
+      for (const [propName, values] of Object.entries(propValues)) {
+        expect([...fixture.enumValuesByEvent[eventName][propName]].sort()).toEqual(
+          [...values].sort(),
+        );
+      }
     }
   });
 

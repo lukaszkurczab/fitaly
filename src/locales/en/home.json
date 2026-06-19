@@ -26,6 +26,12 @@
       "cta": "Continue",
       "unavailable": "Couldn't open that draft. Try again from Add meal.",
       "dismissUnavailable": "Couldn't hide this prompt. Try again in a moment."
+    },
+    "plannedItem": {
+      "title": "Check your next planned meal",
+      "description": "You have a planned item due soon. Open Planning to review it before logging.",
+      "cta": "Open Planning",
+      "dismissUnavailable": "Couldn't hide this planning prompt. Try again in a moment."
     }
   },
   "planningEntry": {

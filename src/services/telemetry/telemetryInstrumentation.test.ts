@@ -420,6 +420,22 @@ describe("telemetryInstrumentation", () => {
       reasonCode: "review_draft_available",
       cooldownBucket: "24h",
     });
+    await trackHomeNextActionShown({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "continue_planned_item",
+      ownerFlow: "Planning",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "continue_planned_item",
+      reasonCode: "planned_item_due",
+      cooldownBucket: "24h",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "home_next_action_shown", {
       actionType: "continue_review",
@@ -435,6 +451,22 @@ describe("telemetryInstrumentation", () => {
     expect(mockTrack).toHaveBeenNthCalledWith(3, "home_next_action_dismissed", {
       actionType: "continue_review",
       reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(4, "home_next_action_shown", {
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(5, "home_next_action_started", {
+      actionType: "continue_planned_item",
+      ownerFlow: "Planning",
+      state: "eligible",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(6, "home_next_action_dismissed", {
+      actionType: "continue_planned_item",
+      reasonCode: "planned_item_due",
       cooldownBucket: "24h",
     });
   });
@@ -479,6 +511,22 @@ describe("telemetryInstrumentation", () => {
     await trackHomeNextActionDismissed({
       actionType: "continue_review",
       reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+    await trackHomeNextActionShown({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+    await trackHomeNextActionStarted({
+      actionType: "continue_planned_item",
+      ownerFlow: "Planning",
+      state: "eligible",
+    });
+    await trackHomeNextActionDismissed({
+      actionType: "continue_planned_item",
+      reasonCode: "planned_item_due",
       cooldownBucket: "24h",
     });
 

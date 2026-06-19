@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
 import {
+  buildHomePlannedMealNextActionCandidate,
   buildHomeReviewDraftNextActionCandidate,
   dismissHomeReviewDraftNextAction,
   getHomeNextActionDismissalsKey,
@@ -16,6 +18,14 @@ import type {
   HomeNextActionType,
 } from "@/feature/Home/services/homeNextActionSelector";
 import type { Meal } from "@/types/meal";
+import type { PlannedMealItem } from "@/types/plannedMeals";
+
+jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
+  fetchPlannedMealsRemote: jest.fn(),
+}));
+
+const mockFetchPlannedMealsRemote =
+  fetchPlannedMealsRemote as jest.MockedFunction<typeof fetchPlannedMealsRemote>;
 
 const NOW = "2026-06-18T12:00:00.000Z";
 const FUTURE = "2026-06-18T13:00:00.000Z";
@@ -49,6 +59,57 @@ const meaningfulDraft: Meal = {
   deleted: false,
   notes: null,
 };
+
+function plannedItem(
+  overrides: Partial<PlannedMealItem> = {},
+): PlannedMealItem {
+  return {
+    plannedMealId: "planned-1",
+    version: 2,
+    dateBucket: "2026-06-18",
+    timeBucket: "lunch",
+    sourceType: "manual",
+    sourceRef: null,
+    draftSnapshot: {
+      name: "Planned bowl",
+      type: "lunch",
+      ingredients: [
+        {
+          id: "planned-ingredient-1",
+          name: "Planned bowl",
+          amount: 1,
+          kcal: 420,
+          protein: 26,
+          fat: 14,
+          carbs: 48,
+        },
+      ],
+      totals: {
+        kcal: 420,
+        protein: 26,
+        fat: 14,
+        carbs: 48,
+      },
+      notes: null,
+      tags: [],
+    },
+    nutritionEstimate: {
+      state: "known",
+      totals: {
+        kcal: 420,
+        protein: 26,
+        fat: 14,
+        carbs: 48,
+      },
+      missingFields: [],
+      confidence: "medium",
+    },
+    status: "planned",
+    createdAt: "2026-06-18T09:00:00.000Z",
+    updatedAt: "2026-06-18T09:05:00.000Z",
+    ...overrides,
+  };
+}
 
 const OWNER_BY_ACTION: Record<HomeNextActionType, HomeNextActionCandidate["ownerFlow"]> = {
   log_missing_meal: "MealAddMethod",
@@ -112,6 +173,7 @@ function selectedActionType(candidates: HomeNextActionInput[]): HomeNextActionTy
 describe("homeNextActionSelector", () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
+    mockFetchPlannedMealsRemote.mockReset();
   });
 
   it("returns explicit no_action for a new user with no candidates", () => {
@@ -496,6 +558,169 @@ describe("homeNextActionSelector", () => {
       expect.objectContaining({
         actionType: "continue_review",
         state: "eligible",
+      }),
+    );
+  });
+
+  it("builds an eligible planned-item candidate from the next three planning days", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [
+        plannedItem({
+          plannedMealId: "planned-dinner",
+          timeBucket: "dinner",
+        }),
+        plannedItem({
+          plannedMealId: "planned-breakfast",
+          timeBucket: "breakfast",
+          updatedAt: "2026-06-18T09:10:00.000Z",
+        }),
+      ],
+      queryEcho: {
+        startDate: "2026-06-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 2,
+      },
+    });
+
+    await expect(
+      buildHomePlannedMealNextActionCandidate({
+        uid: "user-1",
+        now: NOW,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        candidateId: "planned-meal:planned-breakfast",
+        actionType: "continue_planned_item",
+        sourceDomain: "planned_meal",
+        state: "eligible",
+        reasonCode: "planned_item_due",
+        ownerFlow: "Planning",
+        sourceVersion: "2:2026-06-18T09:10:00.000Z",
+      }),
+    );
+    expect(mockFetchPlannedMealsRemote).toHaveBeenCalledWith({
+      startDate: "2026-06-18",
+      days: 3,
+      includeDeleted: false,
+    });
+  });
+
+  it("keeps review draft above an eligible planned-item candidate", async () => {
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [plannedItem()],
+      queryEcho: {
+        startDate: "2026-06-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const reviewCandidate = await buildHomeReviewDraftNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+    const plannedCandidate = await buildHomePlannedMealNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+
+    expect(
+      selectHomeNextAction({
+        candidates: [plannedCandidate, reviewCandidate],
+        now: NOW,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        type: "action",
+        action: expect.objectContaining({
+          actionType: "continue_review",
+        }),
+      }),
+    );
+  });
+
+  it("suppresses unknown or unavailable planned items instead of showing safe copy", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [
+        plannedItem({
+          plannedMealId: "unknown-plan",
+          nutritionEstimate: {
+            state: "unknown",
+            totals: null,
+            missingFields: ["kcal", "protein", "fat", "carbs"],
+            confidence: null,
+          },
+        }),
+        plannedItem({
+          plannedMealId: "unavailable-plan",
+          status: "source_unavailable",
+        }),
+        plannedItem({
+          plannedMealId: "converted-plan",
+          status: "converted_to_review",
+        }),
+      ],
+      queryEcho: {
+        startDate: "2026-06-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 3,
+      },
+    });
+
+    await expect(
+      buildHomePlannedMealNextActionCandidate({
+        uid: "user-1",
+        now: NOW,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_insufficient",
+      }),
+    );
+  });
+
+  it("persists planned-item dismissal by candidate source version", async () => {
+    const item = plannedItem();
+    mockFetchPlannedMealsRemote.mockResolvedValue({
+      items: [item],
+      queryEcho: {
+        startDate: "2026-06-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const firstCandidate = await buildHomePlannedMealNextActionCandidate({
+      uid: "user-1",
+      now: NOW,
+    });
+    if (firstCandidate.state === "no_action") {
+      throw new Error("Expected planned-item action candidate.");
+    }
+
+    await dismissHomeReviewDraftNextAction({
+      uid: "user-1",
+      candidateId: firstCandidate.candidateId,
+      sourceVersion: firstCandidate.sourceVersion,
+      now: NOW,
+    });
+
+    await expect(
+      buildHomePlannedMealNextActionCandidate({
+        uid: "user-1",
+        now: NOW,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        state: "no_action",
+        reasonCode: "inputs_insufficient",
       }),
     );
   });

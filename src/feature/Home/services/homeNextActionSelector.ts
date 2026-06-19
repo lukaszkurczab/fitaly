@@ -1,6 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
 import type { Meal } from "@/types/meal";
+import type {
+  PlannedMealItem,
+  PlannedMealStatus,
+  PlannedMealTimeBucket,
+} from "@/types/plannedMeals";
 
 export type HomeNextActionType =
   | "log_missing_meal"
@@ -122,6 +128,14 @@ export type DismissHomeReviewDraftNextActionParams = {
   now?: Date | string | number;
 };
 
+export type BuildHomePlannedMealNextActionParams = {
+  uid: string | null | undefined;
+  now?: Date | string | number;
+};
+
+export type DismissHomeNextActionCandidateParams =
+  DismissHomeReviewDraftNextActionParams;
+
 const ACTION_RANK: Record<HomeNextActionType, number> = {
   continue_review: 1,
   inspect_memory: 2,
@@ -154,8 +168,22 @@ const SOURCE_DOMAINS_BY_ACTION: Record<
 
 const REVIEW_DRAFT_CANDIDATE_ID = "review-draft:local";
 const REVIEW_DRAFT_PRIORITY_BUCKET = 1;
+const PLANNED_ITEM_PRIORITY_OFFSET = 10;
 const REVIEW_DRAFT_DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const RESUMABLE_REVIEW_DRAFT_SCREENS = new Set(["AddMeal", "ReviewMeal"]);
+const HOME_PLANNED_ITEM_WINDOW_DAYS = 3;
+const REVIEWABLE_PLANNED_STATUSES = new Set<PlannedMealStatus>([
+  "planned",
+  "edited",
+  "rescheduled",
+]);
+const TIME_BUCKET_ORDER: Record<PlannedMealTimeBucket, number> = {
+  breakfast: 1,
+  lunch: 2,
+  dinner: 3,
+  snack: 4,
+  any: 5,
+};
 
 type StoredNextActionDismissal = {
   candidateId: string;
@@ -285,6 +313,80 @@ function buildReviewDraftAction(sourceVersion: string | null): HomeNextActionCan
   };
 }
 
+function formatLocalDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function dayOffsetFromStart(dateBucket: string, start: Date): number | null {
+  for (let offset = 0; offset < HOME_PLANNED_ITEM_WINDOW_DAYS; offset += 1) {
+    if (dateBucket === formatLocalDateKey(addDays(start, offset))) {
+      return offset;
+    }
+  }
+  return null;
+}
+
+function isHomeActionablePlannedItem(item: PlannedMealItem): boolean {
+  return (
+    REVIEWABLE_PLANNED_STATUSES.has(item.status) &&
+    item.nutritionEstimate.state !== "unknown"
+  );
+}
+
+function comparePlannedItems(
+  left: PlannedMealItem,
+  right: PlannedMealItem,
+): number {
+  if (left.dateBucket !== right.dateBucket) {
+    return left.dateBucket.localeCompare(right.dateBucket);
+  }
+
+  const leftTime = TIME_BUCKET_ORDER[left.timeBucket ?? "any"];
+  const rightTime = TIME_BUCKET_ORDER[right.timeBucket ?? "any"];
+  if (leftTime !== rightTime) return leftTime - rightTime;
+
+  if (left.updatedAt !== right.updatedAt) {
+    return left.updatedAt.localeCompare(right.updatedAt);
+  }
+
+  return left.plannedMealId.localeCompare(right.plannedMealId);
+}
+
+function buildPlannedMealAction(
+  item: PlannedMealItem,
+  start: Date,
+): HomeNextActionCandidate | null {
+  const dayOffset = dayOffsetFromStart(item.dateBucket, start);
+  if (dayOffset === null) return null;
+
+  return {
+    candidateId: `planned-meal:${item.plannedMealId}`,
+    actionType: "continue_planned_item",
+    sourceDomain: "planned_meal",
+    state: "eligible",
+    priorityBucket:
+      PLANNED_ITEM_PRIORITY_OFFSET +
+      dayOffset * 10 +
+      TIME_BUCKET_ORDER[item.timeBucket ?? "any"],
+    reasonCode: "planned_item_due",
+    ownerFlow: "Planning",
+    deepLink: {
+      targetOwnerFlow: "Planning",
+      params: { route: "Planning" },
+    },
+    sourceVersion: `${item.version}:${item.updatedAt}`,
+  };
+}
+
 export async function buildHomeReviewDraftNextActionCandidate({
   uid,
   dismissedCandidateIds = [],
@@ -349,6 +451,15 @@ export async function dismissHomeReviewDraftNextAction({
   sourceVersion,
   now,
 }: DismissHomeReviewDraftNextActionParams): Promise<void> {
+  await dismissHomeNextActionCandidate({ uid, candidateId, sourceVersion, now });
+}
+
+export async function dismissHomeNextActionCandidate({
+  uid,
+  candidateId,
+  sourceVersion,
+  now,
+}: DismissHomeNextActionCandidateParams): Promise<void> {
   const nowTimestamp = toTimestamp(now) ?? Date.now();
   const dismissedAt = new Date(nowTimestamp).toISOString();
   const dismissedUntil = new Date(
@@ -365,6 +476,76 @@ export async function dismissHomeReviewDraftNextAction({
   };
 
   await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
+}
+
+export async function buildHomePlannedMealNextActionCandidate({
+  uid,
+  now,
+}: BuildHomePlannedMealNextActionParams): Promise<HomeNextActionInput> {
+  if (!uid) {
+    return {
+      candidateId: "planned-meal:window",
+      sourceDomain: "planned_meal",
+      state: "no_action",
+      priorityBucket: PLANNED_ITEM_PRIORITY_OFFSET,
+      reasonCode: "context_unavailable",
+    };
+  }
+
+  const providedTimestamp = toTimestamp(now);
+  const nowDate =
+    providedTimestamp !== null ? new Date(providedTimestamp) : new Date();
+  const startDate = formatLocalDateKey(nowDate);
+
+  let response;
+  let dismissalsRaw: string | null;
+  try {
+    [response, dismissalsRaw] = await Promise.all([
+      fetchPlannedMealsRemote({
+        startDate,
+        days: HOME_PLANNED_ITEM_WINDOW_DAYS,
+        includeDeleted: false,
+      }),
+      AsyncStorage.getItem(getHomeNextActionDismissalsKey(uid)),
+    ]);
+  } catch {
+    return {
+      candidateId: "planned-meal:window",
+      sourceDomain: "planned_meal",
+      state: "no_action",
+      priorityBucket: PLANNED_ITEM_PRIORITY_OFFSET,
+      reasonCode: "source_unavailable",
+    };
+  }
+
+  const dismissals = parseStoredDismissals(dismissalsRaw);
+  const nowTimestamp = toTimestamp(now) ?? Date.now();
+  const candidate = response.items
+    .filter(isHomeActionablePlannedItem)
+    .sort(comparePlannedItems)
+    .map((item) => buildPlannedMealAction(item, nowDate))
+    .find(
+      (item): item is HomeNextActionCandidate =>
+        item !== null &&
+        !isDismissalActive(
+          dismissals,
+          item.candidateId,
+          item.sourceVersion,
+          nowTimestamp,
+        ),
+    );
+
+  if (!candidate) {
+    return {
+      candidateId: "planned-meal:window",
+      sourceDomain: "planned_meal",
+      state: "no_action",
+      priorityBucket: PLANNED_ITEM_PRIORITY_OFFSET,
+      reasonCode: "inputs_insufficient",
+    };
+  }
+
+  return candidate;
 }
 
 function getStateSuppressionReason(

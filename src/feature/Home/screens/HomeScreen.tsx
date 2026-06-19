@@ -31,11 +31,13 @@ import {
   shouldRequestHomeWeeklyReport,
 } from "@/feature/Home/services/homeRetentionPresenter";
 import {
+  buildHomePlannedMealNextActionCandidate,
   buildHomeReviewDraftNextActionCandidate,
-  dismissHomeReviewDraftNextAction,
+  dismissHomeNextActionCandidate,
   selectHomeNextAction,
 } from "@/feature/Home/services/homeNextActionSelector";
 import type {
+  HomeNextActionCandidate,
   HomeNextActionInput,
   HomeNextActionSelection,
 } from "@/feature/Home/services/homeNextActionSelector";
@@ -106,6 +108,42 @@ type HomePlanningEntryProps = {
   onPress: () => void;
   styles: ReturnType<typeof makeStyles>;
 };
+
+type VisibleHomeNextActionCandidate =
+  | (HomeNextActionCandidate & {
+      actionType: "continue_review";
+      reasonCode: "review_draft_available";
+      sourceDomain: "review_draft";
+      ownerFlow: "ReviewMeal";
+    })
+  | (HomeNextActionCandidate & {
+      actionType: "continue_planned_item";
+      reasonCode: "planned_item_due";
+      sourceDomain: "planned_meal";
+      ownerFlow: "Planning";
+    });
+
+function isVisibleHomeNextActionCandidate(
+  candidate: HomeNextActionCandidate,
+): candidate is VisibleHomeNextActionCandidate {
+  if (candidate.actionType === "continue_review") {
+    return (
+      candidate.reasonCode === "review_draft_available" &&
+      candidate.sourceDomain === "review_draft" &&
+      candidate.ownerFlow === "ReviewMeal"
+    );
+  }
+
+  if (candidate.actionType === "continue_planned_item") {
+    return (
+      candidate.reasonCode === "planned_item_due" &&
+      candidate.sourceDomain === "planned_meal" &&
+      candidate.ownerFlow === "Planning"
+    );
+  }
+
+  return false;
+}
 
 function HomeDeadLetterRecoveryBanner({
   testID = "home-dead-letter-recovery",
@@ -294,9 +332,9 @@ export default function HomeScreen({ navigation }: Props) {
   const { canUseFeature } = useAccessContext();
   const { loadDraft } = useMealDraftContext();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [homeNextActionInput, setHomeNextActionInput] =
-    useState<HomeNextActionInput | null>(null);
-  const homeNextActionInputRef = useRef<HomeNextActionInput | null>(null);
+  const [homeNextActionInputs, setHomeNextActionInputs] =
+    useState<HomeNextActionInput[] | null>(null);
+  const homeNextActionInputsRef = useRef<HomeNextActionInput[] | null>(null);
   const homeNextActionRequestRef = useRef(0);
   const homeNextActionMountedRef = useRef(false);
   const shownHomeNextActionKeysRef = useRef<Set<string>>(new Set());
@@ -331,8 +369,11 @@ export default function HomeScreen({ navigation }: Props) {
     const requestId = homeNextActionRequestRef.current + 1;
     homeNextActionRequestRef.current = requestId;
 
-    void buildHomeReviewDraftNextActionCandidate({ uid })
-      .then((candidate) => {
+    void Promise.all([
+      buildHomeReviewDraftNextActionCandidate({ uid }),
+      buildHomePlannedMealNextActionCandidate({ uid }),
+    ])
+      .then((candidates) => {
         if (
           !homeNextActionMountedRef.current ||
           homeNextActionRequestRef.current !== requestId
@@ -340,13 +381,17 @@ export default function HomeScreen({ navigation }: Props) {
           return;
         }
 
-        const nextInput = candidate.state === "no_action" ? null : candidate;
-        if (homeNextActionInputRef.current === null && nextInput === null) {
+        const nextInputs = candidates.filter(
+          (candidate): candidate is HomeNextActionInput =>
+            candidate.state !== "no_action",
+        );
+        const nextState = nextInputs.length > 0 ? nextInputs : null;
+        if (homeNextActionInputsRef.current === null && nextState === null) {
           return;
         }
 
-        homeNextActionInputRef.current = nextInput;
-        setHomeNextActionInput(nextInput);
+        homeNextActionInputsRef.current = nextState;
+        setHomeNextActionInputs(nextState);
       })
       .catch(() => {
         if (
@@ -356,8 +401,8 @@ export default function HomeScreen({ navigation }: Props) {
           return;
         }
 
-        homeNextActionInputRef.current = null;
-        setHomeNextActionInput(null);
+        homeNextActionInputsRef.current = null;
+        setHomeNextActionInputs(null);
       });
   }, [uid]);
 
@@ -373,7 +418,7 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const homeNextActionSelection: HomeNextActionSelection = useMemo(() => {
-    if (!homeNextActionInput) {
+    if (!homeNextActionInputs) {
       return {
         type: "no_action",
         reasonCode: "inputs_pending",
@@ -382,13 +427,13 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     return selectHomeNextAction({
-      candidates: [homeNextActionInput],
+      candidates: homeNextActionInputs,
     });
-  }, [homeNextActionInput]);
+  }, [homeNextActionInputs]);
   const visibleHomeNextAction =
     !mealAddEntry.showResumeModal &&
     homeNextActionSelection.type === "action" &&
-    homeNextActionSelection.action.actionType === "continue_review"
+    isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
       ? homeNextActionSelection.action
       : null;
   const visibleHomeNextActionKey = visibleHomeNextAction
@@ -435,10 +480,10 @@ export default function HomeScreen({ navigation }: Props) {
 
     shownHomeNextActionKeysRef.current.add(visibleHomeNextActionKey);
     void trackHomeNextActionShown({
-      actionType: "continue_review",
+      actionType: visibleHomeNextAction.actionType,
       state: "eligible",
-      reasonCode: "review_draft_available",
-      sourceDomain: "review_draft",
+      reasonCode: visibleHomeNextAction.reasonCode,
+      sourceDomain: visibleHomeNextAction.sourceDomain,
     }).catch(() => undefined);
   }, [visibleHomeNextAction, visibleHomeNextActionKey]);
 
@@ -659,8 +704,8 @@ export default function HomeScreen({ navigation }: Props) {
   }, [navigation]);
 
   const showReviewDraftUnavailable = useCallback(() => {
-    homeNextActionInputRef.current = null;
-    setHomeNextActionInput(null);
+    homeNextActionInputsRef.current = null;
+    setHomeNextActionInputs(null);
     emit("ui:toast", {
       key: "nextAction.reviewDraft.unavailable",
       ns: "home",
@@ -670,9 +715,24 @@ export default function HomeScreen({ navigation }: Props) {
   const handleNextActionContinue = useCallback(() => {
     if (
       homeNextActionSelection.type !== "action" ||
-      homeNextActionSelection.action.actionType !== "continue_review" ||
-      !uid
+      !uid ||
+      !isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
     ) {
+      return;
+    }
+
+    const action = homeNextActionSelection.action;
+    if (action.actionType === "continue_planned_item") {
+      void trackHomeNextActionStarted({
+        actionType: "continue_planned_item",
+        ownerFlow: "Planning",
+        state: "eligible",
+      }).catch(() => undefined);
+      navigation.navigate("Planning");
+      return;
+    }
+
+    if (action.actionType !== "continue_review") {
       return;
     }
 
@@ -685,7 +745,7 @@ export default function HomeScreen({ navigation }: Props) {
           return;
         }
         void trackHomeNextActionStarted({
-          actionType: "continue_review",
+          actionType: action.actionType,
           ownerFlow: "ReviewMeal",
           state: "eligible",
         }).catch(() => undefined);
@@ -703,25 +763,33 @@ export default function HomeScreen({ navigation }: Props) {
   ]);
 
   const handleNextActionDismiss = useCallback(() => {
-    if (homeNextActionSelection.type !== "action" || !uid) {
+    if (
+      homeNextActionSelection.type !== "action" ||
+      !uid ||
+      !isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
+    ) {
       return;
     }
 
-    const { candidateId, sourceVersion } = homeNextActionSelection.action;
+    const { actionType, candidateId, reasonCode, sourceVersion } =
+      homeNextActionSelection.action;
     void trackHomeNextActionDismissed({
-      actionType: "continue_review",
-      reasonCode: "review_draft_available",
+      actionType,
+      reasonCode,
       cooldownBucket: "24h",
     }).catch(() => undefined);
-    homeNextActionInputRef.current = null;
-    setHomeNextActionInput(null);
-    void dismissHomeReviewDraftNextAction({
+    homeNextActionInputsRef.current = null;
+    setHomeNextActionInputs(null);
+    void dismissHomeNextActionCandidate({
       uid,
       candidateId,
       sourceVersion,
     }).catch(() => {
       emit("ui:toast", {
-        key: "nextAction.reviewDraft.dismissUnavailable",
+        key:
+          actionType === "continue_planned_item"
+            ? "nextAction.plannedItem.dismissUnavailable"
+            : "nextAction.reviewDraft.dismissUnavailable",
         ns: "home",
       });
     });
@@ -781,24 +849,36 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ))}
 
-        <HomePlanningEntry
-          title={t("home:planningEntry.title")}
-          description={t("home:planningEntry.description")}
-          onPress={openPlanning}
-          styles={styles}
-        />
-
         {visibleHomeNextAction ? (
           <HomeNextActionPrompt
-            title={t("home:nextAction.reviewDraft.title")}
-            description={t("home:nextAction.reviewDraft.description")}
-            actionLabel={t("home:nextAction.reviewDraft.cta")}
+            title={t(
+              visibleHomeNextAction.actionType === "continue_planned_item"
+                ? "home:nextAction.plannedItem.title"
+                : "home:nextAction.reviewDraft.title",
+            )}
+            description={t(
+              visibleHomeNextAction.actionType === "continue_planned_item"
+                ? "home:nextAction.plannedItem.description"
+                : "home:nextAction.reviewDraft.description",
+            )}
+            actionLabel={t(
+              visibleHomeNextAction.actionType === "continue_planned_item"
+                ? "home:nextAction.plannedItem.cta"
+                : "home:nextAction.reviewDraft.cta",
+            )}
             dismissLabel={t("home:nextAction.dismiss")}
             onAction={handleNextActionContinue}
             onDismiss={handleNextActionDismiss}
             styles={styles}
           />
         ) : null}
+
+        <HomePlanningEntry
+          title={t("home:planningEntry.title")}
+          description={t("home:planningEntry.description")}
+          onPress={openPlanning}
+          styles={styles}
+        />
 
         {macroTargets ? (
           <MacroTargetsRow

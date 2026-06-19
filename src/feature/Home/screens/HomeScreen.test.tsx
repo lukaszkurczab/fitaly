@@ -11,6 +11,8 @@ import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import HomeScreen from "@/feature/Home/screens/HomeScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
+import type { PlannedMealItem } from "@/types/plannedMeals";
 
 const mockReact = React;
 
@@ -43,6 +45,8 @@ const mockTrackHomeNextActionStarted =
   jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockTrackHomeNextActionDismissed =
   jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockFetchPlannedMealsRemote =
+  fetchPlannedMealsRemote as jest.MockedFunction<typeof fetchPlannedMealsRemote>;
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
 const mockFocusEffectCallbacks: Array<() => void | (() => void)> = [];
 
@@ -161,6 +165,10 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
     mockTrackHomeNextActionDismissed(...args),
 }));
 
+jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
+  fetchPlannedMealsRemote: jest.fn(),
+}));
+
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
@@ -193,6 +201,13 @@ jest.mock("react-i18next", () => ({
         return "You have an unfinished meal ready to review.";
       }
       if (key === "home:nextAction.reviewDraft.cta") return "Continue";
+      if (key === "home:nextAction.plannedItem.title") {
+        return "Check your next planned meal";
+      }
+      if (key === "home:nextAction.plannedItem.description") {
+        return "You have a planned item due soon. Open Planning to review it before logging.";
+      }
+      if (key === "home:nextAction.plannedItem.cta") return "Open Planning";
       if (key === "home:nextAction.dismiss") return "Not now";
       if (key === "home:planningEntry.title") return "Plan next meals";
       if (key === "home:planningEntry.description") {
@@ -525,6 +540,57 @@ async function storeReviewDraft() {
   await AsyncStorage.setItem("screen:user-1", "AddMeal");
 }
 
+function createPlannedItem(
+  overrides: Partial<PlannedMealItem> = {},
+): PlannedMealItem {
+  return {
+    plannedMealId: "planned-1",
+    version: 2,
+    dateBucket: "2026-03-18",
+    timeBucket: "lunch",
+    sourceType: "manual",
+    sourceRef: null,
+    draftSnapshot: {
+      name: "Private planned bowl",
+      type: "lunch",
+      ingredients: [
+        {
+          id: "planned-ingredient-1",
+          name: "Private planned bowl",
+          amount: 1,
+          kcal: 400,
+          protein: 24,
+          fat: 14,
+          carbs: 44,
+        },
+      ],
+      totals: {
+        kcal: 400,
+        protein: 24,
+        fat: 14,
+        carbs: 44,
+      },
+      notes: null,
+      tags: [],
+    },
+    nutritionEstimate: {
+      state: "known",
+      totals: {
+        kcal: 400,
+        protein: 24,
+        fat: 14,
+        carbs: 44,
+      },
+      missingFields: [],
+      confidence: "medium",
+    },
+    status: "planned",
+    createdAt: "2026-03-18T07:00:00.000Z",
+    updatedAt: "2026-03-18T07:05:00.000Z",
+    ...overrides,
+  };
+}
+
 function createCoachInsight(overrides: Record<string, unknown> = {}) {
   return {
     id: "2026-03-18:stable",
@@ -577,6 +643,15 @@ describe("HomeScreen", () => {
     mockTrackHomeNextActionShown.mockResolvedValue(undefined);
     mockTrackHomeNextActionStarted.mockResolvedValue(undefined);
     mockTrackHomeNextActionDismissed.mockResolvedValue(undefined);
+    mockFetchPlannedMealsRemote.mockResolvedValue({
+      items: [],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 0,
+      },
+    });
 
     mockUseUserProfileContext.mockReturnValue({
       userData: {
@@ -901,6 +976,164 @@ describe("HomeScreen", () => {
     expect(handleDirectStart).not.toHaveBeenCalled();
     expect(handleContinueDraft).not.toHaveBeenCalled();
     expect(mockLoadDraft).not.toHaveBeenCalled();
+  });
+
+  it("renders a planned item next action and opens Planning without loading Review draft", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Check your next planned meal")).toBeTruthy();
+    expect(
+      getByText(
+        "You have a planned item due soon. Open Planning to review it before logging.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("Private planned bowl")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("Planning");
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      ownerFlow: "Planning",
+      state: "eligible",
+    });
+  });
+
+  it("dismisses a planned item next action without starting Review or meal logging", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-dismiss-button"));
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      reasonCode: "planned_item_due",
+      cooldownBucket: "24h",
+    });
+    await expect(
+      AsyncStorage.getItem("home-next-action-dismissals:user-1"),
+    ).resolves.toContain("planned-meal:planned-1");
+  });
+
+  it("falls back to the review draft next action when planned meals are unavailable", async () => {
+    await storeReviewDraft();
+    mockFetchPlannedMealsRemote.mockRejectedValueOnce(
+      new Error("planned meals unavailable"),
+    );
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Finish reviewing your meal")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockLoadDraft).toHaveBeenCalledWith("user-1");
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("keeps review draft as the primary next action when a planned item also exists", async () => {
+    await storeReviewDraft();
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Finish reviewing your meal")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockLoadDraft).toHaveBeenCalledWith("user-1");
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("Planning");
   });
 
   it("renders a compact review draft next action after recovery banners and continues to AddMeal review", async () => {

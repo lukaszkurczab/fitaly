@@ -1,0 +1,42 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty&planning=reviewReady&credits=ok&billing=free
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-planning-reviewReady
+    timeout: 30000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-next-action-prompt
+    timeout: 15000
+- assertVisible:
+    id: home-next-action-title
+- assertVisible:
+    id: home-next-action-description
+- tapOn:
+    id: home-next-action-continue-button
+- extendedWaitUntil:
+    visible:
+      id: planning-screen
+    timeout: 15000
+- assertVisible:
+    id: planning-boundary
+- scrollUntilVisible:
+    element:
+      text: E2E Planning Bowl
+    direction: DOWN
+- assertNotVisible:
+    id: review-meal-screen
