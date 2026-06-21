@@ -6,6 +6,7 @@ import {
   normalizeMealAiMeta,
   normalizeMealInputMethod,
 } from "@/services/meals/mealMetadata";
+import { requirePlanningEnabledForMeal } from "@/services/meals/planningSourceGuard";
 
 export type MealHistoryFilters = {
   calories?: [number, number];
@@ -64,6 +65,68 @@ function parseImageRef(raw: unknown): MealImageRef | null {
     imageId,
     storagePath,
     downloadUrl,
+  };
+}
+
+function parsePlanningSource(raw: unknown): Meal["planningSource"] {
+  const source = asMap(raw);
+  if (!source) return null;
+
+  const plannedMealId = String(source.plannedMealId || "").trim();
+  const plannedMealVersion = Number(source.plannedMealVersion);
+  const sourceType = source.sourceType;
+  const nutritionEstimateState = source.nutritionEstimateState;
+  if (
+    !plannedMealId ||
+    !Number.isInteger(plannedMealVersion) ||
+    plannedMealVersion < 1 ||
+    !(
+      sourceType === "manual" ||
+      sourceType === "saved_meal" ||
+      sourceType === "recipe" ||
+      sourceType === "ingredient_product_draft"
+    ) ||
+    !(
+      nutritionEstimateState === "known" ||
+      nutritionEstimateState === "partial" ||
+      nutritionEstimateState === "unknown"
+    )
+  ) {
+    return null;
+  }
+
+  const sourceRefMap = asMap(source.sourceRef);
+  const sourceRef = sourceRefMap
+    ? {
+        sourceId: String(sourceRefMap.sourceId || "").trim(),
+        sourceVersion:
+          typeof sourceRefMap.sourceVersion === "number"
+            ? sourceRefMap.sourceVersion
+            : null,
+        snapshotName:
+          typeof sourceRefMap.snapshotName === "string"
+            ? sourceRefMap.snapshotName
+            : null,
+      }
+    : null;
+  const validSourceRef = sourceRef?.sourceId ? sourceRef : null;
+  const missingNutritionFields = Array.isArray(source.missingNutritionFields)
+    ? source.missingNutritionFields.filter(
+        (field): field is "kcal" | "protein" | "fat" | "carbs" =>
+          field === "kcal" ||
+          field === "protein" ||
+          field === "fat" ||
+          field === "carbs",
+      )
+    : [];
+
+  return {
+    plannedMealId,
+    plannedMealVersion,
+    sourceType,
+    sourceRef: validSourceRef,
+    nutritionEstimateState,
+    missingNutritionFields,
   };
 }
 
@@ -136,6 +199,7 @@ function normalizeMeal(raw: unknown, uid: string): Meal | null {
     aiMeta: normalizeMealAiMeta(doc.aiMeta),
     imageId: imageRef?.imageId ?? null,
     photoUrl: imageRef?.downloadUrl ?? null,
+    planningSource: parsePlanningSource(doc.planningSource),
     notes: typeof doc.notes === "string" ? doc.notes : null,
     tags: Array.isArray(doc.tags)
       ? doc.tags.filter((tag): tag is string => typeof tag === "string")
@@ -278,6 +342,7 @@ function toMealDocumentPayload(meal: Meal, ownerUid: string): MealDocument {
     inputMethod: normalizeMealInputMethod(meal.inputMethod),
     aiMeta: normalizeMealAiMeta(meal.aiMeta),
     imageRef,
+    planningSource: meal.planningSource ?? null,
     notes: meal.notes ?? null,
     tags: Array.isArray(meal.tags) ? meal.tags : [],
     deleted: Boolean(meal.deleted),
@@ -291,6 +356,8 @@ export async function saveMealRemote(params: {
   clientMutationId: string;
   alsoSaveToMyMeals?: boolean;
 }): Promise<void> {
+  requirePlanningEnabledForMeal(params.meal);
+
   const payload = {
     ...toMealDocumentPayload(params.meal, params.uid),
     clientMutationId: params.clientMutationId,

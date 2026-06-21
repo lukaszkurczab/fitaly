@@ -47,6 +47,10 @@ const mockTrackHomeNextActionStarted =
   jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockTrackHomeNextActionDismissed =
   jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  homeNextAction: true,
+  planning: true,
+};
 const mockFetchKnownPatternCandidatesRemote =
   fetchKnownPatternCandidatesRemote as jest.MockedFunction<
     typeof fetchKnownPatternCandidatesRemote
@@ -160,6 +164,10 @@ jest.mock("@/services/core/events", () => ({
       handlers.delete(handler);
     };
   },
+}));
+
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
 }));
 
 jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
@@ -690,6 +698,8 @@ describe("HomeScreen", () => {
     mockTrackHomeNextActionShown.mockResolvedValue(undefined);
     mockTrackHomeNextActionStarted.mockResolvedValue(undefined);
     mockTrackHomeNextActionDismissed.mockResolvedValue(undefined);
+    mockRuntimeFeatures.homeNextAction = true;
+    mockRuntimeFeatures.planning = true;
     mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
       items: [],
       queryEcho: {
@@ -1033,6 +1043,52 @@ describe("HomeScreen", () => {
     expect(handleDirectStart).not.toHaveBeenCalled();
     expect(handleContinueDraft).not.toHaveBeenCalled();
     expect(mockLoadDraft).not.toHaveBeenCalled();
+  });
+
+  it("hides Planning entrypoints and does not continue to Planning when planning is disabled", async () => {
+    mockRuntimeFeatures.planning = false;
+
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(queryByTestId("home-planning-entry")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockFetchKnownPatternCandidatesRemote).toHaveBeenCalled();
+    });
+
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("Planning");
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: "continue_planned_item",
+      }),
+    );
+  });
+
+  it("hides all Home Next Action prompts when Home Next Action is disabled", async () => {
+    mockRuntimeFeatures.homeNextAction = false;
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockFetchKnownPatternCandidatesRemote).not.toHaveBeenCalled();
+    });
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
   });
 
   it("renders a planned item next action and opens Planning without loading Review draft", async () => {

@@ -18,9 +18,15 @@ const iosGoogleServicesFile =
   process.env.GOOGLE_SERVICES_FILE_IOS || "./GoogleService-Info.plist";
 const androidGoogleServicesFile =
   process.env.GOOGLE_SERVICES_FILE_ANDROID || "./google-services.json";
-const configuredApiBaseUrl = normalizeEnvString(process.env.EXPO_PUBLIC_API_BASE_URL);
-const sentryOrganization = normalizeEnvString(process.env.SENTRY_ORG || "lukaszkurczab");
-const sentryProject = normalizeEnvString(process.env.SENTRY_PROJECT || "fitaly-frontend");
+const configuredApiBaseUrl = normalizeEnvString(
+  process.env.EXPO_PUBLIC_API_BASE_URL,
+);
+const sentryOrganization = normalizeEnvString(
+  process.env.SENTRY_ORG || "lukaszkurczab",
+);
+const sentryProject = normalizeEnvString(
+  process.env.SENTRY_PROJECT || "fitaly-frontend",
+);
 const buildProfile = normalizeEnvString(process.env.EAS_BUILD_PROFILE);
 const isLocalDevelopmentRuntime = process.env.EAS_BUILD !== "true";
 const isProductionBuildProfile =
@@ -126,6 +132,27 @@ export default {
       smartRemindersEnabled: readBooleanEnv(
         "EXPO_PUBLIC_ENABLE_SMART_REMINDERS",
         true,
+      ),
+      foodLibraryEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_FOOD_LIBRARY",
+        false,
+      ),
+      smartMemoryEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_SMART_MEMORY",
+        false,
+      ),
+      knownPatternsEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS",
+        false,
+      ),
+      recipeCatalogEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_RECIPE_CATALOG",
+        false,
+      ),
+      planningEnabled: readBooleanEnv("EXPO_PUBLIC_ENABLE_PLANNING", false),
+      homeNextActionEnabled: readBooleanEnv(
+        "EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION",
+        false,
       ),
       reviewMemoryExplanationEnabled: readBooleanEnv(
         "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION",

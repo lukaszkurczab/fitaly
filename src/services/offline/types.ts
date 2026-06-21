@@ -45,6 +45,7 @@ export type MealRow = {
   source: string | null;
   input_method?: string | null;
   ai_meta?: string | null;
+  planning_source?: string | null;
   notes: string | null;
   tags: string | null;
 };

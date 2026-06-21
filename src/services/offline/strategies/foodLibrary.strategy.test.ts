@@ -54,6 +54,15 @@ const mockGetLastFoodLibraryPullTs = jest.fn<
 const mockSetLastFoodLibraryPullTs = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@/services/foodLibrary/ingredientProductSearchApi", () => {
   const actual = jest.requireActual<
@@ -107,6 +116,10 @@ jest.mock("@/services/offline/sync.storage", () => ({
     mockGetLastFoodLibraryPullTs(...args),
   setLastFoodLibraryPullTs: (...args: unknown[]) =>
     mockSetLastFoodLibraryPullTs(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 function sampleRow(
@@ -232,6 +245,28 @@ describe("foodLibraryStrategy", () => {
     mockApplyPulledIngredientProductUserRecord.mockResolvedValue("synced");
     mockGetLastFoodLibraryPullTs.mockResolvedValue("2026-06-15T10:00:00.000Z");
     mockSetLastFoodLibraryPullTs.mockResolvedValue();
+    mockRuntimeConfig.foodLibraryEnabled = true;
+  });
+
+  it("does not pull or push Product/Ingredient backend work when Food Library is disabled", async () => {
+    mockRuntimeConfig.foodLibraryEnabled = false;
+    const { foodLibraryStrategy } = jest.requireActual<
+      typeof import("./foodLibrary.strategy")
+    >("./foodLibrary.strategy");
+
+    await expect(foodLibraryStrategy.pull("user-1")).resolves.toBe(0);
+    await expect(
+      foodLibraryStrategy.handlePushOp("user-1", queuedCreateOp()),
+    ).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+
+    expect(mockGetLastFoodLibraryPullTs).not.toHaveBeenCalled();
+    expect(mockPullIngredientProductsRemote).not.toHaveBeenCalled();
+    expect(mockCreateIngredientProductRemote).not.toHaveBeenCalled();
+    expect(mockUpdateIngredientProductRemote).not.toHaveBeenCalled();
+    expect(mockDeleteIngredientProductRemote).not.toHaveBeenCalled();
   });
 
   it("pushes queued Product/Ingredient creates through the backend API", async () => {

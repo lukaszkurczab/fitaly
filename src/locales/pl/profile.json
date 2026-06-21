@@ -172,6 +172,8 @@
     "rowTitle": "Smart Memory",
     "rowSubtitle": "Porcje, korekty, składniki i produkty",
     "rowHint": "Otwiera centrum kontroli Smart Memory.",
+    "featureDisabledTitle": "Smart Memory jest niedostępne",
+    "featureDisabledBody": "Ta funkcja jest wyłączona w tej wersji. Dane pamięci nie zostały wczytane ani zmienione.",
     "intro": "Smart Memory pomaga używać powtarzalnych szczegółów, np. typowych porcji lub wybranych produktów. To Ty kontrolujesz każdą pozycję.",
     "refresh": "Odśwież Smart Memory",
     "noUserTitle": "Brak aktywnego profilu",
@@ -269,6 +271,8 @@
     "rowTitle": "Przepisy",
     "rowSubtitle": "Kuratorowany katalog filtrowany z profilu",
     "rowHint": "Otwiera katalog przepisów tylko do odczytu.",
+    "disabledTitle": "Katalog przepisów jest niedostępny",
+    "disabledBody": "Ta funkcja jest wyłączona w tej wersji. Dane katalogu przepisów nie zostały wczytane.",
     "title": "Przepisy",
     "intro": "Przeglądaj kuratorowane przepisy filtrowane z Twojego profilu. Nieznane flagi pozostają widoczne jako ostrzeżenia.",
     "refresh": "Odśwież przepisy",
@@ -304,6 +308,8 @@
     "reviewAuthErrorBody": "Zaloguj się ponownie przed sprawdzeniem tego przepisu. Nic nie zostało zapisane ani dodane do historii."
   },
   "planning": {
+    "disabledTitle": "Planowanie jest niedostępne",
+    "disabledBody": "Ta funkcja jest wyłączona w tej wersji. Planowane posiłki nie zostały wczytane ani zmienione.",
     "title": "Planowanie",
     "intro": "Zaplanuj najbliższy okres od jednego do trzech dni. Planowane pozycje pozostają oddzielone od zapisanych posiłków.",
     "refresh": "Odśwież planowanie",
@@ -378,7 +384,8 @@
       "source_unavailable": "Źródło tej planowanej pozycji jest niedostępne. Utwórz ją ponownie przed przeglądem.",
       "converted_to_review": "Ta planowana pozycja została już przeniesiona do przeglądu. Utwórz nowy plan, aby sprawdzić ją ponownie.",
       "default": "Ta planowana pozycja nie jest gotowa do przeglądu. Odśwież lub utwórz nowy plan."
-    }
+    },
+    "statusLinkedMeal": "Zapisany posiłek {{mealId}} • {{convertedAt}}"
   },
   "accountActionsSectionTitle": "Działania na koncie",
   "logOutSubtitle": "Wyloguj się na tym urządzeniu",

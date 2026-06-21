@@ -1,5 +1,6 @@
 import { get, patch, post } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
+import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   SMART_MEMORY_CANDIDATE_STATES,
   SMART_MEMORY_SCHEMA_VERSION,
@@ -233,6 +234,7 @@ function requireSettingsResponse(raw: unknown): SmartMemorySettingsResponse {
 export async function fetchSmartMemoryItemsRemote(params?: {
   limit?: number;
 }): Promise<SmartMemoryItemsPageResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   const limit = Math.max(1, Math.min(params?.limit ?? 100, 250));
   return toItemsPage(
     await get(`${SMART_MEMORY_ENDPOINT}/items?limit=${encodeURIComponent(String(limit))}`),
@@ -242,6 +244,7 @@ export async function fetchSmartMemoryItemsRemote(params?: {
 export async function fetchSmartMemoryCandidatesRemote(params?: {
   limit?: number;
 }): Promise<SmartMemoryCandidatesPageResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   const limit = Math.max(1, Math.min(params?.limit ?? 100, 250));
   return toCandidatesPage(
     await get(
@@ -251,6 +254,7 @@ export async function fetchSmartMemoryCandidatesRemote(params?: {
 }
 
 export async function fetchSmartMemorySettingsRemote(): Promise<SmartMemorySettingsResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return requireSettingsResponse(await get(`${SMART_MEMORY_ENDPOINT}/settings`));
 }
 
@@ -258,6 +262,7 @@ export async function upsertSmartMemoryCandidateRemote(params: {
   clientMutationId: string;
   input: SmartMemoryCandidateUpsertInput;
 }): Promise<SmartMemoryCandidateResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return requireCandidateResponse(
     await post(`${SMART_MEMORY_ENDPOINT}/candidates`, {
       clientMutationId: params.clientMutationId,
@@ -271,6 +276,7 @@ export async function editSmartMemoryItemRemote(params: {
   clientMutationId: string;
   input: SmartMemoryItemEditInput;
 }): Promise<SmartMemoryItemMutationResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return requireItemResponse(
     await patch(`${SMART_MEMORY_ENDPOINT}/items/${encodeURIComponent(params.memoryItemId)}`, {
       clientMutationId: params.clientMutationId,
@@ -283,6 +289,7 @@ export async function muteSmartMemoryItemRemote(params: {
   memoryItemId: string;
   clientMutationId: string;
 }): Promise<SmartMemoryItemMutationResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return mutateSmartMemoryItemRemote(params.memoryItemId, "mute", params.clientMutationId);
 }
 
@@ -290,6 +297,7 @@ export async function restoreSmartMemoryItemRemote(params: {
   memoryItemId: string;
   clientMutationId: string;
 }): Promise<SmartMemoryItemMutationResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return mutateSmartMemoryItemRemote(
     params.memoryItemId,
     "restore",
@@ -301,6 +309,7 @@ export async function deleteSmartMemoryItemRemote(params: {
   memoryItemId: string;
   clientMutationId: string;
 }): Promise<SmartMemoryItemMutationResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return mutateSmartMemoryItemRemote(params.memoryItemId, "delete", params.clientMutationId);
 }
 
@@ -309,6 +318,7 @@ export async function markSmartMemoryItemSourceDeletedRemote(params: {
   clientMutationId: string;
   input: SmartMemorySourceDeletedInput;
 }): Promise<SmartMemoryItemMutationResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return requireItemResponse(
     await post(
       `${SMART_MEMORY_ENDPOINT}/items/${encodeURIComponent(params.memoryItemId)}/source-deleted`,
@@ -337,6 +347,7 @@ export async function updateSmartMemorySettingsRemote(params: {
   enabled: boolean;
   clientMutationId: string;
 }): Promise<SmartMemorySettingsResponse> {
+  requireRuntimeFeatureEnabled("smartMemory");
   return requireSettingsResponse(
     await patch(`${SMART_MEMORY_ENDPOINT}/settings`, {
       enabled: params.enabled,

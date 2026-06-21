@@ -2,10 +2,23 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 function sampleCandidate(overrides: Record<string, unknown> = {}) {
@@ -108,6 +121,44 @@ describe("knownPatternCandidatesApi", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockRuntimeConfig.knownPatternsEnabled = true;
+  });
+
+  it("does not call backend requests when Known Patterns is disabled", async () => {
+    mockRuntimeConfig.knownPatternsEnabled = false;
+    const api =
+      jest.requireActual<typeof import("./knownPatternCandidatesApi")>(
+        "./knownPatternCandidatesApi",
+      );
+
+    await expect(api.fetchKnownPatternCandidatesRemote()).rejects.toMatchObject({
+      code: "feature/known-patterns-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.markKnownPatternCandidateRemote("a1b2c3d4e5f6a1b2", {
+        clientMutationId: "mutation-1",
+        subjectKeyHash: "b2c3d4e5f6a1b2c3",
+        createdByRuleVersion: "known-pattern-v1",
+        action: "declined",
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/known-patterns-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.openKnownPatternReviewDraftRemote("a1b2c3d4e5f6a1b2", {
+        clientMutationId: "mutation-2",
+        subjectKeyHash: "b2c3d4e5f6a1b2c3",
+        createdByRuleVersion: "known-pattern-v1",
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/known-patterns-disabled",
+      retryable: false,
+    });
+
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it("calls the read-only v2 known-pattern candidates endpoint", async () => {

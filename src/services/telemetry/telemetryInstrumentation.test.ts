@@ -15,9 +15,19 @@ import {
   trackHomeNextActionStarted,
   trackIngredientProductCreateOutcome,
   trackMealLogged,
+  trackMemoryCandidateConfirmed,
+  trackMemoryCandidateCreated,
+  trackMemoryCandidateDismissed,
+  trackMemoryDeleted,
+  trackMemoryMuted,
+  trackMemoryUsed,
   trackNotificationOpened,
   trackOnboardingCompleted,
   trackPaywallViewed,
+  trackPlannedMealChanged,
+  trackPlannedMealConfirmed,
+  trackPlannedMealCreated,
+  trackPlannedMealSkipped,
   trackPurchaseStarted,
   trackPurchaseSucceeded,
   trackRestoreFailed,
@@ -167,6 +177,70 @@ describe("telemetryInstrumentation", () => {
       reasonCode: "review_draft_available",
       cooldownBucket: "24h",
     });
+    await trackMemoryCandidateCreated({
+      memoryType: "typical_portion",
+      surface: "review",
+      confidenceBucket: "medium",
+      featureState: "shadow",
+    });
+    await trackMemoryCandidateConfirmed({
+      memoryType: "review_correction",
+      surface: "review",
+      confidenceBucket: "high",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackMemoryCandidateDismissed({
+      memoryType: "ingredient_product_selection",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    });
+    await trackMemoryUsed({
+      memoryType: "typical_portion",
+      surface: "review",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackMemoryMuted({
+      memoryType: "review_correction",
+      surface: "settings",
+      actionResult: "blocked",
+      featureState: "disabled",
+    });
+    await trackMemoryDeleted({
+      memoryType: "ingredient_product_selection",
+      surface: "memory_center",
+      actionResult: "failed",
+      featureState: "enabled",
+    });
+    await trackPlannedMealCreated({
+      sourceType: "manual",
+      estimateState: "unknown",
+      surface: "planning",
+      featureState: "enabled",
+    });
+    await trackPlannedMealConfirmed({
+      sourceType: "saved_meal",
+      estimateState: "known",
+      surface: "home_next_action",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackPlannedMealChanged({
+      sourceType: "recipe",
+      estimateState: "partial",
+      surface: "planning",
+      actionResult: "queued",
+      featureState: "shadow",
+    });
+    await trackPlannedMealSkipped({
+      sourceType: "ingredient_product_draft",
+      estimateState: "partial",
+      surface: "planning",
+      actionResult: "blocked",
+      featureState: "disabled",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
       origin: "app_boot",
@@ -305,6 +379,156 @@ describe("telemetryInstrumentation", () => {
       reasonCode: "review_draft_available",
       cooldownBucket: "24h",
     });
+    expect(mockTrack).toHaveBeenNthCalledWith(25, "memory_candidate_created", {
+      memoryType: "typical_portion",
+      surface: "review",
+      confidenceBucket: "medium",
+      featureState: "shadow",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(26, "memory_candidate_confirmed", {
+      memoryType: "review_correction",
+      surface: "review",
+      confidenceBucket: "high",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(27, "memory_candidate_dismissed", {
+      memoryType: "ingredient_product_selection",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(28, "memory_used", {
+      memoryType: "typical_portion",
+      surface: "review",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(29, "memory_muted", {
+      memoryType: "review_correction",
+      surface: "settings",
+      actionResult: "blocked",
+      featureState: "disabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(30, "memory_deleted", {
+      memoryType: "ingredient_product_selection",
+      surface: "memory_center",
+      actionResult: "failed",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(31, "planned_meal_created", {
+      sourceType: "manual",
+      estimateState: "unknown",
+      surface: "planning",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(32, "planned_meal_confirmed", {
+      sourceType: "saved_meal",
+      estimateState: "known",
+      surface: "home_next_action",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(33, "planned_meal_changed", {
+      sourceType: "recipe",
+      estimateState: "partial",
+      surface: "planning",
+      actionResult: "queued",
+      featureState: "shadow",
+    });
+    expect(mockTrack).toHaveBeenNthCalledWith(34, "planned_meal_skipped", {
+      sourceType: "ingredient_product_draft",
+      estimateState: "partial",
+      surface: "planning",
+      actionResult: "blocked",
+      featureState: "disabled",
+    });
+  });
+
+  it("keeps C5 Smart Memory and Planning telemetry bounded and content-free", async () => {
+    const forbiddenPropNames = [
+      "mealName",
+      "ingredientName",
+      "notes",
+      "candidateId",
+      "memoryId",
+      "plannedMealId",
+      "sourceRef",
+      "rawReason",
+      "rawPrompt",
+      "rawResponse",
+      "imageUrl",
+      "fullPayload",
+      "calories",
+      "kcal",
+      "macros",
+      "protein",
+      "carbs",
+      "fat",
+    ];
+
+    await trackMemoryCandidateCreated({
+      memoryType: "typical_portion",
+      surface: "review",
+      confidenceBucket: "low",
+      featureState: "shadow",
+    });
+    await trackMemoryUsed({
+      memoryType: "review_correction",
+      surface: "review",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackPlannedMealCreated({
+      sourceType: "manual",
+      estimateState: "unknown",
+      surface: "planning",
+      featureState: "disabled",
+    });
+    await trackPlannedMealSkipped({
+      sourceType: "recipe",
+      estimateState: "partial",
+      surface: "home_next_action",
+      actionResult: "blocked",
+      featureState: "enabled",
+    });
+
+    const assertC5TelemetryTypeBoundaries = () => {
+      void trackMemoryCandidateCreated({
+        memoryType: "typical_portion",
+        surface: "review",
+        confidenceBucket: "low",
+        featureState: "shadow",
+        // @ts-expect-error raw candidate identifiers are not part of the C5 contract.
+        candidateId: "candidate-1",
+      });
+      void trackPlannedMealCreated({
+        // @ts-expect-error sourceType must stay a bounded planning source enum.
+        sourceType: "raw_recipe_name",
+        estimateState: "unknown",
+        surface: "planning",
+        featureState: "disabled",
+      });
+      void trackPlannedMealSkipped({
+        sourceType: "recipe",
+        estimateState: "partial",
+        surface: "home_next_action",
+        // @ts-expect-error raw reason text is not a C5 actionResult enum.
+        actionResult: "I skipped oats because...",
+        featureState: "enabled",
+      });
+    };
+    expect(assertC5TelemetryTypeBoundaries).toBeDefined();
+
+    for (const [, props] of mockTrack.mock.calls) {
+      expect(Object.keys(props ?? {})).not.toEqual(
+        expect.arrayContaining(forbiddenPropNames),
+      );
+      expect(JSON.stringify(props)).not.toContain("Oats");
+      expect(JSON.stringify(props)).not.toContain("candidate-1");
+      expect(JSON.stringify(props)).not.toContain("memory-1");
+      expect(JSON.stringify(props)).not.toContain("planned-1");
+    }
   });
 
   it("keeps autocomplete telemetry behavioral and bucketed", async () => {

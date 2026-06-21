@@ -3,6 +3,10 @@ import { Sync } from "@/utils/debug";
 import { isOfflineNetState } from "@/services/core/networkState";
 import { createServiceError } from "@/services/contracts/serviceError";
 import {
+  createRuntimeFeatureDisabledError,
+  isRuntimeFeatureEnabled,
+} from "@/services/core/featureFlagGuard";
+import {
   deleteSmartMemoryItemRemote,
   editSmartMemoryItemRemote,
   fetchSmartMemoryCandidatesRemote,
@@ -86,6 +90,10 @@ function toSourceDeletedInput(payload: unknown): SmartMemorySourceDeletedInput {
 
 export const smartMemoryStrategy: SyncStrategy = {
   async pull(uid: string): Promise<number> {
+    if (!isRuntimeFeatureEnabled("smartMemory")) {
+      return 0;
+    }
+
     const pullLog = log.child("pull:smartMemory");
     const net = await NetInfo.fetch();
     pullLog.log("start", { uid, isConnected: net.isConnected });
@@ -118,6 +126,24 @@ export const smartMemoryStrategy: SyncStrategy = {
 
   async handlePushOp(uid: string, op: QueueOp): Promise<boolean> {
     const pushLog = log.child("push:smartMemory");
+
+    const isSmartMemoryOp =
+      op.kind === "smart_memory_candidate_upsert" ||
+      op.kind === "smart_memory_item_edit" ||
+      op.kind === "smart_memory_item_mute" ||
+      op.kind === "smart_memory_item_restore" ||
+      op.kind === "smart_memory_item_delete" ||
+      op.kind === "smart_memory_item_source_deleted" ||
+      op.kind === "smart_memory_settings_disable" ||
+      op.kind === "smart_memory_settings_enable";
+
+    if (!isSmartMemoryOp) {
+      return false;
+    }
+
+    if (!isRuntimeFeatureEnabled("smartMemory")) {
+      throw createRuntimeFeatureDisabledError("smartMemory");
+    }
 
     if (op.kind === "smart_memory_candidate_upsert") {
       const response = await upsertSmartMemoryCandidateRemote({

@@ -1,4 +1,5 @@
 import { get, post, type RequestOptions } from "@/services/core/apiClient";
+import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import { withV2 } from "@/services/core/apiVersioning";
 import {
   INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
@@ -614,6 +615,7 @@ export async function searchIngredientProductsRemote(
   request: IngredientProductSearchRequest,
   options?: RequestOptions,
 ): Promise<IngredientProductSearchResponse> {
+  requireRuntimeFeatureEnabled("foodLibrary");
   return normalizeIngredientProductSearchResponse(
     await get(buildSearchPath(request), options),
     request,
@@ -624,6 +626,7 @@ export async function createIngredientProductRemote(
   request: IngredientProductCreateRequest,
   options?: RequestOptions,
 ): Promise<IngredientProductCreateResponse> {
+  requireRuntimeFeatureEnabled("foodLibrary");
   return normalizeIngredientProductCreateResponse(
     await post(CREATE_ENDPOINT, request, options),
   );
@@ -633,6 +636,7 @@ export async function updateIngredientProductRemote(
   request: IngredientProductUpdateRequest,
   options?: RequestOptions,
 ): Promise<IngredientProductUpdateResponse> {
+  requireRuntimeFeatureEnabled("foodLibrary");
   return normalizeIngredientProductUpdateResponse(
     await post(
       buildUpdatePath(request.ingredientProductId),
@@ -646,6 +650,7 @@ export async function deleteIngredientProductRemote(
   request: IngredientProductDeleteRequest,
   options?: RequestOptions,
 ): Promise<IngredientProductDeleteResponse> {
+  requireRuntimeFeatureEnabled("foodLibrary");
   return normalizeIngredientProductDeleteResponse(
     await post(
       buildDeletePath(request.ingredientProductId),
@@ -659,6 +664,7 @@ export async function pullIngredientProductsRemote(
   request: { updatedAfter?: string | null; limit?: number } = {},
   options?: RequestOptions,
 ): Promise<IngredientProductPullResponse> {
+  requireRuntimeFeatureEnabled("foodLibrary");
   return normalizeIngredientProductPullResponse(
     await get(buildPullPath(request), options),
   );

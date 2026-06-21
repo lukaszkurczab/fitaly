@@ -22,7 +22,9 @@ import {
   SettingsSection,
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
+import RuntimeFeatureDisabledState from "@/components/RuntimeFeatureDisabledState";
 import { useUserProfileContext } from "@/context/UserProfileContext";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   queueSmartMemoryItemDelete,
   queueSmartMemoryItemMute,
@@ -42,6 +44,10 @@ import type {
 } from "@/services/smartMemory/smartMemoryProjectionRepository";
 import { useMonitoredNetInfo } from "@/services/core/connectivityMonitor";
 import { isOfflineNetState } from "@/services/core/networkState";
+import {
+  trackMemoryDeleted,
+  trackMemoryMuted,
+} from "@/services/telemetry/telemetryInstrumentation";
 import type {
   SmartMemoryItem,
   SmartMemoryProjectionState,
@@ -79,6 +85,7 @@ export default function MemoryCenterScreen({
   const uid = userData?.uid ?? null;
   const netInfo = useMonitoredNetInfo();
   const isOffline = isOfflineNetState(netInfo);
+  const smartMemoryEnabled = isRuntimeFeatureEnabled("smartMemory");
   const isMountedRef = useRef(true);
   const [projection, setProjection] = useState<SmartMemoryProjection | null>(
     null,
@@ -96,6 +103,12 @@ export default function MemoryCenterScreen({
     useState<SmartMemoryProjectionItem | null>(null);
 
   const loadProjection = useCallback(async () => {
+    if (!smartMemoryEnabled) {
+      setProjection(null);
+      setLoadState("ready");
+      return;
+    }
+
     if (!uid) {
       setProjection(null);
       setLoadState("ready");
@@ -112,7 +125,7 @@ export default function MemoryCenterScreen({
       if (!isMountedRef.current) return;
       setLoadState("error");
     }
-  }, [uid]);
+  }, [smartMemoryEnabled, uid]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -136,6 +149,29 @@ export default function MemoryCenterScreen({
 
     navigation.navigate("Profile");
   };
+
+  if (!smartMemoryEnabled) {
+    return (
+      <FormScreenShell
+        testID="memory-center-screen"
+        title={t("memoryCenter.title")}
+        intro={t("memoryCenter.intro")}
+        onBack={handleBack}
+      >
+        <RuntimeFeatureDisabledState
+          testID="memory-center-feature-disabled-state"
+          icon="sparkles"
+          title={t("memoryCenter.featureDisabledTitle", {
+            defaultValue: "Smart Memory is unavailable",
+          })}
+          body={t("memoryCenter.featureDisabledBody", {
+            defaultValue:
+              "This feature is turned off for this build. No memory data was loaded or changed.",
+          })}
+        />
+      </FormScreenShell>
+    );
+  }
 
   const runAction = async (
     action: Exclude<PendingAction, null>,
@@ -175,6 +211,12 @@ export default function MemoryCenterScreen({
         return;
       }
       await queueSmartMemoryItemMute(uid, item.item.memoryItemId);
+      void trackMemoryMuted({
+        memoryType: item.item.memoryType,
+        surface: "memory_center",
+        actionResult: "queued",
+        featureState: "enabled",
+      });
     });
   };
 
@@ -183,6 +225,12 @@ export default function MemoryCenterScreen({
     const target = deleteTarget;
     void runAction("delete", async () => {
       await queueSmartMemoryItemDelete(uid, target.item.memoryItemId);
+      void trackMemoryDeleted({
+        memoryType: target.item.memoryType,
+        surface: "memory_center",
+        actionResult: "queued",
+        featureState: "enabled",
+      });
       setDeleteTarget(null);
       setSelectedItem(null);
     });

@@ -7,6 +7,16 @@ export type MealInputMethod =
   | "barcode"
   | "text";
 
+export type MealPlanningSourceType =
+  | "manual"
+  | "saved_meal"
+  | "recipe"
+  | "ingredient_product_draft";
+
+export type MealPlanningNutritionEstimateState = "known" | "partial" | "unknown";
+
+export type MealPlanningNutritionField = "kcal" | "protein" | "fat" | "carbs";
+
 export type MealAiMeta = {
   model?: string | null;
   runId?: string | null;
@@ -18,6 +28,21 @@ export type MealImageRef = {
   imageId: string;
   storagePath?: string;
   downloadUrl?: string | null;
+};
+
+export type MealPlanningSourceRef = {
+  sourceId: string;
+  sourceVersion: number | null;
+  snapshotName: string | null;
+};
+
+export type MealPlanningSource = {
+  plannedMealId: string;
+  plannedMealVersion: number;
+  sourceType: MealPlanningSourceType;
+  sourceRef: MealPlanningSourceRef | null;
+  nutritionEstimateState: MealPlanningNutritionEstimateState;
+  missingNutritionFields: MealPlanningNutritionField[];
 };
 
 export type Ingredient = {
@@ -61,6 +86,7 @@ export interface Meal {
   photoLocalPath?: string | null;
   photoUrl?: string | null;
   localPhotoUrl?: string | null;
+  planningSource?: MealPlanningSource | null;
   notes?: string | null;
   tags?: string[];
   deleted?: boolean;

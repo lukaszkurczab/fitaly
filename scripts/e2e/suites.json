@@ -70,6 +70,9 @@
     "e2e/maestro/platform-layout/barcode-manual-sheet.yaml",
     "e2e/maestro/platform-layout/paywall-open-layout.yaml"
   ],
+  "local-runtime-preflight": [
+    "e2e/maestro/release-gate/core-off-local-auth-shell.yaml"
+  ],
   "release-gate": [
     "e2e/maestro/release-gate/auth-login-validation.yaml",
     "e2e/maestro/release-gate/auth-register-onboarding.yaml",

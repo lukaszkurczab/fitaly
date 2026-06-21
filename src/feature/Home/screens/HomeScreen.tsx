@@ -44,6 +44,7 @@ import type {
 } from "@/feature/Home/services/homeNextActionSelector";
 import type { Meal } from "@/types/meal";
 import { emit } from "@/services/core/events";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   trackHomeNextActionDismissed,
   trackHomeNextActionShown,
@@ -375,6 +376,8 @@ export default function HomeScreen({ navigation }: Props) {
   const { uid } = useAuthContext();
   const { canUseFeature } = useAccessContext();
   const { loadDraft } = useMealDraftContext();
+  const homeNextActionEnabled = isRuntimeFeatureEnabled("homeNextAction");
+  const planningEnabled = isRuntimeFeatureEnabled("planning");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [homeNextActionInputs, setHomeNextActionInputs] =
     useState<HomeNextActionInput[] | null>(null);
@@ -413,6 +416,12 @@ export default function HomeScreen({ navigation }: Props) {
     const requestId = homeNextActionRequestRef.current + 1;
     homeNextActionRequestRef.current = requestId;
 
+    if (!homeNextActionEnabled) {
+      homeNextActionInputsRef.current = null;
+      setHomeNextActionInputs(null);
+      return;
+    }
+
     void Promise.all([
       buildHomeReviewDraftNextActionCandidate({ uid }),
       buildHomePlannedMealNextActionCandidate({ uid }),
@@ -449,7 +458,7 @@ export default function HomeScreen({ navigation }: Props) {
         homeNextActionInputsRef.current = null;
         setHomeNextActionInputs(null);
       });
-  }, [uid]);
+  }, [homeNextActionEnabled, uid]);
 
   useEffect(() => {
     refreshHomeNextAction();
@@ -476,9 +485,14 @@ export default function HomeScreen({ navigation }: Props) {
     });
   }, [homeNextActionInputs]);
   const visibleHomeNextAction =
+    homeNextActionEnabled &&
     !mealAddEntry.showResumeModal &&
     homeNextActionSelection.type === "action" &&
-    isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
+    isVisibleHomeNextActionCandidate(homeNextActionSelection.action) &&
+    (
+      homeNextActionSelection.action.actionType !== "continue_planned_item" ||
+      planningEnabled
+    )
       ? homeNextActionSelection.action
       : null;
   const visibleHomeNextActionKey = visibleHomeNextAction
@@ -748,8 +762,11 @@ export default function HomeScreen({ navigation }: Props) {
   }, [navigation]);
 
   const openPlanning = useCallback(() => {
+    if (!planningEnabled) {
+      return;
+    }
     navigation.navigate("Planning");
-  }, [navigation]);
+  }, [navigation, planningEnabled]);
 
   const showReviewDraftUnavailable = useCallback(() => {
     homeNextActionInputsRef.current = null;
@@ -762,6 +779,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const handleNextActionContinue = useCallback(() => {
     if (
+      !homeNextActionEnabled ||
       homeNextActionSelection.type !== "action" ||
       !uid ||
       !isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
@@ -771,6 +789,12 @@ export default function HomeScreen({ navigation }: Props) {
 
     const action = homeNextActionSelection.action;
     if (action.actionType === "continue_planned_item") {
+      if (!planningEnabled) {
+        homeNextActionInputsRef.current = null;
+        setHomeNextActionInputs(null);
+        return;
+      }
+
       void trackHomeNextActionStarted({
         actionType: "continue_planned_item",
         ownerFlow: "Planning",
@@ -813,15 +837,18 @@ export default function HomeScreen({ navigation }: Props) {
       }
     })();
   }, [
+    homeNextActionEnabled,
     homeNextActionSelection,
     loadDraft,
     navigation,
+    planningEnabled,
     showReviewDraftUnavailable,
     uid,
   ]);
 
   const handleNextActionDismiss = useCallback(() => {
     if (
+      !homeNextActionEnabled ||
       homeNextActionSelection.type !== "action" ||
       !uid ||
       !isVisibleHomeNextActionCandidate(homeNextActionSelection.action)
@@ -853,7 +880,7 @@ export default function HomeScreen({ navigation }: Props) {
         ns: "home",
       });
     });
-  }, [homeNextActionSelection, uid]);
+  }, [homeNextActionEnabled, homeNextActionSelection, uid]);
 
   return (
     <Layout>
@@ -921,12 +948,14 @@ export default function HomeScreen({ navigation }: Props) {
           />
         ) : null}
 
-        <HomePlanningEntry
-          title={t("home:planningEntry.title")}
-          description={t("home:planningEntry.description")}
-          onPress={openPlanning}
-          styles={styles}
-        />
+        {planningEnabled ? (
+          <HomePlanningEntry
+            title={t("home:planningEntry.title")}
+            description={t("home:planningEntry.description")}
+            onPress={openPlanning}
+            styles={styles}
+          />
+        ) : null}
 
         {macroTargets ? (
           <MacroTargetsRow

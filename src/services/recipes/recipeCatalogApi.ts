@@ -1,5 +1,6 @@
 import { get, type RequestOptions } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
+import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   RECIPE_CATALOG_ALLERGEN_FLAGS,
   RECIPE_CATALOG_DIETARY_FLAGS,
@@ -509,6 +510,7 @@ export async function fetchRecipeCatalogRemote(
   request: RecipeCatalogRequest = {},
   options?: RequestOptions,
 ): Promise<RecipeCatalogFilterResponse> {
+  requireRuntimeFeatureEnabled("recipeCatalog");
   return normalizeRecipeCatalogResponse(
     await get(buildRecipeCatalogPath(request), options),
   );

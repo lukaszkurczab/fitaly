@@ -18,6 +18,9 @@ import type {
   MealSyncState,
   MealInputMethod,
   MealSource,
+  MealPlanningNutritionEstimateState,
+  MealPlanningNutritionField,
+  MealPlanningSourceType,
 } from "@/types/meal";
 import type { Ingredient } from "@/types";
 import type { MealDocument } from "@/types/mealDocument";
@@ -207,6 +210,9 @@ type EnumsFixture = {
   MealSyncState: string[];
   MealInputMethod: string[];
   MealSource: string[];
+  MealPlanningSourceType: string[];
+  MealPlanningNutritionEstimateState: string[];
+  MealPlanningNutritionField: string[];
   GatewayRejectReasons: string[];
   TopRisk: string[];
   CoachPriority: string[];
@@ -230,6 +236,14 @@ type AutocompleteTelemetryFixture = {
 };
 
 type HomeNextActionTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  enumValuesByEvent: Record<string, Record<string, string[]>>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
+};
+
+type C5NewDomainTelemetryFixture = {
   eventNames: string[];
   propsByEvent: Record<string, string[]>;
   enumValuesByEvent: Record<string, Record<string, string[]>>;
@@ -398,6 +412,23 @@ describe("Enum parity", () => {
     "manual",
     "saved",
   ];
+  const MOBILE_MEAL_PLANNING_SOURCE_TYPES: MealPlanningSourceType[] = [
+    "manual",
+    "saved_meal",
+    "recipe",
+    "ingredient_product_draft",
+  ];
+  const MOBILE_MEAL_PLANNING_NUTRITION_ESTIMATE_STATES: MealPlanningNutritionEstimateState[] = [
+    "known",
+    "partial",
+    "unknown",
+  ];
+  const MOBILE_MEAL_PLANNING_NUTRITION_FIELDS: MealPlanningNutritionField[] = [
+    "kcal",
+    "protein",
+    "fat",
+    "carbs",
+  ];
   const MOBILE_TOP_RISKS: NutritionTopRisk[] = [
     "none",
     "under_logging",
@@ -442,6 +473,24 @@ describe("Enum parity", () => {
   test("MealSource values match backend", () => {
     expect([...MOBILE_MEAL_SOURCES].sort()).toEqual(
       [...enums.MealSource].sort(),
+    );
+  });
+
+  test("MealPlanningSourceType values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_SOURCE_TYPES].sort()).toEqual(
+      [...enums.MealPlanningSourceType].sort(),
+    );
+  });
+
+  test("MealPlanningNutritionEstimateState values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_NUTRITION_ESTIMATE_STATES].sort()).toEqual(
+      [...enums.MealPlanningNutritionEstimateState].sort(),
+    );
+  });
+
+  test("MealPlanningNutritionField values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_NUTRITION_FIELDS].sort()).toEqual(
+      [...enums.MealPlanningNutritionField].sort(),
     );
   });
 
@@ -522,6 +571,14 @@ describe("Meal item contract", () => {
     expect(meal.totals?.kcal).toBe(330.0);
     expect(meal.totals?.protein).toBe(62.0);
     expect(meal.imageRef?.imageId).toBe("img-001");
+    expect(meal.planningSource).toEqual({
+      plannedMealId: "planned-contract-1",
+      plannedMealVersion: 2,
+      sourceType: "manual",
+      sourceRef: null,
+      nutritionEstimateState: "partial",
+      missingNutritionFields: ["fat"],
+    });
   });
 
   test("fixture type field is a valid MealType", () => {
@@ -1132,6 +1189,264 @@ describe("Home Next Action telemetry contract", () => {
     ).toEqual(
       fs.readFileSync(
         path.join(BACKEND_FIXTURES_DIR, "home_next_action_telemetry.json"),
+      ),
+    );
+  });
+});
+
+describe("C5 Smart Memory and Planning telemetry contract", () => {
+  const fixture = loadFixture<C5NewDomainTelemetryFixture>(
+    "c5_new_domain_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "memory_candidate_created",
+    "memory_candidate_confirmed",
+    "memory_candidate_dismissed",
+    "memory_used",
+    "memory_muted",
+    "memory_deleted",
+    "planned_meal_created",
+    "planned_meal_confirmed",
+    "planned_meal_changed",
+    "planned_meal_skipped",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    memory_candidate_created: [
+      "memoryType",
+      "surface",
+      "confidenceBucket",
+      "featureState",
+    ],
+    memory_candidate_confirmed: [
+      "memoryType",
+      "surface",
+      "confidenceBucket",
+      "actionResult",
+      "featureState",
+    ],
+    memory_candidate_dismissed: [
+      "memoryType",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    memory_used: ["memoryType", "surface", "actionResult", "featureState"],
+    memory_muted: ["memoryType", "surface", "actionResult", "featureState"],
+    memory_deleted: ["memoryType", "surface", "actionResult", "featureState"],
+    planned_meal_created: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "featureState",
+    ],
+    planned_meal_confirmed: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    planned_meal_changed: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    planned_meal_skipped: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+  } as const;
+
+  const MEMORY_TYPE_VALUES = [
+    "ingredient_product_selection",
+    "review_correction",
+    "typical_portion",
+  ] as const;
+  const SURFACE_VALUES = [
+    "home_next_action",
+    "memory_center",
+    "planning",
+    "review",
+    "settings",
+  ] as const;
+  const CONFIDENCE_BUCKET_VALUES = ["high", "low", "medium"] as const;
+  const ACTION_RESULT_VALUES = [
+    "blocked",
+    "failed",
+    "queued",
+    "succeeded",
+  ] as const;
+  const FEATURE_STATE_VALUES = ["disabled", "enabled", "shadow"] as const;
+  const SOURCE_TYPE_VALUES = [
+    "ingredient_product_draft",
+    "manual",
+    "recipe",
+    "saved_meal",
+  ] as const;
+  const ESTIMATE_STATE_VALUES = ["known", "partial", "unknown"] as const;
+
+  const MOBILE_ENUM_VALUES_BY_EVENT = {
+    memory_candidate_created: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      confidenceBucket: CONFIDENCE_BUCKET_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_candidate_confirmed: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      confidenceBucket: CONFIDENCE_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_candidate_dismissed: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_used: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_muted: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_deleted: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_created: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_confirmed: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_changed: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_skipped: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "memory_candidate_scored",
+    "memory_candidate_debugged",
+    "memory_prompt_sent",
+    "planned_meal_generated",
+    "planned_meal_raw_saved",
+    "planning_prompt_sent",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "mealName",
+    "ingredientName",
+    "notes",
+    "candidateId",
+    "memoryId",
+    "plannedMealId",
+    "sourceRef",
+    "rawReason",
+    "rawPrompt",
+    "rawResponse",
+    "imageUrl",
+    "fullPayload",
+    "calories",
+    "kcal",
+    "macros",
+    "protein",
+    "carbs",
+    "fat",
+  ] as const;
+
+  test("event names match backend fixture and mobile allowlist", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+    for (const eventName of fixture.eventNames) {
+      expect(TELEMETRY_EVENT_NAMES).toContain(eventName);
+    }
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("bounded enum values match backend fixture", () => {
+    expect(Object.keys(fixture.enumValuesByEvent).sort()).toEqual(
+      Object.keys(MOBILE_ENUM_VALUES_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propValues] of Object.entries(
+      MOBILE_ENUM_VALUES_BY_EVENT,
+    )) {
+      expect(Object.keys(fixture.enumValuesByEvent[eventName]).sort()).toEqual(
+        Object.keys(propValues).sort(),
+      );
+
+      for (const [propName, values] of Object.entries(propValues)) {
+        expect([...fixture.enumValuesByEvent[eventName][propName]].sort()).toEqual(
+          [...values].sort(),
+        );
+      }
+    }
+  });
+
+  test("content, identity, raw provider, and nutrition props stay disallowed", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "c5_new_domain_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(
+        path.join(BACKEND_FIXTURES_DIR, "c5_new_domain_telemetry.json"),
       ),
     );
   });

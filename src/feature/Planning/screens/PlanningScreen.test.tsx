@@ -22,6 +22,9 @@ const mockSaveDraft = jest.fn<(uid: string, meal?: Meal | null) => Promise<void>
 const mockRemoveDraft = jest.fn<(uid: string) => Promise<void>>();
 const mockSetLastScreen = jest.fn<(uid: string, screen: string) => Promise<void>>();
 const mockUuid = jest.fn<() => string>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  planning: true,
+};
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -52,6 +55,10 @@ jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
   createPlannedMealRemote: jest.fn(),
   updatePlannedMealRemote: jest.fn(),
   deletePlannedMealRemote: jest.fn(),
+}));
+
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
 }));
 
 jest.mock("@/context/AuthContext", () => ({
@@ -282,6 +289,31 @@ describe("PlanningScreen", () => {
     mockSetLastScreen.mockResolvedValue(undefined);
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length + 1}`);
     navigation.canGoBack.mockReturnValue(true);
+    mockRuntimeFeatures.planning = true;
+  });
+
+  it("renders an unavailable state without loading or mutating planning when disabled", async () => {
+    mockRuntimeFeatures.planning = false;
+
+    const screen = renderWithTheme(
+      <PlanningScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.getByTestId("planning-feature-disabled-state")).toBeTruthy();
+    expect(screen.queryByTestId("planning-refresh-button")).toBeNull();
+    expect(screen.queryByTestId("planning-create-form")).toBeNull();
+    expect(screen.queryByTestId("planning-list")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    });
+    expect(mockCreatePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockUpdatePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockDeletePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
   });
 
   it("shows loading then an explicit empty state without hiding the planning boundary", async () => {
@@ -301,7 +333,7 @@ describe("PlanningScreen", () => {
     });
   });
 
-  it("creates a manual planned item with a deterministic known estimate", async () => {
+  it("creates a manual name-only planned item with an explicit unknown estimate", async () => {
     mockFetchPlannedMealsRemote.mockResolvedValueOnce(listResponse([]));
     mockCreatePlannedMealRemote.mockResolvedValueOnce({
       item: plannedItem({
@@ -309,6 +341,14 @@ describe("PlanningScreen", () => {
         draftSnapshot: {
           ...plannedItem().draftSnapshot,
           name: "Protein bowl",
+          ingredients: [],
+          totals: null,
+        },
+        nutritionEstimate: {
+          state: "unknown",
+          totals: null,
+          missingFields: ["kcal", "protein", "fat", "carbs"],
+          confidence: null,
         },
       }),
       updated: true,
@@ -339,27 +379,24 @@ describe("PlanningScreen", () => {
         draftSnapshot: expect.objectContaining({
           name: "Protein bowl",
           type: "lunch",
-          totals: {
-            kcal: 400,
-            protein: 25,
-            fat: 14,
-            carbs: 45,
-          },
+          ingredients: [],
+          totals: null,
         }),
         nutritionEstimate: {
-          state: "known",
-          totals: {
-            kcal: 400,
-            protein: 25,
-            fat: 14,
-            carbs: 45,
-          },
-          missingFields: [],
-          confidence: "medium",
+          state: "unknown",
+          totals: null,
+          missingFields: ["kcal", "protein", "fat", "carbs"],
+          confidence: null,
         },
       }),
     );
     expect(await screen.findByText("Protein bowl")).toBeTruthy();
+    expect(
+      screen.getByTestId("planning-estimate-unknown-planned-created"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("planning-estimate-missing-planned-created"),
+    ).toBeTruthy();
   });
 
   it("edits, reschedules, and deletes with the current API version guard", async () => {
@@ -515,6 +552,9 @@ describe("PlanningScreen", () => {
         plannedItem({
           plannedMealId: "converted-1",
           status: "converted_to_review",
+          linkedMealId: "meal-linked-1",
+          convertedAt: "2026-06-19T09:15:00.000Z",
+          conversionClientMutationId: "mutation-upsert-planned-link",
           draftSnapshot: {
             ...plannedItem().draftSnapshot,
             name: "Converted plan",
@@ -544,6 +584,10 @@ describe("PlanningScreen", () => {
       screen.getByTestId("planning-status-converted_to_review-converted-1"),
     ).toBeTruthy();
     expect(screen.getByText("Already sent to Review")).toBeTruthy();
+    expect(screen.getByTestId("planning-linked-meal-converted-1")).toBeTruthy();
+    expect(
+      screen.getByText("Logged meal meal-linked-1 • 2026-06-19T09:15:00.000Z"),
+    ).toBeTruthy();
 
     expect(
       screen.getByTestId("planning-review-name-planned-oats").props
@@ -597,6 +641,14 @@ describe("PlanningScreen", () => {
     );
     expect(draft.notes).toContain("Nothing is logged until Review is saved.");
     expect(draft.notes).not.toContain("planned-1");
+    expect(draft.planningSource).toEqual({
+      plannedMealId: "planned-1",
+      plannedMealVersion: 1,
+      sourceType: "manual",
+      sourceRef: null,
+      nutritionEstimateState: "known",
+      missingNutritionFields: [],
+    });
     expect(mockSaveDraft).toHaveBeenCalledWith("user-1", draft);
     expect(mockSetLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
     expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
@@ -605,6 +657,53 @@ describe("PlanningScreen", () => {
     expect(mockCreatePlannedMealRemote).not.toHaveBeenCalled();
     expect(mockUpdatePlannedMealRemote).not.toHaveBeenCalled();
     expect(mockDeletePlannedMealRemote).not.toHaveBeenCalled();
+  });
+
+  it("starts Review for an unknown planned item without synthetic ingredients or macros", async () => {
+    const item = plannedItem({
+      plannedMealId: "unknown-1",
+      draftSnapshot: {
+        ...plannedItem().draftSnapshot,
+        name: "Name-only plan",
+        ingredients: [],
+        totals: null,
+      },
+      nutritionEstimate: {
+        state: "unknown",
+        totals: null,
+        missingFields: ["kcal", "protein", "fat", "carbs"],
+        confidence: null,
+      },
+    });
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce(listResponse([item]));
+
+    const screen = renderWithTheme(
+      <PlanningScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Name-only plan");
+    fireEvent.press(screen.getByTestId("planning-review-name-name-only-plan"));
+
+    await waitFor(() => {
+      expect(mockSetMeal).toHaveBeenCalledTimes(1);
+    });
+
+    const draft = mockSetMeal.mock.calls[0][0];
+    expect(draft.name).toBe("Name-only plan");
+    expect(draft.ingredients).toEqual([]);
+    expect(draft.totals).toBeUndefined();
+    expect(draft.planningSource).toEqual({
+      plannedMealId: "unknown-1",
+      plannedMealVersion: 1,
+      sourceType: "manual",
+      sourceRef: null,
+      nutritionEstimateState: "unknown",
+      missingNutritionFields: ["kcal", "protein", "fat", "carbs"],
+    });
+    expect(draft.notes).toContain(
+      "Nutrition estimate is unknown. Review nutrition before saving.",
+    );
+    expect(draft.notes).toContain("Nothing is logged until Review is saved.");
   });
 
   it("rolls back a persisted draft and shows an error when Review handoff fails", async () => {

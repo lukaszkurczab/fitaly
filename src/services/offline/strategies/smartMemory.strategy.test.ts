@@ -17,6 +17,15 @@ const mockUpsertItem = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockUpsertCandidate = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockUpsertSettings = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockSetLastSmartMemoryPullTs = jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
@@ -58,6 +67,10 @@ jest.mock("@/services/smartMemory/smartMemoryProjectionRepository", () => ({
 jest.mock("@/services/offline/sync.storage", () => ({
   setLastSmartMemoryPullTs: (...args: unknown[]) =>
     mockSetLastSmartMemoryPullTs(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 const item = {
@@ -139,6 +152,46 @@ describe("smartMemoryStrategy", () => {
     mockUpsertCandidate.mockResolvedValue();
     mockUpsertSettings.mockResolvedValue();
     mockSetLastSmartMemoryPullTs.mockResolvedValue();
+    mockRuntimeConfig.smartMemoryEnabled = true;
+  });
+
+  it("does not pull or push Smart Memory backend work when Smart Memory is disabled", async () => {
+    mockRuntimeConfig.smartMemoryEnabled = false;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { smartMemoryStrategy } = require("@/services/offline/strategies/smartMemory.strategy");
+
+    await expect(smartMemoryStrategy.pull("user-1")).resolves.toBe(0);
+    await expect(
+      smartMemoryStrategy.handlePushOp("user-1", {
+        id: 1,
+        client_mutation_id: "candidate-mutation",
+        cloud_id: "candidate-1",
+        user_uid: "user-1",
+        kind: "smart_memory_candidate_upsert",
+        payload: {
+          candidateId: "candidate-1",
+          memoryType: "review_correction",
+          subject: {},
+        },
+        updated_at: "2026-06-04T10:00:00.000Z",
+        attempts: 0,
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/smart-memory-disabled",
+      retryable: false,
+    });
+
+    expect(mockNetInfoFetch).not.toHaveBeenCalled();
+    expect(mockFetchItems).not.toHaveBeenCalled();
+    expect(mockFetchCandidates).not.toHaveBeenCalled();
+    expect(mockFetchSettings).not.toHaveBeenCalled();
+    expect(mockUpsertCandidateRemote).not.toHaveBeenCalled();
+    expect(mockEditItemRemote).not.toHaveBeenCalled();
+    expect(mockMuteItemRemote).not.toHaveBeenCalled();
+    expect(mockRestoreItemRemote).not.toHaveBeenCalled();
+    expect(mockDeleteItemRemote).not.toHaveBeenCalled();
+    expect(mockMarkSourceDeletedRemote).not.toHaveBeenCalled();
+    expect(mockUpdateSettingsRemote).not.toHaveBeenCalled();
   });
 
   it("pulls items, candidates, and settings into projection", async () => {

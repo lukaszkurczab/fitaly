@@ -3,7 +3,7 @@ import {
   deriveMealTimingMetadata,
   formatMealDayKey,
 } from "@/services/meals/mealMetadata";
-import type { Ingredient, Meal, MealType, Nutrients } from "@/types/meal";
+import type { Ingredient, Meal, MealType } from "@/types/meal";
 import type {
   PlannedMealCreateRequest,
   PlannedMealDraftSnapshot,
@@ -18,12 +18,12 @@ export const PLANNING_MIN_DAYS = 1;
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_MANUAL_TOTALS: Nutrients = {
-  kcal: 400,
-  protein: 25,
-  fat: 14,
-  carbs: 45,
-};
+const UNKNOWN_MANUAL_MISSING_FIELDS: PlannedMealNutritionEstimate["missingFields"] = [
+  "kcal",
+  "protein",
+  "fat",
+  "carbs",
+];
 
 const TIME_BUCKET_TO_MEAL_TYPE: Record<PlannedMealTimeBucket, MealType> = {
   breakfast: "breakfast",
@@ -84,18 +84,6 @@ function roundNutrient(value: number): number {
   return Number(value.toFixed(3));
 }
 
-function manualIngredient(name: string): Ingredient {
-  return {
-    id: uuidv4(),
-    name,
-    amount: 1,
-    kcal: DEFAULT_MANUAL_TOTALS.kcal,
-    protein: DEFAULT_MANUAL_TOTALS.protein,
-    fat: DEFAULT_MANUAL_TOTALS.fat,
-    carbs: DEFAULT_MANUAL_TOTALS.carbs,
-  };
-}
-
 export function buildManualPlanningSnapshot(params: {
   name: string;
   timeBucket: PlannedMealTimeBucket;
@@ -105,19 +93,19 @@ export function buildManualPlanningSnapshot(params: {
   return {
     name,
     type: TIME_BUCKET_TO_MEAL_TYPE[params.timeBucket],
-    ingredients: [manualIngredient(name)],
-    totals: { ...DEFAULT_MANUAL_TOTALS },
+    ingredients: [],
+    totals: null,
     notes: null,
     tags: [],
   };
 }
 
-export function buildKnownManualPlanningEstimate(): PlannedMealNutritionEstimate {
+export function buildUnknownManualPlanningEstimate(): PlannedMealNutritionEstimate {
   return {
-    state: "known",
-    totals: { ...DEFAULT_MANUAL_TOTALS },
-    missingFields: [],
-    confidence: "medium",
+    state: "unknown",
+    totals: null,
+    missingFields: [...UNKNOWN_MANUAL_MISSING_FIELDS],
+    confidence: null,
   };
 }
 
@@ -137,7 +125,7 @@ export function buildCreatePlannedMealRequest(params: {
       name: params.name,
       timeBucket: params.timeBucket,
     }),
-    nutritionEstimate: buildKnownManualPlanningEstimate(),
+    nutritionEstimate: buildUnknownManualPlanningEstimate(),
   };
 }
 
@@ -188,19 +176,15 @@ function buildTimestamp(
 }
 
 function normalizeIngredients(ingredients: Ingredient[], fallbackName: string) {
-  if (ingredients.length > 0) {
-    return ingredients.map((ingredient) => ({
-      ...ingredient,
-      id: ingredient.id || uuidv4(),
-      name: ingredient.name.trim() || fallbackName,
-      kcal: roundNutrient(ingredient.kcal),
-      protein: roundNutrient(ingredient.protein),
-      fat: roundNutrient(ingredient.fat),
-      carbs: roundNutrient(ingredient.carbs),
-    }));
-  }
-
-  return [manualIngredient(fallbackName)];
+  return ingredients.map((ingredient) => ({
+    ...ingredient,
+    id: ingredient.id || uuidv4(),
+    name: ingredient.name.trim() || fallbackName,
+    kcal: roundNutrient(ingredient.kcal),
+    protein: roundNutrient(ingredient.protein),
+    fat: roundNutrient(ingredient.fat),
+    carbs: roundNutrient(ingredient.carbs),
+  }));
 }
 
 export function buildReviewDraftFromPlannedMeal(params: {
@@ -245,6 +229,14 @@ export function buildReviewDraftFromPlannedMeal(params: {
     photoLocalPath: null,
     photoUrl: null,
     localPhotoUrl: null,
+    planningSource: {
+      plannedMealId: item.plannedMealId,
+      plannedMealVersion: item.version,
+      sourceType: item.sourceType,
+      sourceRef: item.sourceRef,
+      nutritionEstimateState: item.nutritionEstimate.state,
+      missingNutritionFields: [...item.nutritionEstimate.missingFields],
+    },
     notes,
     tags: item.draftSnapshot.tags,
     deleted: false,

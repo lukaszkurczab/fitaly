@@ -18,6 +18,7 @@ import { usePremiumContext } from "@/context/PremiumContext";
 import { AccountIdentityCard } from "@/feature/UserProfile/components/AccountIdentityCard";
 import { useUserProfileState } from "@/feature/UserProfile/hooks/useUserProfileState";
 import type { ProfileSyncState } from "@/hooks/useUserProfile";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 
 type ProfileNavigation = StackNavigationProp<RootStackParamList, "Profile">;
 
@@ -34,6 +35,8 @@ export default function UserProfileScreen({
   const state = useUserProfileState({ navigation });
   const { isPremium } = usePremiumContext();
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
+  const recipeCatalogEnabled = isRuntimeFeatureEnabled("recipeCatalog");
+  const smartMemoryEnabled = isRuntimeFeatureEnabled("smartMemory");
 
   const closeLogoutModal = () => setLogoutModalVisible(false);
 
@@ -210,16 +213,18 @@ export default function UserProfileScreen({
               navigation.navigate("OnboardingRefill", { mode: "refill" })
             }
           />
-          <SettingsRow
-            {...accountRowProps}
-            leading={renderRowIcon(styles, "saved-items", theme.primaryStrong)}
-            title={t("recipeCatalog.rowTitle")}
-            subtitle={t("recipeCatalog.rowSubtitle")}
-            subtitleNumberOfLines={2}
-            testID="account-recipe-catalog-row"
-            accessibilityHint={t("recipeCatalog.rowHint")}
-            onPress={() => navigation.navigate("RecipeCatalog")}
-          />
+          {recipeCatalogEnabled ? (
+            <SettingsRow
+              {...accountRowProps}
+              leading={renderRowIcon(styles, "saved-items", theme.primaryStrong)}
+              title={t("recipeCatalog.rowTitle")}
+              subtitle={t("recipeCatalog.rowSubtitle")}
+              subtitleNumberOfLines={2}
+              testID="account-recipe-catalog-row"
+              accessibilityHint={t("recipeCatalog.rowHint")}
+              onPress={() => navigation.navigate("RecipeCatalog")}
+            />
+          ) : null}
           <SettingsRow
             {...accountRowProps}
             leading={renderRowIcon(styles, "star", theme.primaryStrong)}
@@ -259,16 +264,18 @@ export default function UserProfileScreen({
             testID="account-app-settings-row"
             onPress={() => navigation.navigate("AppSettings")}
           />
-          <SettingsRow
-            {...accountRowProps}
-            leading={renderRowIcon(styles, "sparkles", theme.primaryStrong)}
-            title={t("memoryCenter.rowTitle")}
-            subtitle={t("memoryCenter.rowSubtitle")}
-            subtitleNumberOfLines={2}
-            testID="account-memory-center-row"
-            accessibilityHint={t("memoryCenter.rowHint")}
-            onPress={() => navigation.navigate("MemoryCenter")}
-          />
+          {smartMemoryEnabled ? (
+            <SettingsRow
+              {...accountRowProps}
+              leading={renderRowIcon(styles, "sparkles", theme.primaryStrong)}
+              title={t("memoryCenter.rowTitle")}
+              subtitle={t("memoryCenter.rowSubtitle")}
+              subtitleNumberOfLines={2}
+              testID="account-memory-center-row"
+              accessibilityHint={t("memoryCenter.rowHint")}
+              onPress={() => navigation.navigate("MemoryCenter")}
+            />
+          ) : null}
         </AccountOverviewSection>
 
         <AccountOverviewSection

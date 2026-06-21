@@ -3,6 +3,7 @@ import type {
   MealAiMeta,
   MealInputMethod,
   MealImageRef,
+  MealPlanningSource,
   MealSource,
   MealSyncState,
   MealType,
@@ -24,6 +25,7 @@ export interface MealDocument {
   inputMethod?: MealInputMethod | null;
   aiMeta?: MealAiMeta | null;
   imageRef?: MealImageRef | null;
+  planningSource?: MealPlanningSource | null;
   notes?: string | null;
   tags: string[];
   deleted?: boolean;

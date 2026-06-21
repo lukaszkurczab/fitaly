@@ -2,10 +2,23 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 function sampleRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -53,6 +66,55 @@ describe("ingredientProductSearchApi", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockRuntimeConfig.foodLibraryEnabled = true;
+  });
+
+  it("does not call backend requests when Food Library is disabled", async () => {
+    mockRuntimeConfig.foodLibraryEnabled = false;
+    const api =
+      jest.requireActual<typeof import("./ingredientProductSearchApi")>(
+        "./ingredientProductSearchApi",
+      );
+
+    await expect(
+      api.searchIngredientProductsRemote({ query: "Owies" }),
+    ).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.createIngredientProductRemote({
+        clientMutationId: "mutation-1",
+      } as never),
+    ).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.updateIngredientProductRemote({
+        ingredientProductId: "ingredient-product-1",
+        clientMutationId: "mutation-2",
+      } as never),
+    ).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.deleteIngredientProductRemote({
+        ingredientProductId: "ingredient-product-1",
+        clientMutationId: "mutation-3",
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+    await expect(api.pullIngredientProductsRemote()).rejects.toMatchObject({
+      code: "feature/food-library-disabled",
+      retryable: false,
+    });
+
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it("calls the v2 search endpoint with bounded params and parses valid rows", async () => {

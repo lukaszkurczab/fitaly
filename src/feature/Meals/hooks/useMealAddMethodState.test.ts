@@ -19,6 +19,15 @@ const mockMarkKnownPatternCandidateRemote =
   jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockOpenKnownPatternReviewDraftRemote =
   jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
@@ -65,6 +74,10 @@ jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
     mockMarkKnownPatternCandidateRemote(...args),
   openKnownPatternReviewDraftRemote: (...args: unknown[]) =>
     mockOpenKnownPatternReviewDraftRemote(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 const knownPatternCandidate = {
@@ -143,6 +156,7 @@ describe("useMealAddMethodState", () => {
     mockOpenKnownPatternReviewDraftRemote.mockResolvedValue(
       knownPatternDraftResponse,
     );
+    mockRuntimeConfig.knownPatternsEnabled = true;
   });
 
   it("broadcasts persisted default method changes to other hook instances", async () => {
@@ -529,6 +543,30 @@ describe("useMealAddMethodState", () => {
     expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+  });
+
+  it("does not fetch known-pattern candidate when Known Patterns is disabled", async () => {
+    mockRuntimeConfig.knownPatternsEnabled = false;
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).toBeNull();
+    });
+    expect(mockFetchKnownPatternCandidatesRemote).not.toHaveBeenCalled();
   });
 
   it("declines a known-pattern candidate and removes it from the chooser", async () => {

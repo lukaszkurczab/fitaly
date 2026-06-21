@@ -9,6 +9,7 @@ import {
   formatMealDayKey,
 } from "@/services/meals/mealMetadata";
 import { upsertMyMealWithPhoto } from "@/services/meals/myMealService";
+import { requirePlanningEnabledForMeal } from "@/services/meals/planningSourceGuard";
 import { trackMealLogged } from "@/services/telemetry/telemetryInstrumentation";
 
 export type SavedMealTemplateSave =
@@ -31,8 +32,16 @@ export type SaveMealTransactionResult = {
   meal: Meal;
 };
 
-function computeTotals(meal: Pick<Meal, "ingredients">) {
+function computeTotals(meal: Pick<Meal, "ingredients" | "totals">) {
   const ing = meal.ingredients || [];
+  if (ing.length === 0 && meal.totals) {
+    return {
+      kcal: Number(meal.totals.kcal) || 0,
+      protein: Number(meal.totals.protein) || 0,
+      carbs: Number(meal.totals.carbs) || 0,
+      fat: Number(meal.totals.fat) || 0,
+    };
+  }
   const sum = (k: "kcal" | "protein" | "carbs" | "fat") =>
     ing.reduce((a, b) => a + (Number(b?.[k]) || 0), 0);
   return {
@@ -153,6 +162,8 @@ async function maybeSaveTemplate(params: {
 export async function saveMealTransaction(
   input: SaveMealTransactionInput,
 ): Promise<SaveMealTransactionResult> {
+  requirePlanningEnabledForMeal(input.meal);
+
   const nowISO = input.nowISO ?? new Date().toISOString();
   const operation = input.operation ?? "create";
   const meal = withCanonicalMealFields({

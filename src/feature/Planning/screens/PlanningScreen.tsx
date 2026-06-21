@@ -10,9 +10,11 @@ import {
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import EmptyState from "@/components/EmptyState";
+import RuntimeFeatureDisabledState from "@/components/RuntimeFeatureDisabledState";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@/context/MealDraftContext";
 import type { RootStackParamList } from "@/navigation/navigate";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   createPlannedMealRemote,
   deletePlannedMealRemote,
@@ -189,6 +191,22 @@ function blockedStatusBody(t: TranslationFn, status: PlannedMealStatus): string 
   });
 }
 
+function convertedLinkBody(t: TranslationFn, item: PlannedMealItem): string | null {
+  if (
+    item.status !== "converted_to_review" ||
+    !item.linkedMealId ||
+    !item.convertedAt
+  ) {
+    return null;
+  }
+
+  return t("planning.statusLinkedMeal", {
+    defaultValue: "Logged meal {{mealId}} • {{convertedAt}}",
+    mealId: item.linkedMealId,
+    convertedAt: item.convertedAt,
+  });
+}
+
 export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const { t } = useTranslation("profile");
   const theme = useTheme();
@@ -196,6 +214,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const { uid } = useAuthContext();
   const { setMeal, saveDraft, removeDraft, setLastScreen } =
     useMealDraftContext();
+  const planningEnabled = isRuntimeFeatureEnabled("planning");
   const [days, setDays] = useState<1 | 2 | 3>(3);
   const [startDate, setStartDate] = useState(() => formatPlanningDateKey());
   const [createName, setCreateName] = useState("");
@@ -213,6 +232,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const requestIdRef = useRef(0);
 
   const loadPlanning = useCallback(async () => {
+    if (!planningEnabled) {
+      return;
+    }
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
@@ -242,11 +265,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         error: error instanceof Error ? error : new Error(String(error)),
       }));
     }
-  }, [days, startDate]);
+  }, [days, planningEnabled, startDate]);
 
   useEffect(() => {
+    if (!planningEnabled) {
+      return;
+    }
+
     void loadPlanning();
-  }, [loadPlanning]);
+  }, [loadPlanning, planningEnabled]);
 
   const updateLocalItem = useCallback((item: PlannedMealItem) => {
     setState((current) => {
@@ -294,6 +321,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   }, []);
 
   const handleCreate = useCallback(async () => {
+    if (!planningEnabled) {
+      return;
+    }
+
     const name = createName.trim();
     if (!name || !isPlanningDateKey(createDate)) {
       setMutationError("createValidation");
@@ -318,7 +349,13 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     } finally {
       setBusy(null);
     }
-  }, [createDate, createName, createTimeBucket, updateLocalItem]);
+  }, [
+    createDate,
+    createName,
+    createTimeBucket,
+    planningEnabled,
+    updateLocalItem,
+  ]);
 
   const handleEdit = useCallback(
     async (
@@ -329,6 +366,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         timeBucket: PlannedMealTimeBucket;
       },
     ) => {
+      if (!planningEnabled) {
+        return;
+      }
+
       if (!values.name.trim() || !isPlanningDateKey(values.dateBucket)) {
         setMutationError("editValidation");
         return;
@@ -354,11 +395,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         setBusy(null);
       }
     },
-    [updateLocalItem],
+    [planningEnabled, updateLocalItem],
   );
 
   const handleRescheduleNextDay = useCallback(
     async (item: PlannedMealItem) => {
+      if (!planningEnabled) {
+        return;
+      }
+
       setMutationError(null);
       setReviewErrorId(null);
       setBusy({ itemId: item.plannedMealId, action: "reschedule" });
@@ -374,11 +419,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         setBusy(null);
       }
     },
-    [updateLocalItem],
+    [planningEnabled, updateLocalItem],
   );
 
   const handleDelete = useCallback(
     async (item: PlannedMealItem) => {
+      if (!planningEnabled) {
+        return;
+      }
+
       setMutationError(null);
       setReviewErrorId(null);
       setBusy({ itemId: item.plannedMealId, action: "delete" });
@@ -394,11 +443,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         setBusy(null);
       }
     },
-    [updateLocalItem],
+    [planningEnabled, updateLocalItem],
   );
 
   const handleStartReview = useCallback(
     async (item: PlannedMealItem) => {
+      if (!planningEnabled) {
+        return;
+      }
+
       if (!uid) {
         setReviewErrorId(item.plannedMealId);
         return;
@@ -435,13 +488,48 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         setBusy(null);
       }
     },
-    [navigation, removeDraft, saveDraft, setLastScreen, setMeal, t, uid],
+    [
+      navigation,
+      planningEnabled,
+      removeDraft,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+      t,
+      uid,
+    ],
   );
 
   const items = visibleItems(state.items);
   const isLoading = state.status === "loading" && !state.items;
   const isRefreshing = state.status === "loading" && !!state.items;
   const createBusy = busy?.action === "create";
+
+  if (!planningEnabled) {
+    return (
+      <FormScreenShell
+        testID="planning-screen"
+        title={t("planning.title", { defaultValue: "Planning" })}
+        intro={t("planning.intro", {
+          defaultValue:
+            "Plan the next one to three days. Planned items stay separate from logged meals.",
+        })}
+        onBack={handleBack}
+      >
+        <RuntimeFeatureDisabledState
+          testID="planning-feature-disabled-state"
+          icon="calendar"
+          title={t("planning.disabledTitle", {
+            defaultValue: "Planning is unavailable",
+          })}
+          body={t("planning.disabledBody", {
+            defaultValue:
+              "This feature is turned off for this build. No planned meals were loaded or changed.",
+          })}
+        />
+      </FormScreenShell>
+    );
+  }
 
   return (
     <FormScreenShell
@@ -738,6 +826,7 @@ function PlanningItemRow({
   const totals = estimate.totals;
   const titleSlug = testIdSlug(title);
   const isReviewable = isReviewablePlanningStatus(item.status);
+  const linkedMealBody = convertedLinkBody(t, item);
 
   useEffect(() => {
     setName(item.draftSnapshot.name ?? "");
@@ -773,6 +862,14 @@ function PlanningItemRow({
             {planningStatusLabel(t, item.status)}
           </Text>
           <Text style={styles.statusBody}>{blockedStatusBody(t, item.status)}</Text>
+          {linkedMealBody ? (
+            <Text
+              style={styles.statusBody}
+              testID={`planning-linked-meal-${item.plannedMealId}`}
+            >
+              {linkedMealBody}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 

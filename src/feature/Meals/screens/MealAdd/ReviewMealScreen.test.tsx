@@ -66,6 +66,12 @@ function createRuntimeConfig(
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    foodLibraryEnabled: false,
+    smartMemoryEnabled: false,
+    knownPatternsEnabled: false,
+    recipeCatalogEnabled: false,
+    planningEnabled: false,
+    homeNextActionEnabled: false,
     reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
@@ -797,6 +803,191 @@ describe("ReviewMealScreen", () => {
     });
   });
 
+  it("blocks unknown planned drafts with no positive nutrition evidence", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      planningEnabled: true,
+    }));
+    const ctx = buildDraftContext({
+      name: "Name-only plan",
+      ingredients: [],
+      totals: undefined,
+      photoUrl: null,
+      localPhotoUrl: null,
+      photoLocalPath: null,
+      planningSource: {
+        plannedMealId: "planned-unknown-1",
+        plannedMealVersion: 1,
+        sourceType: "manual",
+        sourceRef: null,
+        nutritionEstimateState: "unknown",
+        missingNutritionFields: ["kcal", "protein", "fat", "carbs"],
+      },
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByTestId("review-meal-planning-nutrition-blocked")).toBeTruthy();
+    expect(getByTestId("review-meal-save-button").props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).not.toHaveBeenCalled();
+    });
+
+    fireEvent.press(getByTestId("review-meal-planning-nutrition-edit-button"));
+    expect(testProps.flowGoTo).toHaveBeenCalledWith("EditMealDetails", {
+      submitIntent: "goBack",
+    });
+  });
+
+  it("blocks partial planned drafts with no positive nutrition evidence", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      planningEnabled: true,
+    }));
+    const ctx = buildDraftContext({
+      name: "Partial plan without macros",
+      ingredients: [],
+      totals: undefined,
+      photoUrl: null,
+      localPhotoUrl: null,
+      photoLocalPath: null,
+      planningSource: {
+        plannedMealId: "planned-partial-1",
+        plannedMealVersion: 1,
+        sourceType: "manual",
+        sourceRef: null,
+        nutritionEstimateState: "partial",
+        missingNutritionFields: ["kcal", "protein", "fat", "carbs"],
+      },
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByTestId("review-meal-planning-nutrition-blocked")).toBeTruthy();
+    expect(getByTestId("review-meal-save-button").props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).not.toHaveBeenCalled();
+    });
+  });
+
+  it("blocks planned-source Review saves when Planning is disabled", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext({
+      name: "Estimated planned meal",
+      ingredients: [],
+      totals: { kcal: 420, protein: 32, fat: 10, carbs: 45 },
+      photoUrl: null,
+      planningSource: {
+        plannedMealId: "planned-disabled-1",
+        plannedMealVersion: 2,
+        sourceType: "manual",
+        sourceRef: null,
+        nutritionEstimateState: "known",
+        missingNutritionFields: [],
+      },
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { getByTestId, getByText, queryByTestId } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(getByTestId("review-meal-planning-disabled-blocked")).toBeTruthy();
+    expect(queryByTestId("review-meal-planning-nutrition-blocked")).toBeNull();
+    expect(getByTestId("review-meal-save-button").props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).not.toHaveBeenCalled();
+    });
+  });
+
+  it("allows planned drafts with explicit positive nutrition evidence", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      planningEnabled: true,
+    }));
+    const ctx = buildDraftContext({
+      name: "Estimated planned meal",
+      ingredients: [],
+      totals: { kcal: 420, protein: 32, fat: 10, carbs: 45 },
+      photoUrl: null,
+      planningSource: {
+        plannedMealId: "planned-positive-1",
+        plannedMealVersion: 2,
+        sourceType: "manual",
+        sourceRef: null,
+        nutritionEstimateState: "unknown",
+        missingNutritionFields: ["fat"],
+      },
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { queryByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(queryByTestId("review-meal-planning-nutrition-blocked")).toBeNull();
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal: expect.objectContaining({
+            planningSource: expect.objectContaining({
+              plannedMealId: "planned-positive-1",
+              plannedMealVersion: 2,
+            }),
+            totals: { kcal: 420, protein: 32, fat: 10, carbs: 45 },
+          }),
+        }),
+      );
+    });
+  });
+
   it("saves the reviewed meal and resets back home", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
     const ctx = buildDraftContext();
@@ -833,6 +1024,7 @@ describe("ReviewMealScreen", () => {
     const testProps = buildProps();
 
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(
@@ -983,11 +1175,39 @@ describe("ReviewMealScreen", () => {
     expect(queryByTestId("review-meal-memory-row")).toBeNull();
   });
 
+  it("does not let Smart Memory influence Review when Review apply is disabled", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
+      reviewMemoryExplanationEnabled: false,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { queryByTestId, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(mockReadReviewSmartMemoryExplanation).not.toHaveBeenCalled();
+    });
+
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+    expect(queryByTestId("review-meal-memory-row")).toBeNull();
+    expect(queryByTestId("review-meal-memory-details-modal")).toBeNull();
+    expect(queryByText("Open Memory Center")).toBeNull();
+    expect(testProps.navigate).not.toHaveBeenCalledWith("MemoryCenter");
+  });
+
   it("shows no Review memory UI when the gate is on but there is no supported signal", async () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue({
@@ -1011,6 +1231,7 @@ describe("ReviewMealScreen", () => {
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(
@@ -1055,6 +1276,7 @@ describe("ReviewMealScreen", () => {
       meals: [],
     });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(
@@ -1087,11 +1309,40 @@ describe("ReviewMealScreen", () => {
     expect(testProps.flowGoTo).not.toHaveBeenCalled();
   });
 
+  it("does not read or expose Review memory when Smart Memory is disabled", async () => {
+    const ctx = buildDraftContext();
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: false,
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { queryByTestId, queryByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(mockReadReviewSmartMemoryExplanation).not.toHaveBeenCalled();
+    });
+
+    expect(queryByTestId("review-meal-memory-info-0")).toBeNull();
+    expect(queryByTestId("review-meal-memory-row")).toBeNull();
+    expect(queryByTestId("review-meal-memory-details-modal")).toBeNull();
+    expect(queryByTestId("review-meal-memory-details-memory-center")).toBeNull();
+    expect(queryByText("Open Memory Center")).toBeNull();
+    expect(testProps.navigate).not.toHaveBeenCalledWith("MemoryCenter");
+  });
+
   it("shows a single non-blocking pending memory row above nutrition", async () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(
@@ -1120,6 +1371,7 @@ describe("ReviewMealScreen", () => {
       meals: [],
     });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(
@@ -1158,6 +1410,7 @@ describe("ReviewMealScreen", () => {
     const testProps = buildProps();
     mockUseMealDraftContext.mockReturnValue(ctx);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
       reviewMemoryExplanationEnabled: true,
     }));
     mockReadReviewSmartMemoryExplanation.mockResolvedValue(

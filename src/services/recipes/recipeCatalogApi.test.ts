@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 function sampleRecipe(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -114,6 +127,22 @@ describe("recipeCatalogApi", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockRuntimeConfig.recipeCatalogEnabled = true;
+  });
+
+  it("does not call backend requests when Recipe Catalog is disabled", async () => {
+    mockRuntimeConfig.recipeCatalogEnabled = false;
+    const api =
+      jest.requireActual<typeof import("./recipeCatalogApi")>(
+        "./recipeCatalogApi",
+      );
+
+    await expect(api.fetchRecipeCatalogRemote()).rejects.toMatchObject({
+      code: "feature/recipe-catalog-disabled",
+      retryable: false,
+    });
+
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("calls the read-only v2 catalog endpoint without params for profile defaults", async () => {

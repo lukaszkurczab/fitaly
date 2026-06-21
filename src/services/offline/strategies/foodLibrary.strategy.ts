@@ -1,5 +1,9 @@
 import { createServiceError } from "@/services/contracts/serviceError";
 import {
+  createRuntimeFeatureDisabledError,
+  isRuntimeFeatureEnabled,
+} from "@/services/core/featureFlagGuard";
+import {
   createIngredientProductRemote,
   deleteIngredientProductRemote,
   pullIngredientProductsRemote,
@@ -44,6 +48,10 @@ function syncEngineError(
 
 export const foodLibraryStrategy: SyncStrategy = {
   async pull(uid: string): Promise<number> {
+    if (!isRuntimeFeatureEnabled("foodLibrary")) {
+      return 0;
+    }
+
     const updatedAfter = await getLastFoodLibraryPullTs(uid);
     const response = await pullIngredientProductsRemote({
       updatedAfter,
@@ -83,6 +91,10 @@ export const foodLibraryStrategy: SyncStrategy = {
       op.kind !== "ingredient_product_delete"
     ) {
       return false;
+    }
+
+    if (!isRuntimeFeatureEnabled("foodLibrary")) {
+      throw createRuntimeFeatureDisabledError("foodLibrary");
     }
 
     if (op.kind === "ingredient_product_update") {

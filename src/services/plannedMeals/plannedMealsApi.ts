@@ -6,6 +6,7 @@ import {
   type RequestOptions,
 } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
+import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   PLANNED_MEAL_CONFIDENCE_LEVELS,
   PLANNED_MEAL_ESTIMATE_STATES,
@@ -57,6 +58,9 @@ const ITEM_KEYS = [
   "draftSnapshot",
   "nutritionEstimate",
   "status",
+  "linkedMealId",
+  "convertedAt",
+  "conversionClientMutationId",
   "createdAt",
   "updatedAt",
 ] as const;
@@ -273,6 +277,31 @@ export function normalizePlannedMealItem(raw: unknown): PlannedMealItem | null {
   const status = isOneOf(raw.status, PLANNED_MEAL_STATUSES)
     ? raw.status
     : null;
+  const linkedMealId =
+    raw.linkedMealId === undefined || raw.linkedMealId === null
+      ? null
+      : requiredString(raw.linkedMealId);
+  const hasValidLinkedMealId =
+    raw.linkedMealId === undefined ||
+    raw.linkedMealId === null ||
+    linkedMealId !== null;
+  const convertedAt =
+    raw.convertedAt === undefined || raw.convertedAt === null
+      ? null
+      : requiredString(raw.convertedAt);
+  const hasValidConvertedAt =
+    raw.convertedAt === undefined ||
+    raw.convertedAt === null ||
+    convertedAt !== null;
+  const conversionClientMutationId =
+    raw.conversionClientMutationId === undefined ||
+    raw.conversionClientMutationId === null
+      ? null
+      : requiredString(raw.conversionClientMutationId);
+  const hasValidConversionClientMutationId =
+    raw.conversionClientMutationId === undefined ||
+    raw.conversionClientMutationId === null ||
+    conversionClientMutationId !== null;
   const createdAt = requiredString(raw.createdAt);
   const updatedAt = requiredString(raw.updatedAt);
   if (
@@ -285,6 +314,9 @@ export function normalizePlannedMealItem(raw: unknown): PlannedMealItem | null {
     !draftSnapshot ||
     !nutritionEstimate ||
     !status ||
+    !hasValidLinkedMealId ||
+    !hasValidConvertedAt ||
+    !hasValidConversionClientMutationId ||
     !createdAt ||
     !updatedAt
   ) {
@@ -300,6 +332,9 @@ export function normalizePlannedMealItem(raw: unknown): PlannedMealItem | null {
     draftSnapshot,
     nutritionEstimate,
     status,
+    linkedMealId,
+    convertedAt,
+    conversionClientMutationId,
     createdAt,
     updatedAt,
   };
@@ -381,6 +416,7 @@ export async function fetchPlannedMealsRemote(
   params?: PlannedMealsListRequest,
   options?: RequestOptions,
 ): Promise<PlannedMealsListResponse> {
+  requireRuntimeFeatureEnabled("planning");
   const raw = await get<unknown>(buildListQuery(params), options);
   return normalizePlannedMealsListResponse(raw);
 }
@@ -389,6 +425,7 @@ export async function createPlannedMealRemote(
   payload: PlannedMealCreateRequest,
   options?: RequestOptions,
 ): Promise<PlannedMealMutationResponse> {
+  requireRuntimeFeatureEnabled("planning");
   const raw = await post<unknown>(PLANNED_MEALS_ENDPOINT, payload, {
     retryMode: "idempotent",
     ...options,
@@ -401,6 +438,7 @@ export async function updatePlannedMealRemote(
   payload: PlannedMealUpdateRequest,
   options?: RequestOptions,
 ): Promise<PlannedMealMutationResponse> {
+  requireRuntimeFeatureEnabled("planning");
   const raw = await patch<unknown>(
     `${PLANNED_MEALS_ENDPOINT}/${encodeId(plannedMealId)}`,
     payload,
@@ -417,6 +455,7 @@ export async function deletePlannedMealRemote(
   payload: PlannedMealDeleteRequest,
   options?: RequestOptions,
 ): Promise<PlannedMealMutationResponse> {
+  requireRuntimeFeatureEnabled("planning");
   const searchParams = new URLSearchParams({
     clientMutationId: payload.clientMutationId,
     expectedVersion: String(payload.expectedVersion),

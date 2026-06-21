@@ -41,6 +41,7 @@ import {
 import AddMealFlowHeader from "@/feature/Meals/screens/MealAdd/components/AddMealFlowHeader";
 import { hasReviewableMealContent } from "@/feature/Meals/utils/reviewMealDraft";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   readReviewSmartMemoryExplanation,
   type ReviewMemoryDetail,
@@ -94,6 +95,17 @@ function buildAiReviewFingerprint(meal: Meal): string {
   });
 }
 
+function hasPositiveNutritionEvidence(meal?: Meal | null): boolean {
+  if (!meal) return false;
+  const nutrition = calculateTotalNutrients([meal]);
+  return (
+    nutrition.kcal > 0 ||
+    nutrition.protein > 0 ||
+    nutrition.carbs > 0 ||
+    nutrition.fat > 0
+  );
+}
+
 function normalizeMemoryLabel(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -133,8 +145,10 @@ export default function ReviewMealScreen({
     useState<ReviewMemoryDetail | null>(null);
   const initialAiReviewMealIdRef = useRef<string | null>(null);
   const initialAiReviewFingerprintRef = useRef<string | null>(null);
+  const smartMemoryEnabled = isRuntimeFeatureEnabled("smartMemory");
+  const planningEnabled = isRuntimeFeatureEnabled("planning");
   const reviewMemoryGateEnabled =
-    getRuntimeConfig().reviewMemoryExplanationEnabled;
+    smartMemoryEnabled && getRuntimeConfig().reviewMemoryExplanationEnabled;
 
   const image = meal?.photoUrl ?? null;
   const displayImage = image && !imageError ? image : null;
@@ -253,6 +267,13 @@ export default function ReviewMealScreen({
     [meal],
   );
   const isEmptyReviewMeal = !hasReviewableMealContent(meal);
+  const isPlanningSourceDisabled = !!meal?.planningSource && !planningEnabled;
+  const isPlannedNutritionBlocked =
+    !!meal?.planningSource &&
+    planningEnabled &&
+    !hasPositiveNutritionEvidence(meal);
+  const isSaveBlocked =
+    isEmptyReviewMeal || isPlanningSourceDisabled || isPlannedNutritionBlocked;
 
   const ingredientPreview = useMemo(() => {
     const items = meal?.ingredients ?? [];
@@ -325,7 +346,7 @@ export default function ReviewMealScreen({
 
   const handleSave = useCallback(
     async (openShareComposer: boolean) => {
-      if (!meal || !userData?.uid || saving || !uid || isEmptyReviewMeal)
+      if (!meal || !userData?.uid || saving || !uid || isSaveBlocked)
         return;
 
       setSaving(true);
@@ -400,7 +421,7 @@ export default function ReviewMealScreen({
       saving,
       uid,
       userData?.uid,
-      isEmptyReviewMeal,
+      isSaveBlocked,
     ],
   );
 
@@ -1055,6 +1076,71 @@ export default function ReviewMealScreen({
               />
             </View>
           ) : null}
+          {isPlannedNutritionBlocked ? (
+            <View
+              style={styles.reviewBlockedCard}
+              testID="review-meal-planning-nutrition-blocked"
+            >
+              <View style={styles.reviewBlockedHeader}>
+                <AppIcon
+                  name="info"
+                  size={16}
+                  color={theme.warning.text}
+                />
+                <Text style={styles.reviewBlockedTitle}>
+                  {t("review_meal_planned_unknown_nutrition_title", {
+                    ns: "meals",
+                    defaultValue: "Nutrition needed before saving",
+                  })}
+                </Text>
+              </View>
+              <Text style={styles.reviewBlockedDescription}>
+                {t("review_meal_planned_unknown_nutrition_description", {
+                  ns: "meals",
+                  defaultValue:
+                    "This planned meal has no confirmed nutrition yet. Add ingredients or totals before logging it.",
+                })}
+              </Text>
+              <Button
+                testID="review-meal-planning-nutrition-edit-button"
+                variant="secondary"
+                label={t("review_meal_edit_cta", {
+                  ns: "meals",
+                  defaultValue: "Edit details",
+                })}
+                onPress={handleOpenEdit}
+                disabled={saving}
+                style={styles.emptyDraftAction}
+              />
+            </View>
+          ) : null}
+          {isPlanningSourceDisabled ? (
+            <View
+              style={styles.reviewBlockedCard}
+              testID="review-meal-planning-disabled-blocked"
+            >
+              <View style={styles.reviewBlockedHeader}>
+                <AppIcon
+                  name="info"
+                  size={16}
+                  color={theme.warning.text}
+                />
+                <Text style={styles.reviewBlockedTitle}>
+                  {t("review_meal_planning_disabled_title", {
+                    ns: "meals",
+                    defaultValue: "Planning is unavailable",
+                  })}
+                </Text>
+              </View>
+              <Text style={styles.reviewBlockedDescription}>
+                {t("review_meal_planning_disabled_description", {
+                  ns: "meals",
+                  defaultValue:
+                    "This draft came from Planning, which is turned off for this build.",
+                })}
+              </Text>
+            </View>
+          ) : null}
         </KeyboardAwareScrollView>
 
         <BottomActionBar
@@ -1069,7 +1155,7 @@ export default function ReviewMealScreen({
               void handleSave(false);
             },
             loading: saving,
-            disabled: saving || isEmptyReviewMeal,
+            disabled: saving || isSaveBlocked,
           }}
           linkActions={
             displayImage
@@ -1083,7 +1169,7 @@ export default function ReviewMealScreen({
                     onPress: () => {
                       void handleSave(true);
                     },
-                    disabled: saving || isEmptyReviewMeal,
+                    disabled: saving || isSaveBlocked,
                     accessibilityLabel: t("review_meal_save_share_cta", {
                       ns: "meals",
                       defaultValue: "Save and share",
@@ -1118,17 +1204,21 @@ export default function ReviewMealScreen({
           onPress: () => setSelectedMemoryDetail(null),
           testID: "review-meal-memory-details-close",
         }}
-        secondaryAction={{
-          label: t("review_memory_details_memory_center_cta", {
-            ns: "meals",
-            defaultValue: "Open Memory Center",
-          }),
-          onPress: () => {
-            setSelectedMemoryDetail(null);
-            navigation.navigate("MemoryCenter");
-          },
-          testID: "review-meal-memory-details-memory-center",
-        }}
+        secondaryAction={
+          smartMemoryEnabled
+            ? {
+                label: t("review_memory_details_memory_center_cta", {
+                  ns: "meals",
+                  defaultValue: "Open Memory Center",
+                }),
+                onPress: () => {
+                  setSelectedMemoryDetail(null);
+                  navigation.navigate("MemoryCenter");
+                },
+                testID: "review-meal-memory-details-memory-center",
+              }
+            : undefined
+        }
       >
         {selectedMemoryDetail ? (
           <View style={styles.memoryDetailsStack}>
@@ -1672,6 +1762,31 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       fontFamily: theme.typography.fontFamily.semiBold,
     },
     reviewEmptyDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.bodyS,
+      lineHeight: theme.typography.lineHeight.bodyS,
+    },
+    reviewBlockedCard: {
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.warning.main,
+      backgroundColor: theme.warning.surface,
+      padding: theme.spacing.md,
+      gap: theme.spacing.xs,
+    },
+    reviewBlockedHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    reviewBlockedTitle: {
+      flex: 1,
+      color: theme.warning.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    reviewBlockedDescription: {
       color: theme.textSecondary,
       fontSize: theme.typography.size.bodyS,
       lineHeight: theme.typography.lineHeight.bodyS,

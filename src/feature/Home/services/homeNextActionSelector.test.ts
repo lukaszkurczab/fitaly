@@ -23,12 +23,26 @@ import type { Meal } from "@/types/meal";
 import type { KnownPatternCandidate } from "@/types/knownPatterns";
 import type { PlannedMealItem } from "@/types/plannedMeals";
 
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
+
 jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
   fetchKnownPatternCandidatesRemote: jest.fn(),
 }));
 
 jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
   fetchPlannedMealsRemote: jest.fn(),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 const mockFetchKnownPatternCandidatesRemote =
@@ -216,6 +230,9 @@ describe("homeNextActionSelector", () => {
     await AsyncStorage.clear();
     mockFetchKnownPatternCandidatesRemote.mockReset();
     mockFetchPlannedMealsRemote.mockReset();
+    mockRuntimeConfig.knownPatternsEnabled = true;
+    mockRuntimeConfig.planningEnabled = true;
+    mockRuntimeConfig.homeNextActionEnabled = true;
   });
 
   it("returns explicit no_action for a new user with no candidates", () => {
@@ -317,6 +334,60 @@ describe("homeNextActionSelector", () => {
         candidateId: "planned-due-soon",
       }),
     });
+  });
+
+  it("does not fetch Home Next Action remote sources when Home Next Action is disabled", async () => {
+    mockRuntimeConfig.homeNextActionEnabled = false;
+    await AsyncStorage.setItem(getDraftKey("user-1"), JSON.stringify(meaningfulDraft));
+    await AsyncStorage.setItem(getScreenKey("user-1"), "AddMeal");
+
+    await expect(
+      buildHomeReviewDraftNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toMatchObject({
+      state: "no_action",
+      sourceDomain: "review_draft",
+      reasonCode: "source_unavailable",
+    });
+    await expect(
+      buildHomePlannedMealNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toMatchObject({
+      state: "no_action",
+      sourceDomain: "planned_meal",
+      reasonCode: "source_unavailable",
+    });
+    await expect(
+      buildHomeKnownPatternNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toMatchObject({
+      state: "no_action",
+      sourceDomain: "known_pattern_candidate",
+      reasonCode: "source_unavailable",
+    });
+
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(mockFetchKnownPatternCandidatesRemote).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch disabled Home Next Action source domains", async () => {
+    mockRuntimeConfig.planningEnabled = false;
+    mockRuntimeConfig.knownPatternsEnabled = false;
+
+    await expect(
+      buildHomePlannedMealNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toMatchObject({
+      state: "no_action",
+      sourceDomain: "planned_meal",
+      reasonCode: "source_unavailable",
+    });
+    await expect(
+      buildHomeKnownPatternNextActionCandidate({ uid: "user-1", now: NOW }),
+    ).resolves.toMatchObject({
+      state: "no_action",
+      sourceDomain: "known_pattern_candidate",
+      reasonCode: "source_unavailable",
+    });
+
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(mockFetchKnownPatternCandidatesRemote).not.toHaveBeenCalled();
   });
 
   it("suppresses expired planned items", () => {

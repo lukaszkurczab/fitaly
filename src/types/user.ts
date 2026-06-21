@@ -53,6 +53,11 @@ export type UserAiConsent = {
 
 export type ExportedRecord = Record<string, unknown>;
 
+export type UserExportManifest = {
+  schemaVersion: "user-export-manifest-v1";
+  recordCounts: Record<string, number>;
+};
+
 export type UserProfile = {
   language: UserLanguage;
   nutritionProfile: UserNutritionProfile;
@@ -80,7 +85,7 @@ export interface UserData {
 }
 
 export type ExportedUserData = {
-  profile: UserData;
+  profile: UserData | null;
   meals: Meal[];
   myMeals: Meal[];
   chatMessages: ChatMessage[];
@@ -90,6 +95,17 @@ export type ExportedUserData = {
   notificationPrefs: ExportedRecord;
   feedback: ExportedRecord[];
   mealMutationDedupe: ExportedRecord[];
+  mealEffectOutbox: ExportedRecord[];
+  ingredientProducts: ExportedRecord[];
+  smartMemoryItems: ExportedRecord[];
+  smartMemoryCandidates: ExportedRecord[];
+  smartMemorySettings: ExportedRecord[];
+  smartMemoryTombstones: ExportedRecord[];
+  smartMemoryMutationDedupe: ExportedRecord[];
+  knownPatternControls: ExportedRecord[];
+  knownPatternMutationDedupe: ExportedRecord[];
+  plannedMealItems: ExportedRecord[];
+  plannedMealMutationDedupe: ExportedRecord[];
   billing: ExportedRecord[];
   aiCredits: ExportedRecord[];
   aiCreditTransactions: ExportedRecord[];
@@ -98,4 +114,5 @@ export type ExportedUserData = {
   streak: ExportedRecord[];
   reminderDailyStats: ExportedRecord[];
   telemetryEvents: ExportedRecord[];
+  exportManifest: UserExportManifest;
 };

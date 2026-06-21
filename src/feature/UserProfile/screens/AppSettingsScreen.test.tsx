@@ -5,6 +5,9 @@ import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import type { ReactNode } from "react";
 
 const mockChangeLanguage = jest.fn<(code: string) => Promise<void>>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  smartMemory: true,
+};
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -18,6 +21,10 @@ jest.mock("@/context/AppSettingsContext", () => ({
     language: "pl",
     changeLanguage: (code: string) => mockChangeLanguage(code),
   }),
+}));
+
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
 }));
 
 jest.mock("@/components", () => {
@@ -115,6 +122,7 @@ describe("AppSettingsScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockChangeLanguage.mockResolvedValue(undefined);
+    mockRuntimeFeatures.smartMemory = true;
   });
 
   it("opens the language picker sheet and updates language inline", async () => {
@@ -169,5 +177,21 @@ describe("AppSettingsScreen", () => {
     fireEvent.press(getByTestId("app-settings-memory-center-row"));
 
     expect(navigation.navigate).toHaveBeenCalledWith("MemoryCenter");
+  });
+
+  it("hides the Memory Center row when Smart Memory is disabled", () => {
+    mockRuntimeFeatures.smartMemory = false;
+    const navigation = {
+      canGoBack: jest.fn(() => true),
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+    };
+
+    const { queryByTestId } = renderWithTheme(
+      <AppSettingsScreen navigation={navigation as never} />,
+    );
+
+    expect(queryByTestId("app-settings-memory-center-row")).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("MemoryCenter");
   });
 });

@@ -236,6 +236,7 @@ export function runMigrations() {
           last_synced_at INTEGER NOT NULL DEFAULT 0,
           sync_state TEXT NOT NULL DEFAULT 'pending',
           source TEXT,
+          planning_source TEXT,
           notes TEXT,
           tags TEXT
         );
@@ -813,6 +814,21 @@ export function runMigrations() {
       setUserVersion(d, 16);
       d.execSync("COMMIT");
       v = 16;
+    } catch (e) {
+      d.execSync("ROLLBACK");
+      throw e;
+    }
+  }
+
+  if (v < 17) {
+    d.execSync("BEGIN");
+    try {
+      if (!columnExists(d, "meals", "planning_source")) {
+        d.execSync(`ALTER TABLE meals ADD COLUMN planning_source TEXT;`);
+      }
+      setUserVersion(d, 17);
+      d.execSync("COMMIT");
+      v = 17;
     } catch (e) {
       d.execSync("ROLLBACK");
       throw e;

@@ -98,6 +98,9 @@ export type PlannedMealItem = {
   draftSnapshot: PlannedMealDraftSnapshot;
   nutritionEstimate: PlannedMealNutritionEstimate;
   status: PlannedMealStatus;
+  linkedMealId?: string | null;
+  convertedAt?: string | null;
+  conversionClientMutationId?: string | null;
   createdAt: string;
   updatedAt: string;
 };

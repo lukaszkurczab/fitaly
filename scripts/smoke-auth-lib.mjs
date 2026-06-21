@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 const DEFAULT_FIREBASE_AUTH_BASE_URL = "https://identitytoolkit.googleapis.com/v1";
+const EXACT_SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
 
 function getRequiredEnv(name) {
   const value = (process.env[name] || "").trim();
@@ -8,6 +9,10 @@ function getRequiredEnv(name) {
     throw new Error(`${name} is required.`);
   }
   return value;
+}
+
+function getSmokeApiBaseUrl() {
+  return (process.env.SMOKE_API_BASE_URL || "https://fitaly-backend-smoke.up.railway.app").trim().replace(/\/$/, "");
 }
 
 async function parseJson(response) {
@@ -21,6 +26,54 @@ async function parseJson(response) {
   } catch {
     throw new Error(`Expected JSON response for HTTP ${response.status}; response body redacted.`);
   }
+}
+
+export async function callPublicJson(pathname) {
+  const baseUrl = getSmokeApiBaseUrl();
+  const url = `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  const payload = await parseJson(response);
+
+  return {
+    payload,
+    response,
+    url,
+  };
+}
+
+export async function verifySmokeRuntimeBackendSha() {
+  const expectedSha = getRequiredEnv("EXPECTED_BACKEND_COMMIT_SHA");
+  if (!EXACT_SHA_PATTERN.test(expectedSha)) {
+    throw new Error("EXPECTED_BACKEND_COMMIT_SHA must be an exact 40-character commit SHA.");
+  }
+
+  const result = await callPublicJson("/api/v1/version");
+  if (!result.response.ok) {
+    throw new Error(smokeResponseError("Smoke backend version check", result));
+  }
+
+  const actualSha = String(result.payload?.commitSha || "").trim();
+  if (!actualSha) {
+    throw new Error("Smoke backend version check failed: /api/v1/version did not return commitSha.");
+  }
+  if (actualSha !== expectedSha) {
+    throw new Error(
+      `Smoke backend version check failed: expected commitSha=${expectedSha} but got commitSha=${actualSha}.`,
+    );
+  }
+
+  return {
+    endpoint: smokeEndpoint(result.url),
+    expectedCommitSha: expectedSha,
+    commitSha: actualSha,
+    status: result.response.status,
+    verified: true,
+  };
 }
 
 function structuredErrorCode(payload) {
@@ -122,7 +175,7 @@ export async function callAuthenticatedJson(
     passwordEnvName = "SMOKE_EXPORT_TEST_PASSWORD",
   } = {},
 ) {
-  const smokeApiBaseUrl = (process.env.SMOKE_API_BASE_URL || "https://fitaly-backend-smoke.up.railway.app").trim().replace(/\/$/, "");
+  const smokeApiBaseUrl = getSmokeApiBaseUrl();
   const { idToken, localId, smokeUserRef } = await signInSmokeUser({
     emailEnvName,
     passwordEnvName,

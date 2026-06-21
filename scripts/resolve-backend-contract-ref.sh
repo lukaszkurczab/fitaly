@@ -4,12 +4,15 @@
 # Sources, in priority-safe order:
 #   1. BACKEND_CONTRACT_REF_INPUT or BACKEND_CONTRACT_REF env var
 #   2. PR_BODY marker: Backend-Contract-Ref: <ref>
-#   3. default backend main
+#   3. default backend main for non-exact local/PR CI paths only
+#
+# Set BACKEND_CONTRACT_REF_REQUIRE_EXACT_SHA=true for release-candidate paths.
 
 set -euo pipefail
 
 DEFAULT_REF="main"
 MARKER_NAME="Backend-Contract-Ref"
+EXACT_SHA_REGEX='^[0-9a-fA-F]{40}$'
 
 shopt -s extglob
 
@@ -48,6 +51,14 @@ validate_ref() {
 
   if ! [[ "$ref" =~ ^[A-Za-z0-9._/-]+$ ]]; then
     fail "Backend contract ref may only contain letters, numbers, '.', '_', '/', and '-': $ref"
+  fi
+}
+
+validate_exact_sha() {
+  local ref="$1"
+
+  if ! [[ "$ref" =~ $EXACT_SHA_REGEX ]]; then
+    fail "Backend contract ref must be an exact 40-character commit SHA for this path (got: $ref)."
   fi
 }
 
@@ -90,6 +101,12 @@ fi
 
 validate_ref "$selected_ref"
 
+require_exact_sha="$(trim "${BACKEND_CONTRACT_REF_REQUIRE_EXACT_SHA:-false}")"
+require_exact_sha="$(printf '%s' "$require_exact_sha" | tr '[:upper:]' '[:lower:]')"
+if [[ "$require_exact_sha" == "true" ]]; then
+  validate_exact_sha "$selected_ref"
+fi
+
 echo "Selected backend contract ref: $selected_ref"
 echo "Backend contract ref source: $selected_source"
 
@@ -97,5 +114,8 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
     echo "ref=$selected_ref"
     echo "source=$selected_source"
+    if [[ "$selected_ref" =~ $EXACT_SHA_REGEX ]]; then
+      echo "sha=$selected_ref"
+    fi
   } >> "$GITHUB_OUTPUT"
 fi

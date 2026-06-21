@@ -23,9 +23,14 @@ const mockQueueItemDelete =
   jest.fn<(uid: string, memoryItemId: string) => Promise<unknown>>();
 const mockRetryFailedControls = jest.fn<(uid: string) => Promise<unknown>>();
 const mockDiscardFailedControls = jest.fn<(uid: string) => Promise<unknown>>();
+const mockTrackMemoryMuted = jest.fn<(input: Record<string, unknown>) => Promise<void>>();
+const mockTrackMemoryDeleted = jest.fn<(input: Record<string, unknown>) => Promise<void>>();
 
 let mockProjection: SmartMemoryProjection;
 let mockIsOffline = false;
+const mockRuntimeFeatures: Record<string, boolean> = {
+  smartMemory: true,
+};
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -49,6 +54,11 @@ jest.mock("@/services/core/networkState", () => ({
     state.isConnected === false,
 }));
 
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) =>
+    mockRuntimeFeatures[domain] ?? true,
+}));
+
 jest.mock("@/services/smartMemory/smartMemoryService", () => {
   const actual =
     jest.requireActual<typeof import("@/services/smartMemory/smartMemoryService")>(
@@ -70,6 +80,13 @@ jest.mock("@/services/smartMemory/smartMemoryService", () => {
       mockDiscardFailedControls(uid),
   };
 });
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackMemoryMuted: (input: Record<string, unknown>) =>
+    mockTrackMemoryMuted(input),
+  trackMemoryDeleted: (input: Record<string, unknown>) =>
+    mockTrackMemoryDeleted(input),
+}));
 
 jest.mock("@/components", () => {
   const { Pressable, Text, View } =
@@ -370,6 +387,32 @@ describe("MemoryCenterScreen", () => {
     mockQueueItemDelete.mockResolvedValue({});
     mockRetryFailedControls.mockResolvedValue({});
     mockDiscardFailedControls.mockResolvedValue({});
+    mockTrackMemoryMuted.mockResolvedValue();
+    mockTrackMemoryDeleted.mockResolvedValue();
+    mockRuntimeFeatures.smartMemory = true;
+  });
+
+  it("renders unavailable state without reading or mutating when Smart Memory is disabled", async () => {
+    mockRuntimeFeatures.smartMemory = false;
+
+    const screen = renderScreen();
+
+    expect(screen.getByTestId("memory-center-feature-disabled-state")).toBeTruthy();
+    expect(screen.queryByTestId("memory-center-refresh-button")).toBeNull();
+    expect(screen.queryByTestId("memory-center-account-toggle")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockReadSmartMemoryProjection).not.toHaveBeenCalled();
+    });
+    expect(mockQueueSettingsDisable).not.toHaveBeenCalled();
+    expect(mockQueueSettingsEnable).not.toHaveBeenCalled();
+    expect(mockQueueItemMute).not.toHaveBeenCalled();
+    expect(mockQueueItemRestore).not.toHaveBeenCalled();
+    expect(mockQueueItemDelete).not.toHaveBeenCalled();
+    expect(mockRetryFailedControls).not.toHaveBeenCalled();
+    expect(mockDiscardFailedControls).not.toHaveBeenCalled();
+    expect(mockTrackMemoryMuted).not.toHaveBeenCalled();
+    expect(mockTrackMemoryDeleted).not.toHaveBeenCalled();
   });
 
   it("renders the empty enabled shell and queues account disable", async () => {
@@ -548,6 +591,18 @@ describe("MemoryCenterScreen", () => {
     await waitFor(() => {
       expect(mockQueueItemMute).toHaveBeenCalledWith("user-1", "memory-1");
     });
+    expect(mockTrackMemoryMuted).toHaveBeenCalledWith({
+      memoryType: "typical_portion",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    });
+    expect(JSON.stringify(mockTrackMemoryMuted.mock.calls[0]?.[0])).not.toContain(
+      "memory-1",
+    );
+    expect(JSON.stringify(mockTrackMemoryMuted.mock.calls[0]?.[0])).not.toContain(
+      "Owsianka",
+    );
   });
 
   it("opens detail and queues restore for muted memory", async () => {
@@ -573,6 +628,8 @@ describe("MemoryCenterScreen", () => {
     await waitFor(() => {
       expect(mockQueueItemRestore).toHaveBeenCalledWith("user-1", "memory-1");
     });
+    expect(mockTrackMemoryMuted).not.toHaveBeenCalled();
+    expect(mockTrackMemoryDeleted).not.toHaveBeenCalled();
   });
 
   it("requires delete confirmation and queues delete without source deletion flow", async () => {
@@ -597,6 +654,18 @@ describe("MemoryCenterScreen", () => {
     await waitFor(() => {
       expect(mockQueueItemDelete).toHaveBeenCalledWith("user-1", "memory-1");
     });
+    expect(mockTrackMemoryDeleted).toHaveBeenCalledWith({
+      memoryType: "typical_portion",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    });
+    expect(JSON.stringify(mockTrackMemoryDeleted.mock.calls[0]?.[0])).not.toContain(
+      "memory-1",
+    );
+    expect(JSON.stringify(mockTrackMemoryDeleted.mock.calls[0]?.[0])).not.toContain(
+      "Owsianka",
+    );
   });
 
   it("shows offline state while keeping backend-confirmed rows visible", async () => {

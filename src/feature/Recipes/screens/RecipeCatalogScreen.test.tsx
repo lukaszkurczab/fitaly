@@ -17,6 +17,9 @@ const mockSaveDraft = jest.fn<(uid: string, meal?: Meal | null) => Promise<void>
 const mockRemoveDraft = jest.fn<(uid: string) => Promise<void>>();
 const mockSetLastScreen = jest.fn<(uid: string, screen: string) => Promise<void>>();
 const mockUuid = jest.fn<() => string>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  recipeCatalog: true,
+};
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -27,6 +30,10 @@ jest.mock("react-i18next", () => ({
 
 jest.mock("@/services/recipes/recipeCatalogApi", () => ({
   fetchRecipeCatalogRemote: jest.fn(),
+}));
+
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
 }));
 
 jest.mock("@/context/AuthContext", () => ({
@@ -244,6 +251,31 @@ describe("RecipeCatalogScreen", () => {
     mockSetLastScreen.mockResolvedValue(undefined);
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length + 1}`);
     navigation.canGoBack.mockReturnValue(true);
+    mockRuntimeFeatures.recipeCatalog = true;
+  });
+
+  it("renders an unavailable state without loading catalog data when disabled", async () => {
+    mockRuntimeFeatures.recipeCatalog = false;
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    expect(
+      screen.getByTestId("recipe-catalog-feature-disabled-state"),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("recipe-catalog-refresh-button")).toBeNull();
+    expect(screen.queryByTestId("recipe-catalog-show-hidden-toggle")).toBeNull();
+    expect(screen.queryByTestId("recipe-catalog-reveal-unknown-toggle")).toBeNull();
+    expect(screen.queryByTestId("recipe-catalog-list")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockFetchRecipeCatalogRemote).not.toHaveBeenCalled();
+    });
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
   });
 
   it("loads read-only catalog data with profile defaults and shows warnings", async () => {

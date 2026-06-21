@@ -11,6 +11,8 @@ import type {
 import type { TelemetryProps } from "@/services/telemetry/telemetryTypes";
 import { track } from "@/services/telemetry/telemetryClient";
 import type { Meal } from "@/types/meal";
+import type { PlannedMealEstimateState, PlannedMealSourceType } from "@/types/plannedMeals";
+import type { SmartMemoryType } from "@/types/smartMemory";
 
 type MealInputMethod = "manual" | "photo" | "barcode" | "text";
 type NotificationTelemetryOrigin =
@@ -148,6 +150,29 @@ type HomeNextActionTelemetryOwnerFlow =
   | "Planning"
   | "MealAddMethod";
 type HomeNextActionTelemetryCooldownBucket = "24h";
+
+type C5TelemetrySurface =
+  | "review"
+  | "memory_center"
+  | "settings"
+  | "planning"
+  | "home_next_action";
+type C5TelemetryConfidenceBucket = "low" | "medium" | "high";
+type C5TelemetryActionResult = "succeeded" | "queued" | "blocked" | "failed";
+type C5TelemetryFeatureState = "enabled" | "disabled" | "shadow";
+
+type SmartMemoryC5TelemetryBase = {
+  memoryType: SmartMemoryType;
+  surface: C5TelemetrySurface;
+  featureState: C5TelemetryFeatureState;
+};
+
+type PlanningC5TelemetryBase = {
+  sourceType: PlannedMealSourceType;
+  estimateState: PlannedMealEstimateState;
+  surface: C5TelemetrySurface;
+  featureState: C5TelemetryFeatureState;
+};
 
 function normalizeNotificationValue(value: string | null | undefined): string | null {
   if (!value) {
@@ -416,6 +441,139 @@ export function trackHomeNextActionDismissed(input: {
     actionType: input.actionType,
     reasonCode: input.reasonCode,
     cooldownBucket: input.cooldownBucket,
+  });
+}
+
+export function trackMemoryCandidateCreated(
+  input: SmartMemoryC5TelemetryBase & {
+    confidenceBucket: C5TelemetryConfidenceBucket;
+  },
+): Promise<void> {
+  return track("memory_candidate_created", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryCandidateConfirmed(
+  input: SmartMemoryC5TelemetryBase & {
+    confidenceBucket: C5TelemetryConfidenceBucket;
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_candidate_confirmed", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryCandidateDismissed(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_candidate_dismissed", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryUsed(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_used", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryMuted(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_muted", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryDeleted(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_deleted", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealCreated(
+  input: PlanningC5TelemetryBase,
+): Promise<void> {
+  return track("planned_meal_created", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealConfirmed(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_confirmed", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealChanged(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_changed", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealSkipped(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_skipped", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
   });
 }
 

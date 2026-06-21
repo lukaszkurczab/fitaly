@@ -39,6 +39,16 @@ export const TELEMETRY_EVENT_NAMES = [
   "home_next_action_shown",
   "home_next_action_started",
   "home_next_action_dismissed",
+  "memory_candidate_created",
+  "memory_candidate_confirmed",
+  "memory_candidate_dismissed",
+  "memory_used",
+  "memory_muted",
+  "memory_deleted",
+  "planned_meal_created",
+  "planned_meal_confirmed",
+  "planned_meal_changed",
+  "planned_meal_skipped",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];

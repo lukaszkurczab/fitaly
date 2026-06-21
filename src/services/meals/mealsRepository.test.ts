@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Meal } from "@/types/meal";
 
+const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  planningEnabled: true,
+};
 
 jest.mock("@/services/core/apiClient", () => ({
-  get: jest.fn(),
+  get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 jest.mock("@/services/meals/myMealsRepository", () => ({
@@ -39,7 +47,9 @@ const baseMeal = (overrides: Partial<Meal> = {}): Meal => ({
 describe("mealsRepository mutation identity", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGet.mockResolvedValue({ items: [], nextCursor: null });
     mockPost.mockResolvedValue({});
+    mockRuntimeConfig.planningEnabled = true;
   });
 
   it("sends clientMutationId in core meal upsert body", async () => {
@@ -60,6 +70,105 @@ describe("mealsRepository mutation identity", () => {
         clientMutationId: "mutation-upsert-1",
       }),
     );
+  });
+
+  it("sends planningSource in core meal upsert body", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { saveMealRemote } = require("@/services/meals/mealsRepository") as
+      typeof import("@/services/meals/mealsRepository");
+
+    const planningSource = {
+      plannedMealId: "planned-1",
+      plannedMealVersion: 2,
+      sourceType: "manual" as const,
+      sourceRef: null,
+      nutritionEstimateState: "unknown" as const,
+      missingNutritionFields: ["kcal" as const, "protein" as const],
+    };
+
+    await saveMealRemote({
+      uid: "user-1",
+      meal: baseMeal({ planningSource }),
+      clientMutationId: "mutation-upsert-planned-source",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/users/me/meals",
+      expect.objectContaining({
+        planningSource,
+      }),
+    );
+  });
+
+  it("blocks planned-source remote upsert when Planning is disabled", async () => {
+    mockRuntimeConfig.planningEnabled = false;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { saveMealRemote } = require("@/services/meals/mealsRepository") as
+      typeof import("@/services/meals/mealsRepository");
+
+    await expect(
+      saveMealRemote({
+        uid: "user-1",
+        meal: baseMeal({
+          planningSource: {
+            plannedMealId: "planned-disabled-1",
+            plannedMealVersion: 1,
+            sourceType: "manual",
+            sourceRef: null,
+            nutritionEstimateState: "known",
+            missingNutritionFields: [],
+          },
+        }),
+        clientMutationId: "mutation-upsert-planned-disabled",
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it("normalizes planningSource from remote meal pages", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { fetchMealsPageRemote } = require("@/services/meals/mealsRepository") as
+      typeof import("@/services/meals/mealsRepository");
+    const planningSource = {
+      plannedMealId: "planned-1",
+      plannedMealVersion: 2,
+      sourceType: "manual",
+      sourceRef: null,
+      nutritionEstimateState: "unknown",
+      missingNutritionFields: ["kcal", "protein"],
+    };
+    mockGet.mockResolvedValueOnce({
+      items: [
+        {
+          id: "meal-1",
+          loggedAt: "2026-03-03T12:00:00.000Z",
+          dayKey: "2026-03-03",
+          type: "lunch",
+          name: "Chicken",
+          ingredients: [],
+          createdAt: "2026-03-03T12:00:00.000Z",
+          updatedAt: "2026-03-03T12:30:00.000Z",
+          source: "manual",
+          tags: [],
+          deleted: false,
+          totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+          planningSource,
+        },
+      ],
+      nextCursor: null,
+    });
+
+    const page = await fetchMealsPageRemote({
+      uid: "user-1",
+      pageSize: 20,
+      cursor: null,
+    });
+
+    expect(page.items[0]?.planningSource).toEqual(planningSource);
   });
 
   it("uses owner context for meal imageRef storagePath when available", async () => {

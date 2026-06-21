@@ -19,6 +19,25 @@ function isHttpsUrl(value: string): boolean {
   return value.startsWith("https://");
 }
 
+function getUrlHostname(value: string): string {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isPlaceholderProductionLegalUrl(value: string): boolean {
+  const hostname = getUrlHostname(value);
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "example.com" ||
+    hostname.endsWith(".example.com")
+  );
+}
+
 function isProductionBuild(buildProfile: string): boolean {
   return buildProfile.toLowerCase() === PRODUCTION_BUILD_PROFILE;
 }
@@ -52,6 +71,32 @@ function appendRevenueCatIssues(
   }
 }
 
+function appendProductionNewDomainFlagIssues(
+  issues: string[],
+  config: ReturnType<typeof getRuntimeConfigFromExtra>,
+): void {
+  const productionOffFlags: Array<[boolean, string]> = [
+    [config.foodLibraryEnabled, "EXPO_PUBLIC_ENABLE_FOOD_LIBRARY"],
+    [config.smartMemoryEnabled, "EXPO_PUBLIC_ENABLE_SMART_MEMORY"],
+    [config.knownPatternsEnabled, "EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS"],
+    [config.recipeCatalogEnabled, "EXPO_PUBLIC_ENABLE_RECIPE_CATALOG"],
+    [config.planningEnabled, "EXPO_PUBLIC_ENABLE_PLANNING"],
+    [config.homeNextActionEnabled, "EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION"],
+    [
+      config.reviewMemoryExplanationEnabled,
+      "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION",
+    ],
+  ];
+
+  for (const [enabled, flagName] of productionOffFlags) {
+    if (enabled) {
+      issues.push(
+        `${flagName} must be false in production until its feature gate passes.`,
+      );
+    }
+  }
+}
+
 export function getLaunchReadinessIssueFromExtra(
   extra: AppExtra,
   platform: LaunchReadinessPlatform = Platform.OS,
@@ -66,6 +111,7 @@ export function getLaunchReadinessIssueFromExtra(
   const apiBaseUrl = config.apiBaseUrl;
   const termsUrl = config.termsUrl;
   const privacyUrl = config.privacyUrl;
+  const sentryDsn = config.sentryDsn;
   const sentryEnvironment = config.sentryEnvironment.toLowerCase();
 
   if (!apiBaseUrl) {
@@ -76,16 +122,24 @@ export function getLaunchReadinessIssueFromExtra(
 
   if (!isHttpUrl(termsUrl)) {
     issues.push("Missing or invalid TERMS_URL in production build.");
+  } else if (isPlaceholderProductionLegalUrl(termsUrl)) {
+    issues.push("TERMS_URL cannot use localhost or example.com in production build.");
   }
   if (!isHttpUrl(privacyUrl)) {
     issues.push("Missing or invalid PRIVACY_URL in production build.");
+  } else if (isPlaceholderProductionLegalUrl(privacyUrl)) {
+    issues.push("PRIVACY_URL cannot use localhost or example.com in production build.");
   }
   if (config.billingDisabled) {
     issues.push("Billing must be enabled in production build.");
   }
+  appendProductionNewDomainFlagIssues(issues, config);
   appendRevenueCatIssues(issues, config, platform);
   if (sentryEnvironment !== PRODUCTION_BUILD_PROFILE) {
     issues.push("SENTRY_ENVIRONMENT must equal production in production build.");
+  }
+  if (!sentryDsn) {
+    issues.push("Missing SENTRY_DSN in production build.");
   }
 
   return issues.length > 0 ? issues.join("\n") : null;

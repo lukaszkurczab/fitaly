@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
 import type { Meal } from "@/types/meal";
@@ -443,6 +444,10 @@ export async function buildHomeReviewDraftNextActionCandidate({
   dismissedCandidateIds = [],
   now,
 }: BuildHomeReviewDraftNextActionParams): Promise<HomeNextActionInput> {
+  if (!isRuntimeFeatureEnabled("homeNextAction")) {
+    return reviewDraftNoAction("source_unavailable");
+  }
+
   if (!uid) {
     return reviewDraftNoAction("context_unavailable");
   }
@@ -533,6 +538,19 @@ export async function buildHomePlannedMealNextActionCandidate({
   uid,
   now,
 }: BuildHomePlannedMealNextActionParams): Promise<HomeNextActionInput> {
+  if (
+    !isRuntimeFeatureEnabled("homeNextAction") ||
+    !isRuntimeFeatureEnabled("planning")
+  ) {
+    return {
+      candidateId: "planned-meal:window",
+      sourceDomain: "planned_meal",
+      state: "no_action",
+      priorityBucket: PLANNED_ITEM_PRIORITY_OFFSET,
+      reasonCode: "source_unavailable",
+    };
+  }
+
   if (!uid) {
     return {
       candidateId: "planned-meal:window",
@@ -603,6 +621,19 @@ export async function buildHomeKnownPatternNextActionCandidate({
   uid,
   now,
 }: BuildHomeKnownPatternNextActionParams): Promise<HomeNextActionInput> {
+  if (
+    !isRuntimeFeatureEnabled("homeNextAction") ||
+    !isRuntimeFeatureEnabled("knownPatterns")
+  ) {
+    return {
+      candidateId: "known-pattern:window",
+      sourceDomain: "known_pattern_candidate",
+      state: "no_action",
+      priorityBucket: KNOWN_PATTERN_PRIORITY_OFFSET,
+      reasonCode: "source_unavailable",
+    };
+  }
+
   if (!uid) {
     return {
       candidateId: "known-pattern:window",

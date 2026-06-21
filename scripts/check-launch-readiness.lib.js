@@ -13,6 +13,15 @@ const EXPECTED_DEV_API_BASE_URL =
 const EXPECTED_PRODUCTION_API_BASE_URL =
   "https://fitaly-backend-production.up.railway.app";
 const LAUNCH_LIKE_RUNTIME_PROFILES = ["smoke", "production"];
+const C2_NEW_DOMAIN_FLAGS = [
+  "EXPO_PUBLIC_ENABLE_FOOD_LIBRARY",
+  "EXPO_PUBLIC_ENABLE_SMART_MEMORY",
+  "EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS",
+  "EXPO_PUBLIC_ENABLE_RECIPE_CATALOG",
+  "EXPO_PUBLIC_ENABLE_PLANNING",
+  "EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION",
+  "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION",
+];
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -38,6 +47,58 @@ function isLocalhostUrl(value) {
   } catch {
     return false;
   }
+}
+
+function getUrlHostname(value) {
+  const normalized = normalizeString(value);
+  if (!normalized) {
+    return "";
+  }
+
+  try {
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isExampleDotComUrl(value) {
+  const hostname = getUrlHostname(value);
+  return hostname === "example.com" || hostname.endsWith(".example.com");
+}
+
+function validateProductionLegalUrls({ termsUrl, privacyUrl }) {
+  const errors = [];
+  const legalUrls = [
+    ["TERMS_URL", normalizeString(termsUrl)],
+    ["PRIVACY_URL", normalizeString(privacyUrl)],
+  ];
+
+  for (const [name, url] of legalUrls) {
+    if (!url || !(url.startsWith("https://") || url.startsWith("http://"))) {
+      errors.push(`${name} is missing or invalid (expected http/https URL).`);
+      continue;
+    }
+
+    if (isLocalhostUrl(url)) {
+      errors.push(`${name} cannot use localhost in production (got: ${url}).`);
+    }
+    if (isExampleDotComUrl(url)) {
+      errors.push(`${name} cannot use example.com in production (got: ${url}).`);
+    }
+  }
+
+  return errors;
+}
+
+function validateProductionSentryDsn({ sentryDsn }) {
+  if (normalizeString(sentryDsn)) {
+    return [];
+  }
+
+  return [
+    "SENTRY_DSN is not set; production crash tracking must be configured through the current environment or CI secret.",
+  ];
 }
 
 function getProfileEnv(easConfig, profileName, seenProfiles = new Set()) {
@@ -170,6 +231,21 @@ function validateEasRuntimeContractProfiles(easConfig) {
         `eas.json build.${profileName}.env.DISABLE_BILLING must be \"false\" for launch-like runtime contract (got: ${billingDisabled || "missing"}).`,
       );
     }
+
+    for (const flagName of C2_NEW_DOMAIN_FLAGS) {
+      const flagValue = normalizeBooleanString(env[flagName]);
+      if (profileName === PRODUCTION_BUILD_PROFILE) {
+        if (flagValue !== "false") {
+          errors.push(
+            `eas.json build.${profileName}.env.${flagName} must be \"false\" until its C2 feature gate passes (got: ${flagValue || "missing"}).`,
+          );
+        }
+      } else if (flagValue !== "true" && flagValue !== "false") {
+        errors.push(
+          `eas.json build.${profileName}.env.${flagName} must be explicitly declared as \"true\" or \"false\" for launch-like runtime contract (got: ${flagValue || "missing"}).`,
+        );
+      }
+    }
   }
 
   return errors;
@@ -238,8 +314,12 @@ module.exports = {
   MIN_ANDROID_TARGET_SDK,
   EXPECTED_DEV_API_BASE_URL,
   EXPECTED_PRODUCTION_API_BASE_URL,
+  C2_NEW_DOMAIN_FLAGS,
   isHttpsUrl,
   isLocalhostUrl,
+  isExampleDotComUrl,
+  validateProductionLegalUrls,
+  validateProductionSentryDsn,
   getApiBaseUrlForProfile,
   validateEasApiBaseUrlProfiles,
   validateEasRuntimeContractProfiles,

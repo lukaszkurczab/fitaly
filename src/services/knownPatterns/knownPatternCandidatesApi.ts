@@ -1,5 +1,6 @@
 import { get, post, type RequestOptions } from "@/services/core/apiClient";
 import { withV2 } from "@/services/core/apiVersioning";
+import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   KNOWN_PATTERN_CANDIDATE_STATES,
   KNOWN_PATTERN_CANDIDATE_TYPES,
@@ -468,6 +469,7 @@ export async function fetchKnownPatternCandidatesRemote(
   request: KnownPatternCandidatesRequest = {},
   options?: RequestOptions,
 ): Promise<KnownPatternCandidatesResponse> {
+  requireRuntimeFeatureEnabled("knownPatterns");
   return normalizeKnownPatternCandidatesResponse(
     await get(buildKnownPatternCandidatesPath(request), options),
   );
@@ -491,6 +493,7 @@ export async function markKnownPatternCandidateRemote(
   request: KnownPatternCandidateControlRequest,
   options?: RequestOptions,
 ): Promise<KnownPatternCandidateControlResponse> {
+  requireRuntimeFeatureEnabled("knownPatterns");
   return normalizeKnownPatternCandidateControlResponse(
     await post(buildKnownPatternCandidateActionPath(candidateId, "control"), request, {
       ...options,
@@ -504,6 +507,7 @@ export async function openKnownPatternReviewDraftRemote(
   request: KnownPatternReviewDraftRequest,
   options?: RequestOptions,
 ): Promise<KnownPatternReviewDraftResponse> {
+  requireRuntimeFeatureEnabled("knownPatterns");
   return normalizeKnownPatternReviewDraftResponse(
     await post(
       buildKnownPatternCandidateActionPath(candidateId, "review-draft"),

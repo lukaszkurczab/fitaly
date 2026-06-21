@@ -9,9 +9,11 @@ import {
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import EmptyState from "@/components/EmptyState";
+import RuntimeFeatureDisabledState from "@/components/RuntimeFeatureDisabledState";
 import { useAuthContext } from "@/context/AuthContext";
 import { useMealDraftContext } from "@/context/MealDraftContext";
 import type { RootStackParamList } from "@/navigation/navigate";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import { fetchRecipeCatalogRemote } from "@/services/recipes/recipeCatalogApi";
 import {
   buildRecipeReviewDraft,
@@ -55,6 +57,7 @@ export default function RecipeCatalogScreen({
   const { uid } = useAuthContext();
   const { setMeal, saveDraft, removeDraft, setLastScreen } =
     useMealDraftContext();
+  const recipeCatalogEnabled = isRuntimeFeatureEnabled("recipeCatalog");
   const [showHidden, setShowHidden] = useState(false);
   const [revealUnknown, setRevealUnknown] = useState(false);
   const [reviewDraftError, setReviewDraftError] = useState<string | null>(null);
@@ -77,6 +80,10 @@ export default function RecipeCatalogScreen({
   );
 
   const loadCatalog = useCallback(async () => {
+    if (!recipeCatalogEnabled) {
+      return;
+    }
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
@@ -103,11 +110,15 @@ export default function RecipeCatalogScreen({
         error: nextError,
       }));
     }
-  }, [request]);
+  }, [recipeCatalogEnabled, request]);
 
   useEffect(() => {
+    if (!recipeCatalogEnabled) {
+      return;
+    }
+
     void loadCatalog();
-  }, [loadCatalog]);
+  }, [loadCatalog, recipeCatalogEnabled]);
 
   const data = state.data;
   const isLoading = state.status === "loading" && !data;
@@ -124,6 +135,10 @@ export default function RecipeCatalogScreen({
 
   const handleReviewRecipe = useCallback(
     async (item: RecipeCatalogFilterResult) => {
+      if (!recipeCatalogEnabled) {
+        return;
+      }
+
       if (!uid) {
         setReviewDraftError(item.recipe.recipeId);
         return;
@@ -152,8 +167,42 @@ export default function RecipeCatalogScreen({
         setReviewBusyRecipeId(null);
       }
     },
-    [navigation, removeDraft, saveDraft, setLastScreen, setMeal, uid],
+    [
+      navigation,
+      recipeCatalogEnabled,
+      removeDraft,
+      saveDraft,
+      setLastScreen,
+      setMeal,
+      uid,
+    ],
   );
+
+  if (!recipeCatalogEnabled) {
+    return (
+      <FormScreenShell
+        testID="recipe-catalog-screen"
+        title={t("recipeCatalog.title", { defaultValue: "Recipes" })}
+        intro={t("recipeCatalog.intro", {
+          defaultValue:
+            "Browse curated recipes filtered from your profile. Unknown flags stay visible as warnings.",
+        })}
+        onBack={handleBack}
+      >
+        <RuntimeFeatureDisabledState
+          testID="recipe-catalog-feature-disabled-state"
+          icon="saved-items"
+          title={t("recipeCatalog.disabledTitle", {
+            defaultValue: "Recipe Catalog is unavailable",
+          })}
+          body={t("recipeCatalog.disabledBody", {
+            defaultValue:
+              "This feature is turned off for this build. No recipe catalog data was loaded.",
+          })}
+        />
+      </FormScreenShell>
+    );
+  }
 
   return (
     <FormScreenShell

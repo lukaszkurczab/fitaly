@@ -172,6 +172,8 @@
     "rowTitle": "Smart Memory",
     "rowSubtitle": "Portions, corrections, ingredients, and products",
     "rowHint": "Opens the Smart Memory control center.",
+    "featureDisabledTitle": "Smart Memory is unavailable",
+    "featureDisabledBody": "This feature is turned off for this build. No memory data was loaded or changed.",
     "intro": "Smart Memory helps reuse details you repeat, like usual portions or selected products. You control each item.",
     "refresh": "Refresh Smart Memory",
     "noUserTitle": "No active profile",
@@ -269,6 +271,8 @@
     "rowTitle": "Recipes",
     "rowSubtitle": "Curated catalog filtered from your profile",
     "rowHint": "Opens the read-only recipe catalog.",
+    "disabledTitle": "Recipe Catalog is unavailable",
+    "disabledBody": "This feature is turned off for this build. No recipe catalog data was loaded.",
     "title": "Recipes",
     "intro": "Browse curated recipes filtered from your profile. Unknown flags stay visible as warnings.",
     "refresh": "Refresh recipes",
@@ -304,6 +308,8 @@
     "reviewAuthErrorBody": "Sign in again before reviewing this recipe. Nothing was saved or logged."
   },
   "planning": {
+    "disabledTitle": "Planning is unavailable",
+    "disabledBody": "This feature is turned off for this build. No planned meals were loaded or changed.",
     "title": "Planning",
     "intro": "Plan the next one to three days. Planned items stay separate from logged meals.",
     "refresh": "Refresh planning",
@@ -378,7 +384,8 @@
       "source_unavailable": "The source for this planned item is unavailable. Recreate it before Review.",
       "converted_to_review": "This planned item was already converted to Review. Create a new plan to review it again.",
       "default": "This planned item is not ready for Review. Refresh or create a new plan."
-    }
+    },
+    "statusLinkedMeal": "Logged meal {{mealId}} • {{convertedAt}}"
   },
   "accountActionsSectionTitle": "Account actions",
   "logOutSubtitle": "Sign out from this device",

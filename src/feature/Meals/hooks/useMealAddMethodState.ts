@@ -11,6 +11,7 @@ import type { KnownPatternCandidate } from "@/types/knownPatterns";
 import type { AppIconName } from "@/components/AppIcon";
 import { debugScope } from "@/utils/debug";
 import { emit, on } from "@/services/core/events";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   isE2EModeEnabled,
 } from "@/services/e2e/config";
@@ -323,7 +324,11 @@ export function useMealAddMethodState(params: {
     let cancelled = false;
 
     const loadKnownPatternCandidate = async () => {
-      if (!params.loadKnownPatternCandidate || !uid) {
+      if (
+        !params.loadKnownPatternCandidate ||
+        !uid ||
+        !isRuntimeFeatureEnabled("knownPatterns")
+      ) {
         setKnownPatternCandidate(null);
         return;
       }

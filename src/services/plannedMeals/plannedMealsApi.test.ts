@@ -9,12 +9,25 @@ const mockGet = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPost = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPatch = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockRequest = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockRuntimeConfig = {
+  apiVersion: "v1",
+  foodLibraryEnabled: true,
+  smartMemoryEnabled: true,
+  knownPatternsEnabled: true,
+  recipeCatalogEnabled: true,
+  planningEnabled: true,
+  homeNextActionEnabled: true,
+};
 
 jest.mock("@/services/core/apiClient", () => ({
   get: (...args: unknown[]) => mockGet(...args),
   post: (...args: unknown[]) => mockPost(...args),
   patch: (...args: unknown[]) => mockPatch(...args),
   request: (...args: unknown[]) => mockRequest(...args),
+}));
+
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
 }));
 
 function sampleDraftSnapshot(overrides: Record<string, unknown> = {}) {
@@ -115,6 +128,49 @@ describe("plannedMealsApi", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockRuntimeConfig.planningEnabled = true;
+  });
+
+  it("does not call backend requests when Planning is disabled", async () => {
+    mockRuntimeConfig.planningEnabled = false;
+    const api =
+      jest.requireActual<typeof import("./plannedMealsApi")>("./plannedMealsApi");
+
+    await expect(api.fetchPlannedMealsRemote()).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.createPlannedMealRemote({
+        clientMutationId: "mutation-1",
+      } as never),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.updatePlannedMealRemote("planned-1", {
+        clientMutationId: "mutation-2",
+        expectedVersion: 1,
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+    await expect(
+      api.deletePlannedMealRemote("planned-1", {
+        clientMutationId: "mutation-3",
+        expectedVersion: 1,
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(mockPatch).not.toHaveBeenCalled();
+    expect(mockRequest).not.toHaveBeenCalled();
   });
 
   it("calls the v2 planned meals list endpoint with bounded horizon query", async () => {
@@ -155,6 +211,58 @@ describe("plannedMealsApi", () => {
     );
   });
 
+  it("normalizes converted planned item link fields", async () => {
+    const api =
+      jest.requireActual<typeof import("./plannedMealsApi")>("./plannedMealsApi");
+    mockGet.mockResolvedValueOnce(
+      sampleListResponse({
+        items: [
+          sampleItem({
+            status: "converted_to_review",
+            version: 3,
+            linkedMealId: "meal-1",
+            convertedAt: "2026-06-19T08:30:00.000Z",
+            conversionClientMutationId: "mutation-upsert-planned-link",
+          }),
+        ],
+      }),
+    );
+
+    await expect(api.fetchPlannedMealsRemote()).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            status: "converted_to_review",
+            linkedMealId: "meal-1",
+            convertedAt: "2026-06-19T08:30:00.000Z",
+            conversionClientMutationId: "mutation-upsert-planned-link",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("rejects malformed converted link fields", async () => {
+    const api =
+      jest.requireActual<typeof import("./plannedMealsApi")>("./plannedMealsApi");
+    mockGet.mockResolvedValueOnce(
+      sampleListResponse({
+        items: [
+          sampleItem({
+            status: "converted_to_review",
+            linkedMealId: 123,
+            convertedAt: "2026-06-19T08:30:00.000Z",
+            conversionClientMutationId: "mutation-upsert-planned-link",
+          }),
+        ],
+      }),
+    );
+
+    await expect(api.fetchPlannedMealsRemote()).rejects.toThrow(
+      "Invalid Planned Meal response.",
+    );
+  });
+
   it("accepts explicit unknown and partial estimate states", async () => {
     const api =
       jest.requireActual<typeof import("./plannedMealsApi")>("./plannedMealsApi");
@@ -163,6 +271,11 @@ describe("plannedMealsApi", () => {
         items: [
           sampleItem({
             plannedMealId: "unknown-1",
+            draftSnapshot: sampleDraftSnapshot({
+              name: "Name-only plan",
+              ingredients: [],
+              totals: null,
+            }),
             nutritionEstimate: sampleEstimate({
               state: "unknown",
               totals: null,
@@ -193,6 +306,11 @@ describe("plannedMealsApi", () => {
         items: [
           expect.objectContaining({
             nutritionEstimate: expect.objectContaining({ state: "unknown" }),
+            draftSnapshot: expect.objectContaining({
+              name: "Name-only plan",
+              ingredients: [],
+              totals: null,
+            }),
           }),
           expect.objectContaining({
             nutritionEstimate: expect.objectContaining({ state: "partial" }),
