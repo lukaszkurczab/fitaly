@@ -28,6 +28,14 @@ jest.mock("@/services/core/runtimeConfig", () => ({
 
 const contract = fixture as SmartMemoryCoreContract;
 
+function getContractItem() {
+  const item = contract.apiResponseExamples.itemsPage.items[0];
+  if (!item) {
+    throw new Error("Missing Smart Memory item contract fixture");
+  }
+  return item;
+}
+
 describe("smartMemoryApi", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -128,12 +136,17 @@ describe("smartMemoryApi", () => {
     const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
 
     mockGet
+      .mockResolvedValueOnce(contract.apiResponseExamples.emptyItemsPage)
       .mockResolvedValueOnce(contract.apiResponseExamples.itemsPage)
       .mockResolvedValueOnce({ items: [contract.apiResponseExamples.candidateResponse.candidate] })
       .mockResolvedValueOnce(contract.apiResponseExamples.settingsEnabledResponse);
     mockPost.mockResolvedValueOnce(contract.apiResponseExamples.itemDeleteResponse);
     mockPatch.mockResolvedValueOnce(contract.apiResponseExamples.settingsDisabledResponse);
 
+    await expect(api.fetchSmartMemoryItemsRemote()).resolves.toEqual({
+      items: [],
+      nextCursor: null,
+    });
     await expect(api.fetchSmartMemoryItemsRemote()).resolves.toEqual({
       items: expect.arrayContaining([
         expect.objectContaining({
@@ -185,5 +198,79 @@ describe("smartMemoryApi", () => {
       "/api/v2/users/me/smart-memory/settings",
       { enabled: false, clientMutationId: "settings-disable" },
     );
+  });
+
+  it("rejects malformed item page payloads instead of dropping invalid rows", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
+    const validItem = getContractItem();
+    const invalidPayloads = [
+      {},
+      { items: [validItem, "not-an-item"] },
+      {
+        items: [
+          validItem,
+          {
+            ...validItem,
+            memoryItemId: "memory-unsupported-type",
+            memoryType: "unsupported_memory_type",
+          },
+        ],
+      },
+      {
+        items: [
+          validItem,
+          {
+            ...validItem,
+            memoryItemId: "memory-unknown-state",
+            state: "unknown_state",
+          },
+        ],
+      },
+    ];
+
+    for (const payload of invalidPayloads) {
+      mockGet.mockResolvedValueOnce(payload);
+      await expect(api.fetchSmartMemoryItemsRemote()).rejects.toThrow(
+        "Invalid Smart Memory items page response",
+      );
+    }
+  });
+
+  it("rejects malformed candidate page payloads instead of dropping invalid rows", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
+    const validCandidate = contract.apiResponseExamples.candidateResponse.candidate;
+    const invalidPayloads = [
+      {},
+      { items: [validCandidate, "not-a-candidate"] },
+      {
+        items: [
+          validCandidate,
+          {
+            ...validCandidate,
+            candidateId: "candidate-unsupported-type",
+            memoryType: "unsupported_memory_type",
+          },
+        ],
+      },
+      {
+        items: [
+          validCandidate,
+          {
+            ...validCandidate,
+            candidateId: "candidate-unknown-state",
+            state: "unknown_state",
+          },
+        ],
+      },
+    ];
+
+    for (const payload of invalidPayloads) {
+      mockGet.mockResolvedValueOnce(payload);
+      await expect(api.fetchSmartMemoryCandidatesRemote()).rejects.toThrow(
+        "Invalid Smart Memory candidates page response",
+      );
+    }
   });
 });

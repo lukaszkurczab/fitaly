@@ -175,26 +175,36 @@ function normalizeSettings(raw: unknown): SmartMemorySettings | null {
 }
 
 function toItemsPage(raw: unknown): SmartMemoryItemsPageResponse {
-  const page = isRecord(raw) ? raw : {};
+  if (!isRecord(raw) || !Array.isArray(raw.items)) {
+    throw new Error("Invalid Smart Memory items page response");
+  }
+  const items = raw.items.map((item) => {
+    const normalized = normalizeItem(item);
+    if (!normalized) {
+      throw new Error("Invalid Smart Memory items page response");
+    }
+    return normalized;
+  });
   return {
-    items: Array.isArray(page.items)
-      ? page.items
-          .map(normalizeItem)
-          .filter((item): item is SmartMemoryItem => item !== null)
-      : [],
-    nextCursor: optionalString(page.nextCursor),
+    items,
+    nextCursor: optionalString(raw.nextCursor),
   };
 }
 
 function toCandidatesPage(raw: unknown): SmartMemoryCandidatesPageResponse {
-  const page = isRecord(raw) ? raw : {};
+  if (!isRecord(raw) || !Array.isArray(raw.items)) {
+    throw new Error("Invalid Smart Memory candidates page response");
+  }
+  const items = raw.items.map((item) => {
+    const normalized = normalizeCandidate(item);
+    if (!normalized) {
+      throw new Error("Invalid Smart Memory candidates page response");
+    }
+    return normalized;
+  });
   return {
-    items: Array.isArray(page.items)
-      ? page.items
-          .map(normalizeCandidate)
-          .filter((item): item is SmartMemoryCandidate => item !== null)
-      : [],
-    nextCursor: optionalString(page.nextCursor),
+    items,
+    nextCursor: optionalString(raw.nextCursor),
   };
 }
 
