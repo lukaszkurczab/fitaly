@@ -36,6 +36,18 @@ function getContractItem() {
   return item;
 }
 
+function getContractCandidate() {
+  return contract.apiResponseExamples.candidateResponse.candidate;
+}
+
+function getRequiredSourceRef(sourceRefs: Array<Record<string, unknown>>) {
+  const sourceRef = sourceRefs[0];
+  if (!sourceRef) {
+    throw new Error("Missing Smart Memory sourceRef contract fixture");
+  }
+  return sourceRef;
+}
+
 describe("smartMemoryApi", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -237,10 +249,53 @@ describe("smartMemoryApi", () => {
     }
   });
 
+  it("rejects nested drift in Smart Memory item responses", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
+    const validItem = getContractItem();
+    const validSourceRef = getRequiredSourceRef(validItem.sourceRefs);
+    const missingSchemaVersion = { ...validItem } as Record<string, unknown>;
+    delete missingSchemaVersion.schemaVersion;
+
+    const invalidItems = [
+      { ...validItem, stateReason: "unsupported_state_reason" },
+      {
+        ...validItem,
+        sourceRefs: [validSourceRef, "not-a-source-ref"],
+      },
+      {
+        ...validItem,
+        sourceRefs: [{ kind: "meal_review", sourceId: "source-id-001" }],
+      },
+      {
+        ...validItem,
+        sourceRefs: [{ ...validSourceRef, sourceId: "source-id-001" }],
+      },
+      {
+        ...validItem,
+        confidenceReasonCodes: ["distinct_days_met", "unknown_confidence_reason"],
+      },
+      { ...validItem, schemaVersion: 2 },
+      missingSchemaVersion,
+      { ...validItem, serverRevision: 0 },
+      { ...validItem, serverRevision: "3" },
+    ];
+
+    for (const item of invalidItems) {
+      mockPost.mockResolvedValueOnce({ item, updated: true });
+      await expect(
+        api.deleteSmartMemoryItemRemote({
+          memoryItemId: "memory-1",
+          clientMutationId: "delete-mutation",
+        }),
+      ).rejects.toThrow("Invalid Smart Memory item response");
+    }
+  });
+
   it("rejects malformed candidate page payloads instead of dropping invalid rows", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
-    const validCandidate = contract.apiResponseExamples.candidateResponse.candidate;
+    const validCandidate = getContractCandidate();
     const invalidPayloads = [
       {},
       { items: [validCandidate, "not-a-candidate"] },
@@ -270,6 +325,70 @@ describe("smartMemoryApi", () => {
       mockGet.mockResolvedValueOnce(payload);
       await expect(api.fetchSmartMemoryCandidatesRemote()).rejects.toThrow(
         "Invalid Smart Memory candidates page response",
+      );
+    }
+  });
+
+  it("rejects nested drift in Smart Memory candidate responses", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
+    const validCandidate = getContractCandidate();
+    const validSourceRef = getRequiredSourceRef(validCandidate.sourceRefs);
+    const missingSchemaVersion = { ...validCandidate } as Record<string, unknown>;
+    delete missingSchemaVersion.schemaVersion;
+
+    const invalidCandidates = [
+      {
+        ...validCandidate,
+        sourceRefs: [validSourceRef, "not-a-source-ref"],
+      },
+      {
+        ...validCandidate,
+        sourceRefs: [{ kind: "review_confirmation", sourceId: "source-id-001" }],
+      },
+      {
+        ...validCandidate,
+        sourceRefs: [{ ...validSourceRef, sourceId: "source-id-001" }],
+      },
+      {
+        ...validCandidate,
+        confidenceReasonCodes: ["single_observation", "unknown_confidence_reason"],
+      },
+      { ...validCandidate, schemaVersion: 2 },
+      missingSchemaVersion,
+      { ...validCandidate, serverRevision: 0 },
+      { ...validCandidate, serverRevision: "1" },
+    ];
+
+    for (const candidate of invalidCandidates) {
+      mockPost.mockResolvedValueOnce({ candidate, updated: true });
+      await expect(
+        api.upsertSmartMemoryCandidateRemote({
+          clientMutationId: "candidate-mutation",
+          input: { candidateId: "candidate-1" } as never,
+        }),
+      ).rejects.toThrow("Invalid Smart Memory candidate response");
+    }
+  });
+
+  it("rejects invalid Smart Memory settings server revisions", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const api = require("./smartMemoryApi") as typeof import("./smartMemoryApi");
+    const validSettings = contract.apiResponseExamples.settingsEnabledResponse.settings;
+    const missingServerRevision = { ...validSettings } as Record<string, unknown>;
+    delete missingServerRevision.serverRevision;
+
+    const invalidSettings = [
+      missingServerRevision,
+      { ...validSettings, serverRevision: 0 },
+      { ...validSettings, serverRevision: "1" },
+      { ...validSettings, serverRevision: 1.5 },
+    ];
+
+    for (const settings of invalidSettings) {
+      mockGet.mockResolvedValueOnce({ settings, updated: true });
+      await expect(api.fetchSmartMemorySettingsRemote()).rejects.toThrow(
+        "Invalid Smart Memory settings response",
       );
     }
   });

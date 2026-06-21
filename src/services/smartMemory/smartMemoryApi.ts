@@ -3,7 +3,9 @@ import { withV2 } from "@/services/core/apiVersioning";
 import { requireRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import {
   SMART_MEMORY_CANDIDATE_STATES,
+  SMART_MEMORY_CONFIDENCE_REASON_CODES,
   SMART_MEMORY_SCHEMA_VERSION,
+  SMART_MEMORY_STATE_REASON_CODES,
   SMART_MEMORY_STATES,
   SMART_MEMORY_TYPES,
   type SmartMemoryCandidate,
@@ -40,17 +42,53 @@ function recordOrEmpty(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
-function recordsArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? value.filter(isRecord) : [];
+function positiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1
+    ? value
+    : null;
 }
 
-function stringsArray<T extends readonly string[]>(
+function optionalOneOf<T extends readonly string[]>(
   value: unknown,
   allowed: T,
-): Array<T[number]> {
-  return Array.isArray(value)
-    ? value.filter((item): item is T[number] => isOneOf(item, allowed))
-    : [];
+): T[number] | null | undefined {
+  if (value == null) return null;
+  return isOneOf(value, allowed) ? value : undefined;
+}
+
+function exactStringsArray<T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): Array<T[number]> | null {
+  if (!Array.isArray(value)) return null;
+  const items: Array<T[number]> = [];
+  for (const item of value) {
+    if (!isOneOf(item, allowed)) return null;
+    items.push(item);
+  }
+  return items;
+}
+
+function hashedSourceRefsArray(
+  value: unknown,
+): Array<{ kind: string; sourceHash: string }> | null {
+  if (!Array.isArray(value)) return null;
+  const sourceRefs: Array<{ kind: string; sourceHash: string }> = [];
+  for (const item of value) {
+    if (!isRecord(item)) return null;
+    const kind = optionalString(item.kind);
+    const sourceHash = optionalString(item.sourceHash);
+    const keys = Object.keys(item);
+    if (
+      !kind ||
+      !sourceHash ||
+      keys.some((key) => key !== "kind" && key !== "sourceHash")
+    ) {
+      return null;
+    }
+    sourceRefs.push({ kind, sourceHash });
+  }
+  return sourceRefs;
 }
 
 function normalizeItem(raw: unknown): SmartMemoryItem | null {
@@ -66,6 +104,25 @@ function normalizeItem(raw: unknown): SmartMemoryItem | null {
   if (!memoryItemId || !ownerUserId || !memoryType || !state || !createdAt || !updatedAt) {
     return null;
   }
+  if (raw.schemaVersion !== SMART_MEMORY_SCHEMA_VERSION) return null;
+  const stateReason = optionalOneOf(
+    raw.stateReason,
+    SMART_MEMORY_STATE_REASON_CODES,
+  );
+  const sourceRefs = hashedSourceRefsArray(raw.sourceRefs);
+  const confidenceReasonCodes = exactStringsArray(
+    raw.confidenceReasonCodes,
+    SMART_MEMORY_CONFIDENCE_REASON_CODES,
+  );
+  const serverRevision = positiveInteger(raw.serverRevision);
+  if (
+    stateReason === undefined ||
+    !sourceRefs ||
+    !confidenceReasonCodes ||
+    serverRevision === null
+  ) {
+    return null;
+  }
 
   return {
     memoryItemId,
@@ -73,31 +130,14 @@ function normalizeItem(raw: unknown): SmartMemoryItem | null {
     schemaVersion: SMART_MEMORY_SCHEMA_VERSION,
     memoryType,
     state,
-    stateReason: isOneOf(raw.stateReason, [
-      "threshold_met",
-      "user_muted",
-      "user_restored",
-      "user_deleted",
-      "account_disabled",
-      "source_deleted",
-      "sync_failed",
-      "conflict_remote_won",
-      "local_pending",
-    ] as const)
-      ? raw.stateReason
-      : null,
+    stateReason,
     subject: recordOrEmpty(raw.subject),
     userValue: recordOrEmpty(raw.userValue),
     evidenceSummary: recordOrEmpty(raw.evidenceSummary),
-    sourceRefs: recordsArray(raw.sourceRefs),
+    sourceRefs,
     threshold: recordOrEmpty(raw.threshold),
     confidence: recordOrEmpty(raw.confidence),
-    confidenceReasonCodes: stringsArray(raw.confidenceReasonCodes, [
-      "single_observation",
-      "distinct_days_met",
-      "consistent_user_review",
-      "ingredient_selection_repeated",
-    ] as const),
+    confidenceReasonCodes,
     control: recordOrEmpty(raw.control),
     createdAt,
     updatedAt,
@@ -107,9 +147,7 @@ function normalizeItem(raw: unknown): SmartMemoryItem | null {
     editedAt: optionalString(raw.editedAt),
     restoredAt: optionalString(raw.restoredAt),
     sourceDeletedAt: optionalString(raw.sourceDeletedAt),
-    serverRevision: Number.isFinite(Number(raw.serverRevision))
-      ? Number(raw.serverRevision)
-      : 0,
+    serverRevision,
   };
 }
 
@@ -128,6 +166,16 @@ function normalizeCandidate(raw: unknown): SmartMemoryCandidate | null {
   if (!candidateId || !ownerUserId || !memoryType || !state || !createdAt || !updatedAt) {
     return null;
   }
+  if (raw.schemaVersion !== SMART_MEMORY_SCHEMA_VERSION) return null;
+  const sourceRefs = hashedSourceRefsArray(raw.sourceRefs);
+  const confidenceReasonCodes = exactStringsArray(
+    raw.confidenceReasonCodes,
+    SMART_MEMORY_CONFIDENCE_REASON_CODES,
+  );
+  const serverRevision = positiveInteger(raw.serverRevision);
+  if (!sourceRefs || !confidenceReasonCodes || serverRevision === null) {
+    return null;
+  }
 
   return {
     candidateId,
@@ -137,21 +185,14 @@ function normalizeCandidate(raw: unknown): SmartMemoryCandidate | null {
     state,
     subject: recordOrEmpty(raw.subject),
     evidenceSummary: recordOrEmpty(raw.evidenceSummary),
-    sourceRefs: recordsArray(raw.sourceRefs),
-    confidenceReasonCodes: stringsArray(raw.confidenceReasonCodes, [
-      "single_observation",
-      "distinct_days_met",
-      "consistent_user_review",
-      "ingredient_selection_repeated",
-    ] as const),
+    sourceRefs,
+    confidenceReasonCodes,
     suppressionChecks: recordOrEmpty(raw.suppressionChecks),
     createdAt,
     updatedAt,
     firstSeenAt: optionalString(raw.firstSeenAt),
     lastSeenAt: optionalString(raw.lastSeenAt),
-    serverRevision: Number.isFinite(Number(raw.serverRevision))
-      ? Number(raw.serverRevision)
-      : 0,
+    serverRevision,
   };
 }
 
@@ -162,14 +203,14 @@ function normalizeSettings(raw: unknown): SmartMemorySettings | null {
   if (!ownerUserId || typeof raw.enabled !== "boolean" || !updatedAt) {
     return null;
   }
+  const serverRevision = positiveInteger(raw.serverRevision);
+  if (serverRevision === null) return null;
   return {
     ownerUserId,
     enabled: raw.enabled,
     disabledAt: optionalString(raw.disabledAt),
     updatedAt,
-    serverRevision: Number.isFinite(Number(raw.serverRevision))
-      ? Number(raw.serverRevision)
-      : 0,
+    serverRevision,
     clientMutationId: optionalString(raw.clientMutationId),
   };
 }
