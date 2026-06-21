@@ -152,7 +152,7 @@ export type SmartMemoryItem = {
   subject: Record<string, unknown>;
   userValue: SmartMemoryUserValue;
   evidenceSummary: Record<string, unknown>;
-  sourceRefs: Array<Record<string, unknown>>;
+  sourceRefs: SmartMemoryHashedSourceRef[];
   threshold: Record<string, unknown>;
   confidence: Record<string, unknown>;
   confidenceReasonCodes: SmartMemoryConfidenceReasonCode[];
@@ -176,7 +176,7 @@ export type SmartMemoryCandidate = {
   state: SmartMemoryCandidateState;
   subject: Record<string, unknown>;
   evidenceSummary: Record<string, unknown>;
-  sourceRefs: Array<Record<string, unknown>>;
+  sourceRefs: SmartMemoryHashedSourceRef[];
   confidenceReasonCodes: SmartMemoryConfidenceReasonCode[];
   suppressionChecks: Record<string, unknown>;
   createdAt: string;
