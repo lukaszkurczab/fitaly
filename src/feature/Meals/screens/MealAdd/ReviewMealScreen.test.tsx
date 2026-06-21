@@ -1405,6 +1405,72 @@ describe("ReviewMealScreen", () => {
     expect(testProps.flowGoTo).not.toHaveBeenCalled();
   });
 
+  it("saves current Review draft values when active memory explanation is visible", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    const ctx = buildDraftContext({
+      ingredients: [
+        {
+          id: "ing-1",
+          name: "Chicken",
+          amount: 90,
+          unit: "g",
+          kcal: 125,
+          protein: 18,
+          carbs: 0,
+          fat: 4,
+        },
+      ],
+    });
+    const testProps = buildProps();
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      smartMemoryEnabled: true,
+      reviewMemoryExplanationEnabled: true,
+    }));
+    mockReadReviewSmartMemoryExplanation.mockResolvedValue(
+      activeReviewMemoryExplanation,
+    );
+
+    const { getByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("review-meal-memory-info-0")).toBeTruthy();
+    });
+
+    expect(getByText("90 g")).toBeTruthy();
+    fireEvent.press(getByTestId("review-meal-memory-info-0"));
+    expect(getByTestId("review-meal-memory-details-modal")).toBeTruthy();
+    expect(getByText("180 g")).toBeTruthy();
+    fireEvent.press(getByTestId("review-meal-memory-details-close"));
+
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal: expect.objectContaining({
+            ingredients: [
+              expect.objectContaining({
+                name: "Chicken",
+                amount: 90,
+                unit: "g",
+                kcal: 125,
+                protein: 18,
+                fat: 4,
+              }),
+            ],
+          }),
+        }),
+      );
+    });
+  });
+
   it("shows sync failed memory as one non-blocking row with bounded details", async () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
