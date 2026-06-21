@@ -415,6 +415,28 @@ describe("MemoryCenterScreen", () => {
     expect(mockTrackMemoryDeleted).not.toHaveBeenCalled();
   });
 
+  it("renders loading while the projection read is pending", () => {
+    const pendingProjection = new Promise<SmartMemoryProjection>(() => {});
+    mockReadSmartMemoryProjection.mockImplementation(() => pendingProjection);
+
+    const screen = renderScreen();
+
+    expect(screen.getByTestId("memory-center-loading-state")).toBeTruthy();
+    expect(screen.queryByTestId("memory-center-load-error-state")).toBeNull();
+    expect(screen.queryByTestId("memory-center-ready-state")).toBeNull();
+  });
+
+  it("renders load error state when the projection read fails", async () => {
+    mockReadSmartMemoryProjection.mockRejectedValueOnce(new Error("read failed"));
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("memory-center-load-error-state")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("memory-center-ready-state")).toBeNull();
+  });
+
   it("renders the empty enabled shell and queues account disable", async () => {
     const screen = renderScreen();
 
@@ -470,6 +492,21 @@ describe("MemoryCenterScreen", () => {
     expect(screen.getByText("memoryCenter.candidateSubtitle")).toBeTruthy();
   });
 
+  it("renders ready state with active backend-confirmed rows", async () => {
+    mockProjection = projection({
+      items: [itemProjection()],
+    });
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("memory-center-ready-state")).toBeTruthy();
+      expect(screen.getByTestId("memory-center-item-memory-1")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("memory-center-pending-state")).toBeNull();
+    expect(screen.queryByTestId("memory-center-sync-failed-state")).toBeNull();
+  });
+
   it("shows sync failed recovery controls and wires retry", async () => {
     mockProjection = projection({
       items: [
@@ -493,9 +530,13 @@ describe("MemoryCenterScreen", () => {
       expect(screen.getByTestId("memory-center-sync-failed-state")).toBeTruthy();
       expect(screen.getByTestId("memory-center-sync-recovery-actions")).toBeTruthy();
     });
+    const readsBeforeRetry = mockReadSmartMemoryProjection.mock.calls.length;
     fireEvent.press(screen.getByTestId("memory-center-retry-button"));
     await waitFor(() => {
       expect(mockRetryFailedControls).toHaveBeenCalledWith("user-1");
+      expect(mockReadSmartMemoryProjection).toHaveBeenCalledTimes(
+        readsBeforeRetry + 1,
+      );
     });
   });
 
@@ -521,9 +562,13 @@ describe("MemoryCenterScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId("memory-center-discard-button")).toBeTruthy();
     });
+    const readsBeforeDiscard = mockReadSmartMemoryProjection.mock.calls.length;
     fireEvent.press(screen.getByTestId("memory-center-discard-button"));
     await waitFor(() => {
       expect(mockDiscardFailedControls).toHaveBeenCalledWith("user-1");
+      expect(mockReadSmartMemoryProjection).toHaveBeenCalledTimes(
+        readsBeforeDiscard + 1,
+      );
     });
   });
 
@@ -679,6 +724,34 @@ describe("MemoryCenterScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId("memory-center-offline-state")).toBeTruthy();
       expect(screen.getByTestId("memory-center-item-memory-1")).toBeTruthy();
+    });
+  });
+
+  it("keeps sync recovery controls available when failed rows are viewed offline", async () => {
+    mockIsOffline = true;
+    mockProjection = projection({
+      items: [
+        itemProjection({
+          syncState: "dead_letter",
+          projectionState: "sync_failed",
+          queuedOperation: {
+            operation: "mute",
+            status: "dead_letter",
+            clientMutationId: "mutation-dead",
+            updatedAt: "2026-06-10T10:00:00.000Z",
+          },
+          lastErrorMessage: "Backend rejected operation",
+        }),
+      ],
+    });
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("memory-center-offline-state")).toBeTruthy();
+      expect(screen.getByTestId("memory-center-sync-recovery-actions")).toBeTruthy();
+      expect(screen.getByTestId("memory-center-retry-button")).toBeTruthy();
+      expect(screen.getByTestId("memory-center-discard-button")).toBeTruthy();
     });
   });
 });
