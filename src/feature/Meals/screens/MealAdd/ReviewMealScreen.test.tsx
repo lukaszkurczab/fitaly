@@ -88,7 +88,13 @@ function createRuntimeConfig(
   };
 }
 const mockReadReviewSmartMemoryExplanation =
-  jest.fn<() => Promise<ReviewMemoryExplanation>>();
+  jest.fn<
+    (params: {
+      uid: string;
+      ingredients: Array<{ name: string; amount?: number; unit?: string }>;
+      nutritionProfile: unknown;
+    }) => Promise<ReviewMemoryExplanation>
+  >();
 
 jest.mock("@/services/core/fileSystem", () => ({
   getInfoAsync: (uri: string) => mockGetInfoAsync(uri),
@@ -123,7 +129,11 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
 }));
 
 jest.mock("@/services/smartMemory/smartMemoryService", () => ({
-  readReviewSmartMemoryExplanation: () => mockReadReviewSmartMemoryExplanation(),
+  readReviewSmartMemoryExplanation: (params: {
+    uid: string;
+    ingredients: Array<{ name: string; amount?: number; unit?: string }>;
+    nutritionProfile: unknown;
+  }) => mockReadReviewSmartMemoryExplanation(params),
 }));
 
 jest.mock("@/components/AppIcon", () => ({
@@ -541,7 +551,9 @@ describe("ReviewMealScreen", () => {
     mockGetInfoAsync.mockResolvedValue({ exists: true });
     mockUseNetInfo.mockReturnValue({ isConnected: true });
     mockUseAuthContext.mockReturnValue({ uid: "user-1" });
-    mockUseUserContext.mockReturnValue({ userData: { uid: "user-1" } });
+    mockUseUserContext.mockReturnValue({
+      userData: buildUserData(readyReadiness, revokedAiConsent),
+    });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
       reviewMemoryExplanationEnabled: false,
     }));
@@ -1229,6 +1241,9 @@ describe("ReviewMealScreen", () => {
   it("shows active memory as an inline ingredient info icon with bounded details", async () => {
     const ctx = buildDraftContext();
     const testProps = buildProps();
+    mockUseUserContext.mockReturnValue({
+      userData: buildUserData(readyReadiness, revokedAiConsent),
+    });
     mockUseMealDraftContext.mockReturnValue(ctx);
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
       smartMemoryEnabled: true,
@@ -1245,6 +1260,15 @@ describe("ReviewMealScreen", () => {
     await waitFor(() => {
       expect(getByTestId("review-meal-memory-info-0")).toBeTruthy();
     });
+    expect(mockReadReviewSmartMemoryExplanation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "user-1",
+        nutritionProfile: expect.objectContaining({
+          allergies: [],
+          preferences: [],
+        }),
+      }),
+    );
     expect(queryByTestId("review-meal-memory-row")).toBeNull();
 
     fireEvent.press(getByTestId("review-meal-memory-info-0"));

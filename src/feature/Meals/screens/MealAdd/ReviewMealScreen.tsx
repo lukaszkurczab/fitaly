@@ -147,8 +147,11 @@ export default function ReviewMealScreen({
   const initialAiReviewFingerprintRef = useRef<string | null>(null);
   const smartMemoryEnabled = isRuntimeFeatureEnabled("smartMemory");
   const planningEnabled = isRuntimeFeatureEnabled("planning");
+  const nutritionProfile = userData?.profile?.nutritionProfile ?? null;
   const reviewMemoryGateEnabled =
-    smartMemoryEnabled && getRuntimeConfig().reviewMemoryExplanationEnabled;
+    smartMemoryEnabled &&
+    getRuntimeConfig().reviewMemoryExplanationEnabled &&
+    nutritionProfile !== null;
 
   const image = meal?.photoUrl ?? null;
   const displayImage = image && !imageError ? image : null;
@@ -285,7 +288,7 @@ export default function ReviewMealScreen({
   }, [meal?.ingredients]);
 
   useEffect(() => {
-    if (!reviewMemoryGateEnabled || !uid || !meal) {
+    if (!reviewMemoryGateEnabled || !uid || !meal || !nutritionProfile) {
       setReviewMemoryExplanation(EMPTY_REVIEW_MEMORY_EXPLANATION);
       setSelectedMemoryDetail(null);
       return;
@@ -299,6 +302,7 @@ export default function ReviewMealScreen({
         amount: ingredient.amount,
         unit: ingredient.unit,
       })),
+      nutritionProfile,
     })
       .then((nextExplanation) => {
         if (!cancelled) setReviewMemoryExplanation(nextExplanation);
@@ -312,7 +316,7 @@ export default function ReviewMealScreen({
     return () => {
       cancelled = true;
     };
-  }, [meal, reviewMemoryGateEnabled, uid]);
+  }, [meal, nutritionProfile, reviewMemoryGateEnabled, uid]);
 
   const activeMemoryByIngredientName = useMemo(() => {
     const details = new Map<string, ReviewMemoryDetail>();

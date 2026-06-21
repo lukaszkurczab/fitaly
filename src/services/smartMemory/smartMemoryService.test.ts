@@ -165,6 +165,102 @@ describe("selectReviewSmartMemoryExplanation", () => {
     expect(result).toEqual({ activeIngredients: [], row: null });
   });
 
+  it("suppresses active memory for allergy profiles when memory compatibility is unknown", () => {
+    const result = selectReviewSmartMemoryExplanation(
+      projection({
+        items: [
+          item({
+            item: {
+              ...item().item,
+              subject: {
+                displayLabel: "Chicken",
+              },
+            },
+          }),
+        ],
+      }),
+      [{ name: "Chicken", amount: 180, unit: "g" }],
+      { allergies: ["peanuts"], preferences: [] },
+    );
+
+    expect(result).toEqual({ activeIngredients: [], row: null });
+  });
+
+  it("suppresses active memory for hard restrictions when memory compatibility is unknown", () => {
+    const result = selectReviewSmartMemoryExplanation(
+      projection({
+        items: [
+          item({
+            item: {
+              ...item().item,
+              subject: {
+                displayLabel: "Chicken",
+              },
+            },
+          }),
+        ],
+      }),
+      [{ name: "Chicken", amount: 180, unit: "g" }],
+      { allergies: [], preferences: ["vegan"] },
+    );
+
+    expect(result).toEqual({ activeIngredients: [], row: null });
+  });
+
+  it("allows active memory when explicit dietary flags satisfy a hard restriction", () => {
+    const result = selectReviewSmartMemoryExplanation(
+      projection({
+        items: [
+          item({
+            item: {
+              ...item().item,
+              subject: {
+                displayLabel: "Tofu",
+                dietaryFlags: ["vegan"],
+              },
+            },
+          }),
+        ],
+      }),
+      [{ name: "Tofu", amount: 180, unit: "g" }],
+      { allergies: [], preferences: ["vegan"] },
+    );
+
+    expect(result.activeIngredients).toHaveLength(1);
+    expect(result.activeIngredients[0]?.detail).toMatchObject({
+      memoryType: "typical_portion",
+      state: "active",
+      affectedLabel: "Tofu",
+      usedValueLabel: "180 g",
+    });
+  });
+
+  it("does not treat macro-style preferences as hard memory exclusions", () => {
+    const result = selectReviewSmartMemoryExplanation(
+      projection({
+        items: [
+          item({
+            item: {
+              ...item().item,
+              subject: {
+                displayLabel: "Chicken",
+              },
+            },
+          }),
+        ],
+      }),
+      [{ name: "Chicken", amount: 180, unit: "g" }],
+      { allergies: [], preferences: ["highProtein"] },
+    );
+
+    expect(result.activeIngredients).toHaveLength(1);
+    expect(result.activeIngredients[0]?.detail).toMatchObject({
+      memoryType: "typical_portion",
+      state: "active",
+      usedValueLabel: "180 g",
+    });
+  });
+
   it("prioritizes sync failures over pending and new candidates while preserving separate active icons", () => {
     const result = select(
       projection({

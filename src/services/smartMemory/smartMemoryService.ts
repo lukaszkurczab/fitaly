@@ -35,11 +35,17 @@ import type {
   SmartMemoryUserValue,
   SmartMemorySourceDeletedInput,
 } from "@/types/smartMemory";
+import type { Allergy, Preference } from "@/types/onboarding";
 
 type ReviewIngredient = {
   name: string;
   amount?: number;
   unit?: string;
+};
+
+export type ReviewMemoryProfileConstraints = {
+  allergies?: Allergy[] | null;
+  preferences?: Preference[] | null;
 };
 
 export type ReviewMemoryEvidence = {
@@ -120,9 +126,14 @@ export async function readActiveSmartMemoryForReview(
 export async function readReviewSmartMemoryExplanation(params: {
   uid: string;
   ingredients: ReviewIngredient[];
+  nutritionProfile: ReviewMemoryProfileConstraints;
 }): Promise<ReviewMemoryExplanation> {
   const projection = await getSmartMemoryProjection(params.uid);
-  return selectReviewSmartMemoryExplanation(projection, params.ingredients);
+  return selectReviewSmartMemoryExplanation(
+    projection,
+    params.ingredients,
+    params.nutritionProfile,
+  );
 }
 
 export function selectMemoryCenterState(
@@ -161,12 +172,13 @@ export function selectMemoryCenterState(
 export function selectReviewSmartMemoryExplanation(
   projection: SmartMemoryProjection,
   ingredients: ReviewIngredient[],
+  nutritionProfile?: ReviewMemoryProfileConstraints | null,
 ): ReviewMemoryExplanation {
   const failedRow = selectFailedRow(projection);
   const settingsDisabled = isSettingsDisabled(projection.settings);
   const activeIngredients = settingsDisabled
     ? []
-    : selectActiveIngredients(projection.items, ingredients);
+    : selectActiveIngredients(projection.items, ingredients, nutritionProfile);
 
   if (failedRow) {
     return { activeIngredients, row: failedRow };
@@ -186,6 +198,7 @@ export function selectReviewSmartMemoryExplanation(
 function selectActiveIngredients(
   items: SmartMemoryProjectionItem[],
   ingredients: ReviewIngredient[],
+  nutritionProfile?: ReviewMemoryProfileConstraints | null,
 ): ReviewMemoryExplanation["activeIngredients"] {
   const result: ReviewMemoryExplanation["activeIngredients"] = [];
   const usedIngredientNames = new Set<string>();
@@ -214,6 +227,10 @@ function selectActiveIngredients(
       (ingredient) => normalizeLabel(ingredient.name) === normalizeLabel(affectedLabel),
     );
     if (!matchedIngredient) continue;
+
+    if (hasProfileHardConstraintConflict(item, nutritionProfile)) {
+      continue;
+    }
 
     const normalizedName = normalizeLabel(matchedIngredient.name);
     if (usedIngredientNames.has(normalizedName)) continue;
@@ -398,6 +415,109 @@ function readEvidence(value: Record<string, unknown>): ReviewMemoryEvidence {
     selectionCount: readNumber(value.selectionCount),
     correctionCount: readNumber(value.correctionCount),
   };
+}
+
+type ProfileFlagEvidence = {
+  flags: Set<string>;
+  hasExplicitFlags: boolean;
+};
+
+const ALLERGY_FLAG_REQUIREMENTS: Record<
+  Exclude<Allergy, "none" | "other">,
+  string[]
+> = {
+  peanuts: ["peanuts"],
+  gluten: ["gluten", "wheat"],
+  lactose: ["lactose", "milk"],
+};
+
+const RESTRICTION_REQUIREMENTS: Partial<Record<Preference, string[]>> = {
+  vegan: ["vegan"],
+  vegetarian: ["vegetarian", "vegan"],
+  pescatarian: ["pescatarian", "vegetarian", "vegan"],
+  glutenFree: ["gluten_free"],
+  dairyFree: ["lactose_free", "dairy_free"],
+};
+
+function hasProfileHardConstraintConflict(
+  entry: SmartMemoryProjectionItem,
+  nutritionProfile?: ReviewMemoryProfileConstraints | null,
+): boolean {
+  if (!nutritionProfile) return false;
+
+  const allergenEvidence = collectNormalizedFlags(
+    [entry.item.subject, entry.item.userValue],
+    "allergenFlags",
+  );
+  const dietaryEvidence = collectNormalizedFlags(
+    [entry.item.subject, entry.item.userValue],
+    "dietaryFlags",
+  );
+
+  return (
+    hasAllergyConflict(nutritionProfile.allergies, allergenEvidence) ||
+    hasRestrictionConflict(nutritionProfile.preferences, dietaryEvidence)
+  );
+}
+
+function hasAllergyConflict(
+  allergies: Allergy[] | null | undefined,
+  allergenEvidence: ProfileFlagEvidence,
+): boolean {
+  for (const allergy of allergies ?? []) {
+    if (allergy === "none" || allergy === "other") continue;
+    if (!allergenEvidence.hasExplicitFlags) return true;
+    const blockedFlags = ALLERGY_FLAG_REQUIREMENTS[allergy] ?? [
+      normalizeFlag(allergy),
+    ];
+    if (blockedFlags.some((flag) => allergenEvidence.flags.has(flag))) return true;
+  }
+  return false;
+}
+
+function hasRestrictionConflict(
+  preferences: Preference[] | null | undefined,
+  dietaryEvidence: ProfileFlagEvidence,
+): boolean {
+  for (const preference of preferences ?? []) {
+    const acceptedFlags = RESTRICTION_REQUIREMENTS[preference];
+    if (!acceptedFlags) continue;
+    if (!dietaryEvidence.hasExplicitFlags) return true;
+    if (!acceptedFlags.some((flag) => dietaryEvidence.flags.has(flag))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function collectNormalizedFlags(
+  values: unknown[],
+  key: string,
+): ProfileFlagEvidence {
+  const flags = new Set<string>();
+  let hasExplicitFlags = false;
+  for (const value of values) {
+    if (!value || typeof value !== "object") continue;
+    const record = value as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+    const candidate = record[key];
+    if (!Array.isArray(candidate)) continue;
+    hasExplicitFlags = true;
+    for (const item of candidate) {
+      if (typeof item === "string" && item.trim().length > 0) {
+        flags.add(normalizeFlag(item));
+      }
+    }
+  }
+  return { flags, hasExplicitFlags };
+}
+
+function normalizeFlag(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/[-\s]+/g, "_")
+    .toLocaleLowerCase();
 }
 
 function emptyEvidence(): ReviewMemoryEvidence {
