@@ -11,6 +11,10 @@ import type {
 import type { TelemetryProps } from "@/services/telemetry/telemetryTypes";
 import { track } from "@/services/telemetry/telemetryClient";
 import type { Meal } from "@/types/meal";
+import type {
+  KnownPatternConfidenceBucket,
+  KnownPatternCountBucket,
+} from "@/types/knownPatterns";
 import type { PlannedMealEstimateState, PlannedMealSourceType } from "@/types/plannedMeals";
 import type { SmartMemoryType } from "@/types/smartMemory";
 
@@ -160,6 +164,7 @@ type C5TelemetrySurface =
 type C5TelemetryConfidenceBucket = "low" | "medium" | "high";
 type C5TelemetryActionResult = "succeeded" | "queued" | "blocked" | "failed";
 type C5TelemetryFeatureState = "enabled" | "disabled" | "shadow";
+type KnownPatternC5TelemetrySurface = "meal_add_method";
 
 type SmartMemoryC5TelemetryBase = {
   memoryType: SmartMemoryType;
@@ -171,6 +176,13 @@ type PlanningC5TelemetryBase = {
   sourceType: PlannedMealSourceType;
   estimateState: PlannedMealEstimateState;
   surface: C5TelemetrySurface;
+  featureState: C5TelemetryFeatureState;
+};
+
+type KnownPatternC5TelemetryBase = {
+  surface: KnownPatternC5TelemetrySurface;
+  confidenceBucket: KnownPatternConfidenceBucket;
+  sourceCountBucket: KnownPatternCountBucket;
   featureState: C5TelemetryFeatureState;
 };
 
@@ -572,6 +584,45 @@ export function trackPlannedMealSkipped(
     sourceType: input.sourceType,
     estimateState: input.estimateState,
     surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternCandidateShown(
+  input: KnownPatternC5TelemetryBase,
+): Promise<void> {
+  return track("known_pattern_candidate_shown", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternReviewStarted(
+  input: KnownPatternC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("known_pattern_review_started", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternCandidateDismissed(
+  input: KnownPatternC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("known_pattern_candidate_dismissed", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
     actionResult: input.actionResult,
     featureState: input.featureState,
   });

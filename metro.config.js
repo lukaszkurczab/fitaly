@@ -22,5 +22,8 @@ module.exports = (() => {
   config.resolver.assetExts = assetExts.filter((ext) => ext !== "svg");
   config.resolver.sourceExts = [...sourceExts, "svg"];
   config.resolver.unstable_enablePackageExports = false;
+  if (process.env.E2E_DISABLE_WATCHMAN === "1") {
+    config.resolver.useWatchman = false;
+  }
   return config;
 })();

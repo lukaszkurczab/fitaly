@@ -3,7 +3,7 @@ import { getAuth } from "@react-native-firebase/auth";
 import { connectAuthEmulator } from "@react-native-firebase/auth/lib/modular";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 
-const firebaseConfig = {
+const defaultFirebaseConfig = {
   apiKey: "AIzaSyAMx2jGfr3mslwuu7PXwRry8M72794NMek",
   authDomain: "calories-calculator-ai.firebaseapp.com",
   projectId: "calories-calculator-ai",
@@ -18,8 +18,22 @@ type FirebaseApp = ReturnType<typeof getApp>;
 let appPromise: Promise<FirebaseApp>;
 let authEmulatorConfigured = false;
 
+function resolveFirebaseConfig(): typeof defaultFirebaseConfig {
+  const firebaseProjectId = getRuntimeConfig().firebaseProjectId;
+  if (!firebaseProjectId) {
+    return defaultFirebaseConfig;
+  }
+
+  return {
+    ...defaultFirebaseConfig,
+    authDomain: `${firebaseProjectId}.firebaseapp.com`,
+    projectId: firebaseProjectId,
+    storageBucket: `${firebaseProjectId}.appspot.com`,
+  };
+}
+
 if (!getApps().length) {
-  appPromise = initializeApp(firebaseConfig);
+  appPromise = initializeApp(resolveFirebaseConfig());
 } else {
   appPromise = Promise.resolve(getApp());
 }

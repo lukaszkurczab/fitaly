@@ -3,17 +3,6 @@ appId: com.lkurczab.fitaly
 - stopApp
 - openLink: __E2E_EXPO_URL__
 - waitForAnimationToEnd
-- runFlow:
-    when:
-      visible: "Close"
-    commands:
-      - tapOn: "Close"
-      - waitForAnimationToEnd
-- runFlow:
-    when:
-      visible: "Nie teraz|Not [Nn]ow"
-    commands:
-      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1&theme=light

@@ -4,6 +4,11 @@ appId: com.lkurczab.fitaly
 - openLink: fitaly://e2e/seed?fixture=activated-user-empty
 - assertVisible:
     id: e2e-ready-fixture-activated-user-empty
+- openLink: fitaly://e2e/connectivity?offline=1
+- assertVisible:
+    id: e2e-ready-offline
+- assertVisible:
+    id: offline-banner
 - tapOn:
     id: tab-add-meal
 - assertVisible:
@@ -15,22 +20,8 @@ appId: com.lkurczab.fitaly
 - tapOn:
     id: meal-name-input
 - eraseText
-- inputText: Release Manual Bowl
+- inputText: Offline Manual Meal
 - hideKeyboard
-- tapOn:
-    id: meal-type-picker-trigger
-- assertVisible:
-    id: meal-type-picker-sheet
-- tapOn:
-    id: meal-type-picker-option-lunch
-- tapOn:
-    id: meal-type-picker-apply-button
-- tapOn:
-    id: meal-time-picker-trigger
-- assertVisible:
-    id: meal-time-picker-sheet
-- tapOn:
-    id: meal-time-picker-apply-button
 - scrollUntilVisible:
     element:
       id: ingredient-add-button
@@ -46,10 +37,14 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-name-input
 - eraseText
 - inputText: Chicken
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+    centerElement: true
 - tapOn:
     id: ingredient-editor-protein-input
-- eraseText
-- inputText: 10
+- inputText: "2"
 - assertVisible:
     id: ingredient-editor-submit-button
 - tapOn:
@@ -64,8 +59,15 @@ appId: com.lkurczab.fitaly
     id: review-meal-save-button
 - assertVisible:
     id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
 - assertVisible:
-    id: home-today-meal-row-0
+    id: home-meal-sync-pending-0
+- swipe:
+    direction: UP
+    duration: 600
 - scrollUntilVisible:
     element:
       id: home-view-history-button
@@ -81,3 +83,20 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: history-meal-row-0
+- assertVisible:
+    id: history-meal-sync-pending-0
+- assertNotVisible:
+    id: history-meal-row-1
+- openLink: fitaly://e2e/connectivity?offline=0
+- assertVisible:
+    id: e2e-ready-home
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-sync-pending-0
+- assertNotVisible:
+    id: history-meal-row-1

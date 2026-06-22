@@ -5,6 +5,7 @@ import { createServiceError } from "@/services/contracts/serviceError";
 import { asString, isRecord } from "@/services/contracts/guards";
 import { withVersion } from "@/services/core/apiVersioning";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import { getE2EAuthToken } from "@/services/e2e/authToken";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 120_000;
@@ -106,7 +107,7 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
   const currentUser = auth.currentUser;
 
   if (!currentUser) {
-    return null;
+    return getE2EAuthToken();
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -128,7 +129,7 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
     ]);
   } catch (error) {
     if (isFirebaseNoCurrentUserError(error)) {
-      return null;
+      return getE2EAuthToken();
     }
     throw error;
   } finally {

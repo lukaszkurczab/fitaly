@@ -22,6 +22,13 @@ appId: com.lkurczab.fitaly
 - eraseText
 - inputText: Offline Manual Meal
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: ingredient-add-button
 - tapOn:
     id: ingredient-add-button
 - assertVisible:
@@ -30,6 +37,14 @@ appId: com.lkurczab.fitaly
     id: ingredient-editor-name-input
 - eraseText
 - inputText: Chicken
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-editor-protein-input
+- inputText: "2"
 - assertVisible:
     id: ingredient-editor-submit-button
 - tapOn:
@@ -53,6 +68,11 @@ appId: com.lkurczab.fitaly
 - swipe:
     direction: UP
     duration: 600
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+    centerElement: true
 - assertVisible:
     id: home-view-history-button
 - tapOn:

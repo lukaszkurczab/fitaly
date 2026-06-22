@@ -26,6 +26,7 @@ function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    firebaseProjectId: "",
     firebaseAuthEmulatorHost: "",
   };
 }

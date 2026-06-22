@@ -83,7 +83,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "add-meal", "full-review"],
       "flows": ["e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
@@ -99,7 +99,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate-with-nightly-negative-states",
-      "suiteOwnership": ["release-gate", "add-meal", "premium-billing", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "add-meal", "premium-billing", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
         "e2e/maestro/nightly-regression/text-meal-ai-failure.yaml",
@@ -121,7 +121,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "add-meal", "full-review"],
       "flows": ["e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
@@ -137,7 +137,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate-with-negative-state",
-      "suiteOwnership": ["release-gate", "add-meal", "platform-layout", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "add-meal", "platform-layout", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml",
         "e2e/maestro/nightly-regression/barcode-not-found.yaml",
@@ -158,7 +158,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "add-meal", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "add-meal", "full-review"],
       "flows": ["e2e/maestro/release-gate/add-meal-saved-template.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
@@ -174,8 +174,9 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate-with-conflict-regression",
-      "suiteOwnership": ["release-gate", "home-history-statistics", "smoke", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "home-history-statistics", "smoke", "full-review"],
       "flows": [
+        "e2e/maestro/release-gate/offline-save-pending-local.yaml",
         "e2e/maestro/release-gate/offline-save-sync.yaml",
         "e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml",
         "e2e/maestro/smoke/offline-error.yaml"
@@ -187,7 +188,7 @@
         "Failure/conflict seeds fitaly://e2e/seed?fixture=user-with-failed-meal and fitaly://e2e/seed?fixture=user-with-conflict-meal"
       ],
       "assertionTypes": ["visible-state", "queue-sync-outcome", "offline-state", "conflict-state", "recovery-state"],
-      "expectedEvidence": "Offline save shows pending/offline states, reconnect clears pending state, and failed/conflict states are observable.",
+      "expectedEvidence": "Core local gate proves offline save remains visible and explicitly pending without provider sync; full release gate proves reconnect clears pending state, while nightly/smoke cover failed/conflict/offline states.",
       "currentGap": null
     },
     {
@@ -196,7 +197,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "home-history-statistics", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "home-history-statistics", "full-review"],
       "flows": ["e2e/maestro/release-gate/history-edit-delete.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
@@ -212,7 +213,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "home-history-statistics", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "home-history-statistics", "full-review"],
       "flows": ["e2e/maestro/release-gate/home-history-statistics-after-save.yaml"],
       "requiredSetup": [
         "Run ../smoke/login.yaml",
@@ -228,7 +229,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "ai-chat", "smoke", "platform-layout", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "ai-chat", "smoke", "platform-layout", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/chat-basic-history.yaml",
         "e2e/maestro/smoke/chat-ai.yaml",
@@ -269,7 +270,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate",
-      "suiteOwnership": ["release-gate", "premium-billing", "platform-layout", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "premium-billing", "platform-layout", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/premium-paywall-restore.yaml",
         "e2e/maestro/platform-layout/paywall-open-layout.yaml"
@@ -311,7 +312,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate-with-full-review-breadth",
-      "suiteOwnership": ["release-gate", "notifications-retention", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "notifications-retention", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/notifications-preferences.yaml",
         "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
@@ -334,7 +335,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "smoke-release-gate-full-review",
-      "suiteOwnership": ["smoke", "release-gate", "auth", "full-review"],
+      "suiteOwnership": ["core-release-gate", "smoke", "release-gate", "auth", "full-review"],
       "flows": [
         "e2e/maestro/smoke/account-launch.yaml",
         "e2e/maestro/release-gate/account-delete-cancel.yaml",
@@ -390,7 +391,7 @@
       "status": "covered",
       "releaseCritical": true,
       "evidenceTier": "release-gate-with-share-suite-negative-states",
-      "suiteOwnership": ["release-gate", "share", "full-review"],
+      "suiteOwnership": ["core-release-gate", "release-gate", "share", "full-review"],
       "flows": [
         "e2e/maestro/release-gate/share-save-and-share.yaml",
         "e2e/maestro/nightly-regression/share-customize-basic.yaml",

@@ -19,6 +19,12 @@ const mockMarkKnownPatternCandidateRemote =
   jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockOpenKnownPatternReviewDraftRemote =
   jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockTrackKnownPatternCandidateShown =
+  jest.fn<(input: unknown) => Promise<void>>();
+const mockTrackKnownPatternReviewStarted =
+  jest.fn<(input: unknown) => Promise<void>>();
+const mockTrackKnownPatternCandidateDismissed =
+  jest.fn<(input: unknown) => Promise<void>>();
 const mockRuntimeConfig = {
   apiVersion: "v1",
   foodLibraryEnabled: true,
@@ -74,6 +80,15 @@ jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
     mockMarkKnownPatternCandidateRemote(...args),
   openKnownPatternReviewDraftRemote: (...args: unknown[]) =>
     mockOpenKnownPatternReviewDraftRemote(...args),
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackKnownPatternCandidateShown: (input: unknown) =>
+    mockTrackKnownPatternCandidateShown(input),
+  trackKnownPatternReviewStarted: (input: unknown) =>
+    mockTrackKnownPatternReviewStarted(input),
+  trackKnownPatternCandidateDismissed: (input: unknown) =>
+    mockTrackKnownPatternCandidateDismissed(input),
 }));
 
 jest.mock("@/services/core/runtimeConfig", () => ({
@@ -511,6 +526,12 @@ describe("useMealAddMethodState", () => {
         knownPatternCandidate.candidateId,
       );
     });
+    expect(mockTrackKnownPatternCandidateShown).toHaveBeenCalledWith({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      featureState: "enabled",
+    });
 
     await act(async () => {
       await result.current.handleKnownPatternReview();
@@ -542,6 +563,13 @@ describe("useMealAddMethodState", () => {
     expect(mockSetLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
     expect(mockReplace).toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
+    });
+    expect(mockTrackKnownPatternReviewStarted).toHaveBeenCalledWith({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "succeeded",
+      featureState: "enabled",
     });
   });
 
@@ -608,6 +636,59 @@ describe("useMealAddMethodState", () => {
     );
     expect(result.current.knownPatternCandidate).toBeNull();
     expect(mockSetMeal).not.toHaveBeenCalled();
+    expect(mockTrackKnownPatternCandidateDismissed).toHaveBeenCalledWith({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+  });
+
+  it("does not emit raw Known Pattern identity in telemetry props", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate],
+    });
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).not.toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.handleKnownPatternDismiss();
+    });
+
+    for (const mockFn of [
+      mockTrackKnownPatternCandidateShown,
+      mockTrackKnownPatternCandidateDismissed,
+    ]) {
+      for (const [props] of mockFn.mock.calls) {
+        expect(JSON.stringify(props)).not.toContain(
+          knownPatternCandidate.candidateId,
+        );
+        expect(JSON.stringify(props)).not.toContain(
+          knownPatternCandidate.subjectKeyHash,
+        );
+        expect(JSON.stringify(props)).not.toContain(
+          knownPatternCandidate.createdByRuleVersion,
+        );
+      }
+    }
   });
 
   it("does not overwrite an active draft before opening a known-pattern review", async () => {

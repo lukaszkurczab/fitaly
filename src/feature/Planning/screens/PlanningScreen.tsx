@@ -21,6 +21,12 @@ import {
   fetchPlannedMealsRemote,
   updatePlannedMealRemote,
 } from "@/services/plannedMeals/plannedMealsApi";
+import {
+  trackPlannedMealChanged,
+  trackPlannedMealConfirmed,
+  trackPlannedMealCreated,
+  trackPlannedMealSkipped,
+} from "@/services/telemetry/telemetryInstrumentation";
 import { useTheme } from "@/theme/useTheme";
 import type {
   PlannedMealItem,
@@ -207,6 +213,25 @@ function convertedLinkBody(t: TranslationFn, item: PlannedMealItem): string | nu
   });
 }
 
+function planningTelemetryBase(item: PlannedMealItem) {
+  return {
+    sourceType: item.sourceType,
+    estimateState: item.nutritionEstimate.state,
+    surface: "planning" as const,
+    featureState: "enabled" as const,
+  };
+}
+
+async function trackPlanningTelemetryBestEffort(
+  callback: () => Promise<void>,
+): Promise<void> {
+  try {
+    await callback();
+  } catch {
+    // Telemetry must not block or roll back Planning actions.
+  }
+}
+
 export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const { t } = useTranslation("profile");
   const theme = useTheme();
@@ -344,6 +369,9 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       );
       updateLocalItem(response.item);
       setCreateName("");
+      await trackPlanningTelemetryBestEffort(() =>
+        trackPlannedMealCreated(planningTelemetryBase(response.item)),
+      );
     } catch {
       setMutationError("create");
     } finally {
@@ -389,6 +417,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           }),
         );
         updateLocalItem(response.item);
+        await trackPlanningTelemetryBestEffort(() =>
+          trackPlannedMealChanged({
+            ...planningTelemetryBase(response.item),
+            actionResult: "succeeded",
+          }),
+        );
       } catch {
         setMutationError("edit");
       } finally {
@@ -413,6 +447,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           buildRescheduleNextDayRequest(item),
         );
         updateLocalItem(response.item);
+        await trackPlanningTelemetryBestEffort(() =>
+          trackPlannedMealChanged({
+            ...planningTelemetryBase(response.item),
+            actionResult: "succeeded",
+          }),
+        );
       } catch {
         setMutationError("reschedule");
       } finally {
@@ -437,6 +477,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           buildDeletePlannedMealRequest(item),
         );
         updateLocalItem(response.item);
+        await trackPlanningTelemetryBestEffort(() =>
+          trackPlannedMealSkipped({
+            ...planningTelemetryBase(response.item),
+            actionResult: "succeeded",
+          }),
+        );
       } catch {
         setMutationError("delete");
       } finally {
@@ -479,6 +525,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         await setLastScreen(uid, "ReviewMeal");
         setMeal(draft);
         navigation.navigate("AddMeal", { start: "ReviewMeal" });
+        await trackPlanningTelemetryBestEffort(() =>
+          trackPlannedMealConfirmed({
+            ...planningTelemetryBase(item),
+            actionResult: "succeeded",
+          }),
+        );
       } catch {
         if (draftPersisted) {
           await removeDraft(uid).catch(() => undefined);

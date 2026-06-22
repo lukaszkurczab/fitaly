@@ -14,6 +14,9 @@ import {
   trackHomeNextActionShown,
   trackHomeNextActionStarted,
   trackIngredientProductCreateOutcome,
+  trackKnownPatternCandidateDismissed,
+  trackKnownPatternCandidateShown,
+  trackKnownPatternReviewStarted,
   trackMealLogged,
   trackMemoryCandidateConfirmed,
   trackMemoryCandidateCreated,
@@ -241,6 +244,26 @@ describe("telemetryInstrumentation", () => {
       actionResult: "blocked",
       featureState: "disabled",
     });
+    await trackKnownPatternCandidateShown({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      featureState: "enabled",
+    });
+    await trackKnownPatternReviewStarted({
+      surface: "meal_add_method",
+      confidenceBucket: "high",
+      sourceCountBucket: "5_plus",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackKnownPatternCandidateDismissed({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "queued",
+      featureState: "shadow",
+    });
 
     expect(mockTrack).toHaveBeenNthCalledWith(1, "session_start", {
       origin: "app_boot",
@@ -443,17 +466,53 @@ describe("telemetryInstrumentation", () => {
       actionResult: "blocked",
       featureState: "disabled",
     });
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      35,
+      "known_pattern_candidate_shown",
+      {
+        surface: "meal_add_method",
+        confidenceBucket: "medium",
+        sourceCountBucket: "3_4",
+        featureState: "enabled",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      36,
+      "known_pattern_review_started",
+      {
+        surface: "meal_add_method",
+        confidenceBucket: "high",
+        sourceCountBucket: "5_plus",
+        actionResult: "succeeded",
+        featureState: "enabled",
+      },
+    );
+    expect(mockTrack).toHaveBeenNthCalledWith(
+      37,
+      "known_pattern_candidate_dismissed",
+      {
+        surface: "meal_add_method",
+        confidenceBucket: "medium",
+        sourceCountBucket: "3_4",
+        actionResult: "queued",
+        featureState: "shadow",
+      },
+    );
   });
 
-  it("keeps C5 Smart Memory and Planning telemetry bounded and content-free", async () => {
+  it("keeps C5 Smart Memory, Planning and Known Patterns telemetry bounded and content-free", async () => {
     const forbiddenPropNames = [
       "mealName",
       "ingredientName",
       "notes",
       "candidateId",
+      "subjectKeyHash",
+      "createdByRuleVersion",
+      "sourceHash",
       "memoryId",
       "plannedMealId",
       "sourceRef",
+      "sourceRefs",
       "rawReason",
       "rawPrompt",
       "rawResponse",
@@ -492,6 +551,26 @@ describe("telemetryInstrumentation", () => {
       actionResult: "blocked",
       featureState: "enabled",
     });
+    await trackKnownPatternCandidateShown({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      featureState: "enabled",
+    });
+    await trackKnownPatternReviewStarted({
+      surface: "meal_add_method",
+      confidenceBucket: "high",
+      sourceCountBucket: "5_plus",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    await trackKnownPatternCandidateDismissed({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "queued",
+      featureState: "shadow",
+    });
 
     const assertC5TelemetryTypeBoundaries = () => {
       void trackMemoryCandidateCreated({
@@ -515,6 +594,22 @@ describe("telemetryInstrumentation", () => {
         surface: "home_next_action",
         // @ts-expect-error raw reason text is not a C5 actionResult enum.
         actionResult: "I skipped oats because...",
+        featureState: "enabled",
+      });
+      void trackKnownPatternCandidateShown({
+        surface: "meal_add_method",
+        confidenceBucket: "medium",
+        sourceCountBucket: "3_4",
+        featureState: "enabled",
+        // @ts-expect-error raw candidate identifiers are not part of the C5 contract.
+        candidateId: "candidate-1",
+      });
+      void trackKnownPatternReviewStarted({
+        // @ts-expect-error surface must stay a bounded Known Patterns surface enum.
+        surface: "raw_meal_add_card",
+        confidenceBucket: "high",
+        sourceCountBucket: "5_plus",
+        actionResult: "succeeded",
         featureState: "enabled",
       });
     };

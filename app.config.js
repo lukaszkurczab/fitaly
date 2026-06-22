@@ -169,6 +169,9 @@ export default {
       revenuecatAndroidKey: process.env.RC_ANDROID_API_KEY || "",
       revenuecatIosKey: process.env.RC_IOS_API_KEY || "",
       billingDisabled: readBooleanEnv("DISABLE_BILLING", false),
+      firebaseProjectId: normalizeEnvString(
+        process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+      ),
       termsUrl: normalizeEnvString(process.env.TERMS_URL),
       privacyUrl: normalizeEnvString(process.env.PRIVACY_URL),
       sentryDsn: process.env.SENTRY_DSN || "",

@@ -1,0 +1,62 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?telemetryRuntime=telemetryEnabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryRuntime-telemetryEnabled
+    timeout: 15000
+- openLink: fitaly://e2e/seed?telemetryRuntime=smartMemoryEnabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryRuntime-smartMemoryEnabled
+    timeout: 15000
+- openLink: fitaly://e2e/seed?telemetryBaseline=memoryDeleted
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryBaseline-memoryDeleted
+    timeout: 15000
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free&smartMemory=active"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-active
+    timeout: 10000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-ready-state
+- assertVisible:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- tapOn:
+    id: memory-center-delete-open-button
+- assertVisible:
+    id: memory-center-delete-confirm-modal
+- tapOn:
+    id: memory-center-delete-confirm-button
+- extendedWaitUntil:
+    visible:
+      id: memory-center-pending-state
+    timeout: 10000
+- openLink: fitaly://e2e/seed?telemetryAssert=memoryDeleted
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryAssert-memoryDeleted
+    timeout: 30000

@@ -20,7 +20,7 @@ export function getE2EMockChatReply(): string | null {
   return reply ? reply : null;
 }
 
-export function buildE2EProfileSeed(uid: string, email: string): Partial<UserData> {
+export function buildE2EProfileSeed(uid: string, email: string): UserData {
   const nowIso = new Date().toISOString();
   return {
     uid,

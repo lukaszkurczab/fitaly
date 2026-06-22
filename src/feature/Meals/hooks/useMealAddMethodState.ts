@@ -21,6 +21,11 @@ import {
   markKnownPatternCandidateRemote,
   openKnownPatternReviewDraftRemote,
 } from "@/services/knownPatterns/knownPatternCandidatesApi";
+import {
+  trackKnownPatternCandidateDismissed,
+  trackKnownPatternCandidateShown,
+  trackKnownPatternReviewStarted,
+} from "@/services/telemetry/telemetryInstrumentation";
 
 type MealAddMethodNavigationProp = {
   navigate: Pick<
@@ -336,7 +341,16 @@ export function useMealAddMethodState(params: {
       try {
         const response = await fetchKnownPatternCandidatesRemote({ limit: 1 });
         if (!cancelled) {
-          setKnownPatternCandidate(response.items[0] ?? null);
+          const candidate = response.items[0] ?? null;
+          setKnownPatternCandidate(candidate);
+          if (candidate) {
+            void trackKnownPatternCandidateShown({
+              surface: "meal_add_method",
+              confidenceBucket: candidate.confidenceBucket,
+              sourceCountBucket: candidate.sourceCountBucket,
+              featureState: "enabled",
+            });
+          }
         }
       } catch {
         if (!cancelled) {
@@ -509,6 +523,15 @@ export function useMealAddMethodState(params: {
         setMeal(draft);
         await saveDraft(uid, draft);
         await setLastScreen(uid, "ReviewMeal");
+        await Promise.resolve(
+          trackKnownPatternReviewStarted({
+            surface: "meal_add_method",
+            confidenceBucket: candidate.confidenceBucket,
+            sourceCountBucket: candidate.sourceCountBucket,
+            actionResult: "succeeded",
+            featureState: "enabled",
+          }),
+        ).catch(() => undefined);
         setKnownPatternCandidate((current) =>
           current?.candidateId === candidate.candidateId
             ? { ...current, state: "shown" }
@@ -553,6 +576,15 @@ export function useMealAddMethodState(params: {
         createdByRuleVersion: dismissedCandidate.createdByRuleVersion,
         action: "declined",
       });
+      await Promise.resolve(
+        trackKnownPatternCandidateDismissed({
+          surface: "meal_add_method",
+          confidenceBucket: dismissedCandidate.confidenceBucket,
+          sourceCountBucket: dismissedCandidate.sourceCountBucket,
+          actionResult: "succeeded",
+          featureState: "enabled",
+        }),
+      ).catch(() => undefined);
     } catch {
       setKnownPatternCandidate(dismissedCandidate);
     } finally {

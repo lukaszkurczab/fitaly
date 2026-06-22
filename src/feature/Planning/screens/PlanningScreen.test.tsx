@@ -25,6 +25,18 @@ const mockUuid = jest.fn<() => string>();
 const mockRuntimeFeatures: Record<string, boolean> = {
   planning: true,
 };
+const mockTrackPlannedMealCreated = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackPlannedMealChanged = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackPlannedMealSkipped = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
+const mockTrackPlannedMealConfirmed = jest.fn<
+  (input: Record<string, unknown>) => Promise<void>
+>();
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -59,6 +71,17 @@ jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
 
 jest.mock("@/services/core/featureFlagGuard", () => ({
   isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackPlannedMealCreated: (input: Record<string, unknown>) =>
+    mockTrackPlannedMealCreated(input),
+  trackPlannedMealChanged: (input: Record<string, unknown>) =>
+    mockTrackPlannedMealChanged(input),
+  trackPlannedMealSkipped: (input: Record<string, unknown>) =>
+    mockTrackPlannedMealSkipped(input),
+  trackPlannedMealConfirmed: (input: Record<string, unknown>) =>
+    mockTrackPlannedMealConfirmed(input),
 }));
 
 jest.mock("@/context/AuthContext", () => ({
@@ -280,6 +303,26 @@ function listResponse(items: PlannedMealItem[]): PlannedMealsListResponse {
   };
 }
 
+function expectPlanningTelemetryProps(
+  props: Record<string, unknown>,
+  expected: {
+    estimateState: PlannedMealItem["nutritionEstimate"]["state"];
+    actionResult?: "succeeded";
+  },
+) {
+  const expectedKeys = expected.actionResult
+    ? ["actionResult", "estimateState", "featureState", "sourceType", "surface"]
+    : ["estimateState", "featureState", "sourceType", "surface"];
+  expect(Object.keys(props).sort()).toEqual(expectedKeys.sort());
+  expect(props).toEqual({
+    sourceType: "manual",
+    estimateState: expected.estimateState,
+    surface: "planning",
+    featureState: "enabled",
+    ...(expected.actionResult ? { actionResult: expected.actionResult } : {}),
+  });
+}
+
 describe("PlanningScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -287,6 +330,10 @@ describe("PlanningScreen", () => {
     mockSaveDraft.mockResolvedValue(undefined);
     mockRemoveDraft.mockResolvedValue(undefined);
     mockSetLastScreen.mockResolvedValue(undefined);
+    mockTrackPlannedMealCreated.mockResolvedValue(undefined);
+    mockTrackPlannedMealChanged.mockResolvedValue(undefined);
+    mockTrackPlannedMealSkipped.mockResolvedValue(undefined);
+    mockTrackPlannedMealConfirmed.mockResolvedValue(undefined);
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length + 1}`);
     navigation.canGoBack.mockReturnValue(true);
     mockRuntimeFeatures.planning = true;
@@ -314,6 +361,10 @@ describe("PlanningScreen", () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackPlannedMealCreated).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealChanged).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealSkipped).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealConfirmed).not.toHaveBeenCalled();
   });
 
   it("shows loading then an explicit empty state without hiding the planning boundary", async () => {
@@ -397,6 +448,11 @@ describe("PlanningScreen", () => {
     expect(
       screen.getByTestId("planning-estimate-missing-planned-created"),
     ).toBeTruthy();
+    expect(mockTrackPlannedMealCreated).toHaveBeenCalledTimes(1);
+    expectPlanningTelemetryProps(
+      mockTrackPlannedMealCreated.mock.calls[0][0],
+      { estimateState: "unknown" },
+    );
   });
 
   it("edits, reschedules, and deletes with the current API version guard", async () => {
@@ -481,6 +537,48 @@ describe("PlanningScreen", () => {
       );
     });
     expect(await screen.findByText("No planned meals yet")).toBeTruthy();
+    expect(mockTrackPlannedMealChanged).toHaveBeenCalledTimes(2);
+    expectPlanningTelemetryProps(
+      mockTrackPlannedMealChanged.mock.calls[0][0],
+      { estimateState: "known", actionResult: "succeeded" },
+    );
+    expectPlanningTelemetryProps(
+      mockTrackPlannedMealChanged.mock.calls[1][0],
+      { estimateState: "known", actionResult: "succeeded" },
+    );
+    expect(mockTrackPlannedMealSkipped).toHaveBeenCalledTimes(1);
+    expectPlanningTelemetryProps(
+      mockTrackPlannedMealSkipped.mock.calls[0][0],
+      { estimateState: "known", actionResult: "succeeded" },
+    );
+  });
+
+  it("does not emit Planning telemetry for validation or remote mutation failures", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce(listResponse([]));
+
+    const screen = renderWithTheme(
+      <PlanningScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("No planned meals yet");
+    fireEvent.press(screen.getByTestId("planning-create-button"));
+
+    await waitFor(() => {
+      expect(mockCreatePlannedMealRemote).not.toHaveBeenCalled();
+    });
+
+    fireEvent.changeText(screen.getByTestId("planning-create-name"), "Protein bowl");
+    fireEvent.changeText(screen.getByTestId("planning-create-date"), "2026-06-20");
+    mockCreatePlannedMealRemote.mockRejectedValueOnce(new Error("remote failed"));
+    fireEvent.press(screen.getByTestId("planning-create-button"));
+
+    await waitFor(() => {
+      expect(mockCreatePlannedMealRemote).toHaveBeenCalledTimes(1);
+    });
+    expect(mockTrackPlannedMealCreated).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealChanged).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealSkipped).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealConfirmed).not.toHaveBeenCalled();
   });
 
   it("keeps unknown and partial nutrition estimates visibly explicit", async () => {
@@ -657,6 +755,11 @@ describe("PlanningScreen", () => {
     expect(mockCreatePlannedMealRemote).not.toHaveBeenCalled();
     expect(mockUpdatePlannedMealRemote).not.toHaveBeenCalled();
     expect(mockDeletePlannedMealRemote).not.toHaveBeenCalled();
+    expect(mockTrackPlannedMealConfirmed).toHaveBeenCalledTimes(1);
+    expectPlanningTelemetryProps(
+      mockTrackPlannedMealConfirmed.mock.calls[0][0],
+      { estimateState: "known", actionResult: "succeeded" },
+    );
   });
 
   it("starts Review for an unknown planned item without synthetic ingredients or macros", async () => {
@@ -727,5 +830,29 @@ describe("PlanningScreen", () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
+    expect(mockTrackPlannedMealConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("keeps Review handoff successful when Planning telemetry enqueue fails", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce(listResponse([plannedItem()]));
+    mockTrackPlannedMealConfirmed.mockRejectedValueOnce(
+      new Error("telemetry failed"),
+    );
+
+    const screen = renderWithTheme(
+      <PlanningScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Planned oats");
+    fireEvent.press(screen.getByTestId("planning-review-name-planned-oats"));
+
+    await waitFor(() => {
+      expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+        start: "ReviewMeal",
+      });
+    });
+
+    expect(mockSetMeal).toHaveBeenCalledTimes(1);
+    expect(mockTrackPlannedMealConfirmed).toHaveBeenCalledTimes(1);
   });
 });

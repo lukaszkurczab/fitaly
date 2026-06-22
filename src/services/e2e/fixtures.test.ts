@@ -98,6 +98,15 @@ const mockMarkSmartMemoryProjectionSyncFailed =
 const mockApiGet = jest.fn<(url: string, options?: unknown) => Promise<unknown>>();
 const mockFlushTelemetry = jest.fn<() => Promise<void>>();
 const mockSetTelemetryUserId = jest.fn<(uid: string | null) => void>();
+const mockTrackTelemetry = jest.fn<
+  (eventName: string, props?: unknown) => Promise<void>
+>();
+let mockRuntimeConfig = {
+  telemetryEnabled: true,
+  knownPatternsEnabled: true,
+  smartMemoryEnabled: true,
+  planningEnabled: true,
+};
 
 let mockE2EEnabled = true;
 
@@ -115,9 +124,15 @@ jest.mock("@/services/core/apiClient", () => ({
   get: (url: string, options?: unknown) => mockApiGet(url, options),
 }));
 
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
+}));
+
 jest.mock("@/services/telemetry/telemetryClient", () => ({
   flush: () => mockFlushTelemetry(),
   setTelemetryUserId: (uid: string | null) => mockSetTelemetryUserId(uid),
+  track: (eventName: string, props?: unknown) =>
+    mockTrackTelemetry(eventName, props),
 }));
 
 jest.mock("@/services/offline/db", () => ({
@@ -252,6 +267,13 @@ describe("E2E fixtures", () => {
     mockMarkSmartMemoryProjectionSyncFailed.mockResolvedValue(undefined);
     mockApiGet.mockResolvedValue({ buckets: [] });
     mockFlushTelemetry.mockResolvedValue(undefined);
+    mockTrackTelemetry.mockResolvedValue(undefined);
+    mockRuntimeConfig = {
+      telemetryEnabled: true,
+      knownPatternsEnabled: true,
+      smartMemoryEnabled: true,
+      planningEnabled: true,
+    };
     __resetE2EFixturesForTests();
   });
 
@@ -276,7 +298,9 @@ describe("E2E fixtures", () => {
         planning: "reviewReady",
         historyAssert: "noRecipeReviewDraft",
         telemetryBaseline: "homeNextActionStarted",
-        telemetryAssert: "homeNextActionStarted",
+        telemetryAssert: "memoryDeleted",
+        telemetryEmit: "knownPatternCandidateDismissed",
+        telemetryRuntime: "smartMemoryEnabled",
       }),
     ).toEqual({
       fixture: "user-with-failed-meal",
@@ -297,7 +321,9 @@ describe("E2E fixtures", () => {
       planning: "reviewReady",
       historyAssert: "noRecipeReviewDraft",
       telemetryBaseline: "homeNextActionStarted",
-      telemetryAssert: "homeNextActionStarted",
+      telemetryAssert: "memoryDeleted",
+      telemetryEmit: "knownPatternCandidateDismissed",
+      telemetryRuntime: "smartMemoryEnabled",
     });
 
     expect(
@@ -350,6 +376,28 @@ describe("E2E fixtures", () => {
     expect(getE2EAccessState("user-1")).toBeNull();
     expect(resolveE2EBarcodeLookup()).toBeNull();
     expect(resolveE2ENotificationPermission()).toBeNull();
+  });
+
+  it("provides default free AI credits access in E2E mode without an explicit seed", () => {
+    const access = getE2EAccessState("user-1");
+
+    expect(access).toMatchObject({
+      tier: "free",
+      entitlementStatus: "inactive",
+      credits: {
+        userId: "user-1",
+        tier: "free",
+        balance: 20,
+        allocation: 20,
+      },
+      features: {
+        aiChat: {
+          enabled: true,
+          requiredCredits: 1,
+          remainingCredits: 20,
+        },
+      },
+    });
   });
 
   it("applies explicit AI consent seed state with uid-scoped readiness markers", async () => {
@@ -725,11 +773,53 @@ describe("E2E fixtures", () => {
             inputMethod: "manual",
             type: "lunch",
             ingredients: expect.arrayContaining([
-              expect.objectContaining({ name: "Owsianka QA" }),
-              expect.objectContaining({ name: "Jogurt QA" }),
+              expect.objectContaining({
+                name: expect.stringMatching(/^Owsianka QA /),
+              }),
+              expect.objectContaining({
+                name: expect.stringMatching(/^Jogurt QA /),
+              }),
             ]),
           }),
         }),
+      ]),
+    );
+  });
+
+  it("uses a distinct known-pattern content signature across repeated seeds", async () => {
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { knownPattern: "candidate" },
+    });
+    const firstSeedIngredients = (
+      mockSaveMealRemote.mock.calls[0][0] as {
+        meal: { ingredients: Array<{ name: string }> };
+      }
+    ).meal.ingredients.map((item) => item.name);
+
+    mockSaveMealRemote.mockClear();
+
+    await applyE2ESeedCommand({
+      uid: "user-1",
+      command: { knownPattern: "candidate" },
+    });
+    const secondSeedIngredients = (
+      mockSaveMealRemote.mock.calls[0][0] as {
+        meal: { ingredients: Array<{ name: string }> };
+      }
+    ).meal.ingredients.map((item) => item.name);
+
+    expect(firstSeedIngredients).not.toEqual(secondSeedIngredients);
+    expect(firstSeedIngredients).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^Owsianka QA /),
+        expect.stringMatching(/^Jogurt QA /),
+      ]),
+    );
+    expect(secondSeedIngredients).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^Owsianka QA /),
+        expect.stringMatching(/^Jogurt QA /),
       ]),
     );
   });
@@ -1006,6 +1096,238 @@ describe("E2E fixtures", () => {
       "/api/v2/telemetry/events/summary/daily?days=1",
       { timeout: 10000 },
     );
+  });
+
+  it("records and asserts Known Patterns telemetry count increases through backend summary", async () => {
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [
+            { name: "known_pattern_candidate_dismissed", count: 1 },
+          ],
+        },
+      ],
+    });
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [
+            { name: "known_pattern_candidate_dismissed", count: 2 },
+          ],
+        },
+      ],
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryBaseline: "knownPatternCandidateDismissed" },
+      }),
+    ).resolves.toEqual(["telemetryBaseline-knownPatternCandidateDismissed"]);
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryAssert: "knownPatternCandidateDismissed" },
+      }),
+    ).resolves.toEqual(["telemetryAssert-knownPatternCandidateDismissed"]);
+
+    expect(mockApiGet).toHaveBeenCalledWith(
+      "/api/v2/telemetry/events/summary/daily?days=1",
+      { timeout: 10000 },
+    );
+  });
+
+  it("records and asserts Planning telemetry count increases through backend summary", async () => {
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [{ name: "planned_meal_confirmed", count: 4 }],
+        },
+      ],
+    });
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [{ name: "planned_meal_confirmed", count: 5 }],
+        },
+      ],
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryBaseline: "plannedMealConfirmed" },
+      }),
+    ).resolves.toEqual(["telemetryBaseline-plannedMealConfirmed"]);
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryAssert: "plannedMealConfirmed" },
+      }),
+    ).resolves.toEqual(["telemetryAssert-plannedMealConfirmed"]);
+
+    expect(mockApiGet).toHaveBeenCalledWith(
+      "/api/v2/telemetry/events/summary/daily?days=1",
+      { timeout: 10000 },
+    );
+  });
+
+  it("records and asserts Smart Memory telemetry count increases through backend summary", async () => {
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [{ name: "memory_deleted", count: 2 }],
+        },
+      ],
+    });
+    mockApiGet.mockResolvedValueOnce({
+      buckets: [
+        {
+          eventCounts: [{ name: "memory_deleted", count: 3 }],
+        },
+      ],
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryBaseline: "memoryDeleted" },
+      }),
+    ).resolves.toEqual(["telemetryBaseline-memoryDeleted"]);
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryAssert: "memoryDeleted" },
+      }),
+    ).resolves.toEqual(["telemetryAssert-memoryDeleted"]);
+
+    expect(mockApiGet).toHaveBeenCalledWith(
+      "/api/v2/telemetry/events/summary/daily?days=1",
+      { timeout: 10000 },
+    );
+  });
+
+  it("emits a diagnostic telemetry event through the runtime client", async () => {
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryEmit: "knownPatternCandidateDismissed" },
+      }),
+    ).resolves.toEqual(["telemetryEmit-knownPatternCandidateDismissed"]);
+
+    expect(mockSetTelemetryUserId).toHaveBeenCalledWith("user-1");
+    expect(mockTrackTelemetry).toHaveBeenCalledWith(
+      "known_pattern_candidate_dismissed",
+      {
+        surface: "meal_add_method",
+        confidenceBucket: "medium",
+        sourceCountBucket: "3_4",
+        actionResult: "succeeded",
+        featureState: "enabled",
+      },
+    );
+    expect(mockFlushTelemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits a diagnostic Planning telemetry event through the runtime client", async () => {
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryEmit: "plannedMealConfirmed" },
+      }),
+    ).resolves.toEqual(["telemetryEmit-plannedMealConfirmed"]);
+
+    expect(mockSetTelemetryUserId).toHaveBeenCalledWith("user-1");
+    expect(mockTrackTelemetry).toHaveBeenCalledWith("planned_meal_confirmed", {
+      sourceType: "manual",
+      estimateState: "known",
+      surface: "planning",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    });
+    expect(mockFlushTelemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits a diagnostic Smart Memory telemetry event through the runtime client", async () => {
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryEmit: "memoryDeleted" },
+      }),
+    ).resolves.toEqual(["telemetryEmit-memoryDeleted"]);
+
+    expect(mockSetTelemetryUserId).toHaveBeenCalledWith("user-1");
+    expect(mockTrackTelemetry).toHaveBeenCalledWith("memory_deleted", {
+      memoryType: "typical_portion",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    });
+    expect(mockFlushTelemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("asserts telemetry runtime flags for E2E diagnostics", async () => {
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryRuntime: "telemetryEnabled" },
+      }),
+    ).resolves.toEqual(["telemetryRuntime-telemetryEnabled"]);
+
+    mockRuntimeConfig = {
+      telemetryEnabled: false,
+      knownPatternsEnabled: true,
+      smartMemoryEnabled: true,
+      planningEnabled: true,
+    };
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryRuntime: "telemetryEnabled" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/telemetry-runtime-telemetryEnabled-disabled",
+    });
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryRuntime: "smartMemoryEnabled" },
+      }),
+    ).resolves.toEqual(["telemetryRuntime-smartMemoryEnabled"]);
+
+    mockRuntimeConfig = {
+      telemetryEnabled: true,
+      knownPatternsEnabled: true,
+      smartMemoryEnabled: false,
+      planningEnabled: true,
+    };
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryRuntime: "smartMemoryEnabled" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/telemetry-runtime-smartMemoryEnabled-disabled",
+    });
+
+    mockRuntimeConfig = {
+      telemetryEnabled: true,
+      knownPatternsEnabled: true,
+      smartMemoryEnabled: true,
+      planningEnabled: false,
+    };
+
+    await expect(
+      applyE2ESeedCommand({
+        uid: "user-1",
+        command: { telemetryRuntime: "planningEnabled" },
+      }),
+    ).rejects.toMatchObject({
+      code: "e2e/telemetry-runtime-planningEnabled-disabled",
+    });
   });
 
   it("fails telemetry assertion when baseline is missing", async () => {

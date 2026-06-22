@@ -33,7 +33,7 @@
   "home-history-statistics": [
     "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
     "e2e/maestro/release-gate/history-edit-delete.yaml",
-    "e2e/maestro/release-gate/offline-save-sync.yaml",
+    "e2e/maestro/release-gate/offline-save-pending-local.yaml",
     "e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml"
   ],
   "ai-chat": [
@@ -72,6 +72,28 @@
   ],
   "local-runtime-preflight": [
     "e2e/maestro/release-gate/core-off-local-auth-shell.yaml"
+  ],
+  "core-release-gate": [
+    "e2e/maestro/release-gate/core-off-local-auth-shell.yaml",
+    "e2e/maestro/smoke/login.yaml",
+    "e2e/maestro/smoke/auth-bootstrap.yaml",
+    "e2e/maestro/smoke/account-launch.yaml",
+    "e2e/maestro/release-gate/account-delete-cancel.yaml",
+    "e2e/maestro/release-gate/privacy-ai-consent.yaml",
+    "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
+    "e2e/maestro/release-gate/history-edit-delete.yaml",
+    "e2e/maestro/release-gate/offline-save-pending-local.yaml",
+    "e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-saved-template.yaml",
+    "e2e/maestro/release-gate/review-edit-layout.yaml",
+    "e2e/maestro/release-gate/chat-basic-history.yaml",
+    "e2e/maestro/release-gate/premium-paywall-restore.yaml",
+    "e2e/maestro/release-gate/notifications-preferences.yaml",
+    "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
+    "e2e/maestro/release-gate/share-save-and-share.yaml"
   ],
   "release-gate": [
     "e2e/maestro/release-gate/auth-login-validation.yaml",
@@ -114,6 +136,18 @@
     "e2e/maestro/release-gate/notifications-preferences.yaml",
     "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
     "e2e/maestro/release-gate/share-save-and-share.yaml"
+  ],
+  "known-pattern-runtime": [
+    "e2e/maestro/release-gate/known-pattern-review-draft.yaml"
+  ],
+  "known-pattern-telemetry": [
+    "e2e/maestro/release-gate/known-pattern-runtime-telemetry.yaml"
+  ],
+  "planning-telemetry": [
+    "e2e/maestro/release-gate/planning-runtime-telemetry.yaml"
+  ],
+  "smart-memory-telemetry": [
+    "e2e/maestro/release-gate/smart-memory-runtime-telemetry.yaml"
   ],
   "visual-audit": [
     "e2e/maestro/visual-audit/auth-entry.yaml",

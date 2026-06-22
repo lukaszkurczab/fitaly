@@ -3,6 +3,46 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+CALLER_ENV_OVERRIDE_NAMES=(
+  E2E_API_BASE_URL
+  E2E_ENABLE_TELEMETRY
+  E2E_EXPO_CLEAR_CACHE
+  E2E_EXPO_PORT
+  E2E_EXPO_URL
+  E2E_PLATFORM
+  E2E_UDID
+  EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+  EXPO_PUBLIC_ENABLE_PLANNING
+  EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
+  EXPO_PUBLIC_ENABLE_SMART_MEMORY
+  EXPO_PUBLIC_ENABLE_TELEMETRY
+  EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST
+  EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  FIREBASE_AUTH_EMULATOR_HOST
+  FIREBASE_PROJECT_ID
+  FIRESTORE_DATABASE_ID
+  FIRESTORE_EMULATOR_HOST
+)
+
+capture_caller_env_overrides() {
+  local name
+  for name in "${CALLER_ENV_OVERRIDE_NAMES[@]}"; do
+    if eval "[[ \${${name}+set} ]]"; then
+      eval "FITALY_E2E_CALLER_${name}=\"\${${name}}\""
+      eval "FITALY_E2E_CALLER_${name}_SET=1"
+    fi
+  done
+}
+
+restore_caller_env_overrides() {
+  local name
+  for name in "${CALLER_ENV_OVERRIDE_NAMES[@]}"; do
+    eval "if [[ \"\${FITALY_E2E_CALLER_${name}_SET:-}\" == \"1\" ]]; then export ${name}=\"\${FITALY_E2E_CALLER_${name}}\"; fi"
+    eval "unset FITALY_E2E_CALLER_${name} FITALY_E2E_CALLER_${name}_SET"
+  done
+}
+
+capture_caller_env_overrides
 if [[ -f "${ROOT_DIR}/.env" ]]; then
   set -a
   set +u
@@ -11,6 +51,7 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
   set -u
   set +a
 fi
+restore_caller_env_overrides
 
 if [[ "$#" -gt 0 ]]; then
   FLOW_PATHS=("$@")
@@ -34,19 +75,47 @@ TEST_OUTPUT_DIR="${E2E_TEST_OUTPUT_DIR:-}"
 DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
 TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
+E2E_DISABLE_WATCHMAN="${E2E_DISABLE_WATCHMAN:-1}"
+MAESTRO_JAVA_USER_HOME="${MAESTRO_JAVA_USER_HOME:-${TMPDIR:-/tmp}/fitaly-maestro-home}"
 SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
 PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
 ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
+ENABLE_KNOWN_PATTERNS="${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS:-}"
+ENABLE_PLANNING="${EXPO_PUBLIC_ENABLE_PLANNING:-}"
+ENABLE_SMART_MEMORY="${EXPO_PUBLIC_ENABLE_SMART_MEMORY:-}"
 ENABLE_TELEMETRY="${E2E_ENABLE_TELEMETRY:-${EXPO_PUBLIC_ENABLE_TELEMETRY:-}}"
 REVIEW_MEMORY_EXPLANATION_FLOW=0
 SMART_MEMORY_BACKEND_PULL_FLOW=0
 PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=0
+KNOWN_PATTERN_REVIEW_FLOW=0
+PLANNING_RUNTIME_TELEMETRY_FLOW=0
+SMART_MEMORY_RUNTIME_TELEMETRY_FLOW=0
 for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   case "${FLOW_PATH}" in
     *review-memory-explanation.yaml|*review-memory-disabled-precedence.yaml|*review-memory-new-candidate-row.yaml)
       REVIEW_MEMORY_EXPLANATION_FLOW=1
       ENABLE_REVIEW_MEMORY_EXPLANATION="true"
+      ;;
+    *known-pattern-review-draft.yaml|*known-pattern-runtime-telemetry.yaml)
+      KNOWN_PATTERN_REVIEW_FLOW=1
+      ENABLE_KNOWN_PATTERNS="true"
+      if [[ "${FLOW_PATH}" == *known-pattern-runtime-telemetry.yaml ]]; then
+        ENABLE_TELEMETRY="true"
+      fi
+      ;;
+    *planning-home-to-review.yaml)
+      ENABLE_PLANNING="true"
+      ;;
+    *planning-runtime-telemetry.yaml)
+      PLANNING_RUNTIME_TELEMETRY_FLOW=1
+      ENABLE_PLANNING="true"
+      ENABLE_TELEMETRY="true"
+      ;;
+    *smart-memory-runtime-telemetry.yaml)
+      SMART_MEMORY_RUNTIME_TELEMETRY_FLOW=1
+      ENABLE_SMART_MEMORY="true"
+      ENABLE_TELEMETRY="true"
       ;;
     *smart-memory-backend-pull.yaml)
       SMART_MEMORY_BACKEND_PULL_FLOW=1
@@ -57,7 +126,22 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   esac
 done
 export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
+export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS="${ENABLE_KNOWN_PATTERNS}"
+export EXPO_PUBLIC_ENABLE_PLANNING="${ENABLE_PLANNING}"
 export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
+export EXPO_PUBLIC_ENABLE_SMART_MEMORY="${ENABLE_SMART_MEMORY}"
+export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+export EXPO_PUBLIC_FIREBASE_PROJECT_ID="${EXPO_PUBLIC_FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID}}"
+mkdir -p "${MAESTRO_JAVA_USER_HOME}"
+export MAESTRO_CLI_NO_ANALYTICS="${MAESTRO_CLI_NO_ANALYTICS:-1}"
+export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED="${MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED:-true}"
+if [[ "${JAVA_TOOL_OPTIONS:-}" != *"-Duser.home="* ]]; then
+  if [[ -n "${JAVA_TOOL_OPTIONS:-}" ]]; then
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Duser.home=${MAESTRO_JAVA_USER_HOME}"
+  else
+    export JAVA_TOOL_OPTIONS="-Duser.home=${MAESTRO_JAVA_USER_HOME}"
+  fi
+fi
 
 if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
   API_BASE_URL="${E2E_API_BASE_URL}"
@@ -71,6 +155,21 @@ fi
 if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUCTION_API:-}" != "1" ]]; then
   echo "[e2e] Refusing to run E2E against production API: ${API_BASE_URL}" >&2
   echo "[e2e] Set E2E_ALLOW_PRODUCTION_API=1 only for an explicitly approved production verification." >&2
+  exit 1
+fi
+if [[ "${KNOWN_PATTERN_REVIEW_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Known Patterns runtime flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
+  exit 1
+fi
+if [[ "${PLANNING_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Planning runtime telemetry flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
+  exit 1
+fi
+if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Smart Memory runtime telemetry flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
   exit 1
 fi
 EXPO_URL="${E2E_EXPO_URL:-}"
@@ -416,11 +515,19 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     cd "${ROOT_DIR}"
     export CI=1
     export E2E=true
+    export E2E_DISABLE_WATCHMAN
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
     export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
+    export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+    export EXPO_PUBLIC_ENABLE_PLANNING
+    export EXPO_PUBLIC_ENABLE_SMART_MEMORY
     export EXPO_PUBLIC_ENABLE_TELEMETRY
     export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
-    exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
+    EXPO_START_CMD=(npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}")
+    if [[ "${E2E_EXPO_CLEAR_CACHE:-}" == "1" ]]; then
+      EXPO_START_CMD+=(--clear)
+    fi
+    exec "${EXPO_START_CMD[@]}"
   ) >"${EXPO_LOG}" 2>&1 &
   EXPO_PID=$!
   SCRIPT_STARTED_EXPO=1
@@ -438,6 +545,12 @@ if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
 fi
 if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
   echo "[e2e] Private Ingredient autocomplete seed enabled for targeted flow."
+fi
+if [[ "${PLANNING_RUNTIME_TELEMETRY_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Planning runtime telemetry gate enabled for targeted flow."
+fi
+if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Smart Memory runtime telemetry gate enabled for targeted flow."
 fi
 if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
   mkdir -p "${TEST_OUTPUT_DIR}"

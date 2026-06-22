@@ -15,9 +15,15 @@ const mockMarkE2ESeedReady = jest.fn();
 const mockMarkE2ESeedError = jest.fn();
 const mockApplyE2ESeedCommand = jest.fn<(input: unknown) => Promise<string[]>>();
 const mockResetE2EFixtureState = jest.fn<() => Promise<void>>();
+const mockEstablishE2EAuthSession = jest.fn<
+  (email: string, password?: string) => Promise<unknown>
+>();
+const mockClearE2EAuthSession = jest.fn<() => Promise<void>>();
+const mockRestoreE2EAuthSession = jest.fn<(session: unknown) => Promise<void>>();
 
 let mockE2EEnabled = true;
 let mockCurrentUser: { uid: string } | null = null;
+let mockE2EAuthSession: { uid: string; email: string } | null = null;
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
   clear: () => mockAsyncStorageClear(),
@@ -82,9 +88,20 @@ jest.mock("@/services/e2e/fixtures", () => ({
     historyAssert: params.historyAssert,
     telemetryBaseline: params.telemetryBaseline,
     telemetryAssert: params.telemetryAssert,
+    telemetryEmit: params.telemetryEmit,
+    telemetryRuntime: params.telemetryRuntime,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
+}));
+
+jest.mock("@/services/e2e/authSession", () => ({
+  establishE2EAuthSession: (email: string, password?: string) =>
+    mockEstablishE2EAuthSession(email, password),
+  clearE2EAuthSession: () => mockClearE2EAuthSession(),
+  restoreE2EAuthSession: (session: unknown) =>
+    mockRestoreE2EAuthSession(session),
+  getE2EAuthSession: () => mockE2EAuthSession,
 }));
 
 describe("handleE2EDeepLink", () => {
@@ -95,8 +112,15 @@ describe("handleE2EDeepLink", () => {
     mockApplyE2ESeedCommand.mockResolvedValue([]);
     mockResetE2EFixtureState.mockResolvedValue(undefined);
     mockRunReconnectReconcile.mockResolvedValue(undefined);
+    mockEstablishE2EAuthSession.mockResolvedValue({
+      uid: "e2e-e2e-example-com",
+      email: "e2e@example.com",
+    });
+    mockClearE2EAuthSession.mockResolvedValue(undefined);
+    mockRestoreE2EAuthSession.mockResolvedValue(undefined);
     mockE2EEnabled = true;
     mockCurrentUser = { uid: "user-1" };
+    mockE2EAuthSession = null;
   });
 
   it("logs out and marks the login reset target as ready", async () => {
@@ -107,6 +131,7 @@ describe("handleE2EDeepLink", () => {
     expect(mockStopSyncLoop).toHaveBeenCalledTimes(1);
     expect(mockResetOfflineStorage).toHaveBeenCalledTimes(1);
     expect(mockAsyncStorageClear).toHaveBeenCalledTimes(1);
+    expect(mockClearE2EAuthSession).toHaveBeenCalledTimes(1);
     expect(mockSignOut).toHaveBeenCalledTimes(1);
     expect(mockSetE2EForcedOffline).toHaveBeenNthCalledWith(1, false);
     expect(mockSetE2EForcedOffline).toHaveBeenNthCalledWith(2, false);
@@ -115,24 +140,34 @@ describe("handleE2EDeepLink", () => {
   });
 
   it("keeps the signed-in route and marks forced offline as ready", async () => {
+    mockCurrentUser = null;
+    mockE2EAuthSession = {
+      uid: "e2e-e2e-example-com",
+      email: "e2e@example.com",
+    };
+
     const handled = await handleE2EDeepLink(
       "fitaly://e2e/reset?offline=1&logout=0",
     );
 
     expect(handled).toBe(true);
     expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockRestoreE2EAuthSession).toHaveBeenCalledWith({
+      uid: "e2e-e2e-example-com",
+      email: "e2e@example.com",
+    });
     expect(mockSetE2EForcedOffline).toHaveBeenNthCalledWith(1, false);
     expect(mockSetE2EForcedOffline).toHaveBeenNthCalledWith(2, true);
     expect(mockResetNavigation).toHaveBeenCalledWith("Home");
     expect(mockMarkE2EResetReady).toHaveBeenCalledWith("offline");
   });
 
-  it("marks home ready when reset keeps an active session online", async () => {
+  it("leaves home readiness to the navigator when reset keeps an active session online", async () => {
     const handled = await handleE2EDeepLink("fitaly://e2e/reset?logout=0");
 
     expect(handled).toBe(true);
     expect(mockResetNavigation).toHaveBeenCalledWith("Home");
-    expect(mockMarkE2EResetReady).toHaveBeenCalledWith("home");
+    expect(mockMarkE2EResetReady).not.toHaveBeenCalledWith("home");
   });
 
   it("ignores reset links outside e2e mode", async () => {
@@ -145,6 +180,67 @@ describe("handleE2EDeepLink", () => {
     expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
   });
 
+  it("logs in through the E2E login link and leaves home readiness to the navigator", async () => {
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/login?email=e2e%40example.com&password=Secret123!",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockMarkE2EResetStarted).toHaveBeenCalledTimes(1);
+    expect(mockEstablishE2EAuthSession).toHaveBeenCalledWith(
+      "e2e@example.com",
+      "Secret123!",
+    );
+    expect(mockResetNavigation).not.toHaveBeenCalled();
+    expect(mockMarkE2EResetReady).not.toHaveBeenCalledWith("home");
+    expect(mockMarkE2ESeedError).not.toHaveBeenCalled();
+  });
+
+  it("allows E2E login links to omit a password for no-provider local sessions", async () => {
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/login?email=e2e%40example.com",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockEstablishE2EAuthSession).toHaveBeenCalledWith(
+      "e2e@example.com",
+      undefined,
+    );
+    expect(mockResetNavigation).not.toHaveBeenCalled();
+    expect(mockMarkE2EResetReady).not.toHaveBeenCalledWith("home");
+  });
+
+  it("marks E2E login session failures explicitly", async () => {
+    mockEstablishE2EAuthSession.mockRejectedValueOnce(
+      Object.assign(new Error("session failed"), {
+        code: "e2e/session-failed",
+      }),
+    );
+
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/login?email=e2e%40example.com",
+    );
+
+    expect(handled).toBe(false);
+    expect(mockEstablishE2EAuthSession).toHaveBeenCalledWith(
+      "e2e@example.com",
+      undefined,
+    );
+    expect(mockResetNavigation).not.toHaveBeenCalled();
+    expect(mockMarkE2EResetReady).not.toHaveBeenCalledWith("home");
+    expect(mockMarkE2ESeedError).toHaveBeenCalledWith(
+      "login-e2e-session-failed",
+    );
+  });
+
+  it("rejects E2E login links without an email", async () => {
+    const handled = await handleE2EDeepLink("fitaly://e2e/login?email=");
+
+    expect(handled).toBe(false);
+    expect(mockEstablishE2EAuthSession).not.toHaveBeenCalled();
+    expect(mockMarkE2ESeedError).toHaveBeenCalledWith("login-missing-email");
+  });
+
   it("applies seed links and marks all seeded targets ready", async () => {
     mockApplyE2ESeedCommand.mockResolvedValue([
       "fixture-user-with-today-meal",
@@ -153,7 +249,7 @@ describe("handleE2EDeepLink", () => {
     ]);
 
     const handled = await handleE2EDeepLink(
-      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none&smartMemory=active",
+      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none&smartMemory=active&telemetryEmit=knownPatternCandidateDismissed&telemetryRuntime=telemetryEnabled",
     );
 
     expect(handled).toBe(true);
@@ -179,6 +275,8 @@ describe("handleE2EDeepLink", () => {
       historyAssert: undefined,
       telemetryBaseline: undefined,
       telemetryAssert: undefined,
+      telemetryEmit: "knownPatternCandidateDismissed",
+      telemetryRuntime: "telemetryEnabled",
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([
@@ -187,6 +285,27 @@ describe("handleE2EDeepLink", () => {
       "smartMemory-active",
     ]);
     expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
+  });
+
+  it("applies seed links with the local E2E session uid when Firebase has no current user", async () => {
+    mockCurrentUser = null;
+    mockE2EAuthSession = {
+      uid: "e2e-e2e-example-com",
+      email: "e2e@example.com",
+    };
+    mockApplyE2ESeedCommand.mockResolvedValue(["fixture-activated-user-empty"]);
+
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/seed?fixture=activated-user-empty",
+    );
+
+    expect(handled).toBe(true);
+    expect(mockApplyE2ESeedCommand).toHaveBeenCalledWith({
+      uid: "e2e-e2e-example-com",
+      command: expect.objectContaining({
+        fixture: "activated-user-empty",
+      }),
+    });
   });
 
   it("ignores seed links with no valid seed command", async () => {
@@ -239,13 +358,21 @@ describe("handleE2EDeepLink", () => {
   });
 
   it("runs reconnect reconcile when forced connectivity returns online", async () => {
+    mockCurrentUser = null;
+    mockE2EAuthSession = {
+      uid: "e2e-e2e-example-com",
+      email: "e2e@example.com",
+    };
+
     const handled = await handleE2EDeepLink(
       "fitaly://e2e/connectivity?offline=0",
     );
 
     expect(handled).toBe(true);
     expect(mockSetE2EForcedOffline).toHaveBeenCalledWith(false);
-    expect(mockRunReconnectReconcile).toHaveBeenCalledWith("user-1");
+    expect(mockRunReconnectReconcile).toHaveBeenCalledWith(
+      "e2e-e2e-example-com",
+    );
     expect(mockMarkE2EResetReady).toHaveBeenCalledWith("home");
   });
 });

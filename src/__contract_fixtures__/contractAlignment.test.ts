@@ -1210,6 +1210,9 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
     "planned_meal_confirmed",
     "planned_meal_changed",
     "planned_meal_skipped",
+    "known_pattern_candidate_shown",
+    "known_pattern_review_started",
+    "known_pattern_candidate_dismissed",
   ] as const;
 
   const MOBILE_PROPS_BY_EVENT = {
@@ -1262,6 +1265,26 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
       "actionResult",
       "featureState",
     ],
+    known_pattern_candidate_shown: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "featureState",
+    ],
+    known_pattern_review_started: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "actionResult",
+      "featureState",
+    ],
+    known_pattern_candidate_dismissed: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "actionResult",
+      "featureState",
+    ],
   } as const;
 
   const MEMORY_TYPE_VALUES = [
@@ -1291,6 +1314,9 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
     "saved_meal",
   ] as const;
   const ESTIMATE_STATE_VALUES = ["known", "partial", "unknown"] as const;
+  const KNOWN_PATTERN_SURFACE_VALUES = ["meal_add_method"] as const;
+  const KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES = ["high", "medium"] as const;
+  const KNOWN_PATTERN_COUNT_BUCKET_VALUES = ["3_4", "5_plus"] as const;
 
   const MOBILE_ENUM_VALUES_BY_EVENT = {
     memory_candidate_created: {
@@ -1357,6 +1383,26 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
       actionResult: ACTION_RESULT_VALUES,
       featureState: FEATURE_STATE_VALUES,
     },
+    known_pattern_candidate_shown: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    known_pattern_review_started: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    known_pattern_candidate_dismissed: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
   } as const;
 
   const DISALLOWED_EVENT_NAMES = [
@@ -1366,6 +1412,9 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
     "planned_meal_generated",
     "planned_meal_raw_saved",
     "planning_prompt_sent",
+    "known_pattern_candidate_debugged",
+    "known_pattern_raw_candidate_saved",
+    "known_pattern_prompt_sent",
   ] as const;
 
   const DISALLOWED_PROP_NAMES = [
@@ -1373,9 +1422,13 @@ describe("C5 Smart Memory and Planning telemetry contract", () => {
     "ingredientName",
     "notes",
     "candidateId",
+    "subjectKeyHash",
+    "createdByRuleVersion",
+    "sourceHash",
     "memoryId",
     "plannedMealId",
     "sourceRef",
+    "sourceRefs",
     "rawReason",
     "rawPrompt",
     "rawResponse",

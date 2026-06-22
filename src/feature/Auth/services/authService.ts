@@ -20,6 +20,11 @@ import {
   beginProfileBootstrap,
   beginSignupProfileBootstrap,
 } from "@/services/session/signupProfileBootstrap";
+import { isE2EModeEnabled } from "@/services/e2e/config";
+import {
+  clearE2EAuthSession,
+  getE2EAuthSession,
+} from "@/services/e2e/authSession";
 import {
   emitUserProfileChanged,
   fetchUserProfileRemote,
@@ -155,13 +160,18 @@ export async function authSendPasswordReset(email: string) {
 
 export async function authLogout(): Promise<void> {
   const auth = getAuth(getApp());
-  const uid = auth.currentUser?.uid ?? null;
+  const e2eSession = isE2EModeEnabled() ? getE2EAuthSession() : null;
+  const uid = auth.currentUser?.uid ?? e2eSession?.uid ?? null;
   let signOutError: unknown = null;
 
   try {
     await signOut(auth);
   } catch (error) {
     signOutError = error;
+  }
+
+  if (e2eSession) {
+    await clearE2EAuthSession();
   }
 
   await resetUserRuntime(uid, { reason: "logout" });

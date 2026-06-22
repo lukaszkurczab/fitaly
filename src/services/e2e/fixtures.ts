@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { emit } from "@/services/core/events";
 import { get } from "@/services/core/apiClient";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
@@ -20,7 +21,12 @@ import {
 import {
   flush as flushTelemetry,
   setTelemetryUserId,
+  track as trackTelemetry,
 } from "@/services/telemetry/telemetryClient";
+import type {
+  TelemetryEventName,
+  TelemetryProps,
+} from "@/services/telemetry/telemetryTypes";
 import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
 import {
   createPlannedMealRemote,
@@ -123,7 +129,16 @@ export type E2EPlanningSeed = "empty" | "reviewReady";
 export type E2EHistoryAssert =
   | "noRecipeReviewDraft"
   | "noPlanningReviewDraft";
-export type E2ETelemetryEventAssert = "homeNextActionStarted";
+export type E2ETelemetryEventAssert =
+  | "homeNextActionStarted"
+  | "knownPatternCandidateDismissed"
+  | "memoryDeleted"
+  | "plannedMealConfirmed";
+export type E2ETelemetryRuntimeAssert =
+  | "smartMemoryEnabled"
+  | "telemetryEnabled"
+  | "knownPatternsEnabled"
+  | "planningEnabled";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -145,6 +160,8 @@ export type E2ESeedCommand = {
   historyAssert?: E2EHistoryAssert;
   telemetryBaseline?: E2ETelemetryEventAssert;
   telemetryAssert?: E2ETelemetryEventAssert;
+  telemetryEmit?: E2ETelemetryEventAssert;
+  telemetryRuntime?: E2ETelemetryRuntimeAssert;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -241,6 +258,15 @@ const VALID_HISTORY_ASSERT = new Set<E2EHistoryAssert>([
 ]);
 const VALID_TELEMETRY_EVENT_ASSERT = new Set<E2ETelemetryEventAssert>([
   "homeNextActionStarted",
+  "knownPatternCandidateDismissed",
+  "memoryDeleted",
+  "plannedMealConfirmed",
+]);
+const VALID_TELEMETRY_RUNTIME_ASSERT = new Set<E2ETelemetryRuntimeAssert>([
+  "smartMemoryEnabled",
+  "telemetryEnabled",
+  "knownPatternsEnabled",
+  "planningEnabled",
 ]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
@@ -261,8 +287,14 @@ const HISTORY_ASSERT_MEAL_NAMES: Record<E2EHistoryAssert, string> = {
   noRecipeReviewDraft: "Salmon rice plate",
   noPlanningReviewDraft: "E2E Planning Bowl",
 };
-const TELEMETRY_ASSERT_EVENT_NAMES: Record<E2ETelemetryEventAssert, string> = {
+const TELEMETRY_ASSERT_EVENT_NAMES: Record<
+  E2ETelemetryEventAssert,
+  TelemetryEventName
+> = {
   homeNextActionStarted: "home_next_action_started",
+  knownPatternCandidateDismissed: "known_pattern_candidate_dismissed",
+  memoryDeleted: "memory_deleted",
+  plannedMealConfirmed: "planned_meal_confirmed",
 };
 const TELEMETRY_ASSERT_ATTEMPTS = 10;
 const TELEMETRY_ASSERT_DELAY_MS = 750;
@@ -332,6 +364,11 @@ export function parseE2ESeedCommand(
       VALID_TELEMETRY_EVENT_ASSERT,
     ),
     telemetryAssert: asValid(params.telemetryAssert, VALID_TELEMETRY_EVENT_ASSERT),
+    telemetryEmit: asValid(params.telemetryEmit, VALID_TELEMETRY_EVENT_ASSERT),
+    telemetryRuntime: asValid(
+      params.telemetryRuntime,
+      VALID_TELEMETRY_RUNTIME_ASSERT,
+    ),
   };
 }
 
@@ -355,7 +392,9 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.planning ||
       command.historyAssert ||
       command.telemetryBaseline ||
-      command.telemetryAssert,
+      command.telemetryAssert ||
+      command.telemetryEmit ||
+      command.telemetryRuntime,
   );
 }
 
@@ -391,6 +430,12 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   }
   if (command.telemetryAssert) {
     markers.push(`telemetryAssert-${command.telemetryAssert}`);
+  }
+  if (command.telemetryEmit) {
+    markers.push(`telemetryEmit-${command.telemetryEmit}`);
+  }
+  if (command.telemetryRuntime) {
+    markers.push(`telemetryRuntime-${command.telemetryRuntime}`);
   }
   return markers;
 }
@@ -863,6 +908,8 @@ async function applyKnownPatternFixture(uid: string): Promise<void> {
   knownPatternSeedCounter += 1;
   const seedToken = `${Date.now()}-${knownPatternSeedCounter}`;
   const name = `${KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX}${seedToken}`;
+  const oatsName = `Owsianka QA ${seedToken}`;
+  const yogurtName = `Jogurt QA ${seedToken}`;
   const timestamps = KNOWN_PATTERN_SEED_DAY_OFFSETS.map(isoFromTodayOffset);
   const expectedCandidate: KnownPatternSeedExpectation = {
     firstSeenAt: timestamps[0],
@@ -880,7 +927,7 @@ async function applyKnownPatternFixture(uid: string): Promise<void> {
         ingredients: [
           ingredient({
             id: `e2e-known-pattern-${seedToken}-oats-${index + 1}`,
-            name: "Owsianka QA",
+            name: oatsName,
             amount: 60,
             kcal: 230,
             protein: 8,
@@ -889,7 +936,7 @@ async function applyKnownPatternFixture(uid: string): Promise<void> {
           }),
           ingredient({
             id: `e2e-known-pattern-${seedToken}-yogurt-${index + 1}`,
-            name: "Jogurt QA",
+            name: yogurtName,
             amount: 150,
             kcal: 110,
             protein: 15,
@@ -1025,8 +1072,72 @@ function telemetryBaselineKey(uid: string, assertName: E2ETelemetryEventAssert) 
   return `${uid}:${assertName}`;
 }
 
-function telemetryEventName(assertName: E2ETelemetryEventAssert): string {
+function telemetryEventName(assertName: E2ETelemetryEventAssert): TelemetryEventName {
   return TELEMETRY_ASSERT_EVENT_NAMES[assertName];
+}
+
+function telemetryEmitProps(assertName: E2ETelemetryEventAssert): TelemetryProps {
+  if (assertName === "knownPatternCandidateDismissed") {
+    return {
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    };
+  }
+  if (assertName === "plannedMealConfirmed") {
+    return {
+      sourceType: "manual",
+      estimateState: "known",
+      surface: "planning",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    };
+  }
+  if (assertName === "memoryDeleted") {
+    return {
+      memoryType: "typical_portion",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    };
+  }
+
+  return {
+    actionType: "confirm_known_pattern",
+    ownerFlow: "MealAddMethod",
+    state: "eligible",
+  };
+}
+
+function assertTelemetryRuntime(assertName: E2ETelemetryRuntimeAssert): void {
+  const config = getRuntimeConfig();
+  const enabled =
+    assertName === "telemetryEnabled"
+      ? config.telemetryEnabled
+      : assertName === "knownPatternsEnabled"
+        ? config.knownPatternsEnabled
+        : assertName === "smartMemoryEnabled"
+          ? config.smartMemoryEnabled
+        : config.planningEnabled;
+  if (enabled) return;
+
+  throw createServiceError({
+    code: `e2e/telemetry-runtime-${assertName}-disabled`,
+    source: "E2EFixtures",
+    retryable: false,
+    message: `E2E telemetry runtime assertion failed for "${assertName}".`,
+  });
+}
+
+async function emitTelemetryEvent(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  setTelemetryUserId(uid);
+  await trackTelemetry(telemetryEventName(assertName), telemetryEmitProps(assertName));
+  await flushTelemetry();
 }
 
 function countTelemetryEvents(
@@ -1542,6 +1653,7 @@ export async function applyE2ESeedCommand(params: {
           historyAssert: undefined,
           telemetryBaseline: undefined,
           telemetryAssert: undefined,
+          telemetryEmit: undefined,
         }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
@@ -1600,6 +1712,14 @@ export async function applyE2ESeedCommand(params: {
     await assertTelemetryCountIncreased(params.uid, appliedCommand.telemetryAssert);
   }
 
+  if (params.uid && appliedCommand.telemetryEmit) {
+    await emitTelemetryEvent(params.uid, appliedCommand.telemetryEmit);
+  }
+
+  if (appliedCommand.telemetryRuntime) {
+    assertTelemetryRuntime(appliedCommand.telemetryRuntime);
+  }
+
   emit("e2e:seeded", fixtureState);
   return seedMarkers(appliedCommand);
 }
@@ -1650,7 +1770,6 @@ function feature(
 
 export function getE2EAccessState(uid: string): AccessState | null {
   if (!isE2EModeEnabled()) return null;
-  if (!fixtureState.credits && !fixtureState.billing) return null;
 
   const billing = fixtureState.billing ?? "free";
   const credits = creditsStatus(uid, fixtureState.credits ?? "ok");

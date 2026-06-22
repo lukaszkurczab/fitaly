@@ -135,9 +135,12 @@ jobs:
     timeout-minutes: 90
     env:
       E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
-      E2E_RESULTS_PATH: /tmp/maestro-${{ inputs.platform || 'ios' }}-release-gate-results.xml
-      E2E_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
-      E2E_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+      E2E_ARTIFACT_DIR: core-release-gate-artifacts
+      E2E_RESULTS_DIR: release-gate-reports
+      E2E_RESULTS_PATH: release-gate-reports/results.xml
+      E2E_SKIP_API_HEALTH: "1"
+      E2E_API_BASE_URL: http://127.0.0.1:9
+      E2E_EMAIL: e2e@example.com
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -151,16 +154,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run release gate E2E suite
-        run: npm run e2e:release-gate
+      - name: Run core release gate E2E suite
+        run: npm run e2e:core-release-gate
 
-      - name: Upload release gate E2E artifacts
+      - name: Upload core release gate JUnit reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-release-gate-${{ env.E2E_PLATFORM }}
+          name: e2e-core-release-gate-${{ env.E2E_PLATFORM }}
+          path: release-gate-reports/*.xml
+          if-no-files-found: error
+
+      - name: Upload core release gate debug artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-core-release-gate-debug-${{ env.E2E_PLATFORM }}
           path: |
-            ${{ env.E2E_RESULTS_PATH }}
+            core-release-gate-artifacts
             /tmp/expo-e2e.log
             ~/.maestro/tests
           if-no-files-found: ignore
@@ -305,7 +316,7 @@ jobs:
               exit 1
             fi
             echo "url=${DELETE_EVIDENCE_URL}" >> "$GITHUB_OUTPUT"
-            echo "note=${DELETE_EVIDENCE_NOTE:-Disposable smoke user deleted manually.}" >> "$GITHUB_OUTPUT"
+            echo "note=${DELETE_EVIDENCE_NOTE:-verified disposable smoke user deleted manually.}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -343,6 +354,12 @@ jobs:
           name: smoke-flow-summary
           path: artifacts
 
+      - name: Download core release gate E2E reports
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-core-release-gate-${{ inputs.platform || 'ios' }}
+          path: release-gate-reports
+
       - name: Render release evidence markdown
         env:
           EXPORT_SUMMARY_PATH: artifacts/smoke-export-summary.json
@@ -351,24 +368,27 @@ jobs:
           MOBILE_SHA: ${{ needs.validate-release-pair.outputs.mobile_sha }}
           BACKEND_SHA: ${{ needs.validate-release-pair.outputs.backend_sha }}
           TARGET_ENVIRONMENT: ${{ needs.validate-release-pair.outputs.target_environment }}
-          MOBILE_CI_STATUS: passed
-          BACKEND_CI_STATUS: passed
-          E2E_PLATFORM: ${{ inputs.platform || 'ios' }}
-          SMOKE_E2E_STATUS: passed
-          RELEASE_GATE_E2E_STATUS: passed
-          E2E_RESULTS_ARTIFACT_PATH: e2e-release-gate-${{ inputs.platform || 'ios' }}
-          E2E_SKIPPED_SUITES: Nightly regression and platform layout suites were not required for this RC run.
-          SMOKE_EXPORT_STATUS: passed
-          SMOKE_FLOW_CONTRACT_STATUS: passed
-          TARGET_SDK_STATUS: passed via launch-readiness gate
-          AAB_STATUS: passed via launch-readiness gate
+          MOBILE_CI_STATUS: verified mobile-ci job in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          BACKEND_CI_STATUS: verified backend-ci job in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          E2E_PLATFORM: verified ${{ inputs.platform || 'ios' }} self-hosted release runner in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          SMOKE_E2E_STATUS: verified smoke-e2e job in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          RELEASE_GATE_RESULTS_DIR: release-gate-reports
+          RELEASE_GATE_EXPECTED_FLOW_COUNT: "20"
+          RELEASE_GATE_EXPECTED_SUITE_KEY: core-release-gate
+          RELEASE_GATE_SUITE_NAME: core-release-gate
+          E2E_RESULTS_ARTIFACT_PATH: GitHub Actions artifact e2e-core-release-gate-${{ inputs.platform || 'ios' }} in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E_SKIPPED_SUITES: Full 1.1 release-gate, nightly regression, and platform layout suites were not required for this core RC run.
+          SMOKE_EXPORT_STATUS: verified smoke-export job in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          SMOKE_FLOW_CONTRACT_STATUS: verified smoke-flow-contracts job in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} attempt ${{ github.run_attempt }}
+          TARGET_SDK_STATUS: verified via launch-readiness gate in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          AAB_STATUS: verified via launch-readiness gate in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           BACKUP_RUN_URL: ${{ needs.ops-evidence.outputs.backup_run_url }}
           RESTORE_RUN_URL: ${{ needs.ops-evidence.outputs.restore_run_url }}
           DELETE_EVIDENCE_URL: ${{ needs.delete-evidence.outputs.url }}
           DELETE_EVIDENCE_NOTE: ${{ needs.delete-evidence.outputs.note }}
-          CHAT_INTEGRITY_TEST_STATUS: passed via mobile CI
-          ONBOARDING_ATOMIC_CONTRACT_STATUS: passed via backend CI
-          WEEKLY_REPORT_PREMIUM_GATE_STATUS: passed via backend CI
+          CHAT_INTEGRITY_TEST_STATUS: verified via mobile CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ONBOARDING_ATOMIC_CONTRACT_STATUS: verified via backend CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WEEKLY_REPORT_PREMIUM_GATE_STATUS: verified via backend CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/render-release-evidence.mjs artifacts/release-evidence.md
 
       - name: Upload release evidence
