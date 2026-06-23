@@ -6,6 +6,8 @@ import {
 import type { RecipeCatalogRecord } from "@/types/recipes";
 
 const mockUuid = jest.fn<() => string>();
+const fixedNow = new Date("2026-03-20T08:30:00.000Z");
+const fixedLoggedAtLocalMin = fixedNow.getHours() * 60 + fixedNow.getMinutes();
 
 jest.mock("uuid", () => ({
   v4: () => mockUuid(),
@@ -68,7 +70,7 @@ function recipe(overrides: Partial<RecipeCatalogRecord> = {}): RecipeCatalogReco
 describe("recipeReviewDraft", () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-03-20T08:30:00.000Z"));
+    jest.setSystemTime(fixedNow);
     mockUuid
       .mockImplementationOnce(() => "draft-meal-id")
       .mockImplementationOnce(() => "ingredient-1")
@@ -92,7 +94,7 @@ describe("recipeReviewDraft", () => {
         userUid: "user-1",
         timestamp: "2026-03-20T08:30:00.000Z",
         dayKey: "2026-03-20",
-        loggedAtLocalMin: 570,
+        loggedAtLocalMin: fixedLoggedAtLocalMin,
         type: "other",
         name: "Oat bowl",
         createdAt: "2026-03-20T08:30:00.000Z",

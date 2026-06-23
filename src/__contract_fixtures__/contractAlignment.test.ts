@@ -173,10 +173,10 @@ const SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN = [
 ] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
-const BACKEND_FIXTURES_DIR = path.resolve(
-  __dirname,
-  "../../../fitaly-backend/tests/contract_fixtures",
-);
+const BACKEND_REPO_DIR = process.env.BACKEND_REPO;
+const BACKEND_FIXTURES_DIR = BACKEND_REPO_DIR
+  ? path.resolve(BACKEND_REPO_DIR, "tests/contract_fixtures")
+  : path.resolve(__dirname, "../../../fitaly-backend/tests/contract_fixtures");
 
 function loadFixture<T = unknown>(name: string): T {
   const raw = fs.readFileSync(path.join(FIXTURES_DIR, name), "utf-8");
