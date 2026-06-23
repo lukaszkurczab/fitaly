@@ -1,9 +1,17 @@
 appId: com.lkurczab.fitaly
 env:
   E2E_EMAIL: e2e@example.com
+  E2E_PASSWORD: Test@1234
+  E2E_ALT_EMAIL: e2e-alt@example.com
+  E2E_ALT_PASSWORD: Test@1234
 ---
 - stopApp
 - openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
 - openLink: fitaly://e2e/reset?logout=1
@@ -31,19 +39,32 @@ env:
 - assertVisible:
     id: login-email-input
 
-- openLink: "fitaly://e2e/login?email=${E2E_EMAIL}"
-- extendedWaitUntil:
-    visible:
-      id: e2e-ready-home
-    timeout: 30000
+- tapOn:
+    id: login-email-input
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: tab-home
 
 - stopApp
 - openLink: __E2E_EXPO_URL__
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
-- extendedWaitUntil:
-    visible:
-      id: tab-home
-    timeout: 30000
+- assertVisible:
+    id: tab-home

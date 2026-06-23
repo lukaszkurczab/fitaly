@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import type { RootStackParamList } from "./navigate";
 import { useAuthContext } from "@/context/AuthContext";
@@ -46,13 +46,6 @@ import ChatScreen from "@/feature/AI/screens/ChatScreen";
 import SavedMealsCameraScreen from "@/feature/History/screens/SavedMealsCameraScreen";
 import AddMealScreen from "@feature/Meals/screens/AddMealScreen";
 import { isE2EModeEnabled } from "@/services/e2e/config";
-import { getE2EAuthSession } from "@/services/e2e/authSession";
-import {
-  getE2EStatus,
-  markE2EResetReady,
-  subscribeE2EStatus,
-  type E2EStatus,
-} from "@/services/e2e/status";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ensureStreakDoc, resetIfMissed } from "@/services/gamification/streakService";
 import { primeBadges } from "@/services/gamification/badgeService";
@@ -201,7 +194,6 @@ export default function AppNavigator() {
   const { isAuthenticated, authLoading, uid } = useAuthContext();
   const { userData, profileBootstrapState } = useUserProfileContext();
   const disableAnimations = isE2EModeEnabled();
-  const [e2eStatus, setE2EStatus] = useState<E2EStatus>(() => getE2EStatus());
   const primedUidRef = useRef<string | null>(null);
   const missingProfileLogoutUidRef = useRef<string | null>(null);
   const rawBootstrapState = resolveBootstrapState({
@@ -222,20 +214,6 @@ export default function AppNavigator() {
     bootstrapState,
     userData?.profile.readiness.status,
   );
-
-  useEffect(() => {
-    if (!isE2EModeEnabled()) return;
-    return subscribeE2EStatus(setE2EStatus);
-  }, []);
-
-  useEffect(() => {
-    if (!isE2EModeEnabled()) return;
-    if (e2eStatus.phase !== "resetting") return;
-    if (!renderProductStack || !userData?.uid) return;
-    if (getE2EAuthSession()?.uid !== userData.uid) return;
-
-    markE2EResetReady("home");
-  }, [e2eStatus.phase, renderProductStack, userData?.uid]);
 
   useEffect(() => {
     if (!renderProductStack || !userData?.uid) {
@@ -262,9 +240,6 @@ export default function AppNavigator() {
 
   useEffect(() => {
     if (bootstrapState !== "profileMissing" || !uid) {
-      return;
-    }
-    if (getE2EAuthSession()?.uid === uid) {
       return;
     }
     if (missingProfileLogoutUidRef.current === uid) {

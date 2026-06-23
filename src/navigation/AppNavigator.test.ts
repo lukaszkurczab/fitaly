@@ -1,5 +1,5 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react-native";
+import { render } from "@testing-library/react-native";
 import {
   PRODUCT_STACK_NON_AI_SURFACE_ROUTES,
   resolveEffectiveBootstrapState,
@@ -16,22 +16,6 @@ type RegisteredStackScreen = {
   component: unknown;
   initialParams?: unknown;
 };
-type MockUserProfileContext = {
-  profileBootstrapState: "profileReady" | "profileMissing";
-  userData: {
-    uid: string;
-    profile: {
-      readiness: {
-        status: string;
-      };
-    };
-  } | null;
-};
-type MockE2EStatus =
-  | { phase: "idle"; target: null }
-  | { phase: "resetting"; target: null }
-  | { phase: "ready"; target: string; targets: string[] }
-  | { phase: "error"; target: string; targets: string[] };
 
 const mockRegisteredStackScreens: RegisteredStackScreen[] = [];
 const mockNavigatorInitialRouteNames: Array<keyof RootStackParamList> = [];
@@ -42,7 +26,7 @@ let mockAuthContext = {
   uid: "user-1",
 };
 
-let mockUserProfileContext: MockUserProfileContext = {
+let mockUserProfileContext = {
   profileBootstrapState: "profileReady",
   userData: {
     uid: "user-1",
@@ -53,12 +37,6 @@ let mockUserProfileContext: MockUserProfileContext = {
     },
   },
 };
-let mockE2EAuthSession: { uid: string; email: string } | null = null;
-let mockE2EEnabled = false;
-let mockE2EStatus: MockE2EStatus = { phase: "idle", target: null };
-const mockAuthLogout = jest.fn(async () => undefined);
-const mockMarkE2EResetReady = jest.fn<void, [string]>();
-const mockSubscribeE2EStatus = jest.fn<() => void, [unknown]>(() => jest.fn());
 
 jest.mock("@react-navigation/stack", () => {
   const ReactActual = jest.requireActual("react") as typeof import("react");
@@ -100,17 +78,7 @@ jest.mock("@/hooks/useSignupProfileBootstrapPending", () => ({
 }));
 
 jest.mock("@/services/e2e/config", () => ({
-  isE2EModeEnabled: () => mockE2EEnabled,
-}));
-
-jest.mock("@/services/e2e/authSession", () => ({
-  getE2EAuthSession: () => mockE2EAuthSession,
-}));
-
-jest.mock("@/services/e2e/status", () => ({
-  getE2EStatus: () => mockE2EStatus,
-  markE2EResetReady: (target: string) => mockMarkE2EResetReady(target),
-  subscribeE2EStatus: (listener: unknown) => mockSubscribeE2EStatus(listener),
+  isE2EModeEnabled: () => false,
 }));
 
 jest.mock("@/services/gamification/streakService", () => ({
@@ -127,7 +95,7 @@ jest.mock("@/services/core/errorLogger", () => ({
 }));
 
 jest.mock("@/feature/Auth/services/authService", () => ({
-  authLogout: () => mockAuthLogout(),
+  authLogout: jest.fn(async () => undefined),
 }));
 
 jest.mock("@/components/ErrorBoundary", () => ({
@@ -308,12 +276,6 @@ describe("AppNavigator onboarding gate", () => {
   beforeEach(() => {
     mockRegisteredStackScreens.length = 0;
     mockNavigatorInitialRouteNames.length = 0;
-    mockAuthLogout.mockResolvedValue(undefined);
-    mockE2EAuthSession = null;
-    mockE2EEnabled = false;
-    mockE2EStatus = { phase: "idle", target: null };
-    mockMarkE2EResetReady.mockClear();
-    mockSubscribeE2EStatus.mockClear();
     mockAuthContext = {
       authLoading: false,
       isAuthenticated: true,
@@ -345,41 +307,6 @@ describe("AppNavigator onboarding gate", () => {
     expect(shouldRenderProfileGateStack("profileMissing")).toBe(false);
     expect(shouldRenderProductStack("profileMissing", undefined)).toBe(false);
     expect(resolveInitialRouteName("profileMissing", undefined)).toBe("Login");
-  });
-
-  it("does not auto-logout a transient missing profile for the local E2E auth session", () => {
-    mockAuthContext = {
-      authLoading: false,
-      isAuthenticated: true,
-      uid: "e2e-e2e-example-com",
-    };
-    mockUserProfileContext = {
-      profileBootstrapState: "profileMissing",
-      userData: null,
-    };
-    mockE2EAuthSession = {
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-    };
-
-    render(React.createElement(AppNavigator));
-
-    expect(mockAuthLogout).not.toHaveBeenCalled();
-  });
-
-  it("marks E2E home ready only after the product stack renders for the E2E session", async () => {
-    mockE2EEnabled = true;
-    mockE2EAuthSession = {
-      uid: "user-1",
-      email: "e2e@example.com",
-    };
-    mockE2EStatus = { phase: "resetting", target: null };
-
-    render(React.createElement(AppNavigator));
-
-    await waitFor(() => {
-      expect(mockMarkE2EResetReady).toHaveBeenCalledWith("home");
-    });
   });
 
   it("keeps a transient missing profile on Loading during signup profile initialization", () => {

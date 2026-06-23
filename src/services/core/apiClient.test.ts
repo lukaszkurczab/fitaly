@@ -4,7 +4,6 @@ const mockGetApp = jest.fn();
 const mockGetAuth = jest.fn();
 const mockGetIdToken = jest.fn<Promise<string>, unknown[]>();
 const mockGetRuntimeConfig = jest.fn<RuntimeConfig, []>();
-const mockGetE2EAuthToken = jest.fn<string | null, []>();
 
 function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {
@@ -49,10 +48,6 @@ jest.mock("@/services/core/runtimeConfig", () => ({
   getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
-jest.mock("@/services/e2e/authToken", () => ({
-  getE2EAuthToken: () => mockGetE2EAuthToken(),
-}));
-
 describe("apiClient", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -61,7 +56,6 @@ describe("apiClient", () => {
     mockGetApp.mockReturnValue({ name: "app" });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
     mockGetIdToken.mockResolvedValue("token-123");
-    mockGetE2EAuthToken.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -163,33 +157,6 @@ describe("apiClient", () => {
       expect.objectContaining({
         headers: expect.not.objectContaining({
           Authorization: expect.anything(),
-        }),
-      }),
-    );
-  });
-
-  it("uses the explicit E2E auth token when native auth has no current user", async () => {
-    mockGetAuth.mockReturnValue({
-      currentUser: null,
-    });
-    mockGetE2EAuthToken.mockReturnValue("e2e-token-123");
-
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      text: async () => JSON.stringify({ ok: true }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { get } = require("@/services/core/apiClient");
-
-    await get("/users/me/meals/history");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.example.com/api/v1/users/me/meals/history",
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer e2e-token-123",
         }),
       }),
     );

@@ -40,10 +40,6 @@ const mockSendPasswordResetEmail = jest.fn<(...args: unknown[]) => Promise<void>
 const mockResetUserRuntime = jest.fn<
   (...args: unknown[]) => Promise<void>
 >();
-const mockClearE2EAuthSession = jest.fn<() => Promise<void>>();
-
-let mockE2EEnabled = false;
-let mockE2EAuthSession: { uid: string; email: string } | null = null;
 
 jest.mock("@react-native-firebase/app", () => ({
   getApp: jest.fn(),
@@ -86,15 +82,6 @@ jest.mock("@/services/session/resetUserRuntime", () => ({
   resetUserRuntime: (...args: unknown[]) => mockResetUserRuntime(...args),
 }));
 
-jest.mock("@/services/e2e/config", () => ({
-  isE2EModeEnabled: () => mockE2EEnabled,
-}));
-
-jest.mock("@/services/e2e/authSession", () => ({
-  getE2EAuthSession: () => mockE2EAuthSession,
-  clearE2EAuthSession: () => mockClearE2EAuthSession(),
-}));
-
 jest.mock("@/services/user/userService", () => ({
   initializeUserOnboardingProfile: (...args: unknown[]) =>
     mockInitializeUserOnboardingProfile(...args),
@@ -115,8 +102,6 @@ describe("authService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     __resetSignupProfileBootstrapForTests();
-    mockE2EEnabled = false;
-    mockE2EAuthSession = null;
     mockI18n.resolvedLanguage = "en";
     mockI18n.language = "en";
     mockGetAuth.mockReturnValue({ app: "auth", currentUser: { uid: "user-1" } });
@@ -137,7 +122,6 @@ describe("authService", () => {
     mockWriteProfileCache.mockResolvedValue(undefined);
     mockSendPasswordResetEmail.mockResolvedValue(undefined);
     mockResetUserRuntime.mockResolvedValue(undefined);
-    mockClearE2EAuthSession.mockResolvedValue(undefined);
     mockPost.mockResolvedValue({ deleted: true });
     mockCreateUserWithEmailAndPassword.mockResolvedValue({
       user: {
@@ -261,27 +245,6 @@ describe("authService", () => {
     });
     expect(mockWriteProfileCache).not.toHaveBeenCalled();
     expect(mockEmitUserProfileChanged).not.toHaveBeenCalled();
-  });
-
-  it("clears a local E2E auth session during logout", async () => {
-    mockE2EEnabled = true;
-    mockE2EAuthSession = {
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-    };
-    mockGetAuth.mockReturnValue({ app: "auth", currentUser: null });
-
-    await authLogout();
-
-    expect(mockSignOut).toHaveBeenCalledWith({
-      app: "auth",
-      currentUser: null,
-    });
-    expect(mockClearE2EAuthSession).toHaveBeenCalledTimes(1);
-    expect(mockResetUserRuntime).toHaveBeenCalledWith(
-      "e2e-e2e-example-com",
-      { reason: "logout" },
-    );
   });
 
   it("refreshes the Firebase ID token before backend signup initialization", async () => {

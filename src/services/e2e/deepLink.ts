@@ -21,12 +21,6 @@ import {
   parseE2ESeedCommand,
   resetE2EFixtureState,
 } from "@/services/e2e/fixtures";
-import {
-  clearE2EAuthSession,
-  establishE2EAuthSession,
-  getE2EAuthSession,
-  restoreE2EAuthSession,
-} from "@/services/e2e/authSession";
 import { setE2EThemeMode } from "@/theme/ThemeProvider";
 import type { ThemeMode } from "@/theme/themes";
 
@@ -37,7 +31,6 @@ type ResetOptions = {
 };
 
 const RESET_PATH = "fitaly://e2e/reset";
-const LOGIN_PATH = "fitaly://e2e/login";
 const SEED_PATH = "fitaly://e2e/seed";
 const CONNECTIVITY_PATH = "fitaly://e2e/connectivity";
 
@@ -85,43 +78,29 @@ function isSeedDeepLink(url: string): boolean {
   return normalized.startsWith(SEED_PATH);
 }
 
-function isLoginDeepLink(url: string): boolean {
-  const normalized = url.trim().toLowerCase();
-  return normalized.startsWith(LOGIN_PATH);
-}
-
 function isConnectivityDeepLink(url: string): boolean {
   const normalized = url.trim().toLowerCase();
   return normalized.startsWith(CONNECTIVITY_PATH);
 }
 
-function errorTarget(scope: string, error: unknown): E2EReadyTarget {
+function seedErrorTarget(error: unknown): E2EReadyTarget {
   const code =
     error && typeof error === "object" && "code" in error
       ? (error as { code?: unknown }).code
       : null;
-  if (typeof code !== "string") return scope;
+  if (typeof code !== "string") return "seed";
 
   const normalized = code
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return normalized ? `${scope}-${normalized}` : scope;
-}
-
-function seedErrorTarget(error: unknown): E2EReadyTarget {
-  return errorTarget("seed", error);
-}
-
-function loginErrorTarget(error: unknown): E2EReadyTarget {
-  return errorTarget("login", error);
+  return normalized ? `seed-${normalized}` : "seed";
 }
 
 function resolveNavigationTarget(logout: boolean): "Login" | "Home" {
   const auth = getAuth(getApp());
-  const e2eSession = getE2EAuthSession();
-  return logout || (!auth.currentUser && !e2eSession) ? "Login" : "Home";
+  return logout || !auth.currentUser ? "Login" : "Home";
 }
 
 function resetToAuthOrHome(logout: boolean): "Login" | "Home" {
@@ -144,7 +123,6 @@ async function runReset(options: ResetOptions) {
   markE2EResetStarted();
   stopSyncLoop();
   setE2EForcedOffline(false);
-  const preservedE2ESession = options.logout ? null : getE2EAuthSession();
 
   try {
     resetOfflineStorage();
@@ -156,13 +134,6 @@ async function runReset(options: ResetOptions) {
     await AsyncStorage.clear();
   } catch {
     // Async storage reset is best-effort for E2E runs.
-  }
-  if (preservedE2ESession) {
-    try {
-      await restoreE2EAuthSession(preservedE2ESession);
-    } catch {
-      // Session restoration errors should surface through the final navigation marker.
-    }
   }
 
   if (options.themeMode) {
@@ -176,7 +147,6 @@ async function runReset(options: ResetOptions) {
   }
 
   if (options.logout) {
-    await clearE2EAuthSession();
     try {
       await signOut(getAuth(getApp()));
     } catch {
@@ -186,29 +156,7 @@ async function runReset(options: ResetOptions) {
 
   setE2EForcedOffline(options.forceOffline);
   const navigationTarget = resetToAuthOrHome(options.logout);
-  const readyTarget = toReadyTarget(navigationTarget, options.forceOffline);
-  if (readyTarget !== "home") {
-    markE2EResetReady(readyTarget);
-  }
-}
-
-async function runLogin(params: Record<string, string>): Promise<boolean> {
-  const email = params.email?.trim() ?? "";
-  const password = params.password ?? undefined;
-  if (!email) {
-    markE2ESeedError("login-missing-email");
-    return false;
-  }
-
-  markE2EResetStarted();
-  try {
-    await establishE2EAuthSession(email, password);
-  } catch (error) {
-    markE2ESeedError(loginErrorTarget(error));
-    return false;
-  }
-
-  return true;
+  markE2EResetReady(toReadyTarget(navigationTarget, options.forceOffline));
 }
 
 export async function handleE2EDeepLink(url: string): Promise<boolean> {
@@ -224,18 +172,13 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
     return true;
   }
 
-  if (isLoginDeepLink(url)) {
-    return runLogin(parseQueryParams(url));
-  }
-
   if (isSeedDeepLink(url)) {
     const params = parseQueryParams(url);
     const auth = getAuth(getApp());
-    const e2eSession = getE2EAuthSession();
     let markers: string[];
     try {
       markers = await applyE2ESeedCommand({
-        uid: auth.currentUser?.uid ?? e2eSession?.uid ?? null,
+        uid: auth.currentUser?.uid ?? null,
         command: parseE2ESeedCommand(params),
       });
     } catch (error) {
@@ -254,13 +197,11 @@ export async function handleE2EDeepLink(url: string): Promise<boolean> {
     const params = parseQueryParams(url);
     const forceOffline = parseBoolFlag(params.offline, false);
     const auth = getAuth(getApp());
-    const e2eSession = getE2EAuthSession();
-    const uid = auth.currentUser?.uid ?? e2eSession?.uid ?? null;
     setE2EForcedOffline(forceOffline);
     const navigationTarget = resolveNavigationTarget(false);
-    if (!forceOffline && uid) {
+    if (!forceOffline && auth.currentUser?.uid) {
       try {
-        await runReconnectReconcile(uid);
+        await runReconnectReconcile(auth.currentUser.uid);
       } catch {
         // E2E readiness should still update so assertions can expose stale pending UI.
       }

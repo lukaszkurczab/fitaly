@@ -76,7 +76,6 @@ DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
 TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
 E2E_DISABLE_WATCHMAN="${E2E_DISABLE_WATCHMAN:-1}"
-MAESTRO_JAVA_USER_HOME="${MAESTRO_JAVA_USER_HOME:-${TMPDIR:-/tmp}/fitaly-maestro-home}"
 SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
 PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
@@ -132,16 +131,8 @@ export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
 export EXPO_PUBLIC_ENABLE_SMART_MEMORY="${ENABLE_SMART_MEMORY}"
 export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
 export EXPO_PUBLIC_FIREBASE_PROJECT_ID="${EXPO_PUBLIC_FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID}}"
-mkdir -p "${MAESTRO_JAVA_USER_HOME}"
 export MAESTRO_CLI_NO_ANALYTICS="${MAESTRO_CLI_NO_ANALYTICS:-1}"
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED="${MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED:-true}"
-if [[ "${JAVA_TOOL_OPTIONS:-}" != *"-Duser.home="* ]]; then
-  if [[ -n "${JAVA_TOOL_OPTIONS:-}" ]]; then
-    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Duser.home=${MAESTRO_JAVA_USER_HOME}"
-  else
-    export JAVA_TOOL_OPTIONS="-Duser.home=${MAESTRO_JAVA_USER_HOME}"
-  fi
-fi
 
 if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
   API_BASE_URL="${E2E_API_BASE_URL}"
@@ -448,8 +439,40 @@ if [[ "${E2E_SKIP_API_HEALTH:-}" != "1" ]]; then
   fi
 fi
 
+LOCAL_API_BASE_URL=0
+if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* ]]; then
+  LOCAL_API_BASE_URL=1
+fi
+
+if [[ "${LOCAL_API_BASE_URL}" -eq 1 ]]; then
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] Local backend E2E requires FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    echo "[e2e] Refusing to run local login flows without explicit Firebase emulators." >&2
+    exit 1
+  fi
+  if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    export EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST="http://${FIREBASE_AUTH_EMULATOR_HOST}"
+  fi
+  BACKEND_ROOT="${E2E_BACKEND_ROOT:-$(cd "${ROOT_DIR}/.." && pwd)/fitaly-backend}"
+  BACKEND_PYTHON="${E2E_BACKEND_PYTHON:-${BACKEND_ROOT}/.venv/bin/python}"
+  BACKEND_SEED_SCRIPT="${BACKEND_ROOT}/scripts/seed_local_e2e_user.py"
+  if [[ ! -x "${BACKEND_PYTHON}" || ! -f "${BACKEND_SEED_SCRIPT}" ]]; then
+    echo "[e2e] Backend local E2E user seeder not available at ${BACKEND_SEED_SCRIPT}." >&2
+    echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
+    exit 1
+  fi
+  echo "[e2e] Seeding local E2E auth/profile user..."
+  (
+    cd "${BACKEND_ROOT}"
+    export E2E_EMAIL E2E_PASSWORD
+    export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+    export FIRESTORE_DATABASE_ID="${FIRESTORE_DATABASE_ID:-(default)}"
+    "${BACKEND_PYTHON}" "${BACKEND_SEED_SCRIPT}"
+  )
+fi
+
 if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
-  if [[ "${API_BASE_URL%/}" != "http://127.0.0.1:"* && "${API_BASE_URL%/}" != "http://localhost:"* ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
     echo "[e2e] smart-memory-backend-pull requires a local backend API. Current API: ${API_BASE_URL}" >&2
     exit 1
   fi
@@ -479,7 +502,7 @@ if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
 fi
 
 if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
-  if [[ "${API_BASE_URL%/}" != "http://127.0.0.1:"* && "${API_BASE_URL%/}" != "http://localhost:"* ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
     echo "[e2e] private ingredient autocomplete flows require a local backend API. Current API: ${API_BASE_URL}" >&2
     exit 1
   fi
@@ -611,10 +634,11 @@ appId: ${APP_ID}
     commands:
       - tapOn: "Open"
 YAML
-  IOS_PROMPT_CMD=(maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}")
+  IOS_PROMPT_CMD=(maestro)
   if [[ -n "${UDID}" ]]; then
-    IOS_PROMPT_CMD+=(--udid "${UDID}")
+    IOS_PROMPT_CMD+=(--device "${UDID}")
   fi
+  IOS_PROMPT_CMD+=(test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}")
   "${IOS_PROMPT_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${IOS_OPEN_PROMPT_FLOW}"
 
@@ -633,10 +657,11 @@ appId: ${APP_ID}
     commands:
       - tapOn: "Close"
 YAML
-  DEV_MENU_DISMISS_CMD=(maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}")
+  DEV_MENU_DISMISS_CMD=(maestro)
   if [[ -n "${UDID}" ]]; then
-    DEV_MENU_DISMISS_CMD+=(--udid "${UDID}")
+    DEV_MENU_DISMISS_CMD+=(--device "${UDID}")
   fi
+  DEV_MENU_DISMISS_CMD+=(test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}")
   "${DEV_MENU_DISMISS_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${DEV_MENU_DISMISS_FLOW}"
 fi
@@ -669,7 +694,11 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   fi
 
   FLOW_RESULTS_PATH="$(result_path_for_flow "${FLOW_PATH}")"
-  MAESTRO_CMD=(maestro test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${FLOW_RESULTS_PATH}")
+  MAESTRO_CMD=(maestro)
+  if [[ -n "${UDID}" ]]; then
+    MAESTRO_CMD+=(--device "${UDID}")
+  fi
+  MAESTRO_CMD+=(test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${FLOW_RESULTS_PATH}")
   if [[ -n "${TEST_SUITE_NAME}" ]]; then
     MAESTRO_CMD+=(--test-suite-name "${TEST_SUITE_NAME}")
   fi
@@ -679,10 +708,6 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   if [[ -n "${DEBUG_OUTPUT_DIR}" ]]; then
     MAESTRO_CMD+=(--debug-output "${DEBUG_OUTPUT_DIR}/$(sanitize_result_name "${FLOW_PATH}")")
   fi
-  if [[ -n "${UDID}" ]]; then
-    MAESTRO_CMD+=(--udid "${UDID}")
-  fi
-
   echo "[e2e] Running flow: ${FLOW_PATH}"
   echo "[e2e] Running: ${MAESTRO_CMD[*]}"
   if (

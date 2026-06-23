@@ -11,11 +11,7 @@ import type {
 } from "@/types";
 import { get, post, upload } from "@/services/core/apiClient";
 import { emit, on } from "@/services/core/events";
-import {
-  buildE2EProfileSeed,
-  isE2EModeEnabled,
-} from "@/services/e2e/config";
-import { getE2EAuthSession } from "@/services/e2e/authSession";
+import { isE2EModeEnabled } from "@/services/e2e/config";
 import {
   resolveE2EAiConsentSeed,
   resolveE2EAiConsentGrant,
@@ -183,32 +179,15 @@ function overlayE2EAiConsentSeed(
   };
 }
 
-function resolveE2EProfileSeedForUid(uid: string | undefined): UserData | null {
-  if (!uid || !isE2EModeEnabled()) return null;
-  const e2eSession = getE2EAuthSession();
-  if (!e2eSession || e2eSession.uid !== uid) return null;
-  return overlayE2EAiConsentSeed(
-    buildE2EProfileSeed(e2eSession.uid, e2eSession.email),
-    e2eSession.uid,
-  );
-}
-
 export function getCachedUserProfile(uid: string): UserData | null | undefined {
   return profileCache.get(uid);
 }
 
 export function clearCachedUserProfile(uid: string): void {
-  const e2eProfile = resolveE2EProfileSeedForUid(uid);
   profileCache.delete(uid);
   profileFetchInFlight.delete(uid);
   profileFetchInvalidationClock += 1;
   profileFetchInvalidatedAt.set(uid, profileFetchInvalidationClock);
-
-  if (e2eProfile) {
-    emitUserProfileChanged(uid, e2eProfile);
-    return;
-  }
-
   localAiConsentRevokeGuards.delete(uid);
   e2eAiConsentSeeds.delete(uid);
 }
@@ -268,15 +247,9 @@ export function subscribeToUserProfile(params: {
   uid: string;
   onData: (data: UserData | null) => void;
 }): () => void {
-  const e2eProfile = resolveE2EProfileSeedForUid(params.uid);
-  if (e2eProfile) {
-    profileCache.set(params.uid, e2eProfile);
-    params.onData(e2eProfile);
-  } else {
-    const cached = profileCache.get(params.uid);
-    if (cached !== undefined) {
-      params.onData(cached);
-    }
+  const cached = profileCache.get(params.uid);
+  if (cached !== undefined) {
+    params.onData(cached);
   }
 
   return on<{ uid?: string; data?: UserData | null }>(
@@ -291,12 +264,6 @@ export function subscribeToUserProfile(params: {
 export async function fetchUserProfileRemote(
   sessionKey?: string,
 ): Promise<UserData | null> {
-  const e2eProfile = resolveE2EProfileSeedForUid(sessionKey);
-  if (e2eProfile) {
-    emitUserProfileChanged(e2eProfile.uid, e2eProfile);
-    return e2eProfile;
-  }
-
   if (sessionKey) {
     const inFlight = profileFetchInFlight.get(sessionKey);
     if (inFlight) return inFlight;
@@ -318,12 +285,6 @@ export async function fetchUserProfileRemote(
 
   const request = (async () => {
     const response = await get<{ profile: UserData | null }>("/users/me/profile");
-    const e2eProfileAfterRequest = resolveE2EProfileSeedForUid(sessionKey);
-    if (e2eProfileAfterRequest) {
-      emitUserProfileChanged(e2eProfileAfterRequest.uid, e2eProfileAfterRequest);
-      return e2eProfileAfterRequest;
-    }
-
     const profile = response.profile ?? null;
     if (!profile) return null;
 

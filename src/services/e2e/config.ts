@@ -1,5 +1,4 @@
 import Constants from "expo-constants";
-import type { UserData } from "@/types";
 
 type E2EExtra = {
   e2e?: boolean;
@@ -18,44 +17,4 @@ export function getE2EMockChatReply(): string | null {
   if (!E2E_ENABLED) return null;
   const reply = extra.e2eMockChatReply?.trim();
   return reply ? reply : null;
-}
-
-export function buildE2EProfileSeed(uid: string, email: string): UserData {
-  const nowIso = new Date().toISOString();
-  return {
-    uid,
-    email,
-    username: "e2e-user",
-    profile: {
-      language: "en",
-      nutritionProfile: {
-        unitsSystem: "metric",
-        age: "30",
-        sex: "female",
-        height: "170",
-        heightInch: "",
-        weight: "65",
-        preferences: ["balanced"],
-        activityLevel: "moderate",
-        goal: "maintain",
-        chronicDiseases: [],
-        chronicDiseasesOther: "",
-        allergies: [],
-        allergiesOther: "",
-        lifestyle: "",
-        calorieTarget: 2200,
-      },
-      aiPreferences: { stylePersona: "calm_guide" },
-      aiConsent: { status: "granted", grantedAt: nowIso, revokedAt: null },
-      readiness: {
-        status: "ready",
-        onboardingCompletedAt: nowIso,
-        readyAt: nowIso,
-      },
-    },
-    plan: "free",
-    syncState: "pending",
-    createdAt: Date.parse("2025-01-01T00:00:00.000Z"),
-    lastLogin: nowIso,
-  };
 }

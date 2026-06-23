@@ -26,9 +26,6 @@ const mockResolveE2EAiConsentRevoke = jest.fn<
 const mockResolveE2EAiConsentSeed = jest.fn<
   (uid: string) => UserAiConsent | null
 >();
-const mockGetE2EAuthSession = jest.fn<
-  () => { uid: string; email: string } | null
->();
 
 let mockE2EEnabled = false;
 
@@ -81,50 +78,6 @@ jest.mock("@/services/core/apiClient", () => ({
 
 jest.mock("@/services/e2e/config", () => ({
   isE2EModeEnabled: () => mockE2EEnabled,
-  buildE2EProfileSeed: (uid: string, email: string) => ({
-    uid,
-    email,
-    username: "e2e-user",
-    profile: {
-      language: "en",
-      nutritionProfile: {
-        unitsSystem: "metric",
-        age: "30",
-        sex: "female",
-        height: "170",
-        heightInch: "",
-        weight: "65",
-        preferences: ["balanced"],
-        activityLevel: "moderate",
-        goal: "maintain",
-        chronicDiseases: [],
-        chronicDiseasesOther: "",
-        allergies: [],
-        allergiesOther: "",
-        lifestyle: "",
-        calorieTarget: 2200,
-      },
-      aiPreferences: { stylePersona: "calm_guide" },
-      aiConsent: {
-        status: "granted",
-        grantedAt: "2026-05-01T10:00:00.000Z",
-        revokedAt: null,
-      },
-      readiness: {
-        status: "ready",
-        onboardingCompletedAt: "2026-05-01T10:00:00.000Z",
-        readyAt: "2026-05-01T10:00:00.000Z",
-      },
-    },
-    plan: "free",
-    syncState: "pending",
-    createdAt: 1735689600000,
-    lastLogin: "2026-05-01T10:00:00.000Z",
-  }),
-}));
-
-jest.mock("@/services/e2e/authSession", () => ({
-  getE2EAuthSession: () => mockGetE2EAuthSession(),
 }));
 
 jest.mock("@/services/e2e/fixtures", () => ({
@@ -145,7 +98,6 @@ describe("services/user/userProfileRepository", () => {
     jest.clearAllMocks();
     jest.resetModules();
     mockE2EEnabled = false;
-    mockGetE2EAuthSession.mockReturnValue(null);
     mockResolveE2EAiConsentSeed.mockReturnValue(null);
     mockResolveE2EAiConsentGrant.mockReturnValue(null);
     mockResolveE2EAiConsentRevoke.mockReturnValue(null);
@@ -162,136 +114,6 @@ describe("services/user/userProfileRepository", () => {
     const { fetchUserProfileRemote } = require("@/services/user/userProfileRepository");
 
     await expect(fetchUserProfileRemote()).resolves.toBeNull();
-  });
-
-  it("returns local E2E profile seed without a backend fetch when E2E auth session exists", async () => {
-    mockE2EEnabled = true;
-    mockGetE2EAuthSession.mockReturnValue({
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-    });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const repo = require("@/services/user/userProfileRepository");
-
-    await expect(
-      repo.fetchUserProfileRemote("e2e-e2e-example-com"),
-    ).resolves.toMatchObject({
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-      username: "e2e-user",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-
-    expect(mockGet).not.toHaveBeenCalled();
-    expect(repo.getCachedUserProfile("e2e-e2e-example-com")).toMatchObject({
-      uid: "e2e-e2e-example-com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-  });
-
-  it("keeps the local E2E profile seed when the auth session appears during remote bootstrap", async () => {
-    mockE2EEnabled = true;
-    mockGetE2EAuthSession
-      .mockReturnValueOnce(null)
-      .mockReturnValue({
-        uid: "e2e-e2e-example-com",
-        email: "e2e@example.com",
-      });
-    mockGet.mockResolvedValue({ profile: null });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const repo = require("@/services/user/userProfileRepository");
-
-    await expect(
-      repo.fetchUserProfileRemote("e2e-e2e-example-com"),
-    ).resolves.toMatchObject({
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-
-    expect(mockGet).toHaveBeenCalledWith("/users/me/profile");
-    expect(repo.getCachedUserProfile("e2e-e2e-example-com")).toMatchObject({
-      uid: "e2e-e2e-example-com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-  });
-
-  it("prefers an active E2E profile seed over cached null during subscription bootstrap", async () => {
-    mockE2EEnabled = true;
-    mockGetE2EAuthSession.mockReturnValue({
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-    });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const repo = require("@/services/user/userProfileRepository");
-    repo.emitUserProfileChanged("e2e-e2e-example-com", null);
-
-    const received: unknown[] = [];
-    repo.subscribeToUserProfile({
-      uid: "e2e-e2e-example-com",
-      onData: (data: unknown) => received.push(data),
-    });
-
-    expect(received).toHaveLength(1);
-    expect(received[0]).toMatchObject({
-      uid: "e2e-e2e-example-com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-  });
-
-  it("preserves an active E2E profile seed when stale session cleanup clears the profile cache", async () => {
-    mockE2EEnabled = true;
-    mockGetE2EAuthSession.mockReturnValue({
-      uid: "e2e-e2e-example-com",
-      email: "e2e@example.com",
-    });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const repo = require("@/services/user/userProfileRepository");
-
-    const received: unknown[] = [];
-    repo.subscribeToUserProfile({
-      uid: "e2e-e2e-example-com",
-      onData: (data: unknown) => received.push(data),
-    });
-
-    repo.clearCachedUserProfile("e2e-e2e-example-com");
-
-    expect(repo.getCachedUserProfile("e2e-e2e-example-com")).toMatchObject({
-      uid: "e2e-e2e-example-com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
-    expect(received[received.length - 1]).toMatchObject({
-      uid: "e2e-e2e-example-com",
-      profile: {
-        readiness: {
-          status: "ready",
-        },
-      },
-    });
   });
 
   it("returns cached profile immediately without fetching in subscription", async () => {

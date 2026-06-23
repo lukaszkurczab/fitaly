@@ -6,18 +6,45 @@ env:
 - stopApp
 - openLink: __E2E_EXPO_URL__
 - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - assertVisible:
     id: e2e-booted
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
 - openLink: fitaly://e2e/reset?logout=1
 - assertVisible:
     id: e2e-ready-login
 - assertVisible:
     id: login-email-input
-- openLink: "fitaly://e2e/login?email=${E2E_EMAIL}&password=${E2E_PASSWORD}"
-- extendedWaitUntil:
-    visible:
-      id: e2e-ready-home
-    timeout: 30000
+- tapOn:
+    id: login-email-input
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password-input
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit-button
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
 - extendedWaitUntil:
     visible:
       id: tab-home
