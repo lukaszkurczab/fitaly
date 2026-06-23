@@ -135,6 +135,7 @@ export default function IngredientListSection({
       <Pressable
         testID="ingredient-add-button"
         accessibilityRole="button"
+        hitSlop={theme.spacing.xs}
         accessibilityLabel={t(
           ingredients.length > 0
             ? "add_ingredient"
@@ -270,7 +271,10 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       alignItems: "center",
       gap: theme.spacing.xs,
       alignSelf: "flex-start",
-      minHeight: 24,
+      minHeight: 44,
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: theme.spacing.xxs,
+      borderRadius: theme.rounded.sm,
     },
     addIngredientPlus: {
       color: theme.primary,

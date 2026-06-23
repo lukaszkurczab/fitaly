@@ -249,7 +249,7 @@ function MealDetailsFormScreenInner({
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           extraScrollOffset={theme.spacing.xs}
-          keyboardShouldPersistTaps="never"
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
             {
