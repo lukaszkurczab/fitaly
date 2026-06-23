@@ -51,6 +51,7 @@
     "e2e:share": "node scripts/e2e/run-suite.mjs share",
     "e2e:platform-layout": "node scripts/e2e/run-suite.mjs platform-layout",
     "e2e:local-runtime-preflight": "node scripts/e2e/run-suite.mjs local-runtime-preflight",
+    "e2e:ingredient-autocomplete-runtime": "node scripts/e2e/run-suite.mjs ingredient-autocomplete-runtime",
     "e2e:coverage:check": "node scripts/e2e/validate-release-coverage.mjs",
     "e2e:dynamic-text:check": "node scripts/e2e/validate-dynamic-text-assertions.mjs",
     "e2e:visual-audit": "node scripts/e2e/run-visual-suite.mjs",

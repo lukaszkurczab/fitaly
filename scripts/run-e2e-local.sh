@@ -12,6 +12,7 @@ CALLER_ENV_OVERRIDE_NAMES=(
   E2E_PLATFORM
   E2E_UDID
   EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+  EXPO_PUBLIC_ENABLE_FOOD_LIBRARY
   EXPO_PUBLIC_ENABLE_PLANNING
   EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
   EXPO_PUBLIC_ENABLE_SMART_MEMORY
@@ -81,11 +82,13 @@ PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
 ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
 ENABLE_KNOWN_PATTERNS="${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS:-}"
+ENABLE_FOOD_LIBRARY="${EXPO_PUBLIC_ENABLE_FOOD_LIBRARY:-}"
 ENABLE_PLANNING="${EXPO_PUBLIC_ENABLE_PLANNING:-}"
 ENABLE_SMART_MEMORY="${EXPO_PUBLIC_ENABLE_SMART_MEMORY:-}"
 ENABLE_TELEMETRY="${E2E_ENABLE_TELEMETRY:-${EXPO_PUBLIC_ENABLE_TELEMETRY:-}}"
 REVIEW_MEMORY_EXPLANATION_FLOW=0
 SMART_MEMORY_BACKEND_PULL_FLOW=0
+INGREDIENT_AUTOCOMPLETE_FLOW=0
 PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=0
 KNOWN_PATTERN_REVIEW_FLOW=0
 PLANNING_RUNTIME_TELEMETRY_FLOW=0
@@ -120,12 +123,19 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
       SMART_MEMORY_BACKEND_PULL_FLOW=1
       ;;
     *ingredient-autocomplete-private-delete.yaml|*ingredient-autocomplete-private-update.yaml|*ingredient-autocomplete-private-conflict-discard.yaml)
+      INGREDIENT_AUTOCOMPLETE_FLOW=1
       PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=1
+      ENABLE_FOOD_LIBRARY="true"
+      ;;
+    *ingredient-autocomplete-*.yaml)
+      INGREDIENT_AUTOCOMPLETE_FLOW=1
+      ENABLE_FOOD_LIBRARY="true"
       ;;
   esac
 done
 export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
 export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS="${ENABLE_KNOWN_PATTERNS}"
+export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
 export EXPO_PUBLIC_ENABLE_PLANNING="${ENABLE_PLANNING}"
 export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
 export EXPO_PUBLIC_ENABLE_SMART_MEMORY="${ENABLE_SMART_MEMORY}"
@@ -148,6 +158,10 @@ if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUC
   echo "[e2e] Set E2E_ALLOW_PRODUCTION_API=1 only for an explicitly approved production verification." >&2
   exit 1
 fi
+LOCAL_API_BASE_URL=0
+if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* ]]; then
+  LOCAL_API_BASE_URL=1
+fi
 if [[ "${KNOWN_PATTERN_REVIEW_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
   echo "[e2e] Refusing to run Known Patterns runtime flow against implicit smoke API: ${API_BASE_URL}" >&2
   echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
@@ -162,6 +176,18 @@ if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "
   echo "[e2e] Refusing to run Smart Memory runtime telemetry flow against implicit smoke API: ${API_BASE_URL}" >&2
   echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
   exit 1
+fi
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require a localhost/127.0.0.1 backend API. Current API: ${API_BASE_URL}" >&2
+    echo "[e2e] Set E2E_API_BASE_URL to http://127.0.0.1:<port> or http://localhost:<port>; smoke/production backends are not permitted for this local harness." >&2
+    exit 1
+  fi
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    echo "[e2e] Refusing to run Food Library autocomplete runtime evidence without explicit Firebase emulators." >&2
+    exit 1
+  fi
 fi
 EXPO_URL="${E2E_EXPO_URL:-}"
 E2E_EMAIL="${E2E_EMAIL:-${SMOKE_EXPORT_TEST_EMAIL:-e2e@example.com}}"
@@ -439,11 +465,6 @@ if [[ "${E2E_SKIP_API_HEALTH:-}" != "1" ]]; then
   fi
 fi
 
-LOCAL_API_BASE_URL=0
-if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* ]]; then
-  LOCAL_API_BASE_URL=1
-fi
-
 if [[ "${LOCAL_API_BASE_URL}" -eq 1 ]]; then
   if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
     echo "[e2e] Local backend E2E requires FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
@@ -501,13 +522,13 @@ if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
   )
 fi
 
-if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
   if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
-    echo "[e2e] private ingredient autocomplete flows require a local backend API. Current API: ${API_BASE_URL}" >&2
+    echo "[e2e] Ingredient autocomplete runtime flows require a local backend API. Current API: ${API_BASE_URL}" >&2
     exit 1
   fi
   if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
-    echo "[e2e] private ingredient autocomplete flows require FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    echo "[e2e] Ingredient autocomplete runtime flows require FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
     exit 1
   fi
   if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
@@ -521,7 +542,7 @@ if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
     echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
     exit 1
   fi
-  echo "[e2e] Seeding backend Ingredient autocomplete state for private Product/Ingredient flow..."
+  echo "[e2e] Seeding backend Ingredient autocomplete state for Food Library runtime flow..."
   (
     cd "${BACKEND_ROOT}"
     export E2E_EMAIL E2E_PASSWORD
@@ -542,6 +563,7 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
     export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
     export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+    export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
     export EXPO_PUBLIC_ENABLE_PLANNING
     export EXPO_PUBLIC_ENABLE_SMART_MEMORY
     export EXPO_PUBLIC_ENABLE_TELEMETRY
@@ -568,6 +590,9 @@ if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
 fi
 if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
   echo "[e2e] Private Ingredient autocomplete seed enabled for targeted flow."
+fi
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Food Library runtime gate enabled for ingredient autocomplete flow."
 fi
 if [[ "${PLANNING_RUNTIME_TELEMETRY_FLOW}" -eq 1 ]]; then
   echo "[e2e] Planning runtime telemetry gate enabled for targeted flow."
