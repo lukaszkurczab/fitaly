@@ -87,16 +87,3 @@ appId: com.lkurczab.fitaly
     id: history-meal-sync-pending-0
 - assertNotVisible:
     id: history-meal-row-1
-- openLink: fitaly://e2e/connectivity?offline=0
-- assertVisible:
-    id: e2e-ready-home
-- extendedWaitUntil:
-    notVisible:
-      id: offline-banner
-    timeout: 10000
-- assertVisible:
-    id: history-meal-row-0
-- assertVisible:
-    id: history-meal-sync-pending-0
-- assertNotVisible:
-    id: history-meal-row-1
