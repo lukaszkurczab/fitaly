@@ -453,8 +453,12 @@ describe("release candidate workflow evidence wiring", () => {
     const renderStep = workflowStep(releaseEvidenceJob, "Render release evidence markdown");
 
     expect(releaseGateJob).not.toContain("run: npm run e2e:release-gate");
-    expect(releaseGateJob).toContain('E2E_SKIP_API_HEALTH: "1"');
-    expect(releaseGateJob).toContain("E2E_API_BASE_URL: http://127.0.0.1:9");
+    expect(releaseGateJob).toContain('E2E_SKIP_API_HEALTH: "0"');
+    expect(releaseGateJob).toContain("E2E_API_BASE_URL: http://127.0.0.1:8000");
+    expect(releaseGateJob).toContain("FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080");
+    expect(releaseGateJob).toContain("FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099");
+    expect(releaseGateJob).toContain("Start backend API on port 8000");
+    expect(releaseGateJob).toContain("Wait for local backend health");
     expect(releaseGateJob).toContain("E2E_EMAIL: e2e@example.com");
     expect(releaseGateJob).not.toContain("secrets.SMOKE_EXPORT_TEST_EMAIL");
     expect(releaseGateJob).not.toContain("secrets.SMOKE_EXPORT_TEST_PASSWORD");

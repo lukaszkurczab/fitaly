@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import {
@@ -11,7 +12,9 @@ import AppIcon from "@/components/AppIcon";
 import EmptyState from "@/components/EmptyState";
 import RuntimeFeatureDisabledState from "@/components/RuntimeFeatureDisabledState";
 import { useAuthContext } from "@/context/AuthContext";
-import { useMealDraftContext } from "@/context/MealDraftContext";
+import { getDraftKey, useMealDraftContext } from "@/context/MealDraftContext";
+import { ResumeDraftSheet } from "@/feature/Meals/components/ResumeDraftSheet";
+import { hasReviewableMealContent } from "@/feature/Meals/utils/reviewMealDraft";
 import type { RootStackParamList } from "@/navigation/navigate";
 import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 import { fetchRecipeCatalogRemote } from "@/services/recipes/recipeCatalogApi";
@@ -19,6 +22,7 @@ import {
   buildRecipeReviewDraft,
   recipeNeedsReviewEstimateNote,
 } from "@/feature/Recipes/services/recipeReviewDraft";
+import type { Meal } from "@/types/meal";
 import type {
   RecipeCatalogFilterResponse,
   RecipeCatalogFilterResult,
@@ -64,6 +68,9 @@ export default function RecipeCatalogScreen({
   const [reviewBusyRecipeId, setReviewBusyRecipeId] = useState<string | null>(
     null,
   );
+  const [pendingReviewItem, setPendingReviewItem] =
+    useState<RecipeCatalogFilterResult | null>(null);
+  const [resumeDraftMeal, setResumeDraftMeal] = useState<Meal | null>(null);
   const [state, setState] = useState<CatalogState>({
     status: "loading",
     data: null,
@@ -133,7 +140,7 @@ export default function RecipeCatalogScreen({
     navigation.navigate("Profile");
   };
 
-  const handleReviewRecipe = useCallback(
+  const startRecipeReview = useCallback(
     async (item: RecipeCatalogFilterResult) => {
       if (!recipeCatalogEnabled) {
         return;
@@ -149,7 +156,6 @@ export default function RecipeCatalogScreen({
         uid,
       });
 
-      setReviewDraftError(null);
       setReviewBusyRecipeId(item.recipe.recipeId);
       let draftPersisted = false;
       try {
@@ -177,6 +183,72 @@ export default function RecipeCatalogScreen({
       uid,
     ],
   );
+
+  const handleReviewRecipe = useCallback(
+    async (item: RecipeCatalogFilterResult) => {
+      if (!recipeCatalogEnabled) {
+        return;
+      }
+
+      if (!uid) {
+        setReviewDraftError(item.recipe.recipeId);
+        return;
+      }
+
+      setReviewDraftError(null);
+      setReviewBusyRecipeId(item.recipe.recipeId);
+      try {
+        const rawDraft = await AsyncStorage.getItem(getDraftKey(uid));
+        const parsedDraft = rawDraft ? (JSON.parse(rawDraft) as Meal) : null;
+        if (hasReviewableMealContent(parsedDraft)) {
+          setPendingReviewItem(item);
+          setResumeDraftMeal(parsedDraft);
+          return;
+        }
+        await startRecipeReview(item);
+      } catch {
+        setReviewDraftError(item.recipe.recipeId);
+      } finally {
+        setReviewBusyRecipeId((current) =>
+          current === item.recipe.recipeId ? null : current,
+        );
+      }
+    },
+    [recipeCatalogEnabled, startRecipeReview, uid],
+  );
+
+  const handleResumeExistingDraft = useCallback(() => {
+    if (resumeDraftMeal) {
+      setMeal(resumeDraftMeal);
+    }
+    setPendingReviewItem(null);
+    setResumeDraftMeal(null);
+    navigation.navigate("AddMeal", { start: "ReviewMeal" });
+  }, [navigation, resumeDraftMeal, setMeal]);
+
+  const handleCloseResumeDraft = useCallback(() => {
+    setPendingReviewItem(null);
+    setResumeDraftMeal(null);
+  }, []);
+
+  const handleDiscardExistingDraft = useCallback(async () => {
+    if (!uid || !pendingReviewItem) {
+      handleCloseResumeDraft();
+      return;
+    }
+
+    const item = pendingReviewItem;
+    setPendingReviewItem(null);
+    setResumeDraftMeal(null);
+    await removeDraft(uid);
+    await startRecipeReview(item);
+  }, [
+    handleCloseResumeDraft,
+    pendingReviewItem,
+    removeDraft,
+    startRecipeReview,
+    uid,
+  ]);
 
   if (!recipeCatalogEnabled) {
     return (
@@ -341,6 +413,14 @@ export default function RecipeCatalogScreen({
           ))}
         </View>
       )}
+      <ResumeDraftSheet
+        meal={resumeDraftMeal}
+        onResume={handleResumeExistingDraft}
+        onDiscard={() => {
+          void handleDiscardExistingDraft();
+        }}
+        onClose={handleCloseResumeDraft}
+      />
     </FormScreenShell>
   );
 }

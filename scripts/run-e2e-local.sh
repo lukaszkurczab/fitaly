@@ -12,8 +12,10 @@ CALLER_ENV_OVERRIDE_NAMES=(
   E2E_PLATFORM
   E2E_UDID
   EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+  EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION
   EXPO_PUBLIC_ENABLE_FOOD_LIBRARY
   EXPO_PUBLIC_ENABLE_PLANNING
+  EXPO_PUBLIC_ENABLE_RECIPE_CATALOG
   EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
   EXPO_PUBLIC_ENABLE_SMART_MEMORY
   EXPO_PUBLIC_ENABLE_TELEMETRY
@@ -90,8 +92,10 @@ PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
 
 ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
 ENABLE_KNOWN_PATTERNS="${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS:-}"
+ENABLE_HOME_NEXT_ACTION="${EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION:-}"
 ENABLE_FOOD_LIBRARY="${EXPO_PUBLIC_ENABLE_FOOD_LIBRARY:-}"
 ENABLE_PLANNING="${EXPO_PUBLIC_ENABLE_PLANNING:-}"
+ENABLE_RECIPE_CATALOG="${EXPO_PUBLIC_ENABLE_RECIPE_CATALOG:-}"
 ENABLE_SMART_MEMORY="${EXPO_PUBLIC_ENABLE_SMART_MEMORY:-}"
 ENABLE_TELEMETRY="${E2E_ENABLE_TELEMETRY:-${EXPO_PUBLIC_ENABLE_TELEMETRY:-}}"
 REVIEW_MEMORY_EXPLANATION_FLOW=0
@@ -106,6 +110,7 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
     *review-memory-explanation.yaml|*review-memory-disabled-precedence.yaml|*review-memory-new-candidate-row.yaml)
       REVIEW_MEMORY_EXPLANATION_FLOW=1
       ENABLE_REVIEW_MEMORY_EXPLANATION="true"
+      ENABLE_SMART_MEMORY="true"
       ;;
     *known-pattern-review-draft.yaml|*known-pattern-runtime-telemetry.yaml)
       KNOWN_PATTERN_REVIEW_FLOW=1
@@ -129,6 +134,22 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
       ;;
     *smart-memory-backend-pull.yaml)
       SMART_MEMORY_BACKEND_PULL_FLOW=1
+      ENABLE_SMART_MEMORY="true"
+      ;;
+    *home-next-action-planned-item.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ENABLE_PLANNING="true"
+      ;;
+    *home-next-action-known-pattern.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ENABLE_KNOWN_PATTERNS="true"
+      ENABLE_SMART_MEMORY="true"
+      ;;
+    *home-next-action-*.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ;;
+    *recipe-catalog-review-draft.yaml)
+      ENABLE_RECIPE_CATALOG="true"
       ;;
     *ingredient-autocomplete-private-delete.yaml|*ingredient-autocomplete-private-update.yaml|*ingredient-autocomplete-private-conflict-discard.yaml)
       INGREDIENT_AUTOCOMPLETE_FLOW=1
@@ -143,8 +164,10 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
 done
 export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
 export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS="${ENABLE_KNOWN_PATTERNS}"
+export EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION="${ENABLE_HOME_NEXT_ACTION}"
 export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
 export EXPO_PUBLIC_ENABLE_PLANNING="${ENABLE_PLANNING}"
+export EXPO_PUBLIC_ENABLE_RECIPE_CATALOG="${ENABLE_RECIPE_CATALOG}"
 export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
 export EXPO_PUBLIC_ENABLE_SMART_MEMORY="${ENABLE_SMART_MEMORY}"
 export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
@@ -167,8 +190,21 @@ if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUC
   exit 1
 fi
 LOCAL_API_BASE_URL=0
-if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* ]]; then
+if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* || "${API_BASE_URL%/}" == "http://10.0.2.2:"* ]]; then
   LOCAL_API_BASE_URL=1
+fi
+if [[ "${E2E_CONFIG_DRY_RUN:-}" == "1" ]]; then
+  echo "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION=${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION}"
+  echo "EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS=${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS}"
+  echo "EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION=${EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION}"
+  echo "EXPO_PUBLIC_ENABLE_FOOD_LIBRARY=${EXPO_PUBLIC_ENABLE_FOOD_LIBRARY}"
+  echo "EXPO_PUBLIC_ENABLE_PLANNING=${EXPO_PUBLIC_ENABLE_PLANNING}"
+  echo "EXPO_PUBLIC_ENABLE_RECIPE_CATALOG=${EXPO_PUBLIC_ENABLE_RECIPE_CATALOG}"
+  echo "EXPO_PUBLIC_ENABLE_SMART_MEMORY=${EXPO_PUBLIC_ENABLE_SMART_MEMORY}"
+  echo "EXPO_PUBLIC_ENABLE_TELEMETRY=${EXPO_PUBLIC_ENABLE_TELEMETRY}"
+  echo "API_BASE_URL=${API_BASE_URL}"
+  echo "LOCAL_API_BASE_URL=${LOCAL_API_BASE_URL}"
+  exit 0
 fi
 if [[ "${KNOWN_PATTERN_REVIEW_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
   echo "[e2e] Refusing to run Known Patterns runtime flow against implicit smoke API: ${API_BASE_URL}" >&2
@@ -187,8 +223,8 @@ if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "
 fi
 if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
   if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
-    echo "[e2e] Ingredient autocomplete runtime flows require a localhost/127.0.0.1 backend API. Current API: ${API_BASE_URL}" >&2
-    echo "[e2e] Set E2E_API_BASE_URL to http://127.0.0.1:<port> or http://localhost:<port>; smoke/production backends are not permitted for this local harness." >&2
+    echo "[e2e] Ingredient autocomplete runtime flows require a localhost/127.0.0.1/10.0.2.2 backend API. Current API: ${API_BASE_URL}" >&2
+    echo "[e2e] Set E2E_API_BASE_URL to http://127.0.0.1:<port>, http://localhost:<port>, or http://10.0.2.2:<port>; smoke/production backends are not permitted for this local harness." >&2
     exit 1
   fi
   if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
@@ -571,8 +607,10 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
     export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
     export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+    export EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION
     export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
     export EXPO_PUBLIC_ENABLE_PLANNING
+    export EXPO_PUBLIC_ENABLE_RECIPE_CATALOG
     export EXPO_PUBLIC_ENABLE_SMART_MEMORY
     export EXPO_PUBLIC_ENABLE_TELEMETRY
     export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."

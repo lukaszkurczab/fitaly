@@ -1001,6 +1001,66 @@ describe("ReviewMealScreen", () => {
     });
   });
 
+  it("allows planned drafts when ingredient rows are zero but aggregate totals are positive", async () => {
+    const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
+    mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig({
+      planningEnabled: true,
+    }));
+    const ctx = buildDraftContext({
+      name: "Planned estimate",
+      ingredients: [
+        {
+          id: "ing-zero",
+          name: "Planned portion",
+          amount: 1,
+          unit: "g",
+          kcal: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0,
+        },
+      ],
+      totals: { kcal: 510, protein: 28, fat: 18, carbs: 62 },
+      photoUrl: null,
+      planningSource: {
+        plannedMealId: "planned-aggregate-1",
+        plannedMealVersion: 3,
+        sourceType: "manual",
+        sourceRef: null,
+        nutritionEstimateState: "partial",
+        missingNutritionFields: [],
+      },
+    });
+    const testProps = buildProps();
+
+    mockUseMealDraftContext.mockReturnValue(ctx);
+    mockUseMeals.mockReturnValue({
+      saveMeal,
+      meals: [],
+    });
+
+    const { queryByTestId, getByText } = renderWithTheme(
+      <ReviewMealScreen {...testProps.props} />,
+    );
+
+    expect(queryByTestId("review-meal-planning-nutrition-blocked")).toBeNull();
+    fireEvent.press(getByText("Save meal"));
+
+    await waitFor(() => {
+      expect(saveMeal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal: expect.objectContaining({
+            planningSource: expect.objectContaining({
+              plannedMealId: "planned-aggregate-1",
+              plannedMealVersion: 3,
+            }),
+            totals: { kcal: 510, protein: 28, fat: 18, carbs: 62 },
+          }),
+        }),
+      );
+    });
+  });
+
   it("saves the reviewed meal and resets back home", async () => {
     const saveMeal = jest.fn(async ({ meal }: { meal: Meal }) => meal);
     const ctx = buildDraftContext();

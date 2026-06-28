@@ -98,11 +98,16 @@ function buildAiReviewFingerprint(meal: Meal): string {
 function hasPositiveNutritionEvidence(meal?: Meal | null): boolean {
   if (!meal) return false;
   const nutrition = calculateTotalNutrients([meal]);
+  const aggregateNutrition = meal.totals;
   return (
     nutrition.kcal > 0 ||
     nutrition.protein > 0 ||
     nutrition.carbs > 0 ||
-    nutrition.fat > 0
+    nutrition.fat > 0 ||
+    (aggregateNutrition?.kcal ?? 0) > 0 ||
+    (aggregateNutrition?.protein ?? 0) > 0 ||
+    (aggregateNutrition?.carbs ?? 0) > 0 ||
+    (aggregateNutrition?.fat ?? 0) > 0
   );
 }
 

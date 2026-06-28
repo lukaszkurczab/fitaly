@@ -1,6 +1,7 @@
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import RecipeCatalogScreen from "@/feature/Recipes/screens/RecipeCatalogScreen";
 import { fetchRecipeCatalogRemote } from "@/services/recipes/recipeCatalogApi";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
@@ -41,6 +42,7 @@ jest.mock("@/context/AuthContext", () => ({
 }));
 
 jest.mock("@/context/MealDraftContext", () => ({
+  getDraftKey: (uid: string) => `draft:${uid}`,
   useMealDraftContext: () => ({
     setMeal: mockSetMeal,
     saveDraft: mockSaveDraft,
@@ -48,6 +50,46 @@ jest.mock("@/context/MealDraftContext", () => ({
     setLastScreen: mockSetLastScreen,
   }),
 }));
+
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async () => null),
+  },
+}));
+
+jest.mock("@/feature/Meals/components/ResumeDraftSheet", () => {
+  const { Pressable, Text, View } =
+    jest.requireActual<typeof import("react-native")>("react-native");
+
+  return {
+    ResumeDraftSheet: ({
+      meal,
+      onResume,
+      onDiscard,
+      onClose,
+    }: {
+      meal: Meal | null;
+      onResume: () => void;
+      onDiscard: () => void;
+      onClose: () => void;
+    }) =>
+      meal ? (
+        <View testID="resume-draft-sheet">
+          <Text>{meal.name ?? "Draft"}</Text>
+          <Pressable onPress={onResume} testID="resume-draft-resume-button">
+            <Text>Resume</Text>
+          </Pressable>
+          <Pressable onPress={onDiscard} testID="resume-draft-discard-button">
+            <Text>Discard</Text>
+          </Pressable>
+          <Pressable onPress={onClose} testID="resume-draft-close-button">
+            <Text>Close</Text>
+          </Pressable>
+        </View>
+      ) : null,
+  };
+});
 
 jest.mock("uuid", () => ({
   v4: () => mockUuid(),
@@ -143,6 +185,7 @@ const mockFetchRecipeCatalogRemote =
   fetchRecipeCatalogRemote as jest.MockedFunction<
     typeof fetchRecipeCatalogRemote
   >;
+const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 
 const navigation = {
   canGoBack: jest.fn(() => true),
@@ -252,6 +295,7 @@ describe("RecipeCatalogScreen", () => {
     mockUuid.mockImplementation(() => `uuid-${mockUuid.mock.calls.length + 1}`);
     navigation.canGoBack.mockReturnValue(true);
     mockRuntimeFeatures.recipeCatalog = true;
+    mockAsyncStorage.getItem.mockResolvedValue(null);
   });
 
   it("renders an unavailable state without loading catalog data when disabled", async () => {
@@ -504,6 +548,101 @@ describe("RecipeCatalogScreen", () => {
     expect(draft.notes).toContain("Recipe catalog estimate");
     expect(mockSaveDraft).toHaveBeenCalledWith("user-1", draft);
     expect(mockSetLastScreen).toHaveBeenCalledWith("user-1", "ReviewMeal");
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("requires a resume or discard decision before overwriting an existing meaningful draft", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(response());
+    const existingDraft: Meal = {
+      userUid: "user-1",
+      mealId: "existing-draft",
+      timestamp: "2026-06-28T10:00:00.000Z",
+      type: "lunch",
+      name: "Unsaved lunch",
+      ingredients: [
+        {
+          id: "ing-existing",
+          name: "Rice",
+          amount: 100,
+          kcal: 130,
+          protein: 3,
+          fat: 1,
+          carbs: 28,
+        },
+      ],
+      totals: { kcal: 130, protein: 3, fat: 1, carbs: 28 },
+      source: "manual",
+      syncState: "pending",
+      photoUrl: null,
+      createdAt: "2026-06-28T10:00:00.000Z",
+      updatedAt: "2026-06-28T10:00:00.000Z",
+    };
+    mockAsyncStorage.getItem.mockResolvedValueOnce(JSON.stringify(existingDraft));
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Oat bowl");
+    fireEvent.press(screen.getByTestId("recipe-catalog-review-recipe-visible"));
+
+    expect(await screen.findByTestId("resume-draft-sheet")).toBeTruthy();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(mockSetMeal).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId("resume-draft-discard-button"));
+
+    await waitFor(() => {
+      expect(mockRemoveDraft).toHaveBeenCalledWith("user-1");
+      expect(mockSaveDraft).toHaveBeenCalledTimes(1);
+      expect(mockSetMeal).toHaveBeenCalledTimes(1);
+      expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+        start: "ReviewMeal",
+      });
+    });
+  });
+
+  it("resumes an existing draft without overwriting it from Recipe Catalog", async () => {
+    mockFetchRecipeCatalogRemote.mockResolvedValueOnce(response());
+    const existingDraft: Meal = {
+      userUid: "user-1",
+      mealId: "existing-draft",
+      timestamp: "2026-06-28T10:00:00.000Z",
+      type: "lunch",
+      name: "Unsaved lunch",
+      ingredients: [
+        {
+          id: "ing-existing",
+          name: "Rice",
+          amount: 100,
+          kcal: 130,
+          protein: 3,
+          fat: 1,
+          carbs: 28,
+        },
+      ],
+      totals: { kcal: 130, protein: 3, fat: 1, carbs: 28 },
+      source: "manual",
+      syncState: "pending",
+      photoUrl: null,
+      createdAt: "2026-06-28T10:00:00.000Z",
+      updatedAt: "2026-06-28T10:00:00.000Z",
+    };
+    mockAsyncStorage.getItem.mockResolvedValueOnce(JSON.stringify(existingDraft));
+
+    const screen = renderWithTheme(
+      <RecipeCatalogScreen navigation={navigation as never} />,
+    );
+
+    await screen.findByText("Oat bowl");
+    fireEvent.press(screen.getByTestId("recipe-catalog-review-recipe-visible"));
+    fireEvent.press(await screen.findByTestId("resume-draft-resume-button"));
+
+    expect(mockSetMeal).toHaveBeenCalledWith(existingDraft);
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+    expect(mockRemoveDraft).not.toHaveBeenCalled();
     expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
       start: "ReviewMeal",
     });
