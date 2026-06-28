@@ -265,7 +265,7 @@ export const TextInput = forwardRef<RNTextInput, Props>(
             maxLength={maxLength}
             style={[
               styles.input,
-              multiline ? styles.multilineInput : styles.singleLineInput,
+              multiline ? styles.multilineInput : "",
               {
                 maxHeight: multiline ? inputMaxHeight : undefined,
               },
@@ -276,7 +276,6 @@ export const TextInput = forwardRef<RNTextInput, Props>(
                     styles.singleLineInputAlignment,
                     {
                       height: singleLineInputHeight,
-                      lineHeight: singleLineInputHeight,
                     },
                   ],
             ]}
@@ -341,11 +340,7 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
       flex: 1,
       color: theme.input.text,
       fontSize: theme.typography.size.bodyL,
-      height: theme.typography.lineHeight.bodyL,
       fontFamily: theme.typography.fontFamily.regular,
-    },
-    singleLineInput: {
-      marginVertical: 0,
     },
     singleLineInputAlignment: {
       textAlignVertical: "center",

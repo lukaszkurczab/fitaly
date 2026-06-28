@@ -1,5 +1,6 @@
 import React from "react";
 import type { ReactTestInstance } from "react-test-renderer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Pressable as mockPressable,
   StyleSheet,
@@ -10,6 +11,10 @@ import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import HomeScreen from "@/feature/Home/screens/HomeScreen";
 import { renderWithTheme } from "@/test-utils/renderWithTheme";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
+import { fetchPlannedMealsRemote } from "@/services/plannedMeals/plannedMealsApi";
+import type { KnownPatternCandidate } from "@/types/knownPatterns";
+import type { PlannedMealItem } from "@/types/plannedMeals";
 
 const mockReact = React;
 
@@ -19,6 +24,7 @@ const mockUseAuthContext = jest.fn();
 const mockUsePremiumContext = jest.fn();
 const mockUseAccessContext = jest.fn();
 const mockUseMealAddMethodState = jest.fn();
+const mockLoadDraft = jest.fn<(uid: string) => Promise<void>>();
 const mockUseWeeklyReport = jest.fn();
 const mockUseCoach = jest.fn();
 const mockGetSyncCounts =
@@ -35,7 +41,24 @@ const mockDiscardFailedUploads =
   jest.fn<(...args: unknown[]) => Promise<number>>();
 const mockRequestSync = jest.fn<(...args: unknown[]) => Promise<void>>();
 const mockEmit = jest.fn<(...args: unknown[]) => void>();
+const mockTrackHomeNextActionShown =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockTrackHomeNextActionStarted =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockTrackHomeNextActionDismissed =
+  jest.fn<(...args: unknown[]) => Promise<void>>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  homeNextAction: true,
+  planning: true,
+};
+const mockFetchKnownPatternCandidatesRemote =
+  fetchKnownPatternCandidatesRemote as jest.MockedFunction<
+    typeof fetchKnownPatternCandidatesRemote
+  >;
+const mockFetchPlannedMealsRemote =
+  fetchPlannedMealsRemote as jest.MockedFunction<typeof fetchPlannedMealsRemote>;
 const mockEventHandlers = new Map<string, Set<(payload?: unknown) => void>>();
+const mockFocusEffectCallbacks: Array<() => void | (() => void)> = [];
 
 const HOME_MEAL_DEAD_LETTER_KINDS = [
   "upsert",
@@ -88,6 +111,20 @@ jest.mock("@/context/AccessContext", () => ({
   useAccessContext: () => mockUseAccessContext(),
 }));
 
+jest.mock("@/context/MealDraftContext", () => ({
+  getDraftKey: (uid: string) => `draft:${uid}`,
+  getScreenKey: (uid: string) => `screen:${uid}`,
+  useMealDraftContext: () => ({
+    loadDraft: (uid: string) => mockLoadDraft(uid),
+  }),
+}));
+
+jest.mock("@react-navigation/native", () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    mockFocusEffectCallbacks.push(callback);
+  },
+}));
+
 jest.mock("@/feature/Meals/hooks/useMealAddMethodState", () => ({
   useMealAddMethodState: (params: unknown) => mockUseMealAddMethodState(params),
 }));
@@ -129,6 +166,27 @@ jest.mock("@/services/core/events", () => ({
   },
 }));
 
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
+}));
+
+jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
+  trackHomeNextActionShown: (...args: unknown[]) =>
+    mockTrackHomeNextActionShown(...args),
+  trackHomeNextActionStarted: (...args: unknown[]) =>
+    mockTrackHomeNextActionStarted(...args),
+  trackHomeNextActionDismissed: (...args: unknown[]) =>
+    mockTrackHomeNextActionDismissed(...args),
+}));
+
+jest.mock("@/services/knownPatterns/knownPatternCandidatesApi", () => ({
+  fetchKnownPatternCandidatesRemote: jest.fn(),
+}));
+
+jest.mock("@/services/plannedMeals/plannedMealsApi", () => ({
+  fetchPlannedMealsRemote: jest.fn(),
+}));
+
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
@@ -154,6 +212,32 @@ jest.mock("react-i18next", () => ({
       if (key === "meals:savedTitle") return "Saved meals";
       if (key === "home:methodSelector") return `Method: ${options?.method}`;
       if (key === "home:chooseAddMethod") return "Choose how to add";
+      if (key === "home:nextAction.reviewDraft.title") {
+        return "Finish reviewing your meal";
+      }
+      if (key === "home:nextAction.reviewDraft.description") {
+        return "You have an unfinished meal ready to review.";
+      }
+      if (key === "home:nextAction.reviewDraft.cta") return "Continue";
+      if (key === "home:nextAction.plannedItem.title") {
+        return "Check your next planned meal";
+      }
+      if (key === "home:nextAction.plannedItem.description") {
+        return "You have a planned item due soon. Open Planning to review it before logging.";
+      }
+      if (key === "home:nextAction.plannedItem.cta") return "Open Planning";
+      if (key === "home:nextAction.knownPattern.title") {
+        return "Review a recent meal pattern";
+      }
+      if (key === "home:nextAction.knownPattern.description") {
+        return "A repeated meal is ready in Add meal. Review it before saving anything.";
+      }
+      if (key === "home:nextAction.knownPattern.cta") return "Open Add meal";
+      if (key === "home:nextAction.dismiss") return "Not now";
+      if (key === "home:planningEntry.title") return "Plan next meals";
+      if (key === "home:planningEntry.description") {
+        return "Prepare 1-3 days without logging anything yet.";
+      }
       if (key === "home:mealCount") {
         return options?.count === 1 ? "1 meal" : `${options?.count ?? 0} meals`;
       }
@@ -448,6 +532,120 @@ function createMeal(overrides: Record<string, unknown> = {}) {
   };
 }
 
+async function runLatestFocusEffect() {
+  const callback = mockFocusEffectCallbacks[mockFocusEffectCallbacks.length - 1];
+  await act(async () => {
+    callback?.();
+    await Promise.resolve();
+  });
+}
+
+async function storeReviewDraft() {
+  await AsyncStorage.setItem(
+    "draft:user-1",
+    JSON.stringify(
+      createMeal({
+        mealId: "draft-1",
+        syncState: "pending",
+        ingredients: [
+          {
+            id: "ingredient-1",
+            name: "Oats",
+            amount: 80,
+            unit: "g",
+            kcal: 300,
+            protein: 10,
+            fat: 6,
+            carbs: 52,
+          },
+        ],
+      }),
+    ),
+  );
+  await AsyncStorage.setItem("screen:user-1", "AddMeal");
+}
+
+function createPlannedItem(
+  overrides: Partial<PlannedMealItem> = {},
+): PlannedMealItem {
+  return {
+    plannedMealId: "planned-1",
+    version: 2,
+    dateBucket: "2026-03-18",
+    timeBucket: "lunch",
+    sourceType: "manual",
+    sourceRef: null,
+    draftSnapshot: {
+      name: "Private planned bowl",
+      type: "lunch",
+      ingredients: [
+        {
+          id: "planned-ingredient-1",
+          name: "Private planned bowl",
+          amount: 1,
+          kcal: 400,
+          protein: 24,
+          fat: 14,
+          carbs: 44,
+        },
+      ],
+      totals: {
+        kcal: 400,
+        protein: 24,
+        fat: 14,
+        carbs: 44,
+      },
+      notes: null,
+      tags: [],
+    },
+    nutritionEstimate: {
+      state: "known",
+      totals: {
+        kcal: 400,
+        protein: 24,
+        fat: 14,
+        carbs: 44,
+      },
+      missingFields: [],
+      confidence: "medium",
+    },
+    status: "planned",
+    createdAt: "2026-03-18T07:00:00.000Z",
+    updatedAt: "2026-03-18T07:05:00.000Z",
+    ...overrides,
+  };
+}
+
+function createKnownPatternCandidate(
+  overrides: Partial<KnownPatternCandidate> = {},
+): KnownPatternCandidate {
+  return {
+    candidateId: "a1b2c3d4e5f6a1b2",
+    candidateType: "repeated_meal_snapshot",
+    subjectKeyHash: "b1c2d3e4f5a6b1c2",
+    state: "candidate",
+    confidenceBucket: "high",
+    sourceCountBucket: "3_4",
+    distinctDayCountBucket: "3_4",
+    firstSeenAt: "2026-03-15T08:00:00.000Z",
+    lastSeenAt: "2026-03-18T08:00:00.000Z",
+    expiresAt: "2026-03-18T13:00:00.000Z",
+    sourceRefs: [
+      {
+        sourceType: "meal_snapshot",
+        sourceHash: "c1d2e3f4a5b6c1d2",
+      },
+    ],
+    explanation: {
+      key: "knownPattern.explanation.repeatedMealSnapshot",
+      reasonCode: "repeated_meal_recent_distinct_days",
+    },
+    suggestedAction: "open_review_draft",
+    createdByRuleVersion: "known-pattern-v1",
+    ...overrides,
+  };
+}
+
 function createCoachInsight(overrides: Record<string, unknown> = {}) {
   return {
     id: "2026-03-18:stable",
@@ -482,11 +680,14 @@ function createCoachResponse(topInsight: ReturnType<typeof createCoachInsight> |
 }
 
 describe("HomeScreen", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-03-18T08:00:00.000Z"));
     jest.clearAllMocks();
+    await AsyncStorage.clear();
     mockEventHandlers.clear();
+    mockFocusEffectCallbacks.length = 0;
+    mockLoadDraft.mockResolvedValue(undefined);
     mockGetSyncCounts.mockResolvedValue({ dead: 0, pending: 0 });
     mockGetDeadLetterOps.mockResolvedValue([]);
     mockRetryDeadLetterOps.mockResolvedValue(0);
@@ -494,6 +695,30 @@ describe("HomeScreen", () => {
     mockRetryFailedUploads.mockResolvedValue(0);
     mockDiscardFailedUploads.mockResolvedValue(0);
     mockRequestSync.mockResolvedValue(undefined);
+    mockTrackHomeNextActionShown.mockResolvedValue(undefined);
+    mockTrackHomeNextActionStarted.mockResolvedValue(undefined);
+    mockTrackHomeNextActionDismissed.mockResolvedValue(undefined);
+    mockRuntimeFeatures.homeNextAction = true;
+    mockRuntimeFeatures.planning = true;
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 0,
+      },
+    });
+    mockFetchPlannedMealsRemote.mockResolvedValue({
+      items: [],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 0,
+      },
+    });
 
     mockUseUserProfileContext.mockReturnValue({
       userData: {
@@ -784,6 +1009,639 @@ describe("HomeScreen", () => {
 
     expect(queryByTestId("home-dead-letter-recovery")).toBeNull();
     expect(queryByTestId("home-photo-upload-recovery")).toBeNull();
+  });
+
+  it("opens Planning from Home without starting meal logging or draft resume", async () => {
+    const handleDirectStart = jest.fn(async () => undefined);
+    const handleContinueDraft = jest.fn(async () => undefined);
+    mockUseMealAddMethodState.mockReturnValue({
+      preferredOption: {
+        key: "photo",
+        icon: "camera",
+        titleKey: "photoTitle",
+      },
+      showResumeModal: false,
+      handleDirectStart,
+      handleContinueDraft,
+      handleDiscardDraft: jest.fn(async () => undefined),
+      closeResumeModal: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(getByText("Plan next meals")).toBeTruthy();
+    expect(
+      getByText("Prepare 1-3 days without logging anything yet."),
+    ).toBeTruthy();
+
+    fireEvent.press(getByTestId("home-planning-entry"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("Planning");
+    expect(handleDirectStart).not.toHaveBeenCalled();
+    expect(handleContinueDraft).not.toHaveBeenCalled();
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+  });
+
+  it("hides Planning entrypoints and does not continue to Planning when planning is disabled", async () => {
+    mockRuntimeFeatures.planning = false;
+
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    expect(queryByTestId("home-planning-entry")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockFetchKnownPatternCandidatesRemote).toHaveBeenCalled();
+    });
+
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("Planning");
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: "continue_planned_item",
+      }),
+    );
+  });
+
+  it("hides all Home Next Action prompts when Home Next Action is disabled", async () => {
+    mockRuntimeFeatures.homeNextAction = false;
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockFetchKnownPatternCandidatesRemote).not.toHaveBeenCalled();
+    });
+    expect(mockFetchPlannedMealsRemote).not.toHaveBeenCalled();
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
+  });
+
+  it("renders a planned item next action and opens Planning without loading Review draft", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Check your next planned meal")).toBeTruthy();
+    expect(
+      getByText(
+        "You have a planned item due soon. Open Planning to review it before logging.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("Private planned bowl")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("Planning");
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      ownerFlow: "Planning",
+      state: "eligible",
+    });
+  });
+
+  it("dismisses a planned item next action without starting Review or meal logging", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-dismiss-button"));
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      reasonCode: "planned_item_due",
+      cooldownBucket: "24h",
+    });
+    await expect(
+      AsyncStorage.getItem("home-next-action-dismissals:user-1"),
+    ).resolves.toContain("planned-meal:planned-1");
+  });
+
+  it("renders a known-pattern next action and opens MealAddMethod without loading Review draft", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Review a recent meal pattern")).toBeTruthy();
+    expect(
+      getByText(
+        "A repeated meal is ready in Add meal. Review it before saving anything.",
+      ),
+    ).toBeTruthy();
+    expect(queryByText("a1b2c3d4e5f6a1b2")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      state: "eligible",
+      reasonCode: "known_pattern_available",
+      sourceDomain: "known_pattern_candidate",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "temporary",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      ownerFlow: "MealAddMethod",
+      state: "eligible",
+    });
+  });
+
+  it("dismisses a known-pattern next action without declining or opening a draft", async () => {
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-dismiss-button"));
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("MealAddMethod", {
+      selectionMode: "temporary",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "confirm_known_pattern",
+      reasonCode: "known_pattern_available",
+      cooldownBucket: "24h",
+    });
+    await expect(
+      AsyncStorage.getItem("home-next-action-dismissals:user-1"),
+    ).resolves.toContain("known-pattern:a1b2c3d4e5f6a1b2");
+  });
+
+  it("keeps planned item as the primary next action when a known pattern also exists", async () => {
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValueOnce({
+      items: [createKnownPatternCandidate()],
+      queryEcho: {
+        ruleVersion: "known-pattern-v1",
+        minSourceCount: 3,
+        minDistinctDays: 3,
+        maxHistoryItems: 20,
+        returnedCandidates: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText, queryByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Check your next planned meal")).toBeTruthy();
+    expect(queryByText("Review a recent meal pattern")).toBeNull();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_planned_item",
+      state: "eligible",
+      reasonCode: "planned_item_due",
+      sourceDomain: "planned_meal",
+    });
+  });
+
+  it("falls back to the review draft next action when planned meals are unavailable", async () => {
+    await storeReviewDraft();
+    mockFetchPlannedMealsRemote.mockRejectedValueOnce(
+      new Error("planned meals unavailable"),
+    );
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Finish reviewing your meal")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockLoadDraft).toHaveBeenCalledWith("user-1");
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+  });
+
+  it("keeps review draft as the primary next action when a planned item also exists", async () => {
+    await storeReviewDraft();
+    mockFetchPlannedMealsRemote.mockResolvedValueOnce({
+      items: [createPlannedItem()],
+      queryEcho: {
+        startDate: "2026-03-18",
+        days: 3,
+        includeDeleted: false,
+        returnedItems: 1,
+      },
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    expect(getByText("Finish reviewing your meal")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockLoadDraft).toHaveBeenCalledWith("user-1");
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("Planning");
+  });
+
+  it("renders a compact review draft next action after recovery banners and continues to AddMeal review", async () => {
+    await storeReviewDraft();
+    mockGetSyncCounts.mockResolvedValue({ dead: 1, pending: 1 });
+    mockGetDeadLetterOps.mockResolvedValue([{ kind: "upsert" }]);
+    const handleContinueDraft = jest.fn(async () => undefined);
+    mockUseMealAddMethodState.mockReturnValue({
+      preferredOption: {
+        key: "photo",
+        icon: "camera",
+        titleKey: "photoTitle",
+      },
+      showResumeModal: false,
+      handleDirectStart: jest.fn(async () => undefined),
+      handleContinueDraft,
+      handleDiscardDraft: jest.fn(async () => undefined),
+      closeResumeModal: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { UNSAFE_getAllByType, getByTestId, getByText } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-dead-letter-recovery")).toBeTruthy();
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    const visibleSurfaceIds = UNSAFE_getAllByType(mockView)
+      .map((view) => view.props.testID)
+      .filter(
+        (testID): testID is string =>
+          testID === "home-dead-letter-recovery" ||
+          testID === "home-next-action-prompt",
+      );
+    expect(visibleSurfaceIds).toEqual([
+      "home-dead-letter-recovery",
+      "home-next-action-prompt",
+    ]);
+    expect(getByText("Finish reviewing your meal")).toBeTruthy();
+    expect(getByText("You have an unfinished meal ready to review.")).toBeTruthy();
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      state: "eligible",
+      reasonCode: "review_draft_available",
+      sourceDomain: "review_draft",
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockLoadDraft).toHaveBeenCalledWith("user-1");
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionStarted).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      ownerFlow: "ReviewMeal",
+      state: "eligible",
+    });
+    expect(mockTrackHomeNextActionDismissed).not.toHaveBeenCalled();
+    expect(handleContinueDraft).not.toHaveBeenCalled();
+  });
+
+  it("emits shown once for the same visible review draft source version", async () => {
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { getByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
+
+    await runLatestFocusEffect();
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+    expect(mockTrackHomeNextActionShown).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the review draft next action and persists cooldown when dismissed", async () => {
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-dismiss-button"));
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+    expect(mockLoadDraft).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledTimes(1);
+    expect(mockTrackHomeNextActionDismissed).toHaveBeenCalledWith({
+      actionType: "continue_review",
+      reasonCode: "review_draft_available",
+      cooldownBucket: "24h",
+    });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
+    await expect(
+      AsyncStorage.getItem("home-next-action-dismissals:user-1"),
+    ).resolves.toContain("review-draft:local");
+  });
+
+  it("refreshes the review draft next action on focus and hides stale cleared drafts", async () => {
+    await storeReviewDraft();
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    await AsyncStorage.multiRemove(["draft:user-1", "screen:user-1"]);
+    await runLatestFocusEffect();
+
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+  });
+
+  it("shows an explicit failure toast and hides the prompt when the review draft cannot load", async () => {
+    await storeReviewDraft();
+    mockLoadDraft.mockRejectedValueOnce(new Error("draft read failed"));
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+        key: "nextAction.reviewDraft.unavailable",
+        ns: "home",
+      });
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+  });
+
+  it("shows an explicit failure toast when the review draft disappears before navigation", async () => {
+    await storeReviewDraft();
+    mockLoadDraft.mockImplementationOnce(async () => {
+      await AsyncStorage.multiRemove(["draft:user-1", "screen:user-1"]);
+    });
+
+    const navigation = createNavigation();
+    const { getByTestId, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("home-next-action-prompt")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("home-next-action-continue-button"));
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith("ui:toast", {
+        key: "nextAction.reviewDraft.unavailable",
+        ns: "home",
+      });
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith("AddMeal", {
+      start: "ReviewMeal",
+    });
+    expect(mockTrackHomeNextActionStarted).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    });
+  });
+
+  it("does not duplicate the review draft prompt while the resume modal is visible", async () => {
+    await storeReviewDraft();
+    mockUseMealAddMethodState.mockReturnValue({
+      preferredOption: {
+        key: "photo",
+        icon: "camera",
+        titleKey: "photoTitle",
+      },
+      showResumeModal: true,
+      handleDirectStart: jest.fn(async () => undefined),
+      handleContinueDraft: jest.fn(async () => undefined),
+      handleDiscardDraft: jest.fn(async () => undefined),
+      closeResumeModal: jest.fn(),
+    });
+
+    const navigation = createNavigation();
+    const { getByText, queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(getByText("meals:continue_draft_title")).toBeTruthy();
+    });
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
+  });
+
+  it("does not render the review draft next action when the local draft is not eligible", async () => {
+    await AsyncStorage.setItem(
+      "draft:user-1",
+      JSON.stringify(
+        createMeal({
+          mealId: "empty-draft",
+          ingredients: [],
+          totals: undefined,
+          photoUrl: null,
+          localPhotoUrl: null,
+          photoLocalPath: null,
+        }),
+      ),
+    );
+    await AsyncStorage.setItem("screen:user-1", "DescribeMeal");
+
+    const navigation = createNavigation();
+    const { queryByTestId } = renderWithTheme(
+      <HomeScreen navigation={navigation as never} />,
+    );
+
+    await waitFor(() => {
+      expect(mockGetSyncCounts).toHaveBeenCalledWith("user-1", {
+        kinds: HOME_MEAL_DEAD_LETTER_KINDS,
+      });
+    });
+    expect(queryByTestId("home-next-action-prompt")).toBeNull();
+    expect(mockTrackHomeNextActionShown).not.toHaveBeenCalled();
   });
 
   it("renders Home photo upload recovery when failed photos exist without meal dead letters", async () => {

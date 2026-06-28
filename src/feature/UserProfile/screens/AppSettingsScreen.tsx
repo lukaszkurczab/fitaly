@@ -14,6 +14,7 @@ import {
 } from "@/components";
 import AppIcon from "@/components/AppIcon";
 import { LanguagePickerSheet } from "@/feature/UserProfile/components/LanguagePickerSheet";
+import { isRuntimeFeatureEnabled } from "@/services/core/featureFlagGuard";
 
 type AppSettingsNavigation = StackNavigationProp<
   RootStackParamList,
@@ -37,6 +38,7 @@ export default function AppSettingsScreen({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { language, changeLanguage } = useAppSettingsContext();
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const smartMemoryEnabled = isRuntimeFeatureEnabled("smartMemory");
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -130,6 +132,25 @@ export default function AppSettingsScreen({
               testID="app-settings-notifications-row"
               onPress={() => navigation.navigate("Notifications")}
             />
+            {smartMemoryEnabled ? (
+              <SettingsRow
+                leading={
+                  <View style={styles.rowIcon}>
+                    <AppIcon
+                      name="sparkles"
+                      size={20}
+                      color={theme.primaryStrong}
+                    />
+                  </View>
+                }
+                title={t("memoryCenter.rowTitle")}
+                subtitle={t("memoryCenter.rowSubtitle")}
+                subtitleNumberOfLines={2}
+                testID="app-settings-memory-center-row"
+                accessibilityHint={t("memoryCenter.rowHint")}
+                onPress={() => navigation.navigate("MemoryCenter")}
+              />
+            ) : null}
           </SettingsSection>
         </View>
       </FormScreenShell>

@@ -1,0 +1,38 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=user-with-draft&smartMemory=reviewCandidate
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-user-with-draft
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-reviewCandidate
+    timeout: 10000
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: resume-draft-sheet
+- tapOn:
+    id: resume-draft-resume-button
+- assertVisible:
+    id: review-meal-screen
+- assertVisible:
+    id: review-meal-memory-row
+- assertNotVisible:
+    id: review-meal-memory-info-0
+- tapOn:
+    id: review-meal-memory-row
+- assertVisible:
+    id: review-meal-memory-details-modal
+- tapOn:
+    id: review-meal-memory-details-close
+- assertVisible:
+    id: review-meal-screen
+- assertVisible:
+    id: review-meal-save-button

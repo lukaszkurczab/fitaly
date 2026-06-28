@@ -93,7 +93,8 @@ function areMealSnapshotsEqual(left: Meal, right: Meal): boolean {
     mealListValue(left.ingredients) === mealListValue(right.ingredients) &&
     mealListValue(left.totals) === mealListValue(right.totals) &&
     mealListValue(left.tags) === mealListValue(right.tags) &&
-    mealListValue(left.aiMeta) === mealListValue(right.aiMeta)
+    mealListValue(left.aiMeta) === mealListValue(right.aiMeta) &&
+    mealListValue(left.planningSource) === mealListValue(right.planningSource)
   );
 }
 

@@ -49,6 +49,9 @@ export type RootStackParamList = {
   LegalPrivacyHub: undefined;
   PrivacyAiSettings: undefined;
   DataAiClarity: undefined;
+  MemoryCenter: undefined;
+  RecipeCatalog: undefined;
+  Planning: undefined;
   HelpFeedback: undefined;
   ContactSupport: undefined;
   AppSettings: undefined;

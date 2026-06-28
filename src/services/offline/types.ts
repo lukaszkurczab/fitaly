@@ -4,7 +4,18 @@ export type QueueKind =
   | "upsert_mymeal"
   | "delete_mymeal"
   | "update_user_profile"
-  | "upload_user_avatar";
+  | "upload_user_avatar"
+  | "smart_memory_candidate_upsert"
+  | "smart_memory_item_edit"
+  | "smart_memory_item_mute"
+  | "smart_memory_item_restore"
+  | "smart_memory_item_delete"
+  | "smart_memory_item_source_deleted"
+  | "smart_memory_settings_disable"
+  | "smart_memory_settings_enable"
+  | "ingredient_product_create"
+  | "ingredient_product_update"
+  | "ingredient_product_delete";
 
 export type MealRow = {
   cloud_id: string | null;
@@ -34,6 +45,7 @@ export type MealRow = {
   source: string | null;
   input_method?: string | null;
   ai_meta?: string | null;
+  planning_source?: string | null;
   notes: string | null;
   tags: string | null;
 };
@@ -71,6 +83,98 @@ export type DeadLetterRow = {
   updated_at: string;
   attempts: number;
   failed_at: string;
+  last_error_code: string | null;
+  last_error_message: string | null;
+};
+
+export type SmartMemoryItemRow = {
+  memory_item_id: string;
+  user_uid: string;
+  memory_type: string;
+  state: string;
+  projection_state: string;
+  suggestion_use: string;
+  payload: string;
+  server_revision: number;
+  updated_at: string;
+  last_synced_at: number;
+  sync_state: string;
+  pending_operation: string | null;
+  pending_client_mutation_id: string | null;
+  pending_updated_at: string | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+};
+
+export type SmartMemoryCandidateRow = {
+  candidate_id: string;
+  user_uid: string;
+  memory_type: string;
+  state: string;
+  projection_state: string;
+  suggestion_use: string;
+  payload: string;
+  server_revision: number;
+  updated_at: string;
+  last_synced_at: number;
+  sync_state: string;
+  pending_operation: string | null;
+  pending_client_mutation_id: string | null;
+  pending_updated_at: string | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+};
+
+export type SmartMemorySettingsRow = {
+  user_uid: string;
+  enabled: number;
+  projection_state: string;
+  suggestion_use: string;
+  payload: string;
+  server_revision: number;
+  updated_at: string;
+  last_synced_at: number;
+  sync_state: string;
+  pending_operation: string | null;
+  pending_client_mutation_id: string | null;
+  pending_updated_at: string | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+};
+
+export type IngredientProductSearchCacheRow = {
+  user_uid: string;
+  normalized_query: string;
+  ingredient_product_id: string;
+  result_rank: number;
+  display_name: string;
+  payload: string;
+  query_echo: string;
+  cache_policy: string;
+  warnings: string;
+  cache_state: string | null;
+  cached_at: number;
+  expires_at: number;
+};
+
+export type IngredientProductUserRecordSyncState =
+  | "pending"
+  | "pending_update"
+  | "synced"
+  | "failed"
+  | "conflict"
+  | "pending_delete"
+  | "delete_failed";
+
+export type IngredientProductUserRecordRow = {
+  user_uid: string;
+  ingredient_product_id: string;
+  display_name: string;
+  payload: string;
+  source_client_mutation_id: string | null;
+  updated_at: string;
+  last_synced_at: number;
+  sync_state: IngredientProductUserRecordSyncState;
   last_error_code: string | null;
   last_error_message: string | null;
 };

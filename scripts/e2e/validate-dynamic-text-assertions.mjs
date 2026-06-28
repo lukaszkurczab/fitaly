@@ -18,6 +18,7 @@ const releaseRelevantSuites = [
   "notifications-retention",
   "share",
   "platform-layout",
+  "core-release-gate",
   "release-gate",
   "full-review",
 ];

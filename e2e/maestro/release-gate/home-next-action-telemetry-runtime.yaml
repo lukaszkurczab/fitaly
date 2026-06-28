@@ -1,0 +1,41 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/reset?logout=0
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-home
+    timeout: 10000
+- openLink: fitaly://e2e/seed?fixture=user-with-draft
+- assertVisible:
+    id: e2e-ready-fixture-user-with-draft
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- tapOn:
+    id: tab-home
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-next-action-prompt
+    timeout: 10000
+- openLink: fitaly://e2e/seed?telemetryBaseline=homeNextActionStarted
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryBaseline-homeNextActionStarted
+    timeout: 15000
+- tapOn:
+    id: home-next-action-continue-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 10000
+- assertVisible:
+    id: review-meal-save-button
+- openLink: fitaly://e2e/seed?telemetryAssert=homeNextActionStarted
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryAssert-homeNextActionStarted
+    timeout: 20000

@@ -13,6 +13,9 @@ const mockCleanupConfirmedLoggedMealPhoto = jest.fn<
   (...args: unknown[]) => Promise<unknown>
 >();
 const mockEmit = jest.fn();
+const mockRuntimeConfig = {
+  planningEnabled: true,
+};
 
 jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
@@ -50,6 +53,10 @@ jest.mock("@/services/core/events", () => ({
   emit: (...args: unknown[]) => mockEmit(...args),
 }));
 
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
+}));
+
 describe("meals strategy", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -70,6 +77,7 @@ describe("meals strategy", () => {
       cloudId: "meal-1",
       reason: "local-path-missing",
     });
+    mockRuntimeConfig.planningEnabled = true;
   });
 
   it("handles meal upsert push ops, runs confirmed photo cleanup, and marks local record synced", async () => {
@@ -93,6 +101,14 @@ describe("meals strategy", () => {
         updatedAt: "2026-03-03T12:00:00.000Z",
         imageId: "remote-image-1",
         photoUrl: "https://cdn.example/meal-photo.jpg",
+        planningSource: {
+          plannedMealId: "planned-1",
+          plannedMealVersion: 2,
+          sourceType: "manual",
+          sourceRef: null,
+          nutritionEstimateState: "unknown",
+          missingNutritionFields: ["fat"],
+        },
         totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
       },
       updated_at: "2026-03-03T12:00:00.000Z",
@@ -110,6 +126,14 @@ describe("meals strategy", () => {
         type: "lunch",
         imageId: "remote-image-1",
         photoUrl: "https://cdn.example/meal-photo.jpg",
+        planningSource: {
+          plannedMealId: "planned-1",
+          plannedMealVersion: 2,
+          sourceType: "manual",
+          sourceRef: null,
+          nutritionEstimateState: "unknown",
+          missingNutritionFields: ["fat"],
+        },
       }),
     });
     expect(mockCleanupConfirmedLoggedMealPhoto).toHaveBeenCalledWith({
@@ -128,6 +152,49 @@ describe("meals strategy", () => {
         syncState: "synced",
       }),
     );
+  });
+
+  it("blocks planned-source upsert push before remote call when Planning is disabled", async () => {
+    mockRuntimeConfig.planningEnabled = false;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { mealsStrategy } = require("@/services/offline/strategies/meals.strategy");
+
+    await expect(
+      mealsStrategy.handlePushOp("user-1", {
+        id: 22,
+        client_mutation_id: "mutation-upsert-planned-disabled",
+        cloud_id: "meal-1",
+        user_uid: "user-1",
+        kind: "upsert",
+        payload: {
+          cloudId: "meal-1",
+          mealId: "meal-1",
+          userUid: "user-1",
+          timestamp: "2026-03-03T12:00:00.000Z",
+          type: "lunch",
+          ingredients: [],
+          createdAt: "2026-03-03T12:00:00.000Z",
+          updatedAt: "2026-03-03T12:00:00.000Z",
+          planningSource: {
+            plannedMealId: "planned-disabled-1",
+            plannedMealVersion: 1,
+            sourceType: "manual",
+            sourceRef: null,
+            nutritionEstimateState: "known",
+            missingNutritionFields: [],
+          },
+          totals: { kcal: 200, protein: 30, carbs: 0, fat: 5 },
+        },
+        updated_at: "2026-03-03T12:00:00.000Z",
+        attempts: 0,
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+
+    expect(mockSaveMealRemote).not.toHaveBeenCalled();
+    expect(mockCleanupConfirmedLoggedMealPhoto).not.toHaveBeenCalled();
   });
 
   it("does not run confirmed photo cleanup after a successful stale image-less meal upsert", async () => {

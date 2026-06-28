@@ -33,7 +33,7 @@
   "home-history-statistics": [
     "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
     "e2e/maestro/release-gate/history-edit-delete.yaml",
-    "e2e/maestro/release-gate/offline-save-sync.yaml",
+    "e2e/maestro/release-gate/offline-save-pending-local.yaml",
     "e2e/maestro/nightly-regression/offline-failed-conflict-states.yaml"
   ],
   "ai-chat": [
@@ -70,6 +70,40 @@
     "e2e/maestro/platform-layout/barcode-manual-sheet.yaml",
     "e2e/maestro/platform-layout/paywall-open-layout.yaml"
   ],
+  "local-runtime-preflight": [
+    "e2e/maestro/release-gate/core-off-local-auth-shell.yaml"
+  ],
+  "ingredient-autocomplete-runtime": [
+    "e2e/maestro/release-gate/ingredient-autocomplete-no-results-manual.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-no-cache.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-create-queued.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-selected-warning.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-delete.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-update.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-conflict-discard.yaml"
+  ],
+  "core-release-gate": [
+    "e2e/maestro/release-gate/core-off-local-auth-shell.yaml",
+    "e2e/maestro/smoke/login.yaml",
+    "e2e/maestro/smoke/auth-bootstrap.yaml",
+    "e2e/maestro/smoke/account-launch.yaml",
+    "e2e/maestro/release-gate/account-delete-cancel.yaml",
+    "e2e/maestro/release-gate/privacy-ai-consent.yaml",
+    "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
+    "e2e/maestro/release-gate/history-edit-delete.yaml",
+    "e2e/maestro/release-gate/offline-save-pending-local.yaml",
+    "e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-barcode-save-propagates.yaml",
+    "e2e/maestro/release-gate/add-meal-saved-template.yaml",
+    "e2e/maestro/release-gate/review-edit-layout.yaml",
+    "e2e/maestro/release-gate/chat-basic-history.yaml",
+    "e2e/maestro/release-gate/premium-paywall-restore.yaml",
+    "e2e/maestro/release-gate/notifications-preferences.yaml",
+    "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
+    "e2e/maestro/release-gate/share-save-and-share.yaml"
+  ],
   "release-gate": [
     "e2e/maestro/release-gate/auth-login-validation.yaml",
     "e2e/maestro/release-gate/auth-register-onboarding.yaml",
@@ -77,6 +111,27 @@
     "e2e/maestro/release-gate/user-switch-local-draft-isolation.yaml",
     "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
     "e2e/maestro/release-gate/privacy-ai-consent.yaml",
+    "e2e/maestro/release-gate/memory-center-controls.yaml",
+    "e2e/maestro/release-gate/memory-center-sync-failed.yaml",
+    "e2e/maestro/release-gate/memory-center-offline-active.yaml",
+    "e2e/maestro/release-gate/recipe-catalog-review-draft.yaml",
+    "e2e/maestro/release-gate/known-pattern-review-draft.yaml",
+    "e2e/maestro/release-gate/review-draft-no-silent-save-abort.yaml",
+    "e2e/maestro/release-gate/review-memory-explanation.yaml",
+    "e2e/maestro/release-gate/review-memory-disabled-precedence.yaml",
+    "e2e/maestro/release-gate/review-memory-new-candidate-row.yaml",
+    "e2e/maestro/release-gate/home-next-action-review-draft.yaml",
+    "e2e/maestro/release-gate/home-next-action-planned-item.yaml",
+    "e2e/maestro/release-gate/home-next-action-known-pattern.yaml",
+    "e2e/maestro/release-gate/planning-home-to-review.yaml",
+    "e2e/maestro/release-gate/smart-memory-backend-pull.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-no-results-manual.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-no-cache.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-create-queued.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-selected-warning.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-delete.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-update.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-conflict-discard.yaml",
     "e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml",
     "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
     "e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml",
@@ -90,6 +145,18 @@
     "e2e/maestro/release-gate/notifications-preferences.yaml",
     "e2e/maestro/release-gate/weekly-report-entry-unavailable.yaml",
     "e2e/maestro/release-gate/share-save-and-share.yaml"
+  ],
+  "known-pattern-runtime": [
+    "e2e/maestro/release-gate/known-pattern-review-draft.yaml"
+  ],
+  "known-pattern-telemetry": [
+    "e2e/maestro/release-gate/known-pattern-runtime-telemetry.yaml"
+  ],
+  "planning-telemetry": [
+    "e2e/maestro/release-gate/planning-runtime-telemetry.yaml"
+  ],
+  "smart-memory-telemetry": [
+    "e2e/maestro/release-gate/smart-memory-runtime-telemetry.yaml"
   ],
   "visual-audit": [
     "e2e/maestro/visual-audit/auth-entry.yaml",
@@ -121,6 +188,28 @@
     "e2e/maestro/release-gate/account-delete-cancel.yaml",
     "e2e/maestro/release-gate/user-switch-local-draft-isolation.yaml",
     "e2e/maestro/release-gate/home-history-statistics-after-save.yaml",
+    "e2e/maestro/release-gate/privacy-ai-consent.yaml",
+    "e2e/maestro/release-gate/memory-center-controls.yaml",
+    "e2e/maestro/release-gate/memory-center-sync-failed.yaml",
+    "e2e/maestro/release-gate/memory-center-offline-active.yaml",
+    "e2e/maestro/release-gate/recipe-catalog-review-draft.yaml",
+    "e2e/maestro/release-gate/known-pattern-review-draft.yaml",
+    "e2e/maestro/release-gate/review-draft-no-silent-save-abort.yaml",
+    "e2e/maestro/release-gate/review-memory-explanation.yaml",
+    "e2e/maestro/release-gate/review-memory-disabled-precedence.yaml",
+    "e2e/maestro/release-gate/review-memory-new-candidate-row.yaml",
+    "e2e/maestro/release-gate/home-next-action-review-draft.yaml",
+    "e2e/maestro/release-gate/home-next-action-planned-item.yaml",
+    "e2e/maestro/release-gate/home-next-action-known-pattern.yaml",
+    "e2e/maestro/release-gate/planning-home-to-review.yaml",
+    "e2e/maestro/release-gate/smart-memory-backend-pull.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-no-results-manual.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-no-cache.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-offline-create-queued.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-selected-warning.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-delete.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-update.yaml",
+    "e2e/maestro/release-gate/ingredient-autocomplete-private-conflict-discard.yaml",
     "e2e/maestro/release-gate/add-meal-manual-edit-save-propagates.yaml",
     "e2e/maestro/release-gate/add-meal-text-save-propagates.yaml",
     "e2e/maestro/release-gate/add-meal-photo-save-propagates.yaml",

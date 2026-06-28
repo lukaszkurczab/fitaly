@@ -4,6 +4,7 @@ import { emit } from "@/services/core/events";
 import { isOfflineNetState } from "@/services/core/networkState";
 import {
   createServiceError,
+  getErrorStatus,
   normalizeServiceError,
 } from "@/services/contracts/serviceError";
 import {
@@ -15,9 +16,21 @@ import {
 } from "./queue.repo";
 import { setMealSyncStateLocal } from "./meals.repo";
 import { setMyMealSyncStateLocal } from "./myMeals.repo";
+import {
+  markSmartMemoryProjectionSyncFailed,
+  smartMemoryQueueKinds,
+} from "@/services/smartMemory/smartMemoryProjectionRepository";
+import {
+  ingredientProductQueueKinds,
+} from "@/services/offline/strategies/foodLibrary.strategy";
+import {
+  markIngredientProductQueueSyncFailed,
+} from "@/services/foodLibrary/ingredientProductCreateQueue";
 import type { SyncStrategy } from "./sync.strategy";
 
 const log = Sync;
+const SMART_MEMORY_QUEUE_KINDS = new Set(smartMemoryQueueKinds());
+const INGREDIENT_PRODUCT_QUEUE_KINDS = new Set(ingredientProductQueueKinds());
 
 export type PushQueueResult = {
   processed: number;
@@ -129,6 +142,24 @@ export async function runPushQueue(
             updatedAt: op.updated_at,
           });
         }
+        if (SMART_MEMORY_QUEUE_KINDS.has(op.kind)) {
+          await markSmartMemoryProjectionSyncFailed({
+            uid,
+            op,
+            dead: shouldDeadLetter,
+            code: err.code,
+            message: err.message,
+          });
+        }
+        if (INGREDIENT_PRODUCT_QUEUE_KINDS.has(op.kind)) {
+          const errorStatus = getErrorStatus(err);
+          await markIngredientProductQueueSyncFailed({
+            uid,
+            op,
+            dead: shouldDeadLetter,
+            ...(errorStatus !== undefined ? { status: errorStatus } : {}),
+          });
+        }
         if (op.kind === "update_user_profile") {
           emit("user:profile:failed", {
             uid,
@@ -139,6 +170,22 @@ export async function runPushQueue(
           emit("user:avatar:failed", {
             uid,
             opId: op.id,
+            dead: shouldDeadLetter,
+          });
+        } else if (SMART_MEMORY_QUEUE_KINDS.has(op.kind)) {
+          emit("smart-memory:failed", {
+            uid,
+            opId: op.id,
+            cloudId: op.cloud_id,
+            kind: op.kind,
+            dead: shouldDeadLetter,
+          });
+        } else if (INGREDIENT_PRODUCT_QUEUE_KINDS.has(op.kind)) {
+          emit("food-library:failed", {
+            uid,
+            opId: op.id,
+            cloudId: op.cloud_id,
+            kind: op.kind,
             dead: shouldDeadLetter,
           });
         } else {

@@ -13,7 +13,7 @@ const API_CLIENT_SOURCE = "ApiClient";
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 1_000;
 
-export type RequestMethod = "GET" | "POST" | "DELETE";
+export type RequestMethod = "GET" | "POST" | "PATCH" | "DELETE";
 export type RetryMode = "none" | "idempotent";
 
 export type RequestOptions = {
@@ -441,9 +441,11 @@ export async function request<T = unknown>(
 ): Promise<T> {
   const fullUrl = buildRequestUrl(url);
   const timeoutMs = normalizeTimeoutMs(options?.timeout);
-  const body = method === "POST" ? JSON.stringify(data) : undefined;
+  const body =
+    method === "POST" || method === "PATCH" ? JSON.stringify(data) : undefined;
   // Keep the same key for all retry attempts in one logical request.
-  const idempotencyKey = method === "POST" ? uuidv4() : undefined;
+  const idempotencyKey =
+    method === "POST" || method === "PATCH" ? uuidv4() : undefined;
   const retryMode = options?.retryMode ?? (method === "GET" ? "idempotent" : "none");
 
   return withRetry(async () => {
@@ -502,4 +504,12 @@ export function post<T = unknown>(
   options?: RequestOptions
 ): Promise<T> {
   return request<T>("POST", url, data, options);
+}
+
+export function patch<T = unknown>(
+  url: string,
+  data?: unknown,
+  options?: RequestOptions
+): Promise<T> {
+  return request<T>("PATCH", url, data, options);
 }

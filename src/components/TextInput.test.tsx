@@ -45,7 +45,6 @@ const expectSingleLineCenteredMetrics = (
   expect(flattenInputStyle(input)).toEqual(
     expect.objectContaining({
       height: lineHeight,
-      lineHeight,
       textAlignVertical: "center",
       includeFontPadding: false,
       paddingVertical: 0,
@@ -216,9 +215,7 @@ describe("TextInput", () => {
       />,
     );
 
-    expect(
-      StyleSheet.flatten(getByTestId("notes-input").props.style),
-    ).toEqual(
+    expect(StyleSheet.flatten(getByTestId("notes-input").props.style)).toEqual(
       expect.objectContaining({
         maxHeight: 160,
         minHeight: 88,

@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: ""
+      require_exact_backend_contract_ref:
+        description: Require backend_contract_ref to be an exact 40-character commit SHA.
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       backend_contract_ref:
@@ -15,6 +20,11 @@ on:
         required: false
         type: string
         default: ""
+      require_exact_backend_contract_ref:
+        description: Require backend_contract_ref to be an exact 40-character commit SHA.
+        required: false
+        type: boolean
+        default: false
   pull_request:
   push:
     branches:
@@ -38,6 +48,7 @@ jobs:
         run: ./scripts/resolve-backend-contract-ref.sh
         env:
           BACKEND_CONTRACT_REF_INPUT: ${{ inputs.backend_contract_ref }}
+          BACKEND_CONTRACT_REF_REQUIRE_EXACT_SHA: ${{ inputs.require_exact_backend_contract_ref }}
           PR_BODY: ${{ github.event.pull_request.body }}
 
       - name: Checkout backend repo (canonical Firebase rules source)
@@ -91,15 +102,17 @@ jobs:
       - name: Validate launch readiness config (android)
         run: npm run check:launch-readiness:android
         env:
-          TERMS_URL: https://example.com/terms
-          PRIVACY_URL: https://example.com/privacy
+          TERMS_URL: https://fitaly.app/terms
+          PRIVACY_URL: https://fitaly.app/privacy
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           RC_ANDROID_API_KEY: ${{ secrets.RC_ANDROID_API_KEY }}
 
       - name: Validate launch readiness config (ios)
         run: npm run check:launch-readiness:ios
         env:
-          TERMS_URL: https://example.com/terms
-          PRIVACY_URL: https://example.com/privacy
+          TERMS_URL: https://fitaly.app/terms
+          PRIVACY_URL: https://fitaly.app/privacy
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           RC_IOS_API_KEY: ${{ secrets.RC_IOS_API_KEY }}
 
       - name: Run lint
@@ -130,6 +143,7 @@ jobs:
         run: ./scripts/resolve-backend-contract-ref.sh
         env:
           BACKEND_CONTRACT_REF_INPUT: ${{ inputs.backend_contract_ref }}
+          BACKEND_CONTRACT_REF_REQUIRE_EXACT_SHA: ${{ inputs.require_exact_backend_contract_ref }}
           PR_BODY: ${{ github.event.pull_request.body }}
 
       - name: Checkout backend repo (canonical contract source)

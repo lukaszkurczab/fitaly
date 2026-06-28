@@ -17,7 +17,7 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: review-meal-screen
 - tapOn:
-    id: review-meal-edit-button
+    id: review-meal-ingredients-edit-button
 - assertVisible:
     id: meal-details-form-screen
 - assertVisible:
@@ -58,6 +58,9 @@ appId: com.lkurczab.fitaly
     element:
       id: ingredient-add-button
     direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: ingredient-add-button
 - tapOn:
     id: ingredient-add-button
 - assertVisible:
@@ -146,6 +149,9 @@ appId: com.lkurczab.fitaly
     element:
       id: home-view-history-button
     direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:

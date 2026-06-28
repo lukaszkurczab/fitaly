@@ -1,0 +1,89 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- assertVisible:
+    id: e2e-ready-fixture-activated-user-empty
+- openLink: fitaly://e2e/connectivity?offline=1
+- assertVisible:
+    id: e2e-ready-offline
+- assertVisible:
+    id: offline-banner
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Offline Manual Meal
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: ingredient-add-button
+- tapOn:
+    id: ingredient-add-button
+- assertVisible:
+    id: ingredient-editor-sheet
+- tapOn:
+    id: ingredient-editor-name-input
+- eraseText
+- inputText: Chicken
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-protein-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-editor-protein-input
+- inputText: "2"
+- assertVisible:
+    id: ingredient-editor-submit-button
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
+    id: review-meal-save-button
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-today-meal-row-0
+    timeout: 10000
+- assertVisible:
+    id: home-meal-sync-pending-0
+- swipe:
+    direction: UP
+    duration: 600
+- scrollUntilVisible:
+    element:
+      id: home-view-history-button
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: home-view-history-button
+- tapOn:
+    id: home-view-history-button
+- extendedWaitUntil:
+    visible:
+      id: history-list-screen
+    timeout: 10000
+- assertVisible:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-sync-pending-0
+- assertNotVisible:
+    id: history-meal-row-1

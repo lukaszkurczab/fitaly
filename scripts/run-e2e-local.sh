@@ -3,6 +3,57 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+CALLER_ENV_OVERRIDE_NAMES=(
+  E2E_API_BASE_URL
+  E2E_ENABLE_TELEMETRY
+  E2E_EXPO_CLEAR_CACHE
+  E2E_EXPO_PORT
+  E2E_EXPO_URL
+  E2E_PLATFORM
+  E2E_UDID
+  EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+  EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION
+  EXPO_PUBLIC_ENABLE_FOOD_LIBRARY
+  EXPO_PUBLIC_ENABLE_PLANNING
+  EXPO_PUBLIC_ENABLE_RECIPE_CATALOG
+  EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
+  EXPO_PUBLIC_ENABLE_SMART_MEMORY
+  EXPO_PUBLIC_ENABLE_TELEMETRY
+  EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST
+  EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  FIREBASE_AUTH_EMULATOR_HOST
+  FIREBASE_PROJECT_ID
+  FIRESTORE_DATABASE_ID
+  FIRESTORE_EMULATOR_HOST
+  FIREBASE_CLIENT_EMAIL
+  FIREBASE_PRIVATE_KEY
+  GOOGLE_APPLICATION_CREDENTIALS
+  OPENAI_API_KEY
+  DISABLE_BILLING
+  RC_ANDROID_API_KEY
+  RC_IOS_API_KEY
+  SENTRY_DSN
+)
+
+capture_caller_env_overrides() {
+  local name
+  for name in "${CALLER_ENV_OVERRIDE_NAMES[@]}"; do
+    if eval "[[ \${${name}+set} ]]"; then
+      eval "FITALY_E2E_CALLER_${name}=\"\${${name}}\""
+      eval "FITALY_E2E_CALLER_${name}_SET=1"
+    fi
+  done
+}
+
+restore_caller_env_overrides() {
+  local name
+  for name in "${CALLER_ENV_OVERRIDE_NAMES[@]}"; do
+    eval "if [[ \"\${FITALY_E2E_CALLER_${name}_SET:-}\" == \"1\" ]]; then export ${name}=\"\${FITALY_E2E_CALLER_${name}}\"; fi"
+    eval "unset FITALY_E2E_CALLER_${name} FITALY_E2E_CALLER_${name}_SET"
+  done
+}
+
+capture_caller_env_overrides
 if [[ -f "${ROOT_DIR}/.env" ]]; then
   set -a
   set +u
@@ -11,6 +62,7 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
   set -u
   set +a
 fi
+restore_caller_env_overrides
 
 if [[ "$#" -gt 0 ]]; then
   FLOW_PATHS=("$@")
@@ -34,8 +86,95 @@ TEST_OUTPUT_DIR="${E2E_TEST_OUTPUT_DIR:-}"
 DEBUG_OUTPUT_DIR="${E2E_DEBUG_OUTPUT_DIR:-}"
 TEST_SUITE_NAME="${E2E_SUITE_NAME:-}"
 UDID="${E2E_UDID:-}"
+E2E_DISABLE_WATCHMAN="${E2E_DISABLE_WATCHMAN:-1}"
 SMOKE_API_BASE_URL="https://fitaly-backend-smoke.up.railway.app"
 PRODUCTION_API_BASE_URL="https://fitaly-backend-production.up.railway.app"
+
+ENABLE_REVIEW_MEMORY_EXPLANATION="${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION:-}"
+ENABLE_KNOWN_PATTERNS="${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS:-}"
+ENABLE_HOME_NEXT_ACTION="${EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION:-}"
+ENABLE_FOOD_LIBRARY="${EXPO_PUBLIC_ENABLE_FOOD_LIBRARY:-}"
+ENABLE_PLANNING="${EXPO_PUBLIC_ENABLE_PLANNING:-}"
+ENABLE_RECIPE_CATALOG="${EXPO_PUBLIC_ENABLE_RECIPE_CATALOG:-}"
+ENABLE_SMART_MEMORY="${EXPO_PUBLIC_ENABLE_SMART_MEMORY:-}"
+ENABLE_TELEMETRY="${E2E_ENABLE_TELEMETRY:-${EXPO_PUBLIC_ENABLE_TELEMETRY:-}}"
+REVIEW_MEMORY_EXPLANATION_FLOW=0
+SMART_MEMORY_BACKEND_PULL_FLOW=0
+INGREDIENT_AUTOCOMPLETE_FLOW=0
+PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=0
+KNOWN_PATTERN_REVIEW_FLOW=0
+PLANNING_RUNTIME_TELEMETRY_FLOW=0
+SMART_MEMORY_RUNTIME_TELEMETRY_FLOW=0
+for FLOW_PATH in "${FLOW_PATHS[@]}"; do
+  case "${FLOW_PATH}" in
+    *review-memory-explanation.yaml|*review-memory-disabled-precedence.yaml|*review-memory-new-candidate-row.yaml)
+      REVIEW_MEMORY_EXPLANATION_FLOW=1
+      ENABLE_REVIEW_MEMORY_EXPLANATION="true"
+      ENABLE_SMART_MEMORY="true"
+      ;;
+    *known-pattern-review-draft.yaml|*known-pattern-runtime-telemetry.yaml)
+      KNOWN_PATTERN_REVIEW_FLOW=1
+      ENABLE_KNOWN_PATTERNS="true"
+      if [[ "${FLOW_PATH}" == *known-pattern-runtime-telemetry.yaml ]]; then
+        ENABLE_TELEMETRY="true"
+      fi
+      ;;
+    *planning-home-to-review.yaml)
+      ENABLE_PLANNING="true"
+      ;;
+    *planning-runtime-telemetry.yaml)
+      PLANNING_RUNTIME_TELEMETRY_FLOW=1
+      ENABLE_PLANNING="true"
+      ENABLE_TELEMETRY="true"
+      ;;
+    *smart-memory-runtime-telemetry.yaml)
+      SMART_MEMORY_RUNTIME_TELEMETRY_FLOW=1
+      ENABLE_SMART_MEMORY="true"
+      ENABLE_TELEMETRY="true"
+      ;;
+    *smart-memory-backend-pull.yaml)
+      SMART_MEMORY_BACKEND_PULL_FLOW=1
+      ENABLE_SMART_MEMORY="true"
+      ;;
+    *home-next-action-planned-item.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ENABLE_PLANNING="true"
+      ;;
+    *home-next-action-known-pattern.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ENABLE_KNOWN_PATTERNS="true"
+      ENABLE_SMART_MEMORY="true"
+      ;;
+    *home-next-action-*.yaml)
+      ENABLE_HOME_NEXT_ACTION="true"
+      ;;
+    *recipe-catalog-review-draft.yaml)
+      ENABLE_RECIPE_CATALOG="true"
+      ;;
+    *ingredient-autocomplete-private-delete.yaml|*ingredient-autocomplete-private-update.yaml|*ingredient-autocomplete-private-conflict-discard.yaml)
+      INGREDIENT_AUTOCOMPLETE_FLOW=1
+      PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW=1
+      ENABLE_FOOD_LIBRARY="true"
+      ;;
+    *ingredient-autocomplete-*.yaml)
+      INGREDIENT_AUTOCOMPLETE_FLOW=1
+      ENABLE_FOOD_LIBRARY="true"
+      ;;
+  esac
+done
+export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION="${ENABLE_REVIEW_MEMORY_EXPLANATION}"
+export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS="${ENABLE_KNOWN_PATTERNS}"
+export EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION="${ENABLE_HOME_NEXT_ACTION}"
+export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
+export EXPO_PUBLIC_ENABLE_PLANNING="${ENABLE_PLANNING}"
+export EXPO_PUBLIC_ENABLE_RECIPE_CATALOG="${ENABLE_RECIPE_CATALOG}"
+export EXPO_PUBLIC_ENABLE_TELEMETRY="${ENABLE_TELEMETRY}"
+export EXPO_PUBLIC_ENABLE_SMART_MEMORY="${ENABLE_SMART_MEMORY}"
+export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+export EXPO_PUBLIC_FIREBASE_PROJECT_ID="${EXPO_PUBLIC_FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID}}"
+export MAESTRO_CLI_NO_ANALYTICS="${MAESTRO_CLI_NO_ANALYTICS:-1}"
+export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED="${MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED:-true}"
+
 if [[ -n "${E2E_API_BASE_URL:-}" ]]; then
   API_BASE_URL="${E2E_API_BASE_URL}"
 else
@@ -49,6 +188,50 @@ if [[ "${API_BASE_URL%/}" == "${PRODUCTION_API_BASE_URL}" && "${E2E_ALLOW_PRODUC
   echo "[e2e] Refusing to run E2E against production API: ${API_BASE_URL}" >&2
   echo "[e2e] Set E2E_ALLOW_PRODUCTION_API=1 only for an explicitly approved production verification." >&2
   exit 1
+fi
+LOCAL_API_BASE_URL=0
+if [[ "${API_BASE_URL%/}" == "http://127.0.0.1:"* || "${API_BASE_URL%/}" == "http://localhost:"* || "${API_BASE_URL%/}" == "http://10.0.2.2:"* ]]; then
+  LOCAL_API_BASE_URL=1
+fi
+if [[ "${E2E_CONFIG_DRY_RUN:-}" == "1" ]]; then
+  echo "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION=${EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION}"
+  echo "EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS=${EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS}"
+  echo "EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION=${EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION}"
+  echo "EXPO_PUBLIC_ENABLE_FOOD_LIBRARY=${EXPO_PUBLIC_ENABLE_FOOD_LIBRARY}"
+  echo "EXPO_PUBLIC_ENABLE_PLANNING=${EXPO_PUBLIC_ENABLE_PLANNING}"
+  echo "EXPO_PUBLIC_ENABLE_RECIPE_CATALOG=${EXPO_PUBLIC_ENABLE_RECIPE_CATALOG}"
+  echo "EXPO_PUBLIC_ENABLE_SMART_MEMORY=${EXPO_PUBLIC_ENABLE_SMART_MEMORY}"
+  echo "EXPO_PUBLIC_ENABLE_TELEMETRY=${EXPO_PUBLIC_ENABLE_TELEMETRY}"
+  echo "API_BASE_URL=${API_BASE_URL}"
+  echo "LOCAL_API_BASE_URL=${LOCAL_API_BASE_URL}"
+  exit 0
+fi
+if [[ "${KNOWN_PATTERN_REVIEW_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Known Patterns runtime flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
+  exit 1
+fi
+if [[ "${PLANNING_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Planning runtime telemetry flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
+  exit 1
+fi
+if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 && "${API_BASE_URL%/}" == "${SMOKE_API_BASE_URL}" && "${E2E_ALLOW_SMOKE_API:-}" != "1" ]]; then
+  echo "[e2e] Refusing to run Smart Memory runtime telemetry flow against implicit smoke API: ${API_BASE_URL}" >&2
+  echo "[e2e] Set E2E_API_BASE_URL for local/emulator evidence, or E2E_ALLOW_SMOKE_API=1 only for an explicitly approved smoke verification." >&2
+  exit 1
+fi
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require a localhost/127.0.0.1/10.0.2.2 backend API. Current API: ${API_BASE_URL}" >&2
+    echo "[e2e] Set E2E_API_BASE_URL to http://127.0.0.1:<port>, http://localhost:<port>, or http://10.0.2.2:<port>; smoke/production backends are not permitted for this local harness." >&2
+    exit 1
+  fi
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    echo "[e2e] Refusing to run Food Library autocomplete runtime evidence without explicit Firebase emulators." >&2
+    exit 1
+  fi
 fi
 EXPO_URL="${E2E_EXPO_URL:-}"
 E2E_EMAIL="${E2E_EMAIL:-${SMOKE_EXPORT_TEST_EMAIL:-e2e@example.com}}"
@@ -326,6 +509,93 @@ if [[ "${E2E_SKIP_API_HEALTH:-}" != "1" ]]; then
   fi
 fi
 
+if [[ "${LOCAL_API_BASE_URL}" -eq 1 ]]; then
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] Local backend E2E requires FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    echo "[e2e] Refusing to run local login flows without explicit Firebase emulators." >&2
+    exit 1
+  fi
+  if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    export EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST="http://${FIREBASE_AUTH_EMULATOR_HOST}"
+  fi
+  BACKEND_ROOT="${E2E_BACKEND_ROOT:-$(cd "${ROOT_DIR}/.." && pwd)/fitaly-backend}"
+  BACKEND_PYTHON="${E2E_BACKEND_PYTHON:-${BACKEND_ROOT}/.venv/bin/python}"
+  BACKEND_SEED_SCRIPT="${BACKEND_ROOT}/scripts/seed_local_e2e_user.py"
+  if [[ ! -x "${BACKEND_PYTHON}" || ! -f "${BACKEND_SEED_SCRIPT}" ]]; then
+    echo "[e2e] Backend local E2E user seeder not available at ${BACKEND_SEED_SCRIPT}." >&2
+    echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
+    exit 1
+  fi
+  echo "[e2e] Seeding local E2E auth/profile user..."
+  (
+    cd "${BACKEND_ROOT}"
+    export E2E_EMAIL E2E_PASSWORD
+    export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+    export FIRESTORE_DATABASE_ID="${FIRESTORE_DATABASE_ID:-(default)}"
+    "${BACKEND_PYTHON}" "${BACKEND_SEED_SCRIPT}"
+  )
+fi
+
+if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
+    echo "[e2e] smart-memory-backend-pull requires a local backend API. Current API: ${API_BASE_URL}" >&2
+    exit 1
+  fi
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] smart-memory-backend-pull requires FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    exit 1
+  fi
+  if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    export EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST="http://${FIREBASE_AUTH_EMULATOR_HOST}"
+  fi
+  BACKEND_ROOT="${E2E_BACKEND_ROOT:-$(cd "${ROOT_DIR}/.." && pwd)/fitaly-backend}"
+  BACKEND_PYTHON="${E2E_BACKEND_PYTHON:-${BACKEND_ROOT}/.venv/bin/python}"
+  BACKEND_SEED_SCRIPT="${BACKEND_ROOT}/scripts/seed_smart_memory_backend_e2e.py"
+  if [[ ! -x "${BACKEND_PYTHON}" || ! -f "${BACKEND_SEED_SCRIPT}" ]]; then
+    echo "[e2e] Backend Smart Memory seeder not available at ${BACKEND_SEED_SCRIPT}." >&2
+    echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
+    exit 1
+  fi
+  echo "[e2e] Seeding backend Smart Memory state for smart-memory-backend-pull..."
+  (
+    cd "${BACKEND_ROOT}"
+    export E2E_EMAIL E2E_PASSWORD
+    export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+    export FIRESTORE_DATABASE_ID="${FIRESTORE_DATABASE_ID:-(default)}"
+    "${BACKEND_PYTHON}" "${BACKEND_SEED_SCRIPT}"
+  )
+fi
+
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  if [[ "${LOCAL_API_BASE_URL}" -ne 1 ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require a local backend API. Current API: ${API_BASE_URL}" >&2
+    exit 1
+  fi
+  if [[ -z "${FIRESTORE_EMULATOR_HOST:-}" || -z "${FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    echo "[e2e] Ingredient autocomplete runtime flows require FIRESTORE_EMULATOR_HOST and FIREBASE_AUTH_EMULATOR_HOST." >&2
+    exit 1
+  fi
+  if [[ -z "${EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST:-}" ]]; then
+    export EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST="http://${FIREBASE_AUTH_EMULATOR_HOST}"
+  fi
+  BACKEND_ROOT="${E2E_BACKEND_ROOT:-$(cd "${ROOT_DIR}/.." && pwd)/fitaly-backend}"
+  BACKEND_PYTHON="${E2E_BACKEND_PYTHON:-${BACKEND_ROOT}/.venv/bin/python}"
+  BACKEND_SEED_SCRIPT="${BACKEND_ROOT}/scripts/seed_ingredient_autocomplete_e2e.py"
+  if [[ ! -x "${BACKEND_PYTHON}" || ! -f "${BACKEND_SEED_SCRIPT}" ]]; then
+    echo "[e2e] Backend Ingredient autocomplete seeder not available at ${BACKEND_SEED_SCRIPT}." >&2
+    echo "[e2e] Set E2E_BACKEND_ROOT or E2E_BACKEND_PYTHON when running from a non-standard workspace." >&2
+    exit 1
+  fi
+  echo "[e2e] Seeding backend Ingredient autocomplete state for Food Library runtime flow..."
+  (
+    cd "${BACKEND_ROOT}"
+    export E2E_EMAIL E2E_PASSWORD
+    export FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-fitaly-local}"
+    export FIRESTORE_DATABASE_ID="${FIRESTORE_DATABASE_ID:-fitaly-smoke}"
+    "${BACKEND_PYTHON}" "${BACKEND_SEED_SCRIPT}"
+  )
+fi
+
 if [[ -z "${E2E_EXPO_URL:-}" ]]; then
   echo "[e2e] Selected Expo port: ${EXPO_PORT}"
   echo "[e2e] Starting Expo dev server (host ${EXPO_HOST}, port ${EXPO_PORT})..."
@@ -333,9 +603,22 @@ if [[ -z "${E2E_EXPO_URL:-}" ]]; then
     cd "${ROOT_DIR}"
     export CI=1
     export E2E=true
+    export E2E_DISABLE_WATCHMAN
     export EXPO_PUBLIC_API_BASE_URL="${API_BASE_URL}"
+    export EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION
+    export EXPO_PUBLIC_ENABLE_KNOWN_PATTERNS
+    export EXPO_PUBLIC_ENABLE_HOME_NEXT_ACTION
+    export EXPO_PUBLIC_ENABLE_FOOD_LIBRARY="${ENABLE_FOOD_LIBRARY}"
+    export EXPO_PUBLIC_ENABLE_PLANNING
+    export EXPO_PUBLIC_ENABLE_RECIPE_CATALOG
+    export EXPO_PUBLIC_ENABLE_SMART_MEMORY
+    export EXPO_PUBLIC_ENABLE_TELEMETRY
     export E2E_MOCK_CHAT_REPLY="Najprostszy następny krok to dopilnować białka w kolejnym posiłku i spokojnie uzupełnić wodę."
-    exec npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}"
+    EXPO_START_CMD=(npx expo start --dev-client --host "${EXPO_HOST}" --port "${EXPO_PORT}")
+    if [[ "${E2E_EXPO_CLEAR_CACHE:-}" == "1" ]]; then
+      EXPO_START_CMD+=(--clear)
+    fi
+    exec "${EXPO_START_CMD[@]}"
   ) >"${EXPO_LOG}" 2>&1 &
   EXPO_PID=$!
   SCRIPT_STARTED_EXPO=1
@@ -345,6 +628,24 @@ else
 fi
 
 echo "[e2e] Runtime: platform=${PLATFORM} host=${EXPO_HOST} api=${API_BASE_URL} expo=${EXPO_URL} results=${RESULTS_PATH}"
+if [[ "${REVIEW_MEMORY_EXPLANATION_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Review memory explanation gate enabled for targeted flow."
+fi
+if [[ "${SMART_MEMORY_BACKEND_PULL_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Backend Smart Memory pull seed enabled for targeted flow."
+fi
+if [[ "${PRIVATE_INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Private Ingredient autocomplete seed enabled for targeted flow."
+fi
+if [[ "${INGREDIENT_AUTOCOMPLETE_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Food Library runtime gate enabled for ingredient autocomplete flow."
+fi
+if [[ "${PLANNING_RUNTIME_TELEMETRY_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Planning runtime telemetry gate enabled for targeted flow."
+fi
+if [[ "${SMART_MEMORY_RUNTIME_TELEMETRY_FLOW}" -eq 1 ]]; then
+  echo "[e2e] Smart Memory runtime telemetry gate enabled for targeted flow."
+fi
 if [[ -n "${TEST_OUTPUT_DIR}" ]]; then
   mkdir -p "${TEST_OUTPUT_DIR}"
   echo "[e2e] Maestro test output: ${TEST_OUTPUT_DIR}"
@@ -377,20 +678,21 @@ if [[ "${SCRIPT_STARTED_EXPO}" -eq 1 ]]; then
 fi
 
 if [[ "${PLATFORM}" == "ios" ]]; then
+  IOS_SIMCTL_TARGET="${UDID:-booted}"
   for BUNDLE_ID in "com.lkurczab.fitaly" "com.lkurczab.foodscannerai"; do
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowFloatingActionButton -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuTouchGestureEnabled -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuMotionGestureEnabled -bool false >/dev/null 2>&1 || true
-    xcrun simctl spawn booted defaults write "${BUNDLE_ID}" EXDevMenuShowsAtLaunch -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuShowFloatingActionButton -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuTouchGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuMotionGestureEnabled -bool false >/dev/null 2>&1 || true
+    xcrun simctl spawn "${IOS_SIMCTL_TARGET}" defaults write "${BUNDLE_ID}" EXDevMenuShowsAtLaunch -bool false >/dev/null 2>&1 || true
   done
 
   echo "[e2e] Priming iOS dev client with ${EXPO_URL} ..."
-  xcrun simctl openurl booted "${EXPO_URL}" >/dev/null 2>&1 || true
+  xcrun simctl openurl "${IOS_SIMCTL_TARGET}" "${EXPO_URL}" >/dev/null 2>&1 || true
   sleep 4
 
   IOS_OPEN_PROMPT_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-ios-open-prompt.XXXXXX")"
-  cat >"${IOS_OPEN_PROMPT_FLOW}" <<'YAML'
-appId: com.apple.springboard
+  cat >"${IOS_OPEN_PROMPT_FLOW}" <<YAML
+appId: ${APP_ID}
 ---
 - runFlow:
     when:
@@ -403,7 +705,12 @@ appId: com.apple.springboard
     commands:
       - tapOn: "Open"
 YAML
-  maestro test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  IOS_PROMPT_CMD=(maestro)
+  if [[ -n "${UDID}" ]]; then
+    IOS_PROMPT_CMD+=(--device "${UDID}")
+  fi
+  IOS_PROMPT_CMD+=(test "${IOS_OPEN_PROMPT_FLOW}" -p "${PLATFORM}")
+  "${IOS_PROMPT_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${IOS_OPEN_PROMPT_FLOW}"
 
   DEV_MENU_DISMISS_FLOW="$(mktemp "${TMPDIR:-/tmp}/fitaly-close-dev-menu.XXXXXX")"
@@ -421,7 +728,12 @@ appId: ${APP_ID}
     commands:
       - tapOn: "Close"
 YAML
-  maestro test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}" >/dev/null 2>&1 || true
+  DEV_MENU_DISMISS_CMD=(maestro)
+  if [[ -n "${UDID}" ]]; then
+    DEV_MENU_DISMISS_CMD+=(--device "${UDID}")
+  fi
+  DEV_MENU_DISMISS_CMD+=(test "${DEV_MENU_DISMISS_FLOW}" -p "${PLATFORM}")
+  "${DEV_MENU_DISMISS_CMD[@]}" >/dev/null 2>&1 || true
   rm -f "${DEV_MENU_DISMISS_FLOW}"
 fi
 
@@ -453,7 +765,11 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   fi
 
   FLOW_RESULTS_PATH="$(result_path_for_flow "${FLOW_PATH}")"
-  MAESTRO_CMD=(maestro test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${FLOW_RESULTS_PATH}")
+  MAESTRO_CMD=(maestro)
+  if [[ -n "${UDID}" ]]; then
+    MAESTRO_CMD+=(--device "${UDID}")
+  fi
+  MAESTRO_CMD+=(test "${MAESTRO_FLOW_PATH}" -p "${PLATFORM}" --format junit --output "${FLOW_RESULTS_PATH}")
   if [[ -n "${TEST_SUITE_NAME}" ]]; then
     MAESTRO_CMD+=(--test-suite-name "${TEST_SUITE_NAME}")
   fi
@@ -463,10 +779,6 @@ for FLOW_PATH in "${FLOW_PATHS[@]}"; do
   if [[ -n "${DEBUG_OUTPUT_DIR}" ]]; then
     MAESTRO_CMD+=(--debug-output "${DEBUG_OUTPUT_DIR}/$(sanitize_result_name "${FLOW_PATH}")")
   fi
-  if [[ -n "${UDID}" ]]; then
-    MAESTRO_CMD+=(--udid "${UDID}")
-  fi
-
   echo "[e2e] Running flow: ${FLOW_PATH}"
   echo "[e2e] Running: ${MAESTRO_CMD[*]}"
   if (

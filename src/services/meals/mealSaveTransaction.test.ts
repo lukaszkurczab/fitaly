@@ -13,6 +13,9 @@ const mockUpsertMyMealWithPhoto = jest.fn<
   (uid: string, meal: Meal, localPhoto: string | null) => Promise<void>
 >();
 const mockTrackMealLogged = jest.fn<(meal: Meal) => Promise<void>>();
+const mockRuntimeConfig = {
+  planningEnabled: true,
+};
 
 jest.mock("uuid", () => ({
   v4: () => mockUuid(),
@@ -49,6 +52,10 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
   trackMealLogged: (meal: Meal) => mockTrackMealLogged(meal),
 }));
 
+jest.mock("@/services/core/runtimeConfig", () => ({
+  getRuntimeConfig: () => mockRuntimeConfig,
+}));
+
 const baseMeal = (overrides: Partial<Meal> = {}): Meal => ({
   userUid: "stale-user",
   mealId: "meal-1",
@@ -81,6 +88,7 @@ describe("saveMealTransaction", () => {
     mockEnqueueUpsert.mockResolvedValue();
     mockUpsertMyMealWithPhoto.mockResolvedValue();
     mockTrackMealLogged.mockResolvedValue();
+    mockRuntimeConfig.planningEnabled = true;
   });
 
   it("keeps create semantics as the default operation", async () => {
@@ -160,6 +168,64 @@ describe("saveMealTransaction", () => {
     expect(onLocalCommitted.mock.invocationCallOrder[0]).toBeLessThan(
       mockEnqueueUpsert.mock.invocationCallOrder[0],
     );
+  });
+
+  it("preserves explicit positive totals and planning source for ingredientless planned meals", async () => {
+    const planningSource = {
+      plannedMealId: "planned-1",
+      plannedMealVersion: 3,
+      sourceType: "manual" as const,
+      sourceRef: null,
+      nutritionEstimateState: "unknown" as const,
+      missingNutritionFields: ["fat" as const],
+    };
+
+    const { meal } = await saveMealTransaction({
+      uid: "user-1",
+      nowISO: "2026-02-25T12:00:00.000Z",
+      meal: baseMeal({
+        ingredients: [],
+        totals: { kcal: 420, protein: 32, carbs: 45, fat: 10 },
+        planningSource,
+      }),
+    });
+
+    expect(meal).toEqual(
+      expect.objectContaining({
+        totals: { kcal: 420, protein: 32, carbs: 45, fat: 10 },
+        planningSource,
+      }),
+    );
+    expect(mockUpsertMealLocal).toHaveBeenCalledWith(meal);
+    expect(mockEnqueueUpsert).toHaveBeenCalledWith("user-1", meal);
+  });
+
+  it("blocks planned-source saves before local persistence when Planning is disabled", async () => {
+    mockRuntimeConfig.planningEnabled = false;
+    const planningSource = {
+      plannedMealId: "planned-disabled-1",
+      plannedMealVersion: 1,
+      sourceType: "manual" as const,
+      sourceRef: null,
+      nutritionEstimateState: "known" as const,
+      missingNutritionFields: [],
+    };
+
+    await expect(
+      saveMealTransaction({
+        uid: "user-1",
+        nowISO: "2026-02-25T12:00:00.000Z",
+        meal: baseMeal({ planningSource }),
+      }),
+    ).rejects.toMatchObject({
+      code: "feature/planning-disabled",
+      retryable: false,
+    });
+
+    expect(mockInsertOrUpdateImage).not.toHaveBeenCalled();
+    expect(mockUpsertMealLocal).not.toHaveBeenCalled();
+    expect(mockEnqueueUpsert).not.toHaveBeenCalled();
+    expect(mockEmit).not.toHaveBeenCalled();
   });
 
   it("turns conflict review updates into pending queued mutations", async () => {

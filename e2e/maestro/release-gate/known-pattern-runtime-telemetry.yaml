@@ -1,0 +1,42 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?telemetryRuntime=telemetryEnabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryRuntime-telemetryEnabled
+    timeout: 15000
+- openLink: fitaly://e2e/seed?telemetryRuntime=knownPatternsEnabled
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryRuntime-knownPatternsEnabled
+    timeout: 15000
+- openLink: fitaly://e2e/seed?telemetryBaseline=knownPatternCandidateDismissed
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryBaseline-knownPatternCandidateDismissed
+    timeout: 15000
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty&knownPattern=candidate&credits=ok&billing=free
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-knownPattern-candidate
+    timeout: 30000
+- tapOn:
+    id: tab-add-meal
+- extendedWaitUntil:
+    visible:
+      id: meal-add-known-pattern-card
+    timeout: 30000
+- tapOn:
+    id: meal-add-known-pattern-dismiss-button
+- assertNotVisible:
+    id: meal-add-known-pattern-card
+- openLink: fitaly://e2e/seed?telemetryAssert=knownPatternCandidateDismissed
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-telemetryAssert-knownPatternCandidateDismissed
+    timeout: 30000

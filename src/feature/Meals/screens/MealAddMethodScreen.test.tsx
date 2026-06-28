@@ -154,6 +154,7 @@ describe("MealAddMethodScreen", () => {
       replaceOnStart: true,
       persistSelection: false,
       resetStackOnStart: false,
+      loadKnownPatternCandidate: true,
     });
   });
 
@@ -174,6 +175,7 @@ describe("MealAddMethodScreen", () => {
       replaceOnStart: true,
       persistSelection: true,
       resetStackOnStart: false,
+      loadKnownPatternCandidate: true,
     });
   });
 
@@ -194,6 +196,7 @@ describe("MealAddMethodScreen", () => {
       replaceOnStart: true,
       persistSelection: false,
       resetStackOnStart: true,
+      loadKnownPatternCandidate: true,
     });
   });
 
@@ -223,6 +226,35 @@ describe("MealAddMethodScreen", () => {
     expect(handleContinueDraft).toHaveBeenCalledTimes(1);
     expect(handleDiscardDraft).toHaveBeenCalledTimes(1);
     expect(closeResumeModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders known-pattern suggestion actions when a candidate is available", () => {
+    const handleKnownPatternReview = jest.fn(async () => undefined);
+    const handleKnownPatternDismiss = jest.fn(async () => undefined);
+
+    mockUseMealAddMethodState.mockReturnValue({
+      options: [],
+      handleOptionPress: jest.fn(),
+      showResumeModal: false,
+      knownPatternCandidate: {
+        candidateId: "a1b2c3d4e5f6a1b2",
+        subjectKeyHash: "b2c3d4e5f6a1b2c3",
+      },
+      knownPatternBusy: false,
+      handleKnownPatternReview,
+      handleKnownPatternDismiss,
+    });
+
+    const { getByTestId, getByText } = renderWithTheme(<MealAddMethodScreen />);
+
+    expect(getByTestId("meal-add-known-pattern-card")).toBeTruthy();
+    expect(getByText("meals:knownPatternTitle")).toBeTruthy();
+
+    fireEvent.press(getByTestId("meal-add-known-pattern-review-button"));
+    fireEvent.press(getByTestId("meal-add-known-pattern-dismiss-button"));
+
+    expect(handleKnownPatternReview).toHaveBeenCalledTimes(1);
+    expect(handleKnownPatternDismiss).toHaveBeenCalledTimes(1);
   });
 
   it("dismisses the sheet when tapping the overlay", () => {

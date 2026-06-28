@@ -146,7 +146,68 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created
   ON chat_messages(user_uid, thread_id, created_at DESC);
 
-PRAGMA user_version=11;
+CREATE TABLE IF NOT EXISTS smart_memory_items (
+  memory_item_id TEXT PRIMARY KEY,
+  user_uid TEXT NOT NULL,
+  memory_type TEXT NOT NULL,
+  state TEXT NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_state
+  ON smart_memory_items(user_uid, projection_state, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_type
+  ON smart_memory_items(user_uid, memory_type, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS smart_memory_candidates (
+  candidate_id TEXT PRIMARY KEY,
+  user_uid TEXT NOT NULL,
+  memory_type TEXT NOT NULL,
+  state TEXT NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_candidates_user_state
+  ON smart_memory_candidates(user_uid, projection_state, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS smart_memory_settings (
+  user_uid TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+
+PRAGMA user_version=14;
 `,
   },
   {
@@ -189,5 +250,114 @@ PRAGMA user_version=12;
       }
       await db.execAsync("PRAGMA user_version=13;");
     },
+  },
+  {
+    version: 5,
+    up: `
+CREATE TABLE IF NOT EXISTS smart_memory_items (
+  memory_item_id TEXT PRIMARY KEY,
+  user_uid TEXT NOT NULL,
+  memory_type TEXT NOT NULL,
+  state TEXT NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_state
+  ON smart_memory_items(user_uid, projection_state, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_items_user_type
+  ON smart_memory_items(user_uid, memory_type, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS smart_memory_candidates (
+  candidate_id TEXT PRIMARY KEY,
+  user_uid TEXT NOT NULL,
+  memory_type TEXT NOT NULL,
+  state TEXT NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_smart_memory_candidates_user_state
+  ON smart_memory_candidates(user_uid, projection_state, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS smart_memory_settings (
+  user_uid TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL,
+  projection_state TEXT NOT NULL,
+  suggestion_use TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL DEFAULT 'synced',
+  pending_operation TEXT,
+  pending_client_mutation_id TEXT,
+  pending_updated_at TEXT,
+  last_error_code TEXT,
+  last_error_message TEXT
+);
+PRAGMA user_version=14;
+`,
+  },
+  {
+    version: 6,
+    up: `
+CREATE TABLE IF NOT EXISTS ingredient_product_search_cache (
+  user_uid TEXT NOT NULL,
+  normalized_query TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  result_rank INTEGER NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  query_echo TEXT NOT NULL,
+  cache_policy TEXT NOT NULL,
+  warnings TEXT NOT NULL,
+  cache_state TEXT,
+  cached_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (user_uid, normalized_query, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_query
+  ON ingredient_product_search_cache(user_uid, normalized_query, result_rank ASC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_search_cache_user_cached
+  ON ingredient_product_search_cache(user_uid, cached_at DESC);
+
+CREATE TABLE IF NOT EXISTS ingredient_product_user_records (
+  user_uid TEXT NOT NULL,
+  ingredient_product_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  source_client_mutation_id TEXT,
+  updated_at TEXT NOT NULL,
+  last_synced_at INTEGER NOT NULL DEFAULT 0,
+  sync_state TEXT NOT NULL,
+  last_error_code TEXT,
+  last_error_message TEXT,
+  PRIMARY KEY (user_uid, ingredient_product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_sync
+  ON ingredient_product_user_records(user_uid, sync_state, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingredient_product_user_records_updated
+  ON ingredient_product_user_records(user_uid, updated_at DESC, ingredient_product_id ASC);
+PRAGMA user_version=16;
+`,
   },
 ];

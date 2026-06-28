@@ -22,6 +22,8 @@ import { BottomActionBar } from "@/components/BottomActionBar";
 
 type IngredientEditorModalProps = {
   visible: boolean;
+  uid: string | null;
+  locale?: string | null;
   ingredientDraft: Ingredient | null;
   editingIngredientIndex: number | null;
   onClose: () => void;
@@ -31,6 +33,8 @@ type IngredientEditorModalProps = {
 
 export default function IngredientEditorModal({
   visible,
+  uid,
+  locale,
   ingredientDraft,
   editingIngredientIndex,
   onClose,
@@ -174,6 +178,8 @@ export default function IngredientEditorModal({
                   submitLabel={submitLabel}
                   showDelete={editingIngredientIndex !== null}
                   showSheetActions={false}
+                  autocompleteUid={uid}
+                  autocompleteLocale={locale ?? null}
                   onCommit={onCommit}
                   onCancel={onClose}
                   onDelete={onDelete}

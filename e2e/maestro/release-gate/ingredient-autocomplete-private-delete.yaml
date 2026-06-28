@@ -1,0 +1,64 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Prywatny delete QA
+- extendedWaitUntil:
+    visible:
+      id: ingredient-autocomplete-warning
+    timeout: 10000
+- assertVisible:
+    id: ingredient-autocomplete-results
+- assertVisible:
+    id: ingredient-autocomplete-row-0
+- tapOn:
+    id: ingredient-autocomplete-row-0
+- assertVisible: Prywatny delete QA
+- assertVisible:
+    id: ingredient-editor-product-delete-panel
+- assertVisible:
+    id: ingredient-editor-product-delete-button
+- assertNotVisible:
+    id: ingredient-editor-delete-button
+- tapOn:
+    id: ingredient-editor-product-delete-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-product-delete-success
+    timeout: 10000
+- assertNotVisible:
+    id: ingredient-editor-product-delete-button
+- tapOn:
+    id: ingredient-editor-submit-button
+- assertVisible:
+    id: ingredient-row-0

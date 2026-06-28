@@ -2,7 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { callAuthenticatedJson, smokeResponseError } from "./smoke-auth-lib.mjs";
+import {
+  callAuthenticatedJson,
+  smokeResponseError,
+  verifySmokeRuntimeBackendSha,
+} from "./smoke-auth-lib.mjs";
 
 const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const maxLatencyMs = Number.parseInt(process.env.MAX_FLOW_LATENCY_MS || "5000", 10);
@@ -74,11 +78,13 @@ function assertWeeklyContract(payload) {
 
 const summary = {
   checkedAt: new Date().toISOString(),
+  backendVersion: null,
   smokeApiBaseUrl: null,
   smokeUserRef: null,
   checks: [],
 };
 
+summary.backendVersion = await verifySmokeRuntimeBackendSha();
 const creditsResult = await timedCall("/api/v1/ai/credits");
 assert(
   creditsResult.response.ok,

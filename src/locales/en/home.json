@@ -18,6 +18,32 @@
   "methodSelector": "Method: {{method}}",
   "viewHistory": "See full history",
   "viewHistoryShort": "History",
+  "nextAction": {
+    "dismiss": "Not now",
+    "reviewDraft": {
+      "title": "Finish reviewing your meal",
+      "description": "You have an unfinished meal ready to review.",
+      "cta": "Continue",
+      "unavailable": "Couldn't open that draft. Try again from Add meal.",
+      "dismissUnavailable": "Couldn't hide this prompt. Try again in a moment."
+    },
+    "plannedItem": {
+      "title": "Check your next planned meal",
+      "description": "You have a planned item due soon. Open Planning to review it before logging.",
+      "cta": "Open Planning",
+      "dismissUnavailable": "Couldn't hide this planning prompt. Try again in a moment."
+    },
+    "knownPattern": {
+      "title": "Review a recent meal pattern",
+      "description": "A repeated meal is ready in Add meal. Review it before saving anything.",
+      "cta": "Open Add meal",
+      "dismissUnavailable": "Couldn't hide this pattern prompt. Try again in a moment."
+    }
+  },
+  "planningEntry": {
+    "title": "Plan next meals",
+    "description": "Prepare 1-3 days without logging anything yet."
+  },
   "hero": {
     "greeting": {
       "morning": "Good morning, {{name}}",

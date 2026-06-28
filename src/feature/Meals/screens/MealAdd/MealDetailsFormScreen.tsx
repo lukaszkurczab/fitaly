@@ -249,7 +249,7 @@ function MealDetailsFormScreenInner({
         <KeyboardAwareScrollView
           style={styles.scrollArea}
           extraScrollOffset={theme.spacing.xs}
-          keyboardShouldPersistTaps="never"
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
             {
@@ -346,6 +346,8 @@ function MealDetailsFormScreenInner({
 
       <IngredientEditorModal
         visible={ingredientDraft !== null}
+        uid={uid}
+        locale={locale}
         ingredientDraft={ingredientDraft}
         editingIngredientIndex={editingIngredientIndex}
         onClose={handleCloseIngredientEditor}

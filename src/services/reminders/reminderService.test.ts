@@ -20,6 +20,13 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    foodLibraryEnabled: false,
+    smartMemoryEnabled: false,
+    knownPatternsEnabled: false,
+    recipeCatalogEnabled: false,
+    planningEnabled: false,
+    homeNextActionEnabled: false,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
     privacyUrl: "",
@@ -30,6 +37,8 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    firebaseProjectId: "",
+    firebaseAuthEmulatorHost: "",
     ...overrides,
   };
 }

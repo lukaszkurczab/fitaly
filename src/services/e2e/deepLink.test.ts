@@ -12,6 +12,7 @@ const mockSetE2EForcedOffline = jest.fn();
 const mockMarkE2EResetStarted = jest.fn();
 const mockMarkE2EResetReady = jest.fn();
 const mockMarkE2ESeedReady = jest.fn();
+const mockMarkE2ESeedError = jest.fn();
 const mockApplyE2ESeedCommand = jest.fn<(input: unknown) => Promise<string[]>>();
 const mockResetE2EFixtureState = jest.fn<() => Promise<void>>();
 
@@ -55,6 +56,7 @@ jest.mock("@/services/e2e/config", () => ({
 
 jest.mock("@/services/e2e/status", () => ({
   markE2ESeedReady: (...args: unknown[]) => mockMarkE2ESeedReady(...args),
+  markE2ESeedError: (...args: unknown[]) => mockMarkE2ESeedError(...args),
   markE2EResetStarted: () => mockMarkE2EResetStarted(),
   markE2EResetReady: (...args: unknown[]) => mockMarkE2EResetReady(...args),
 }));
@@ -71,6 +73,15 @@ jest.mock("@/services/e2e/fixtures", () => ({
     notificationPermission: params.notificationPermission,
     reminder: params.reminder,
     weeklyReport: params.weeklyReport,
+    aiConsent: params.aiConsent,
+    aiConsentGrant: params.aiConsentGrant,
+    aiConsentRevoke: params.aiConsentRevoke,
+    smartMemory: params.smartMemory,
+    knownPattern: params.knownPattern,
+    planning: params.planning,
+    historyAssert: params.historyAssert,
+    telemetryBaseline: params.telemetryBaseline,
+    telemetryAssert: params.telemetryAssert,
   }),
   applyE2ESeedCommand: (input: unknown) => mockApplyE2ESeedCommand(input),
   resetE2EFixtureState: () => mockResetE2EFixtureState(),
@@ -138,10 +149,11 @@ describe("handleE2EDeepLink", () => {
     mockApplyE2ESeedCommand.mockResolvedValue([
       "fixture-user-with-today-meal",
       "credits-none",
+      "smartMemory-active",
     ]);
 
     const handled = await handleE2EDeepLink(
-      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none",
+      "fitaly://e2e/seed?fixture=user-with-today-meal&credits=none&smartMemory=active",
     );
 
     expect(handled).toBe(true);
@@ -155,14 +167,24 @@ describe("handleE2EDeepLink", () => {
         billing: undefined,
         chat: undefined,
         shareExport: undefined,
-        notificationPermission: undefined,
-        reminder: undefined,
-        weeklyReport: undefined,
+      notificationPermission: undefined,
+      reminder: undefined,
+      weeklyReport: undefined,
+      aiConsent: undefined,
+      aiConsentGrant: undefined,
+      aiConsentRevoke: undefined,
+      smartMemory: "active",
+      knownPattern: undefined,
+      planning: undefined,
+      historyAssert: undefined,
+      telemetryBaseline: undefined,
+      telemetryAssert: undefined,
       },
     });
     expect(mockMarkE2ESeedReady).toHaveBeenCalledWith([
       "fixture-user-with-today-meal",
       "credits-none",
+      "smartMemory-active",
     ]);
     expect(mockMarkE2EResetStarted).not.toHaveBeenCalled();
   });
@@ -174,6 +196,32 @@ describe("handleE2EDeepLink", () => {
 
     expect(handled).toBe(false);
     expect(mockMarkE2ESeedReady).not.toHaveBeenCalled();
+    expect(mockMarkE2ESeedError).toHaveBeenCalledWith("seed-empty");
+  });
+
+  it("marks seed errors explicitly instead of leaving stale readiness markers", async () => {
+    mockApplyE2ESeedCommand.mockRejectedValueOnce(
+      Object.assign(new Error("seed failed"), {
+        code: "e2e/known-pattern-seed-unavailable",
+      }),
+    );
+
+    const handled = await handleE2EDeepLink(
+      "fitaly://e2e/seed?fixture=activated-user-empty&knownPattern=candidate",
+    );
+
+    expect(handled).toBe(false);
+    expect(mockApplyE2ESeedCommand).toHaveBeenCalledWith({
+      uid: "user-1",
+      command: expect.objectContaining({
+        fixture: "activated-user-empty",
+        knownPattern: "candidate",
+      }),
+    });
+    expect(mockMarkE2ESeedReady).not.toHaveBeenCalled();
+    expect(mockMarkE2ESeedError).toHaveBeenCalledWith(
+      "seed-e2e-known-pattern-seed-unavailable",
+    );
   });
 
   it("toggles connectivity without clearing local state or signing out", async () => {

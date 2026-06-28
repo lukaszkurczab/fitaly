@@ -5,6 +5,15 @@ const mockRunSync = jest.fn();
 const mockGetFirstSync = jest.fn();
 const mockGetAllSync = jest.fn();
 
+const planningSource = {
+  plannedMealId: "planned-1",
+  plannedMealVersion: 2,
+  sourceType: "manual" as const,
+  sourceRef: null,
+  nutritionEstimateState: "unknown" as const,
+  missingNutritionFields: ["fat" as const],
+};
+
 jest.mock("@/services/offline/db", () => ({
   getDB: () => ({
     runSync: (...args: unknown[]) => mockRunSync(...args),
@@ -51,7 +60,7 @@ describe("offline meals repo", () => {
     jest.clearAllMocks();
   });
 
-  it("serializes inputMethod and aiMeta on upsert", async () => {
+  it("serializes inputMethod, aiMeta and planningSource on upsert", async () => {
     const { upsertMealLocal } =
       jest.requireActual<typeof import("@/services/offline/meals.repo")>(
         "@/services/offline/meals.repo",
@@ -60,7 +69,7 @@ describe("offline meals repo", () => {
       emit: jest.Mock;
     };
 
-    await upsertMealLocal(baseMeal());
+    await upsertMealLocal(baseMeal({ planningSource }));
 
     const args = mockRunSync.mock.calls[0]?.[1] as unknown[];
     expect(args).toContain("photo");
@@ -72,6 +81,7 @@ describe("offline meals repo", () => {
         warnings: ["partial_totals"],
       }),
     );
+    expect(args).toContain(JSON.stringify(planningSource));
     expect(args).toContain("2026-03-18");
     expect(emit).toHaveBeenCalledWith("meal:local:upserted", {
       uid: "user-1",
@@ -82,7 +92,7 @@ describe("offline meals repo", () => {
     });
   });
 
-  it("round-trips dayKey, inputMethod, aiMeta, and totals from local persistence", async () => {
+  it("round-trips dayKey, inputMethod, aiMeta, planningSource, and totals from local persistence", async () => {
     mockGetFirstSync
       .mockReturnValueOnce({
         cloud_id: "cloud-1",
@@ -113,6 +123,7 @@ describe("offline meals repo", () => {
           confidence: 0.5,
           warnings: ["low_confidence"],
         }),
+        planning_source: JSON.stringify(planningSource),
         notes: null,
         tags: "[]",
       })
@@ -137,6 +148,7 @@ describe("offline meals repo", () => {
         last_synced_at: 0,
         sync_state: "pending",
         source: "manual",
+        planning_source: null,
         notes: null,
         tags: "[]",
       });
@@ -156,6 +168,7 @@ describe("offline meals repo", () => {
           confidence: 0.5,
           warnings: ["low_confidence"],
         },
+        planningSource,
         totals: {
           kcal: 500,
           protein: 40,
@@ -170,6 +183,7 @@ describe("offline meals repo", () => {
       expect.objectContaining({
         inputMethod: null,
         aiMeta: null,
+        planningSource: null,
         dayKey: null,
       }),
     );

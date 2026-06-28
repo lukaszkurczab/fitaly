@@ -12,6 +12,10 @@ import { renderWithTheme } from "@/test-utils/renderWithTheme";
 const mockHandleLogout = jest.fn<() => Promise<void>>();
 const mockRetryProfileSync = jest.fn<() => Promise<void>>();
 const mockDiscardAvatarUploadDeadLetter = jest.fn<() => Promise<void>>();
+const mockRuntimeFeatures: Record<string, boolean> = {
+  recipeCatalog: true,
+  smartMemory: true,
+};
 
 const mockBaseState = {
   userData: {
@@ -47,6 +51,10 @@ jest.mock("@/feature/UserProfile/hooks/useUserProfileState", () => ({
 
 jest.mock("@/context/PremiumContext", () => ({
   usePremiumContext: () => ({ isPremium: false }),
+}));
+
+jest.mock("@/services/core/featureFlagGuard", () => ({
+  isRuntimeFeatureEnabled: (domain: string) => mockRuntimeFeatures[domain] ?? true,
 }));
 
 jest.mock("@/components/AppIcon", () => ({
@@ -203,6 +211,8 @@ describe("UserProfileScreen", () => {
     mockBaseState.syncState = "synced";
     mockBaseState.hasAvatarUploadDeadLetter = false;
     mockBaseState.retryingProfileSync = false;
+    mockRuntimeFeatures.recipeCatalog = true;
+    mockRuntimeFeatures.smartMemory = true;
   });
 
   it("opens a confirmation modal before logging out", () => {
@@ -248,6 +258,42 @@ describe("UserProfileScreen", () => {
     fireEvent.press(screen.getByTestId("account-identity-card"));
 
     expect(navigation.navigate).toHaveBeenCalledWith("EditUserData");
+  });
+
+  it("links to Memory Center from the profile control area", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(screen.getByTestId("account-memory-center-row"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("MemoryCenter");
+  });
+
+  it("links to the read-only recipe catalog from the profile area", () => {
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    fireEvent.press(screen.getByTestId("account-recipe-catalog-row"));
+
+    expect(navigation.navigate).toHaveBeenCalledWith("RecipeCatalog");
+  });
+
+  it("hides disabled new-domain profile entrypoints", () => {
+    mockRuntimeFeatures.recipeCatalog = false;
+    mockRuntimeFeatures.smartMemory = false;
+    const navigation = { navigate: jest.fn(), reset: jest.fn() };
+    const screen = renderWithTheme(
+      <UserProfileScreen navigation={navigation as never} />,
+    );
+
+    expect(screen.queryByTestId("account-recipe-catalog-row")).toBeNull();
+    expect(screen.queryByTestId("account-memory-center-row")).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalledWith("RecipeCatalog");
+    expect(navigation.navigate).not.toHaveBeenCalledWith("MemoryCenter");
   });
 
   it("shows pending sync copy without retry action", () => {

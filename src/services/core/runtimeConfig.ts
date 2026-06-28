@@ -9,6 +9,13 @@ export type RuntimeConfig = {
   backendLoggingEnabled: boolean;
   telemetryEnabled: boolean;
   smartRemindersEnabled: boolean;
+  foodLibraryEnabled: boolean;
+  smartMemoryEnabled: boolean;
+  knownPatternsEnabled: boolean;
+  recipeCatalogEnabled: boolean;
+  planningEnabled: boolean;
+  homeNextActionEnabled: boolean;
+  reviewMemoryExplanationEnabled: boolean;
   billingDisabled: boolean;
   buildProfile: string;
   termsUrl: string;
@@ -19,6 +26,8 @@ export type RuntimeConfig = {
   sentryProject: string;
   revenuecatIosKey: string;
   revenuecatAndroidKey: string;
+  firebaseProjectId: string;
+  firebaseAuthEmulatorHost: string;
 };
 
 function normalizeString(value: unknown): string {
@@ -56,6 +65,16 @@ export function getRuntimeConfigFromExtra(extra: unknown): RuntimeConfig {
     backendLoggingEnabled: normalizeBoolean(record.backendLoggingEnabled, false),
     telemetryEnabled: normalizeBoolean(record.telemetryEnabled, false),
     smartRemindersEnabled: normalizeBoolean(record.smartRemindersEnabled, true),
+    foodLibraryEnabled: normalizeBoolean(record.foodLibraryEnabled, false),
+    smartMemoryEnabled: normalizeBoolean(record.smartMemoryEnabled, false),
+    knownPatternsEnabled: normalizeBoolean(record.knownPatternsEnabled, false),
+    recipeCatalogEnabled: normalizeBoolean(record.recipeCatalogEnabled, false),
+    planningEnabled: normalizeBoolean(record.planningEnabled, false),
+    homeNextActionEnabled: normalizeBoolean(record.homeNextActionEnabled, false),
+    reviewMemoryExplanationEnabled: normalizeBoolean(
+      record.reviewMemoryExplanationEnabled,
+      false,
+    ),
     billingDisabled: normalizeBoolean(record.billingDisabled, false),
     buildProfile: normalizeString(record.buildProfile),
     termsUrl: normalizeString(record.termsUrl),
@@ -67,6 +86,8 @@ export function getRuntimeConfigFromExtra(extra: unknown): RuntimeConfig {
     sentryProject: normalizeString(record.sentryProject),
     revenuecatIosKey: normalizeString(record.revenuecatIosKey),
     revenuecatAndroidKey: normalizeString(record.revenuecatAndroidKey),
+    firebaseProjectId: normalizeString(record.firebaseProjectId),
+    firebaseAuthEmulatorHost: normalizeString(record.firebaseAuthEmulatorHost),
   };
 }
 

@@ -1,0 +1,55 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- openLink: fitaly://e2e/connectivity?offline=1
+- assertVisible:
+    id: e2e-ready-offline
+- assertVisible:
+    id: offline-banner
+- tapOn:
+    id: tab-add-meal
+- assertVisible:
+    id: meal-add-option-manual
+- tapOn:
+    id: meal-add-option-manual
+- assertVisible:
+    id: meal-details-form-screen
+- scrollUntilVisible:
+    element:
+      id: ingredient-add-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-add-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-sheet
+    timeout: 10000
+- tapOn:
+    id: ingredient-editor-name-input
+- inputText: Offline queued product
+- extendedWaitUntil:
+    visible:
+      id: ingredient-autocomplete-offline
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: ingredient-editor-create-product-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: ingredient-editor-create-product-button
+- extendedWaitUntil:
+    visible:
+      id: ingredient-editor-create-product-queued
+    timeout: 10000

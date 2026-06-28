@@ -13,6 +13,8 @@ const { PRODUCTION_BUILD_PROFILE, validateEasApiBaseUrlProfiles } =
 const {
   validateAndroidTargetSdkConfig,
   validateEasRuntimeContractProfiles,
+  validateProductionLegalUrls,
+  validateProductionSentryDsn,
 } = readinessLib;
 
 const profile = (process.argv[2] ?? process.env.EAS_BUILD_PROFILE ?? "")
@@ -63,20 +65,13 @@ function readExpoConfig() {
   }
 }
 
-function isHttpUrl(value) {
-  return value.startsWith("https://") || value.startsWith("http://");
-}
-
 function checkLegalUrls() {
-  const termsUrl = (process.env.TERMS_URL ?? "").trim();
-  const privacyUrl = (process.env.PRIVACY_URL ?? "").trim();
-
-  if (!isHttpUrl(termsUrl)) {
-    errors.push("TERMS_URL is missing or invalid (expected http/https URL).");
-  }
-  if (!isHttpUrl(privacyUrl)) {
-    errors.push("PRIVACY_URL is missing or invalid (expected http/https URL).");
-  }
+  errors.push(
+    ...validateProductionLegalUrls({
+      termsUrl: process.env.TERMS_URL,
+      privacyUrl: process.env.PRIVACY_URL,
+    }),
+  );
 }
 
 function checkEasAndroidBuildType() {
@@ -217,24 +212,11 @@ function checkRevenueCatKeys() {
 }
 
 function checkSentryDsn() {
-  const sentryDsn = (process.env.SENTRY_DSN ?? "").trim();
-  if (sentryDsn) return;
+  const sentryErrors = validateProductionSentryDsn({
+    sentryDsn: process.env.SENTRY_DSN,
+  });
 
-  const assumeEasSecrets =
-    String(process.env.READINESS_ASSUME_EAS_SECRETS ?? "")
-      .trim()
-      .toLowerCase() === "true";
-
-  if (assumeEasSecrets) {
-    console.log(
-      "[launch-readiness] SENTRY_DSN is not set locally. Assuming EAS secrets provide SENTRY_DSN for cloud build.",
-    );
-    return;
-  }
-
-  console.warn(
-    "[launch-readiness] WARNING: SENTRY_DSN is not set — production crashes will not be tracked.",
-  );
+  errors.push(...sentryErrors);
 }
 
 if (profile !== PRODUCTION_BUILD_PROFILE) {

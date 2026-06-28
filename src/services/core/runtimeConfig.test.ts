@@ -11,8 +11,17 @@ describe("runtimeConfig", () => {
         backendLoggingEnabled: "true",
         telemetryEnabled: true,
         smartRemindersEnabled: "false",
+        foodLibraryEnabled: "true",
+        smartMemoryEnabled: true,
+        knownPatternsEnabled: "true",
+        recipeCatalogEnabled: "true",
+        planningEnabled: "true",
+        homeNextActionEnabled: "true",
+        reviewMemoryExplanationEnabled: "true",
         billingDisabled: "true",
         sentryEnvironment: "production",
+        firebaseProjectId: " demo-fitaly-local ",
+        firebaseAuthEmulatorHost: " http://127.0.0.1:9099 ",
       }),
     ).toMatchObject({
       apiBaseUrl: "https://api.example.com",
@@ -20,8 +29,17 @@ describe("runtimeConfig", () => {
       backendLoggingEnabled: true,
       telemetryEnabled: true,
       smartRemindersEnabled: false,
+      foodLibraryEnabled: true,
+      smartMemoryEnabled: true,
+      knownPatternsEnabled: true,
+      recipeCatalogEnabled: true,
+      planningEnabled: true,
+      homeNextActionEnabled: true,
+      reviewMemoryExplanationEnabled: true,
       billingDisabled: true,
       sentryEnvironment: "production",
+      firebaseProjectId: "demo-fitaly-local",
+      firebaseAuthEmulatorHost: "http://127.0.0.1:9099",
     });
   });
 
@@ -30,9 +48,18 @@ describe("runtimeConfig", () => {
       backendLoggingEnabled: false,
       telemetryEnabled: false,
       smartRemindersEnabled: true,
+      foodLibraryEnabled: false,
+      smartMemoryEnabled: false,
+      knownPatternsEnabled: false,
+      recipeCatalogEnabled: false,
+      planningEnabled: false,
+      homeNextActionEnabled: false,
+      reviewMemoryExplanationEnabled: false,
       billingDisabled: false,
       apiVersion: "v1",
       sentryEnvironment: "development",
+      firebaseProjectId: "",
+      firebaseAuthEmulatorHost: "",
     });
   });
 
@@ -43,8 +70,9 @@ describe("runtimeConfig", () => {
         apiBaseUrl: "https://api.example.com",
         billingDisabled: true,
         sentryEnvironment: "production",
-        termsUrl: "https://example.com/terms",
-        privacyUrl: "https://example.com/privacy",
+        termsUrl: "https://fitaly.app/terms",
+        privacyUrl: "https://fitaly.app/privacy",
+        sentryDsn: "https://public@sentry.io/1",
       }),
     ).toContain("Billing must be enabled in production build.");
   });

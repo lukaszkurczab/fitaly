@@ -18,6 +18,9 @@ import type {
   MealSyncState,
   MealInputMethod,
   MealSource,
+  MealPlanningNutritionEstimateState,
+  MealPlanningNutritionField,
+  MealPlanningSourceType,
 } from "@/types/meal";
 import type { Ingredient } from "@/types";
 import type { MealDocument } from "@/types/mealDocument";
@@ -31,6 +34,27 @@ import {
   FOOD_LIBRARY_LOGGED_MEAL_OWNER,
   FOOD_LIBRARY_LOGGED_MEAL_SCHEMA,
   FOOD_LIBRARY_MEAL_TEMPLATE_FORBIDDEN_LOGGED_MEAL_FIELDS,
+  INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
+  INGREDIENT_PRODUCT_BARCODE_MINIMAL_IDENTITY_FIELDS,
+  INGREDIENT_PRODUCT_BARCODE_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_CONFIDENCE_FIELDS,
+  INGREDIENT_PRODUCT_CONFIDENCE_LEVELS,
+  INGREDIENT_PRODUCT_DIETARY_FLAGS,
+  INGREDIENT_PRODUCT_KINDS,
+  INGREDIENT_PRODUCT_LIFECYCLE_STATES,
+  INGREDIENT_PRODUCT_NUTRITION_BASES,
+  INGREDIENT_PRODUCT_NUTRITION_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_NUTRITION_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_PROFILE_COMPATIBILITY_STATUSES,
+  INGREDIENT_PRODUCT_RECORD_SCOPES,
+  INGREDIENT_PRODUCT_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_SIZE_FIELDS,
+  INGREDIENT_PRODUCT_SERVING_UNITS,
+  INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_OPTIONAL_FIELDS,
+  INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_REQUIRED_FIELDS,
+  INGREDIENT_PRODUCT_SOURCE_TYPES,
   type FoodLibraryDomainsContract,
 } from "@/types/foodLibrary";
 import type {
@@ -93,6 +117,22 @@ import {
   MEDIA_ASSET_SURFACES,
   type MediaAssetSurface,
 } from "@/services/media/assetLifecycle";
+import {
+  SMART_MEMORY_CANDIDATE_STATES,
+  SMART_MEMORY_CENTER_STATES,
+  SMART_MEMORY_CONFIDENCE_REASON_CODES,
+  SMART_MEMORY_CONTRACT_NAME,
+  SMART_MEMORY_PROJECTION_STATES,
+  SMART_MEMORY_REVIEW_STATES,
+  SMART_MEMORY_SCHEMA_VERSION,
+  SMART_MEMORY_STATE_REASON_CODES,
+  SMART_MEMORY_STATES,
+  SMART_MEMORY_TYPES,
+  SMART_MEMORY_USER_CONTROL_OPERATIONS,
+  SMART_MEMORY_USER_VALUE_REASON_CODES,
+  type SmartMemoryCoreContract,
+} from "@/types/smartMemory";
+import { TELEMETRY_EVENT_NAMES } from "@/services/telemetry/telemetryTypes";
 
 const MEDIA_ASSET_DOMAIN_OWNED_URL_FIELDS_FORBIDDEN = [
   "avatarUrl",
@@ -133,6 +173,10 @@ const SAVED_MEAL_PHOTO_LIBRARY_SCHEMA_FIELDS_FORBIDDEN = [
 ] as const;
 
 const FIXTURES_DIR = path.join(__dirname);
+const BACKEND_REPO_DIR = process.env.BACKEND_REPO;
+const BACKEND_FIXTURES_DIR = BACKEND_REPO_DIR
+  ? path.resolve(BACKEND_REPO_DIR, "tests/contract_fixtures")
+  : path.resolve(__dirname, "../../../fitaly-backend/tests/contract_fixtures");
 
 function loadFixture<T = unknown>(name: string): T {
   const raw = fs.readFileSync(path.join(FIXTURES_DIR, name), "utf-8");
@@ -166,6 +210,9 @@ type EnumsFixture = {
   MealSyncState: string[];
   MealInputMethod: string[];
   MealSource: string[];
+  MealPlanningSourceType: string[];
+  MealPlanningNutritionEstimateState: string[];
+  MealPlanningNutritionField: string[];
   GatewayRejectReasons: string[];
   TopRisk: string[];
   CoachPriority: string[];
@@ -179,6 +226,29 @@ type SmartReminderTelemetryFixture = {
   eventNames: string[];
   propsByEvent: Record<string, string[]>;
   disallowedEventNames: string[];
+};
+
+type AutocompleteTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
+};
+
+type HomeNextActionTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  enumValuesByEvent: Record<string, Record<string, string[]>>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
+};
+
+type C5NewDomainTelemetryFixture = {
+  eventNames: string[];
+  propsByEvent: Record<string, string[]>;
+  enumValuesByEvent: Record<string, Record<string, string[]>>;
+  disallowedEventNames: string[];
+  disallowedPropNames: string[];
 };
 
 type AiRejectionsFixture = {
@@ -342,6 +412,23 @@ describe("Enum parity", () => {
     "manual",
     "saved",
   ];
+  const MOBILE_MEAL_PLANNING_SOURCE_TYPES: MealPlanningSourceType[] = [
+    "manual",
+    "saved_meal",
+    "recipe",
+    "ingredient_product_draft",
+  ];
+  const MOBILE_MEAL_PLANNING_NUTRITION_ESTIMATE_STATES: MealPlanningNutritionEstimateState[] = [
+    "known",
+    "partial",
+    "unknown",
+  ];
+  const MOBILE_MEAL_PLANNING_NUTRITION_FIELDS: MealPlanningNutritionField[] = [
+    "kcal",
+    "protein",
+    "fat",
+    "carbs",
+  ];
   const MOBILE_TOP_RISKS: NutritionTopRisk[] = [
     "none",
     "under_logging",
@@ -386,6 +473,24 @@ describe("Enum parity", () => {
   test("MealSource values match backend", () => {
     expect([...MOBILE_MEAL_SOURCES].sort()).toEqual(
       [...enums.MealSource].sort(),
+    );
+  });
+
+  test("MealPlanningSourceType values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_SOURCE_TYPES].sort()).toEqual(
+      [...enums.MealPlanningSourceType].sort(),
+    );
+  });
+
+  test("MealPlanningNutritionEstimateState values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_NUTRITION_ESTIMATE_STATES].sort()).toEqual(
+      [...enums.MealPlanningNutritionEstimateState].sort(),
+    );
+  });
+
+  test("MealPlanningNutritionField values match backend", () => {
+    expect([...MOBILE_MEAL_PLANNING_NUTRITION_FIELDS].sort()).toEqual(
+      [...enums.MealPlanningNutritionField].sort(),
     );
   });
 
@@ -466,6 +571,14 @@ describe("Meal item contract", () => {
     expect(meal.totals?.kcal).toBe(330.0);
     expect(meal.totals?.protein).toBe(62.0);
     expect(meal.imageRef?.imageId).toBe("img-001");
+    expect(meal.planningSource).toEqual({
+      plannedMealId: "planned-contract-1",
+      plannedMealVersion: 2,
+      sourceType: "manual",
+      sourceRef: null,
+      nutritionEstimateState: "partial",
+      missingNutritionFields: ["fat"],
+    });
   });
 
   test("fixture type field is a valid MealType", () => {
@@ -810,6 +923,584 @@ describe("Smart reminder telemetry contract", () => {
   test("disallowed smart reminder telemetry events stay disallowed on mobile", () => {
     expect(fixture.disallowedEventNames.sort()).toEqual(
       ["smart_reminder_decision_computed", "smart_reminder_opened"].sort(),
+    );
+  });
+});
+
+describe("Autocomplete telemetry contract", () => {
+  const fixture = loadFixture<AutocompleteTelemetryFixture>(
+    "autocomplete_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "autocomplete_search_outcome",
+    "autocomplete_result_selected",
+    "ingredient_product_create_outcome",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    autocomplete_search_outcome: [
+      "surface",
+      "outcome",
+      "queryLengthBucket",
+      "resultCountBucket",
+      "sourceClass",
+      "latencyBucket",
+      "warningReason",
+    ],
+    autocomplete_result_selected: [
+      "surface",
+      "resultCountBucket",
+      "sourceClass",
+      "rankBucket",
+      "selectionState",
+      "warningReason",
+    ],
+    ingredient_product_create_outcome: [
+      "surface",
+      "outcome",
+    ],
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "autocomplete_query_submitted",
+    "autocomplete_product_viewed",
+    "manual_product_created",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "query",
+    "rawQuery",
+    "normalizedQuery",
+    "displayName",
+    "ingredientName",
+    "productName",
+    "ingredientProductId",
+    "productId",
+    "barcode",
+    "nutritionPer100",
+    "kcal",
+    "protein",
+    "carbs",
+    "fat",
+    "sourceRef",
+    "memoryId",
+  ] as const;
+
+  test("event names match backend fixture", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("raw food identity props stay disallowed on mobile", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "autocomplete_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(path.join(BACKEND_FIXTURES_DIR, "autocomplete_telemetry.json")),
+    );
+  });
+});
+
+describe("Home Next Action telemetry contract", () => {
+  const fixture = loadFixture<HomeNextActionTelemetryFixture>(
+    "home_next_action_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "home_next_action_shown",
+    "home_next_action_started",
+    "home_next_action_dismissed",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    home_next_action_shown: [
+      "actionType",
+      "state",
+      "reasonCode",
+      "sourceDomain",
+    ],
+    home_next_action_started: ["actionType", "ownerFlow", "state"],
+    home_next_action_dismissed: [
+      "actionType",
+      "reasonCode",
+      "cooldownBucket",
+    ],
+  } as const;
+
+  const MOBILE_ENUM_VALUES_BY_EVENT = {
+    home_next_action_shown: {
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
+      state: ["eligible"],
+      reasonCode: [
+        "known_pattern_available",
+        "planned_item_due",
+        "review_draft_available",
+      ],
+      sourceDomain: [
+        "known_pattern_candidate",
+        "planned_meal",
+        "review_draft",
+      ],
+    },
+    home_next_action_started: {
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
+      ownerFlow: ["MealAddMethod", "Planning", "ReviewMeal"],
+      state: ["eligible"],
+    },
+    home_next_action_dismissed: {
+      actionType: [
+        "confirm_known_pattern",
+        "continue_planned_item",
+        "continue_review",
+      ],
+      reasonCode: [
+        "known_pattern_available",
+        "planned_item_due",
+        "review_draft_available",
+      ],
+      cooldownBucket: ["24h"],
+    },
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "home_next_action_available",
+    "home_next_action_completed",
+    "home_next_action_failed",
+    "home_next_action_candidate_logged",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "suggestionText",
+    "rawSuggestionText",
+    "mealText",
+    "recipeName",
+    "productName",
+    "ingredientName",
+    "candidateId",
+    "mealId",
+    "userId",
+    "anonymousId",
+    "barcode",
+    "kcal",
+    "calories",
+    "macros",
+    "protein",
+    "carbs",
+    "fat",
+    "sourceRef",
+    "memoryId",
+    "patternId",
+    "profileHealth",
+    "profileFreeText",
+    "healthConditions",
+    "rawPrompt",
+    "rawResponse",
+    "providerPayload",
+    "rawProviderPayload",
+  ] as const;
+
+  test("event names match backend fixture", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+    for (const eventName of fixture.eventNames) {
+      expect(TELEMETRY_EVENT_NAMES).toContain(eventName);
+    }
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("bounded enum values match backend fixture", () => {
+    expect(Object.keys(fixture.enumValuesByEvent).sort()).toEqual(
+      Object.keys(MOBILE_ENUM_VALUES_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propValues] of Object.entries(
+      MOBILE_ENUM_VALUES_BY_EVENT,
+    )) {
+      expect(Object.keys(fixture.enumValuesByEvent[eventName]).sort()).toEqual(
+        Object.keys(propValues).sort(),
+      );
+
+      for (const [propName, values] of Object.entries(propValues)) {
+        expect([...fixture.enumValuesByEvent[eventName][propName]].sort()).toEqual(
+          [...values].sort(),
+        );
+      }
+    }
+  });
+
+  test("content, identity, nutrition, and provider props stay disallowed on mobile", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "home_next_action_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(
+        path.join(BACKEND_FIXTURES_DIR, "home_next_action_telemetry.json"),
+      ),
+    );
+  });
+});
+
+describe("C5 Smart Memory and Planning telemetry contract", () => {
+  const fixture = loadFixture<C5NewDomainTelemetryFixture>(
+    "c5_new_domain_telemetry.json",
+  );
+
+  const MOBILE_EVENT_NAMES = [
+    "memory_candidate_created",
+    "memory_candidate_confirmed",
+    "memory_candidate_dismissed",
+    "memory_used",
+    "memory_muted",
+    "memory_deleted",
+    "planned_meal_created",
+    "planned_meal_confirmed",
+    "planned_meal_changed",
+    "planned_meal_skipped",
+    "known_pattern_candidate_shown",
+    "known_pattern_review_started",
+    "known_pattern_candidate_dismissed",
+  ] as const;
+
+  const MOBILE_PROPS_BY_EVENT = {
+    memory_candidate_created: [
+      "memoryType",
+      "surface",
+      "confidenceBucket",
+      "featureState",
+    ],
+    memory_candidate_confirmed: [
+      "memoryType",
+      "surface",
+      "confidenceBucket",
+      "actionResult",
+      "featureState",
+    ],
+    memory_candidate_dismissed: [
+      "memoryType",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    memory_used: ["memoryType", "surface", "actionResult", "featureState"],
+    memory_muted: ["memoryType", "surface", "actionResult", "featureState"],
+    memory_deleted: ["memoryType", "surface", "actionResult", "featureState"],
+    planned_meal_created: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "featureState",
+    ],
+    planned_meal_confirmed: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    planned_meal_changed: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    planned_meal_skipped: [
+      "sourceType",
+      "estimateState",
+      "surface",
+      "actionResult",
+      "featureState",
+    ],
+    known_pattern_candidate_shown: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "featureState",
+    ],
+    known_pattern_review_started: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "actionResult",
+      "featureState",
+    ],
+    known_pattern_candidate_dismissed: [
+      "surface",
+      "confidenceBucket",
+      "sourceCountBucket",
+      "actionResult",
+      "featureState",
+    ],
+  } as const;
+
+  const MEMORY_TYPE_VALUES = [
+    "ingredient_product_selection",
+    "review_correction",
+    "typical_portion",
+  ] as const;
+  const SURFACE_VALUES = [
+    "home_next_action",
+    "memory_center",
+    "planning",
+    "review",
+    "settings",
+  ] as const;
+  const CONFIDENCE_BUCKET_VALUES = ["high", "low", "medium"] as const;
+  const ACTION_RESULT_VALUES = [
+    "blocked",
+    "failed",
+    "queued",
+    "succeeded",
+  ] as const;
+  const FEATURE_STATE_VALUES = ["disabled", "enabled", "shadow"] as const;
+  const SOURCE_TYPE_VALUES = [
+    "ingredient_product_draft",
+    "manual",
+    "recipe",
+    "saved_meal",
+  ] as const;
+  const ESTIMATE_STATE_VALUES = ["known", "partial", "unknown"] as const;
+  const KNOWN_PATTERN_SURFACE_VALUES = ["meal_add_method"] as const;
+  const KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES = ["high", "medium"] as const;
+  const KNOWN_PATTERN_COUNT_BUCKET_VALUES = ["3_4", "5_plus"] as const;
+
+  const MOBILE_ENUM_VALUES_BY_EVENT = {
+    memory_candidate_created: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      confidenceBucket: CONFIDENCE_BUCKET_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_candidate_confirmed: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      confidenceBucket: CONFIDENCE_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_candidate_dismissed: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_used: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_muted: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    memory_deleted: {
+      memoryType: MEMORY_TYPE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_created: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_confirmed: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_changed: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    planned_meal_skipped: {
+      sourceType: SOURCE_TYPE_VALUES,
+      estimateState: ESTIMATE_STATE_VALUES,
+      surface: SURFACE_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    known_pattern_candidate_shown: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    known_pattern_review_started: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+    known_pattern_candidate_dismissed: {
+      surface: KNOWN_PATTERN_SURFACE_VALUES,
+      confidenceBucket: KNOWN_PATTERN_CONFIDENCE_BUCKET_VALUES,
+      sourceCountBucket: KNOWN_PATTERN_COUNT_BUCKET_VALUES,
+      actionResult: ACTION_RESULT_VALUES,
+      featureState: FEATURE_STATE_VALUES,
+    },
+  } as const;
+
+  const DISALLOWED_EVENT_NAMES = [
+    "memory_candidate_scored",
+    "memory_candidate_debugged",
+    "memory_prompt_sent",
+    "planned_meal_generated",
+    "planned_meal_raw_saved",
+    "planning_prompt_sent",
+    "known_pattern_candidate_debugged",
+    "known_pattern_raw_candidate_saved",
+    "known_pattern_prompt_sent",
+  ] as const;
+
+  const DISALLOWED_PROP_NAMES = [
+    "mealName",
+    "ingredientName",
+    "notes",
+    "candidateId",
+    "subjectKeyHash",
+    "createdByRuleVersion",
+    "sourceHash",
+    "memoryId",
+    "plannedMealId",
+    "sourceRef",
+    "sourceRefs",
+    "rawReason",
+    "rawPrompt",
+    "rawResponse",
+    "imageUrl",
+    "fullPayload",
+    "calories",
+    "kcal",
+    "macros",
+    "protein",
+    "carbs",
+    "fat",
+  ] as const;
+
+  test("event names match backend fixture and mobile allowlist", () => {
+    expect([...fixture.eventNames].sort()).toEqual(
+      [...MOBILE_EVENT_NAMES].sort(),
+    );
+    for (const eventName of fixture.eventNames) {
+      expect(TELEMETRY_EVENT_NAMES).toContain(eventName);
+    }
+  });
+
+  test("props match backend fixture", () => {
+    expect(Object.keys(fixture.propsByEvent).sort()).toEqual(
+      Object.keys(MOBILE_PROPS_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propNames] of Object.entries(
+      MOBILE_PROPS_BY_EVENT,
+    )) {
+      expect([...fixture.propsByEvent[eventName]].sort()).toEqual(
+        [...propNames].sort(),
+      );
+    }
+  });
+
+  test("bounded enum values match backend fixture", () => {
+    expect(Object.keys(fixture.enumValuesByEvent).sort()).toEqual(
+      Object.keys(MOBILE_ENUM_VALUES_BY_EVENT).sort(),
+    );
+
+    for (const [eventName, propValues] of Object.entries(
+      MOBILE_ENUM_VALUES_BY_EVENT,
+    )) {
+      expect(Object.keys(fixture.enumValuesByEvent[eventName]).sort()).toEqual(
+        Object.keys(propValues).sort(),
+      );
+
+      for (const [propName, values] of Object.entries(propValues)) {
+        expect([...fixture.enumValuesByEvent[eventName][propName]].sort()).toEqual(
+          [...values].sort(),
+        );
+      }
+    }
+  });
+
+  test("content, identity, raw provider, and nutrition props stay disallowed", () => {
+    expect([...fixture.disallowedEventNames].sort()).toEqual(
+      [...DISALLOWED_EVENT_NAMES].sort(),
+    );
+    expect([...fixture.disallowedPropNames].sort()).toEqual(
+      [...DISALLOWED_PROP_NAMES].sort(),
+    );
+  });
+
+  test("backend fixture is byte-identical", () => {
+    expect(
+      fs.readFileSync(path.join(FIXTURES_DIR, "c5_new_domain_telemetry.json")),
+    ).toEqual(
+      fs.readFileSync(
+        path.join(BACKEND_FIXTURES_DIR, "c5_new_domain_telemetry.json"),
+      ),
     );
   });
 });
@@ -1206,6 +1897,7 @@ describe("Food library domains contract", () => {
       "contract",
       "libraryDomains",
       "domainContracts",
+      "ingredientProductRecordContract",
       "loggedMealBoundary",
       "currentSavedMealsBoundary",
       "barcodeBoundary",
@@ -1250,6 +1942,62 @@ describe("Food library domains contract", () => {
         "ownedFields",
       ]);
     }
+
+    const productContract =
+      rawFixture.ingredientProductRecordContract as Record<string, unknown>;
+    expectExactKeys(productContract, [
+      "recordKinds",
+      "recordScopes",
+      "lifecycleStates",
+      "verifiedMeaning",
+      "requiredFields",
+      "optionalFields",
+      "kindSpecificRequiredFields",
+      "ownership",
+      "sourceAttribution",
+      "confidence",
+      "nutritionPer100",
+      "serving",
+      "profileFlags",
+      "barcodeIdentities",
+      "localCacheBoundary",
+    ]);
+    expectExactKeys(productContract.ownership as Record<string, unknown>, [
+      "scopeField",
+      "ownerField",
+      "userScopedScope",
+      "userScopedRequiresOwnerUserId",
+      "globalScopesMustNotUseOwnerUserId",
+      "globalRecordsAreUserAccountData",
+    ]);
+    expectExactKeys(productContract.sourceAttribution as Record<string, unknown>, [
+      "requiredFields",
+      "optionalFields",
+      "sourceTypes",
+      "candidateOnlySourceTypes",
+      "durableTruthRequiresNonAiSource",
+    ]);
+    expectExactKeys(productContract.confidence as Record<string, unknown>, [
+      "requiredFields",
+      "levels",
+      "unknownMeansNotSafeToAssume",
+    ]);
+    expectExactKeys(productContract.nutritionPer100 as Record<string, unknown>, [
+      "requiredFields",
+      "optionalFields",
+      "allowedBases",
+      "missingNutritionPolicy",
+      "runtimeAiMayBecomeDurableNutritionTruth",
+    ]);
+    expectExactKeys(productContract.profileFlags as Record<string, unknown>, [
+      "requiredFields",
+      "allowedDietaryFlags",
+      "allowedAllergenFlags",
+      "compatibilityStatuses",
+      "missingProfilePolicy",
+      "verifiedIsMedicalOrDietarySafetyClaim",
+      "runtimeAiMayBecomeDurableProfileTruth",
+    ]);
   });
 
   test("declares exact CH-06 library domains", () => {
@@ -1277,6 +2025,134 @@ describe("Food library domains contract", () => {
         ...FOOD_LIBRARY_DOMAIN_CONTRACTS[domain].ownedFields,
       ]);
     }
+  });
+
+  test("defines exact Ingredient/Product foundation fields", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.recordKinds).toEqual([...INGREDIENT_PRODUCT_KINDS]);
+    expect(productContract.recordScopes).toEqual([
+      ...INGREDIENT_PRODUCT_RECORD_SCOPES,
+    ]);
+    expect(productContract.lifecycleStates).toEqual([
+      ...INGREDIENT_PRODUCT_LIFECYCLE_STATES,
+    ]);
+    expect(productContract.verifiedMeaning).toBe(
+      "verified_for_fitaly_catalog_use_not_medical_or_dietary_safety_claim",
+    );
+    expect(productContract.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.kindSpecificRequiredFields.generic_ingredient).toEqual([
+      "ingredientName",
+    ]);
+    expect(productContract.kindSpecificRequiredFields.branded_product).toEqual([
+      "brandName",
+    ]);
+    expect(productContract.ownership.scopeField).toBe("recordScope");
+    expect(productContract.ownership.ownerField).toBe("ownerUserId");
+    expect(productContract.ownership.userScopedScope).toBe("user_scoped");
+    expect(productContract.ownership.userScopedRequiresOwnerUserId).toBe(true);
+    expect(productContract.ownership.globalScopesMustNotUseOwnerUserId).toEqual([
+      "global_seed",
+      "global_internal",
+    ]);
+    expect(productContract.ownership.globalRecordsAreUserAccountData).toBe(false);
+  });
+
+  test("requires source confidence and blocks guessed durable truth", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.sourceAttribution.sourceTypes).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_TYPES,
+    ]);
+    expect(productContract.sourceAttribution.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.sourceAttribution.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_SOURCE_ATTRIBUTION_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.sourceAttribution.candidateOnlySourceTypes).toEqual([
+      "barcode_identity",
+      "runtime_ai_candidate",
+    ]);
+    expect(productContract.sourceAttribution.durableTruthRequiresNonAiSource).toBe(
+      true,
+    );
+    expect(productContract.confidence.levels).toEqual([
+      ...INGREDIENT_PRODUCT_CONFIDENCE_LEVELS,
+    ]);
+    expect(productContract.confidence.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_CONFIDENCE_FIELDS,
+    ]);
+    expect(productContract.confidence.unknownMeansNotSafeToAssume).toBe(true);
+    expect(productContract.nutritionPer100.missingNutritionPolicy).toBe(
+      "unknown_not_guessed",
+    );
+    expect(
+      productContract.nutritionPer100.runtimeAiMayBecomeDurableNutritionTruth,
+    ).toBe(false);
+    expect(productContract.profileFlags.missingProfilePolicy).toBe(
+      "unknown_not_guessed",
+    );
+    expect(
+      productContract.profileFlags.runtimeAiMayBecomeDurableProfileTruth,
+    ).toBe(false);
+  });
+
+  test("keeps nutrition serving profile cache and barcode boundaries explicit", () => {
+    const productContract = fixture.ingredientProductRecordContract;
+
+    expect(productContract.nutritionPer100.allowedBases).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_BASES,
+    ]);
+    expect(productContract.nutritionPer100.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.nutritionPer100.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_NUTRITION_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.serving.allowedUnits).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_UNITS,
+    ]);
+    expect(productContract.serving.requiredFields).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_REQUIRED_FIELDS,
+    ]);
+    expect(productContract.serving.servingSizeFields).toEqual([
+      ...INGREDIENT_PRODUCT_SERVING_SIZE_FIELDS,
+    ]);
+    expect(productContract.profileFlags.allowedDietaryFlags).toEqual([
+      ...INGREDIENT_PRODUCT_DIETARY_FLAGS,
+    ]);
+    expect(productContract.profileFlags.allowedAllergenFlags).toEqual([
+      ...INGREDIENT_PRODUCT_ALLERGEN_FLAGS,
+    ]);
+    expect(productContract.profileFlags.compatibilityStatuses).toEqual([
+      ...INGREDIENT_PRODUCT_PROFILE_COMPATIBILITY_STATUSES,
+    ]);
+    expect(productContract.profileFlags.verifiedIsMedicalOrDietarySafetyClaim).toBe(
+      false,
+    );
+    expect(productContract.barcodeIdentities.minimalIdentityFields).toEqual([
+      ...INGREDIENT_PRODUCT_BARCODE_MINIMAL_IDENTITY_FIELDS,
+    ]);
+    expect(productContract.barcodeIdentities.optionalFields).toEqual([
+      ...INGREDIENT_PRODUCT_BARCODE_OPTIONAL_FIELDS,
+    ]);
+    expect(productContract.barcodeIdentities.noCatalogWriteInThisSlice).toBe(true);
+    expect(productContract.barcodeIdentities.noTopLevelAddMealBarcodePath).toBe(
+      true,
+    );
+    expect(productContract.localCacheBoundary.representedAs).toBe(
+      "projection_only",
+    );
+    expect(productContract.localCacheBoundary.localCacheIsTruth).toBe(false);
+    expect(productContract.localCacheBoundary.mayPromoteToGlobalWithoutReview).toBe(
+      false,
+    );
   });
 
   test("MealTemplate excludes logged-meal-only persistence fields", () => {
@@ -1342,6 +2218,191 @@ describe("Food library domains contract", () => {
     for (const field of fixture.loggedMealBoundary.mustNotGainFields) {
       expect(mealKeys.has(field)).toBe(false);
     }
+  });
+});
+
+describe("Smart Memory core contract", () => {
+  const fixture = loadFixture<SmartMemoryCoreContract>(
+    "smart_memory_core_v1.json",
+  );
+
+  test("fixture uses exact JSON keys at every contract level", () => {
+    const rawFixture = loadFixture<Record<string, unknown>>(
+      "smart_memory_core_v1.json",
+    );
+
+    expectExactKeys(rawFixture, [
+      "contract",
+      "schemaVersion",
+      "memoryTypes",
+      "memoryStates",
+      "candidateStates",
+      "reasonCodes",
+      "userControlOperations",
+      "offlineProjectionStates",
+      "apiEndpoints",
+      "apiResponseExamples",
+      "stateTransitionExamples",
+      "memoryCenter",
+      "review",
+      "privacyBoundary",
+    ]);
+    expectExactKeys(rawFixture.reasonCodes as Record<string, unknown>, [
+      "stateReasonCodes",
+      "confidenceReasonCodes",
+      "userValueReasonCodes",
+    ]);
+    expectExactKeys(rawFixture.apiResponseExamples as Record<string, unknown>, [
+      "emptyItemsPage",
+      "itemsPage",
+      "candidateResponse",
+      "itemDeleteResponse",
+      "settingsEnabledResponse",
+      "settingsDisabledResponse",
+    ]);
+
+    const stateExamples = rawFixture.stateTransitionExamples as Array<
+      Record<string, unknown>
+    >;
+    for (const example of stateExamples) {
+      expectExactKeys(example, [
+        "case",
+        "memoryType",
+        "backendState",
+        "projectionState",
+        "reviewState",
+        "memoryItemId",
+        "candidateId",
+        "queuedOperation",
+        "suggestionUse",
+      ]);
+    }
+  });
+
+  test("declares exact Smart Memory enums and schema version", () => {
+    expect(fixture.contract).toBe(SMART_MEMORY_CONTRACT_NAME);
+    expect(fixture.schemaVersion).toBe(SMART_MEMORY_SCHEMA_VERSION);
+    expect(fixture.memoryTypes).toEqual([...SMART_MEMORY_TYPES]);
+    expect(fixture.memoryStates).toEqual([...SMART_MEMORY_STATES]);
+    expect(fixture.candidateStates).toEqual([...SMART_MEMORY_CANDIDATE_STATES]);
+    expect(fixture.reasonCodes.stateReasonCodes).toEqual([
+      ...SMART_MEMORY_STATE_REASON_CODES,
+    ]);
+    expect(fixture.reasonCodes.confidenceReasonCodes).toEqual([
+      ...SMART_MEMORY_CONFIDENCE_REASON_CODES,
+    ]);
+    expect(fixture.reasonCodes.userValueReasonCodes).toEqual([
+      ...SMART_MEMORY_USER_VALUE_REASON_CODES,
+    ]);
+    expect(fixture.userControlOperations).toEqual([
+      ...SMART_MEMORY_USER_CONTROL_OPERATIONS,
+    ]);
+    expect(fixture.offlineProjectionStates).toEqual([
+      ...SMART_MEMORY_PROJECTION_STATES,
+    ]);
+    expect(fixture.memoryCenter.states).toEqual([...SMART_MEMORY_CENTER_STATES]);
+    expect(fixture.review.states).toEqual([...SMART_MEMORY_REVIEW_STATES]);
+  });
+
+  test("backend fixture is byte-identical", () => {
+    const mobileFixture = fs.readFileSync(
+      path.join(FIXTURES_DIR, "smart_memory_core_v1.json"),
+    );
+    const backendFixture = fs.readFileSync(
+      path.join(BACKEND_FIXTURES_DIR, "smart_memory_core_v1.json"),
+    );
+
+    expect(mobileFixture.equals(backendFixture)).toBe(true);
+  });
+
+  test("covers all release states before services or UI consume memory", () => {
+    const cases = new Set(fixture.stateTransitionExamples.map((item) => item.case));
+
+    expect(cases).toEqual(new Set(SMART_MEMORY_PROJECTION_STATES));
+    for (const example of fixture.stateTransitionExamples) {
+      if (
+        [
+          "no_signal",
+          "activated",
+          "muted",
+          "deleted_suppressed",
+          "disabled",
+          "source_deleted",
+          "sync_failed",
+          "conflicted",
+          "queued_edit",
+          "queued_mute",
+          "queued_delete",
+          "queued_disable",
+        ].includes(example.case)
+      ) {
+        expect(example.suggestionUse).toBe("blocked");
+        expect(example.reviewState).not.toBe("used");
+      }
+
+      if (example.suggestionUse === "allowed") {
+        expect(example.reviewState).toBe("used");
+      }
+
+      if (
+        example.case.startsWith("queued_") ||
+        ["pending_offline_candidate", "sync_failed", "conflicted"].includes(
+          example.case,
+        )
+      ) {
+        expect(example.queuedOperation).not.toBeNull();
+      }
+    }
+  });
+
+  test("API examples expose only backend-owned response shapes", () => {
+    expect(fixture.apiResponseExamples.emptyItemsPage.items).toEqual([]);
+    expect(
+      fixture.apiResponseExamples.itemsPage.items.map((item) => item.state),
+    ).toEqual(["active", "muted"]);
+    expect(fixture.apiResponseExamples.candidateResponse.candidate.state).toBe(
+      "candidate",
+    );
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.state).toBe(
+      "deleted_suppressed",
+    );
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.subject).toEqual({});
+    expect(fixture.apiResponseExamples.itemDeleteResponse.item.sourceRefs).toEqual(
+      [],
+    );
+    expect(fixture.apiResponseExamples.settingsEnabledResponse.settings.enabled).toBe(
+      true,
+    );
+    expect(
+      fixture.apiResponseExamples.settingsDisabledResponse.settings.enabled,
+    ).toBe(false);
+  });
+
+  test("keeps private and provider payloads out of the fixture", () => {
+    const forbiddenKeys = [
+      "rawPrompt",
+      "rawResponse",
+      "providerMessages",
+      "fullPayload",
+      "openaiPayload",
+      "providerPayload",
+      "telemetryPayload",
+      "rawReviewDiff",
+      "rawDiff",
+      "mealSnapshot",
+    ];
+
+    const keys = collectObjectKeys(fixture);
+    for (const forbiddenKey of forbiddenKeys) {
+      expect(keys.has(forbiddenKey)).toBe(false);
+    }
+    expect(fixture.privacyBoundary).toEqual({
+      excludesMealNarrativeText: true,
+      excludesReviewDiffs: true,
+      excludesProviderPayloads: true,
+      excludesTelemetryPrivateIdentifiers: true,
+      usesHashedSubjectAndSourceRefs: true,
+    });
   });
 });
 

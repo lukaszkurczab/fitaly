@@ -1,0 +1,48 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty&knownPattern=candidate&credits=ok&billing=free
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-knownPattern-candidate
+    timeout: 30000
+- tapOn:
+    id: tab-add-meal
+- extendedWaitUntil:
+    visible:
+      id: meal-add-known-pattern-card
+    timeout: 30000
+- assertVisible:
+    id: meal-add-known-pattern-review-button
+- assertVisible:
+    id: meal-add-known-pattern-dismiss-button
+- tapOn:
+    id: meal-add-known-pattern-dismiss-button
+- assertNotVisible:
+    id: meal-add-known-pattern-card
+- tapOn:
+    id: meal-add-method-close-button
+
+- openLink: fitaly://e2e/seed?fixture=activated-user-empty&knownPattern=candidate&credits=ok&billing=free
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-knownPattern-candidate
+    timeout: 30000
+- tapOn:
+    id: tab-add-meal
+- extendedWaitUntil:
+    visible:
+      id: meal-add-known-pattern-card
+    timeout: 30000
+- tapOn:
+    id: meal-add-known-pattern-review-button
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 15000
+- assertVisible:
+    id: review-meal-save-button

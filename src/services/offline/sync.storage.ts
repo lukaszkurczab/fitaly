@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type PullCheckDomain = "meals" | "myMeals" | "chat";
+export type PullCheckDomain =
+  | "meals"
+  | "myMeals"
+  | "chat"
+  | "smartMemory"
+  | "foodLibrary";
 
 function keyLastPull(uid: string) {
   return `sync:last_pull_ts:${uid}`;
@@ -12,6 +17,14 @@ function keyLastMyMealsPull(uid: string) {
 
 function keyLastChatPull(uid: string) {
   return `sync:last_pull_chat:${uid}`;
+}
+
+function keyLastSmartMemoryPull(uid: string) {
+  return `sync:last_pull_smart_memory:${uid}`;
+}
+
+function keyLastFoodLibraryPull(uid: string) {
+  return `sync:last_pull_food_library:${uid}`;
 }
 
 function keyLastPullCheck(uid: string, domain: PullCheckDomain) {
@@ -45,6 +58,32 @@ export async function getLastChatPullTs(uid: string): Promise<number> {
   const raw = await AsyncStorage.getItem(keyLastChatPull(uid));
   const parsed = Number(raw ?? 0);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+export async function setLastSmartMemoryPullTs(
+  uid: string,
+  iso: string,
+): Promise<void> {
+  await AsyncStorage.setItem(keyLastSmartMemoryPull(uid), iso);
+}
+
+export async function getLastSmartMemoryPullTs(
+  uid: string,
+): Promise<string | null> {
+  return AsyncStorage.getItem(keyLastSmartMemoryPull(uid));
+}
+
+export async function setLastFoodLibraryPullTs(
+  uid: string,
+  iso: string,
+): Promise<void> {
+  await AsyncStorage.setItem(keyLastFoodLibraryPull(uid), iso);
+}
+
+export async function getLastFoodLibraryPullTs(
+  uid: string,
+): Promise<string | null> {
+  return AsyncStorage.getItem(keyLastFoodLibraryPull(uid));
 }
 
 export async function setLastPullCheckTs(

@@ -11,6 +11,12 @@ import type {
 import type { TelemetryProps } from "@/services/telemetry/telemetryTypes";
 import { track } from "@/services/telemetry/telemetryClient";
 import type { Meal } from "@/types/meal";
+import type {
+  KnownPatternConfidenceBucket,
+  KnownPatternCountBucket,
+} from "@/types/knownPatterns";
+import type { PlannedMealEstimateState, PlannedMealSourceType } from "@/types/plannedMeals";
+import type { SmartMemoryType } from "@/types/smartMemory";
 
 type MealInputMethod = "manual" | "photo" | "barcode" | "text";
 type NotificationTelemetryOrigin =
@@ -86,6 +92,99 @@ type WeeklyReportAccessState = "premium" | "locked" | "degraded" | "unknown";
 type CoachInsightFreshness = "fresh" | "degraded" | "stale";
 
 type AiMealReviewInputMethod = "photo" | "text";
+type AutocompleteSurface = "manual_ingredient_sheet";
+type AutocompleteSearchOutcome =
+  | "results"
+  | "no_results"
+  | "offline"
+  | "warning"
+  | "stale"
+  | "backend_degraded"
+  | "error";
+type AutocompleteQueryLengthBucket = "2_3" | "4_8" | "9_16" | "17_plus";
+type AutocompleteResultCountBucket =
+  | "0"
+  | "1"
+  | "2_3"
+  | "4_6"
+  | "7_12"
+  | "13_plus";
+type AutocompleteLatencyBucket =
+  | "under_250_ms"
+  | "250_750_ms"
+  | "750_1500_ms"
+  | "1500_ms_plus";
+type AutocompleteRankBucket = "1" | "2_3" | "4_6" | "7_12" | "13_plus";
+type AutocompleteSourceClass =
+  | "remote"
+  | "cache"
+  | "none"
+  | "global"
+  | "user_scoped";
+type AutocompleteSelectionState = "selected";
+type IngredientProductCreateOutcome = "synced" | "queued" | "failed";
+
+type AutocompleteTelemetryInput = {
+  surface: AutocompleteSurface;
+  resultCount: number;
+  sourceClass: AutocompleteSourceClass;
+  warningReason?: string | null;
+};
+
+type IngredientProductCreateTelemetryInput = {
+  surface: AutocompleteSurface;
+  outcome: IngredientProductCreateOutcome;
+};
+
+type HomeNextActionTelemetryActionType =
+  | "continue_review"
+  | "continue_planned_item"
+  | "confirm_known_pattern";
+type HomeNextActionTelemetryState = "eligible";
+type HomeNextActionTelemetryReasonCode =
+  | "review_draft_available"
+  | "planned_item_due"
+  | "known_pattern_available";
+type HomeNextActionTelemetrySourceDomain =
+  | "review_draft"
+  | "planned_meal"
+  | "known_pattern_candidate";
+type HomeNextActionTelemetryOwnerFlow =
+  | "ReviewMeal"
+  | "Planning"
+  | "MealAddMethod";
+type HomeNextActionTelemetryCooldownBucket = "24h";
+
+type C5TelemetrySurface =
+  | "review"
+  | "memory_center"
+  | "settings"
+  | "planning"
+  | "home_next_action";
+type C5TelemetryConfidenceBucket = "low" | "medium" | "high";
+type C5TelemetryActionResult = "succeeded" | "queued" | "blocked" | "failed";
+type C5TelemetryFeatureState = "enabled" | "disabled" | "shadow";
+type KnownPatternC5TelemetrySurface = "meal_add_method";
+
+type SmartMemoryC5TelemetryBase = {
+  memoryType: SmartMemoryType;
+  surface: C5TelemetrySurface;
+  featureState: C5TelemetryFeatureState;
+};
+
+type PlanningC5TelemetryBase = {
+  sourceType: PlannedMealSourceType;
+  estimateState: PlannedMealEstimateState;
+  surface: C5TelemetrySurface;
+  featureState: C5TelemetryFeatureState;
+};
+
+type KnownPatternC5TelemetryBase = {
+  surface: KnownPatternC5TelemetrySurface;
+  confidenceBucket: KnownPatternConfidenceBucket;
+  sourceCountBucket: KnownPatternCountBucket;
+  featureState: C5TelemetryFeatureState;
+};
 
 function normalizeNotificationValue(value: string | null | undefined): string | null {
   if (!value) {
@@ -139,6 +238,54 @@ function buildSmartReminderProps(
     }
   }
   return props;
+}
+
+function toAutocompleteQueryLengthBucket(
+  queryLength: number,
+): AutocompleteQueryLengthBucket {
+  if (queryLength <= 3) return "2_3";
+  if (queryLength <= 8) return "4_8";
+  if (queryLength <= 16) return "9_16";
+  return "17_plus";
+}
+
+function toAutocompleteResultCountBucket(
+  resultCount: number,
+): AutocompleteResultCountBucket {
+  if (resultCount <= 0) return "0";
+  if (resultCount === 1) return "1";
+  if (resultCount <= 3) return "2_3";
+  if (resultCount <= 6) return "4_6";
+  if (resultCount <= 12) return "7_12";
+  return "13_plus";
+}
+
+function toAutocompleteLatencyBucket(
+  latencyMs: number,
+): AutocompleteLatencyBucket {
+  if (latencyMs < 250) return "under_250_ms";
+  if (latencyMs < 750) return "250_750_ms";
+  if (latencyMs < 1500) return "750_1500_ms";
+  return "1500_ms_plus";
+}
+
+function toAutocompleteRankBucket(rank: number): AutocompleteRankBucket {
+  if (rank <= 1) return "1";
+  if (rank <= 3) return "2_3";
+  if (rank <= 6) return "4_6";
+  if (rank <= 12) return "7_12";
+  return "13_plus";
+}
+
+function buildAutocompleteProps(
+  input: AutocompleteTelemetryInput,
+): TelemetryProps {
+  return {
+    surface: input.surface,
+    resultCountBucket: toAutocompleteResultCountBucket(input.resultCount),
+    sourceClass: input.sourceClass,
+    ...(input.warningReason ? { warningReason: input.warningReason } : {}),
+  };
 }
 
 function inferMealInputMethod(meal: Pick<
@@ -231,6 +378,253 @@ export function trackAiMealReviewSaved(input: {
     corrected: input.corrected,
     ingredientCount: input.ingredientCount,
     ...(input.requestId ? { requestId: input.requestId } : {}),
+  });
+}
+
+export function trackAutocompleteSearchOutcome(
+  input: AutocompleteTelemetryInput & {
+    outcome: AutocompleteSearchOutcome;
+    queryLength: number;
+    latencyMs: number;
+  },
+): Promise<void> {
+  return track("autocomplete_search_outcome", {
+    ...buildAutocompleteProps(input),
+    outcome: input.outcome,
+    queryLengthBucket: toAutocompleteQueryLengthBucket(input.queryLength),
+    latencyBucket: toAutocompleteLatencyBucket(input.latencyMs),
+  });
+}
+
+export function trackAutocompleteResultSelected(
+  input: AutocompleteTelemetryInput & {
+    rank: number;
+    selectionState?: AutocompleteSelectionState;
+  },
+): Promise<void> {
+  return track("autocomplete_result_selected", {
+    ...buildAutocompleteProps(input),
+    rankBucket: toAutocompleteRankBucket(input.rank),
+    selectionState: input.selectionState ?? "selected",
+  });
+}
+
+export function trackIngredientProductCreateOutcome(
+  input: IngredientProductCreateTelemetryInput,
+): Promise<void> {
+  return track("ingredient_product_create_outcome", {
+    surface: input.surface,
+    outcome: input.outcome,
+  });
+}
+
+export function trackHomeNextActionShown(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  state: HomeNextActionTelemetryState;
+  reasonCode: HomeNextActionTelemetryReasonCode;
+  sourceDomain: HomeNextActionTelemetrySourceDomain;
+}): Promise<void> {
+  return track("home_next_action_shown", {
+    actionType: input.actionType,
+    state: input.state,
+    reasonCode: input.reasonCode,
+    sourceDomain: input.sourceDomain,
+  });
+}
+
+export function trackHomeNextActionStarted(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  ownerFlow: HomeNextActionTelemetryOwnerFlow;
+  state: HomeNextActionTelemetryState;
+}): Promise<void> {
+  return track("home_next_action_started", {
+    actionType: input.actionType,
+    ownerFlow: input.ownerFlow,
+    state: input.state,
+  });
+}
+
+export function trackHomeNextActionDismissed(input: {
+  actionType: HomeNextActionTelemetryActionType;
+  reasonCode: HomeNextActionTelemetryReasonCode;
+  cooldownBucket: HomeNextActionTelemetryCooldownBucket;
+}): Promise<void> {
+  return track("home_next_action_dismissed", {
+    actionType: input.actionType,
+    reasonCode: input.reasonCode,
+    cooldownBucket: input.cooldownBucket,
+  });
+}
+
+export function trackMemoryCandidateCreated(
+  input: SmartMemoryC5TelemetryBase & {
+    confidenceBucket: C5TelemetryConfidenceBucket;
+  },
+): Promise<void> {
+  return track("memory_candidate_created", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryCandidateConfirmed(
+  input: SmartMemoryC5TelemetryBase & {
+    confidenceBucket: C5TelemetryConfidenceBucket;
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_candidate_confirmed", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryCandidateDismissed(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_candidate_dismissed", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryUsed(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_used", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryMuted(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_muted", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackMemoryDeleted(
+  input: SmartMemoryC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("memory_deleted", {
+    memoryType: input.memoryType,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealCreated(
+  input: PlanningC5TelemetryBase,
+): Promise<void> {
+  return track("planned_meal_created", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealConfirmed(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_confirmed", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealChanged(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_changed", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackPlannedMealSkipped(
+  input: PlanningC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("planned_meal_skipped", {
+    sourceType: input.sourceType,
+    estimateState: input.estimateState,
+    surface: input.surface,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternCandidateShown(
+  input: KnownPatternC5TelemetryBase,
+): Promise<void> {
+  return track("known_pattern_candidate_shown", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternReviewStarted(
+  input: KnownPatternC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("known_pattern_review_started", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
+  });
+}
+
+export function trackKnownPatternCandidateDismissed(
+  input: KnownPatternC5TelemetryBase & {
+    actionResult: C5TelemetryActionResult;
+  },
+): Promise<void> {
+  return track("known_pattern_candidate_dismissed", {
+    surface: input.surface,
+    confidenceBucket: input.confidenceBucket,
+    sourceCountBucket: input.sourceCountBucket,
+    actionResult: input.actionResult,
+    featureState: input.featureState,
   });
 }
 

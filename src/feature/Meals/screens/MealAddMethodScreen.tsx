@@ -33,6 +33,7 @@ const MealAddMethodScreen = () => {
     replaceOnStart: true,
     persistSelection,
     resetStackOnStart,
+    loadKnownPatternCandidate: true,
   });
 
   return (
@@ -90,6 +91,61 @@ const MealAddMethodScreen = () => {
             </Text>
           </View>
         </View>
+
+        {state.knownPatternCandidate ? (
+          <View
+            style={styles.knownPatternCard}
+            testID="meal-add-known-pattern-card"
+          >
+            <View style={styles.knownPatternIcon}>
+              <AppIcon name="saved-items" size={18} color={theme.primaryStrong} />
+            </View>
+            <View style={styles.knownPatternContent}>
+              <Text style={styles.knownPatternTitle}>
+                {t("knownPatternTitle")}
+              </Text>
+              <Text style={styles.knownPatternDescription}>
+                {t("knownPatternDescription")}
+              </Text>
+              <View style={styles.knownPatternActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={Boolean(state.knownPatternBusy)}
+                  onPress={() => {
+                    void state.handleKnownPatternReview?.();
+                  }}
+                  style={({ pressed }) => [
+                    styles.knownPatternPrimary,
+                    pressed ? styles.optionRowPressed : null,
+                    state.knownPatternBusy ? styles.disabledAction : null,
+                  ]}
+                  testID="meal-add-known-pattern-review-button"
+                >
+                  <Text style={styles.knownPatternPrimaryText}>
+                    {t("knownPatternReview")}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={Boolean(state.knownPatternBusy)}
+                  onPress={() => {
+                    void state.handleKnownPatternDismiss?.();
+                  }}
+                  style={({ pressed }) => [
+                    styles.knownPatternSecondary,
+                    pressed ? styles.optionRowPressed : null,
+                    state.knownPatternBusy ? styles.disabledAction : null,
+                  ]}
+                  testID="meal-add-known-pattern-dismiss-button"
+                >
+                  <Text style={styles.knownPatternSecondaryText}>
+                    {t("knownPatternDismiss")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.optionsWrap}>
           {state.options.map((option) => {
@@ -256,6 +312,80 @@ const makeStyles = (theme: ReturnType<typeof useTheme>) =>
     optionsWrap: {
       gap: theme.spacing.xs,
       paddingBottom: theme.spacing.sm,
+    },
+    knownPatternCard: {
+      flexDirection: "row",
+      gap: theme.spacing.sm,
+      padding: theme.spacing.sm,
+      borderRadius: theme.rounded.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.primarySoft,
+      backgroundColor: theme.success.surface,
+    },
+    knownPatternIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.primarySoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    knownPatternContent: {
+      flex: 1,
+      minWidth: 0,
+      gap: theme.spacing.xs,
+    },
+    knownPatternTitle: {
+      color: theme.text,
+      fontSize: theme.typography.size.bodyM,
+      lineHeight: theme.typography.lineHeight.bodyM,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    knownPatternDescription: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.regular,
+    },
+    knownPatternActions: {
+      flexDirection: "row",
+      gap: theme.spacing.xs,
+      flexWrap: "wrap",
+    },
+    knownPatternPrimary: {
+      minHeight: 36,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: theme.rounded.md,
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    knownPatternPrimaryText: {
+      color: theme.textInverse,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    knownPatternSecondary: {
+      minHeight: 36,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: theme.rounded.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.borderSoft,
+      backgroundColor: theme.surfaceElevated,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    knownPatternSecondaryText: {
+      color: theme.textSecondary,
+      fontSize: theme.typography.size.caption,
+      lineHeight: theme.typography.lineHeight.caption,
+      fontFamily: theme.typography.fontFamily.semiBold,
+    },
+    disabledAction: {
+      opacity: 0.52,
     },
     optionRow: {
       flexDirection: "row",

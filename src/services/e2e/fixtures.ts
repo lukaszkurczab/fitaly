@@ -1,12 +1,39 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { emit } from "@/services/core/events";
+import { get } from "@/services/core/apiClient";
+import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { isE2EModeEnabled } from "@/services/e2e/config";
 import { getDraftKey, getScreenKey } from "@/context/MealDraftContext";
 import { resetOfflineStorage } from "@/services/offline/db";
-import { upsertMealLocal } from "@/services/offline/meals.repo";
+import {
+  getAllMealsLocal,
+  upsertMealLocal,
+} from "@/services/offline/meals.repo";
+import { pullSmartMemoryChanges } from "@/services/offline/sync.engine";
 import { saveMealTransaction } from "@/services/meals/mealSaveTransaction";
 import { upsertMyMealLocal } from "@/services/meals/myMealService";
+import {
+  fetchMealsPageRemote,
+  markMealDeletedRemote,
+  saveMealRemote,
+} from "@/services/meals/mealsRepository";
+import {
+  flush as flushTelemetry,
+  setTelemetryUserId,
+  track as trackTelemetry,
+} from "@/services/telemetry/telemetryClient";
+import type {
+  TelemetryEventName,
+  TelemetryProps,
+} from "@/services/telemetry/telemetryTypes";
+import { fetchKnownPatternCandidatesRemote } from "@/services/knownPatterns/knownPatternCandidatesApi";
+import {
+  createPlannedMealRemote,
+  deletePlannedMealRemote,
+  fetchPlannedMealsRemote,
+} from "@/services/plannedMeals/plannedMealsApi";
+import { upsertLocalIngredientProductUserRecord } from "@/services/foodLibrary/ingredientProductUserRecordProjectionRepository";
 import { getSampleMealUri } from "@/utils/devSamples";
 import type { AccessFeatureKey, AccessState } from "@/services/access/accessState";
 import type {
@@ -23,7 +50,22 @@ import type {
   WeeklyReport,
   WeeklyReportResult,
 } from "@/services/weeklyReport/weeklyReportTypes";
+import {
+  markSmartMemoryCandidatePending,
+  markSmartMemoryItemPending,
+  markSmartMemoryProjectionSyncFailed,
+  upsertSmartMemoryCandidateProjection,
+  upsertSmartMemoryItemProjection,
+  upsertSmartMemorySettingsProjection,
+} from "@/services/smartMemory/smartMemoryProjectionRepository";
 import type { Ingredient, Meal } from "@/types/meal";
+import type { IngredientProductSearchRow } from "@/types/foodLibrary";
+import type {
+  SmartMemoryCandidate,
+  SmartMemoryCandidateUpsertInput,
+  SmartMemoryItem,
+  SmartMemorySettings,
+} from "@/types/smartMemory";
 import type { UserAiConsent } from "@/types/user";
 
 export type E2EFixtureName =
@@ -34,7 +76,8 @@ export type E2EFixtureName =
   | "user-with-saved-meals"
   | "user-with-draft"
   | "user-with-failed-meal"
-  | "user-with-conflict-meal";
+  | "user-with-conflict-meal"
+  | "user-with-private-product-conflict";
 export type E2ECreditsSeed = "ok" | "low" | "none";
 export type E2EAiSeed =
   | "textSuccess"
@@ -69,6 +112,33 @@ export type E2EWeeklyReportSeed =
 export type E2EAiConsentSeed = "granted" | "notGranted" | "revoked";
 export type E2EAiConsentGrantSeed = "success" | "failure";
 export type E2EAiConsentRevokeSeed = "success" | "failure" | "failureOnce";
+export type E2ESmartMemorySeed =
+  | "emptyEnabled"
+  | "emptyDisabled"
+  | "active"
+  | "reviewActive"
+  | "reviewCandidate"
+  | "reviewDisabledActive"
+  | "muted"
+  | "sourceDeleted"
+  | "pending"
+  | "syncFailed"
+  | "backendPull";
+export type E2EKnownPatternSeed = "candidate";
+export type E2EPlanningSeed = "empty" | "reviewReady";
+export type E2EHistoryAssert =
+  | "noRecipeReviewDraft"
+  | "noPlanningReviewDraft";
+export type E2ETelemetryEventAssert =
+  | "homeNextActionStarted"
+  | "knownPatternCandidateDismissed"
+  | "memoryDeleted"
+  | "plannedMealConfirmed";
+export type E2ETelemetryRuntimeAssert =
+  | "smartMemoryEnabled"
+  | "telemetryEnabled"
+  | "knownPatternsEnabled"
+  | "planningEnabled";
 
 export type E2ESeedCommand = {
   fixture?: E2EFixtureName;
@@ -84,6 +154,14 @@ export type E2ESeedCommand = {
   aiConsent?: E2EAiConsentSeed;
   aiConsentGrant?: E2EAiConsentGrantSeed;
   aiConsentRevoke?: E2EAiConsentRevokeSeed;
+  smartMemory?: E2ESmartMemorySeed;
+  knownPattern?: E2EKnownPatternSeed;
+  planning?: E2EPlanningSeed;
+  historyAssert?: E2EHistoryAssert;
+  telemetryBaseline?: E2ETelemetryEventAssert;
+  telemetryAssert?: E2ETelemetryEventAssert;
+  telemetryEmit?: E2ETelemetryEventAssert;
+  telemetryRuntime?: E2ETelemetryRuntimeAssert;
 };
 
 type E2EFixtureState = E2ESeedCommand;
@@ -97,6 +175,7 @@ const VALID_FIXTURES = new Set<E2EFixtureName>([
   "user-with-draft",
   "user-with-failed-meal",
   "user-with-conflict-meal",
+  "user-with-private-product-conflict",
 ]);
 const VALID_CREDITS = new Set<E2ECreditsSeed>(["ok", "low", "none"]);
 const VALID_AI = new Set<E2EAiSeed>([
@@ -158,6 +237,37 @@ const VALID_AI_CONSENT_REVOKE = new Set<E2EAiConsentRevokeSeed>([
   "failure",
   "failureOnce",
 ]);
+const VALID_SMART_MEMORY = new Set<E2ESmartMemorySeed>([
+  "emptyEnabled",
+  "emptyDisabled",
+  "active",
+  "reviewActive",
+  "reviewCandidate",
+  "reviewDisabledActive",
+  "muted",
+  "sourceDeleted",
+  "pending",
+  "syncFailed",
+  "backendPull",
+]);
+const VALID_KNOWN_PATTERN = new Set<E2EKnownPatternSeed>(["candidate"]);
+const VALID_PLANNING = new Set<E2EPlanningSeed>(["empty", "reviewReady"]);
+const VALID_HISTORY_ASSERT = new Set<E2EHistoryAssert>([
+  "noRecipeReviewDraft",
+  "noPlanningReviewDraft",
+]);
+const VALID_TELEMETRY_EVENT_ASSERT = new Set<E2ETelemetryEventAssert>([
+  "homeNextActionStarted",
+  "knownPatternCandidateDismissed",
+  "memoryDeleted",
+  "plannedMealConfirmed",
+]);
+const VALID_TELEMETRY_RUNTIME_ASSERT = new Set<E2ETelemetryRuntimeAssert>([
+  "smartMemoryEnabled",
+  "telemetryEnabled",
+  "knownPatternsEnabled",
+  "planningEnabled",
+]);
 
 const E2E_FIXTURE_STATE_KEY = "e2e_fixture_state";
 const E2E_AI_CONSENT_GRANTED_AT = "2026-05-01T10:00:00.000Z";
@@ -165,6 +275,34 @@ const E2E_AI_CONSENT_REVOKED_AT = "2026-05-02T10:00:00.000Z";
 let fixtureState: E2EFixtureState = {};
 let aiConsentRevokeFailureOnceConsumed = new Set<string>();
 let aiConsentSeedByUid = new Map<string, UserAiConsent>();
+let knownPatternSeedCounter = 0;
+let telemetryBaselineCounts = new Map<string, number>();
+
+const KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS = 10;
+const KNOWN_PATTERN_SEED_VERIFY_DELAY_MS = 750;
+const KNOWN_PATTERN_SEED_DAY_OFFSETS = [-4, -3, -2, -1, 0] as const;
+const KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX = "Znany wzorzec QA ";
+const HISTORY_ASSERT_PAGE_LIMIT = 25;
+const HISTORY_ASSERT_MEAL_NAMES: Record<E2EHistoryAssert, string> = {
+  noRecipeReviewDraft: "Salmon rice plate",
+  noPlanningReviewDraft: "E2E Planning Bowl",
+};
+const TELEMETRY_ASSERT_EVENT_NAMES: Record<
+  E2ETelemetryEventAssert,
+  TelemetryEventName
+> = {
+  homeNextActionStarted: "home_next_action_started",
+  knownPatternCandidateDismissed: "known_pattern_candidate_dismissed",
+  memoryDeleted: "memory_deleted",
+  plannedMealConfirmed: "planned_meal_confirmed",
+};
+const TELEMETRY_ASSERT_ATTEMPTS = 10;
+const TELEMETRY_ASSERT_DELAY_MS = 750;
+
+type KnownPatternSeedExpectation = {
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
 
 function todayDayKey(): string {
   const now = new Date();
@@ -176,6 +314,16 @@ function todayDayKey(): string {
 
 function e2eNowISO(): string {
   return `${todayDayKey()}T10:30:00.000Z`;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isoFromTodayOffset(offsetDays: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString();
 }
 
 function asValid<T extends string>(
@@ -207,6 +355,20 @@ export function parseE2ESeedCommand(
     aiConsent: asValid(params.aiConsent, VALID_AI_CONSENT),
     aiConsentGrant: asValid(params.aiConsentGrant, VALID_AI_CONSENT_GRANT),
     aiConsentRevoke: asValid(params.aiConsentRevoke, VALID_AI_CONSENT_REVOKE),
+    smartMemory: asValid(params.smartMemory, VALID_SMART_MEMORY),
+    knownPattern: asValid(params.knownPattern, VALID_KNOWN_PATTERN),
+    planning: asValid(params.planning, VALID_PLANNING),
+    historyAssert: asValid(params.historyAssert, VALID_HISTORY_ASSERT),
+    telemetryBaseline: asValid(
+      params.telemetryBaseline,
+      VALID_TELEMETRY_EVENT_ASSERT,
+    ),
+    telemetryAssert: asValid(params.telemetryAssert, VALID_TELEMETRY_EVENT_ASSERT),
+    telemetryEmit: asValid(params.telemetryEmit, VALID_TELEMETRY_EVENT_ASSERT),
+    telemetryRuntime: asValid(
+      params.telemetryRuntime,
+      VALID_TELEMETRY_RUNTIME_ASSERT,
+    ),
   };
 }
 
@@ -224,7 +386,15 @@ function hasSeedCommand(command: E2ESeedCommand): boolean {
       command.weeklyReport ||
       command.aiConsent ||
       command.aiConsentGrant ||
-      command.aiConsentRevoke,
+      command.aiConsentRevoke ||
+      command.smartMemory ||
+      command.knownPattern ||
+      command.planning ||
+      command.historyAssert ||
+      command.telemetryBaseline ||
+      command.telemetryAssert ||
+      command.telemetryEmit ||
+      command.telemetryRuntime,
   );
 }
 
@@ -248,6 +418,24 @@ function seedMarkers(command: E2ESeedCommand): string[] {
   }
   if (command.aiConsentRevoke) {
     markers.push(`aiConsentRevoke-${command.aiConsentRevoke}`);
+  }
+  if (command.smartMemory) markers.push(`smartMemory-${command.smartMemory}`);
+  if (command.knownPattern) markers.push(`knownPattern-${command.knownPattern}`);
+  if (command.planning) markers.push(`planning-${command.planning}`);
+  if (command.historyAssert) {
+    markers.push(`historyAssert-${command.historyAssert}`);
+  }
+  if (command.telemetryBaseline) {
+    markers.push(`telemetryBaseline-${command.telemetryBaseline}`);
+  }
+  if (command.telemetryAssert) {
+    markers.push(`telemetryAssert-${command.telemetryAssert}`);
+  }
+  if (command.telemetryEmit) {
+    markers.push(`telemetryEmit-${command.telemetryEmit}`);
+  }
+  if (command.telemetryRuntime) {
+    markers.push(`telemetryRuntime-${command.telemetryRuntime}`);
   }
   return markers;
 }
@@ -278,6 +466,193 @@ function aiConsentForSeed(seed: E2EAiConsentSeed): UserAiConsent {
 
 function copyAiConsent(aiConsent: UserAiConsent): UserAiConsent {
   return { ...aiConsent };
+}
+
+function smartMemorySettings(
+  uid: string,
+  enabled: boolean,
+): SmartMemorySettings {
+  const updatedAt = e2eNowISO();
+  return {
+    ownerUserId: uid,
+    enabled,
+    disabledAt: enabled ? null : updatedAt,
+    updatedAt,
+    serverRevision: 1,
+    clientMutationId: null,
+  };
+}
+
+function smartMemoryItem(
+  uid: string,
+  overrides: Partial<SmartMemoryItem> = {},
+): SmartMemoryItem {
+  const updatedAt = e2eNowISO();
+  return {
+    memoryItemId: "e2e-memory-portion-yogurt",
+    ownerUserId: uid,
+    schemaVersion: 1,
+    memoryType: "typical_portion",
+    state: "active",
+    stateReason: "threshold_met",
+    subject: { kind: "ingredient_alias", aliasHash: "e2e-yogurt" },
+    userValue: { amount: 200, unit: "g" },
+    evidenceSummary: { observationCount: 4, distinctDayCount: 3 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-source" }],
+    threshold: { minObservations: 3 },
+    confidence: { level: "medium" },
+    confidenceReasonCodes: ["distinct_days_met"],
+    control: {},
+    createdAt: updatedAt,
+    updatedAt,
+    lastEvaluatedAt: updatedAt,
+    mutedAt: null,
+    deletedAt: null,
+    editedAt: null,
+    restoredAt: null,
+    sourceDeletedAt: null,
+    serverRevision: 2,
+    ...overrides,
+  };
+}
+
+function smartMemoryCandidateInput(): SmartMemoryCandidateUpsertInput {
+  const updatedAt = e2eNowISO();
+  return {
+    candidateId: "e2e-memory-candidate-portion",
+    memoryType: "typical_portion",
+    subject: { kind: "ingredient_alias", aliasHash: "e2e-candidate" },
+    evidenceSummary: { observationCount: 1 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-candidate-source" }],
+    confidenceReasonCodes: ["single_observation"],
+    suppressionChecks: { settingsEnabled: true },
+    firstSeenAt: updatedAt,
+    lastSeenAt: updatedAt,
+  };
+}
+
+function smartMemoryCandidate(
+  uid: string,
+  overrides: Partial<SmartMemoryCandidate> = {},
+): SmartMemoryCandidate {
+  const updatedAt = e2eNowISO();
+  return {
+    candidateId: "e2e-memory-candidate-portion",
+    ownerUserId: uid,
+    schemaVersion: 1,
+    memoryType: "typical_portion",
+    state: "candidate",
+    subject: {
+      displayLabel: "Kurczak grillowany",
+      kind: "ingredient_alias",
+      aliasHash: "e2e-review-candidate-chicken",
+    },
+    evidenceSummary: { observationCount: 1 },
+    sourceRefs: [{ kind: "meal_review", sourceHash: "e2e-candidate-source" }],
+    confidenceReasonCodes: ["single_observation"],
+    suppressionChecks: { settingsEnabled: true },
+    createdAt: updatedAt,
+    updatedAt,
+    firstSeenAt: updatedAt,
+    lastSeenAt: updatedAt,
+    serverRevision: 1,
+    ...overrides,
+  };
+}
+
+async function applySmartMemoryFixture(
+  uid: string,
+  seed: E2ESmartMemorySeed,
+): Promise<void> {
+  await upsertSmartMemorySettingsProjection(
+    uid,
+    smartMemorySettings(
+      uid,
+      seed !== "emptyDisabled" && seed !== "reviewDisabledActive",
+    ),
+  );
+
+  if (seed === "emptyEnabled" || seed === "emptyDisabled") return;
+
+  if (seed === "pending") {
+    const updatedAt = e2eNowISO();
+    await markSmartMemoryCandidatePending({
+      uid,
+      input: smartMemoryCandidateInput(),
+      clientMutationId:
+        `smart-memory:candidate_upsert:${uid}:e2e-memory-candidate-portion:e2e`,
+      updatedAt,
+    });
+    return;
+  }
+
+  if (seed === "reviewCandidate") {
+    await upsertSmartMemoryCandidateProjection(
+      uid,
+      smartMemoryCandidate(uid),
+    );
+    return;
+  }
+
+  await upsertSmartMemoryItemProjection(
+    uid,
+    smartMemoryItem(
+      uid,
+      seed === "reviewActive" || seed === "reviewDisabledActive"
+        ? {
+            memoryItemId: "e2e-memory-review-portion-chicken",
+            subject: {
+              displayLabel: "Kurczak grillowany",
+              kind: "ingredient_alias",
+              aliasHash: "e2e-review-chicken",
+            },
+            userValue: { amount: 140, unit: "g" },
+            evidenceSummary: { observationCount: 3, distinctDayCount: 2 },
+          }
+        : seed === "muted"
+        ? {
+            state: "muted",
+            stateReason: "user_muted",
+            mutedAt: e2eNowISO(),
+          }
+        : seed === "sourceDeleted"
+          ? {
+              state: "source_deleted",
+              stateReason: "source_deleted",
+              sourceDeletedAt: e2eNowISO(),
+            }
+        : {},
+    ),
+  );
+
+  if (seed === "syncFailed") {
+    const updatedAt = e2eNowISO();
+    const clientMutationId =
+      `smart-memory:mute:${uid}:e2e-memory-portion-yogurt:e2e`;
+    await markSmartMemoryItemPending({
+      uid,
+      memoryItemId: "e2e-memory-portion-yogurt",
+      operation: "mute",
+      clientMutationId,
+      updatedAt,
+    });
+    await markSmartMemoryProjectionSyncFailed({
+      uid,
+      dead: false,
+      code: "api/e2e-smart-memory-failure",
+      message: "E2E deterministic Smart Memory failure",
+      op: {
+        id: 1,
+        client_mutation_id: clientMutationId,
+        cloud_id: "e2e-memory-portion-yogurt",
+        user_uid: uid,
+        kind: "smart_memory_item_mute",
+        payload: {},
+        updated_at: updatedAt,
+        attempts: 1,
+      },
+    });
+  }
 }
 
 function ingredient(params: {
@@ -315,6 +690,62 @@ function totals(ingredients: Ingredient[]) {
 
 function dayKeyFromISO(value: string): string {
   return value.slice(0, 10);
+}
+
+function privateIngredientProductConflictRow(
+  uid: string,
+): IngredientProductSearchRow {
+  return {
+    ingredientProductId: "e2e-private-product-conflict",
+    recordScope: "user_scoped",
+    lifecycleState: "candidate",
+    displayName: "Prywatny konflikt QA",
+    kind: "generic_ingredient",
+    defaultServing: { quantity: 100, unit: "g" },
+    nutritionPer100: {
+      basis: "per_100g",
+      unit: "g",
+      kcal: 120,
+      protein: 8,
+      fat: 4,
+      carbs: 12,
+      fiber: null,
+      sugar: null,
+      salt: null,
+      saturatedFat: null,
+    },
+    confidence: {
+      identity: "medium",
+      nutrition: "medium",
+      profile: "unknown",
+    },
+    sourceAttribution: {
+      sourceType: "user_created",
+      sourceId: "e2e-private-product-conflict-mutation",
+      sourceName: "User",
+      provider: null,
+      license: null,
+      observedAt: null,
+      reviewedAt: null,
+      reviewedBy: null,
+    },
+    profileCompatibility: {
+      status: "unknown",
+      dietaryFlags: [],
+      allergenFlags: [],
+    },
+    warningReasonCodes: [],
+    rankingSignals: ["user_scoped"],
+    brandName: null,
+    ingredientName: "Prywatny konflikt QA",
+    packageName: null,
+    category: null,
+    servingSizes: [],
+    dietaryFlags: [],
+    allergenFlags: [],
+    cacheState: "stale",
+    ownerUserId: uid,
+  };
 }
 
 function meal(params: {
@@ -423,6 +854,441 @@ async function seedSavedMeal(uid: string, fixtureMeal: Meal): Promise<void> {
     source: "saved",
     inputMethod: fixtureMeal.inputMethod ?? "manual",
   });
+}
+
+async function waitForKnownPatternSeedCandidate(
+  expected: KnownPatternSeedExpectation,
+): Promise<void> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt < KNOWN_PATTERN_SEED_VERIFY_ATTEMPTS;
+    attempt += 1
+  ) {
+    try {
+      const response = await fetchKnownPatternCandidatesRemote(
+        { limit: 10 },
+        { timeout: 10000 },
+      );
+      if (
+        response.items.some(
+          (candidate) =>
+            candidate.firstSeenAt === expected.firstSeenAt &&
+            candidate.lastSeenAt === expected.lastSeenAt &&
+            (candidate.state === "candidate" || candidate.state === "shown") &&
+            candidate.suggestedAction === "open_review_draft" &&
+            (candidate.sourceCountBucket === "3_4" ||
+              candidate.sourceCountBucket === "5_plus") &&
+            (candidate.distinctDayCountBucket === "3_4" ||
+              candidate.distinctDayCountBucket === "5_plus"),
+        )
+      ) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+
+    await delay(KNOWN_PATTERN_SEED_VERIFY_DELAY_MS);
+  }
+
+  throw createServiceError({
+    code: "e2e/known-pattern-seed-unavailable",
+    source: "E2EFixtures",
+    retryable: true,
+    message: "Known Pattern candidate was not available after E2E seed.",
+    cause: lastError,
+  });
+}
+
+async function applyKnownPatternFixture(uid: string): Promise<void> {
+  await clearKnownPatternFixtureMeals(uid);
+
+  knownPatternSeedCounter += 1;
+  const seedToken = `${Date.now()}-${knownPatternSeedCounter}`;
+  const name = `${KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX}${seedToken}`;
+  const oatsName = `Owsianka QA ${seedToken}`;
+  const yogurtName = `Jogurt QA ${seedToken}`;
+  const timestamps = KNOWN_PATTERN_SEED_DAY_OFFSETS.map(isoFromTodayOffset);
+  const expectedCandidate: KnownPatternSeedExpectation = {
+    firstSeenAt: timestamps[0],
+    lastSeenAt: timestamps[timestamps.length - 1],
+  };
+
+  await Promise.all(
+    timestamps.map((timestamp, index) => {
+      const fixtureMeal = meal({
+        uid,
+        id: `e2e-known-pattern-${seedToken}-${index + 1}`,
+        name,
+        timestamp,
+        inputMethod: "manual",
+        ingredients: [
+          ingredient({
+            id: `e2e-known-pattern-${seedToken}-oats-${index + 1}`,
+            name: oatsName,
+            amount: 60,
+            kcal: 230,
+            protein: 8,
+            carbs: 38,
+            fat: 5,
+          }),
+          ingredient({
+            id: `e2e-known-pattern-${seedToken}-yogurt-${index + 1}`,
+            name: yogurtName,
+            amount: 150,
+            kcal: 110,
+            protein: 15,
+            carbs: 7,
+            fat: 3,
+          }),
+        ],
+      });
+
+      return saveMealRemote({
+        uid,
+        meal: fixtureMeal,
+        clientMutationId: `e2e-known-pattern:${uid}:${seedToken}:${index + 1}`,
+      });
+    }),
+  );
+  await waitForKnownPatternSeedCandidate(expectedCandidate);
+}
+
+async function clearKnownPatternFixtureMeals(uid: string): Promise<void> {
+  let cursor: string | null = null;
+
+  do {
+    const page = await fetchMealsPageRemote({
+      uid,
+      pageSize: 100,
+      cursor,
+    });
+
+    await Promise.all(
+      page.items
+        .filter(
+          (item) =>
+            !item.deleted &&
+            typeof item.name === "string" &&
+            item.name.startsWith(KNOWN_PATTERN_E2E_MEAL_NAME_PREFIX) &&
+            item.cloudId,
+        )
+        .map((item) =>
+          markMealDeletedRemote(uid, item.cloudId as string, item.updatedAt, {
+            clientMutationId: `e2e-known-pattern-cleanup:${uid}:${item.cloudId}`,
+          }),
+        ),
+    );
+
+    cursor = page.nextCursor;
+  } while (cursor);
+}
+
+function normalizeHistoryAssertName(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+async function assertNoRemoteMealByName(
+  uid: string,
+  targetName: string,
+): Promise<void> {
+  const expectedName = normalizeHistoryAssertName(targetName);
+  let cursor: string | null = null;
+  let pageCount = 0;
+
+  do {
+    pageCount += 1;
+    const page = await fetchMealsPageRemote({
+      uid,
+      pageSize: 100,
+      cursor,
+    });
+    const foundMeal = page.items.find(
+      (item) =>
+        !item.deleted &&
+        normalizeHistoryAssertName(item.name) === expectedName,
+    );
+
+    if (foundMeal) {
+      throw createServiceError({
+        code: "e2e/history-assertion-failed",
+        source: "E2EFixtures",
+        retryable: false,
+        message: `E2E history assertion failed: found saved meal "${targetName}".`,
+      });
+    }
+
+    cursor = page.nextCursor;
+  } while (cursor && pageCount < HISTORY_ASSERT_PAGE_LIMIT);
+
+  if (cursor) {
+    throw createServiceError({
+      code: "e2e/history-assertion-incomplete",
+      source: "E2EFixtures",
+      retryable: true,
+      message: `E2E history assertion could not scan all meal history pages for "${targetName}".`,
+    });
+  }
+}
+
+async function assertNoLocalMealByName(
+  uid: string,
+  targetName: string,
+): Promise<void> {
+  const expectedName = normalizeHistoryAssertName(targetName);
+  const foundMeal = (await getAllMealsLocal(uid)).find(
+    (item) =>
+      !item.deleted &&
+      normalizeHistoryAssertName(item.name) === expectedName,
+  );
+
+  if (foundMeal) {
+    throw createServiceError({
+      code: "e2e/local-history-assertion-failed",
+      source: "E2EFixtures",
+      retryable: false,
+      message: `E2E local history assertion failed: found saved meal "${targetName}".`,
+    });
+  }
+}
+
+async function assertNoMealByName(uid: string, targetName: string): Promise<void> {
+  await assertNoLocalMealByName(uid, targetName);
+  await assertNoRemoteMealByName(uid, targetName);
+}
+
+type TelemetrySummaryResponse = {
+  buckets?: Array<{
+    eventCounts?: Array<{
+      name?: string;
+      count?: number;
+    }>;
+  }>;
+};
+
+function telemetryBaselineKey(uid: string, assertName: E2ETelemetryEventAssert) {
+  return `${uid}:${assertName}`;
+}
+
+function telemetryEventName(assertName: E2ETelemetryEventAssert): TelemetryEventName {
+  return TELEMETRY_ASSERT_EVENT_NAMES[assertName];
+}
+
+function telemetryEmitProps(assertName: E2ETelemetryEventAssert): TelemetryProps {
+  if (assertName === "knownPatternCandidateDismissed") {
+    return {
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    };
+  }
+  if (assertName === "plannedMealConfirmed") {
+    return {
+      sourceType: "manual",
+      estimateState: "known",
+      surface: "planning",
+      actionResult: "succeeded",
+      featureState: "enabled",
+    };
+  }
+  if (assertName === "memoryDeleted") {
+    return {
+      memoryType: "typical_portion",
+      surface: "memory_center",
+      actionResult: "queued",
+      featureState: "enabled",
+    };
+  }
+
+  return {
+    actionType: "confirm_known_pattern",
+    ownerFlow: "MealAddMethod",
+    state: "eligible",
+  };
+}
+
+function assertTelemetryRuntime(assertName: E2ETelemetryRuntimeAssert): void {
+  const config = getRuntimeConfig();
+  const enabled =
+    assertName === "telemetryEnabled"
+      ? config.telemetryEnabled
+      : assertName === "knownPatternsEnabled"
+        ? config.knownPatternsEnabled
+        : assertName === "smartMemoryEnabled"
+          ? config.smartMemoryEnabled
+        : config.planningEnabled;
+  if (enabled) return;
+
+  throw createServiceError({
+    code: `e2e/telemetry-runtime-${assertName}-disabled`,
+    source: "E2EFixtures",
+    retryable: false,
+    message: `E2E telemetry runtime assertion failed for "${assertName}".`,
+  });
+}
+
+async function emitTelemetryEvent(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  setTelemetryUserId(uid);
+  await trackTelemetry(telemetryEventName(assertName), telemetryEmitProps(assertName));
+  await flushTelemetry();
+}
+
+function countTelemetryEvents(
+  summary: TelemetrySummaryResponse,
+  eventName: string,
+): number {
+  return (summary.buckets ?? []).reduce((total, bucket) => {
+    const bucketCount = (bucket.eventCounts ?? []).reduce((sum, item) => {
+      return item.name === eventName ? sum + Number(item.count ?? 0) : sum;
+    }, 0);
+    return total + bucketCount;
+  }, 0);
+}
+
+async function readTelemetryEventCount(
+  eventName: string,
+): Promise<number> {
+  await flushTelemetry();
+  const summary = await get<TelemetrySummaryResponse>(
+    "/api/v2/telemetry/events/summary/daily?days=1",
+    { timeout: 10000 },
+  );
+  return countTelemetryEvents(summary, eventName);
+}
+
+async function recordTelemetryBaseline(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  setTelemetryUserId(uid);
+  const count = await readTelemetryEventCount(telemetryEventName(assertName));
+  telemetryBaselineCounts.set(telemetryBaselineKey(uid, assertName), count);
+}
+
+async function assertTelemetryCountIncreased(
+  uid: string,
+  assertName: E2ETelemetryEventAssert,
+): Promise<void> {
+  const baselineKey = telemetryBaselineKey(uid, assertName);
+  const baselineCount = telemetryBaselineCounts.get(baselineKey);
+  if (baselineCount === undefined) {
+    throw createServiceError({
+      code: "e2e/telemetry-baseline-missing",
+      source: "E2EFixtures",
+      retryable: false,
+      message: `E2E telemetry baseline missing for "${assertName}".`,
+    });
+  }
+
+  const eventName = telemetryEventName(assertName);
+  let lastCount = baselineCount;
+  let lastError: unknown = null;
+  setTelemetryUserId(uid);
+  for (let attempt = 0; attempt < TELEMETRY_ASSERT_ATTEMPTS; attempt += 1) {
+    try {
+      lastCount = await readTelemetryEventCount(eventName);
+      if (lastCount > baselineCount) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(TELEMETRY_ASSERT_DELAY_MS);
+  }
+
+  throw createServiceError({
+    code: "e2e/telemetry-assertion-failed",
+    source: "E2EFixtures",
+    retryable: true,
+    message: `E2E telemetry assertion failed for "${eventName}": baseline=${baselineCount}, current=${lastCount}.`,
+    cause: lastError,
+  });
+}
+
+async function clearPlanningWindow(uid: string): Promise<void> {
+  const response = await fetchPlannedMealsRemote(
+    {
+      startDate: todayDayKey(),
+      days: 3,
+      includeDeleted: false,
+    },
+    { timeout: 10000 },
+  );
+
+  await Promise.all(
+    response.items
+      .filter((item) => item.status !== "deleted")
+      .map((item) =>
+        deletePlannedMealRemote(
+          item.plannedMealId,
+          {
+            clientMutationId: `e2e-planning-delete:${uid}:${item.plannedMealId}:${item.version}`,
+            expectedVersion: item.version,
+          },
+          { timeout: 10000 },
+        ),
+      ),
+  );
+}
+
+async function applyPlanningFixture(uid: string, seed: E2EPlanningSeed): Promise<void> {
+  await clearPlanningWindow(uid);
+
+  if (seed !== "reviewReady") return;
+
+  const mutationStamp = `${Date.now()}`;
+  await createPlannedMealRemote(
+    {
+      clientMutationId: `e2e-planning-create:${uid}:${mutationStamp}`,
+      plannedMealId: `e2e-planning-${mutationStamp}`,
+      dateBucket: todayDayKey(),
+      timeBucket: "lunch",
+      sourceType: "manual",
+      sourceRef: null,
+      draftSnapshot: {
+        name: "E2E Planning Bowl",
+        type: "lunch",
+        ingredients: [
+          {
+            id: `e2e-planning-ingredient-${mutationStamp}`,
+            name: "E2E Planning Bowl",
+            amount: 1,
+            kcal: 400,
+            protein: 25,
+            fat: 14,
+            carbs: 45,
+          },
+        ],
+        totals: {
+          kcal: 400,
+          protein: 25,
+          fat: 14,
+          carbs: 45,
+        },
+        notes: null,
+        tags: [],
+      },
+      nutritionEstimate: {
+        state: "known",
+        totals: {
+          kcal: 400,
+          protein: 25,
+          fat: 14,
+          carbs: 45,
+        },
+        missingFields: [],
+        confidence: "medium",
+      },
+    },
+    { timeout: 10000 },
+  );
 }
 
 async function applyNamedFixture(
@@ -610,6 +1476,20 @@ async function applyNamedFixture(
     return;
   }
 
+  if (fixture === "user-with-private-product-conflict") {
+    await upsertLocalIngredientProductUserRecord({
+      uid,
+      item: privateIngredientProductConflictRow(uid),
+      syncState: "conflict",
+      updatedAt: e2eNowISO(),
+      lastSyncedAt: 0,
+      lastErrorCode: "food-library/conflict",
+      lastErrorMessage:
+        "Remote Product/Ingredient record conflicts with pending local create.",
+    });
+    return;
+  }
+
   if (fixture === "user-with-photo-meal") {
     const sampleMealUri = await getSampleMealUri();
     await seedLoggedMeal(
@@ -763,7 +1643,18 @@ export async function applyE2ESeedCommand(params: {
 
   const appliedCommand =
     !params.uid
-      ? { ...params.command, fixture: undefined, aiConsent: undefined }
+      ? {
+          ...params.command,
+          fixture: undefined,
+          aiConsent: undefined,
+          smartMemory: undefined,
+          knownPattern: undefined,
+          planning: undefined,
+          historyAssert: undefined,
+          telemetryBaseline: undefined,
+          telemetryAssert: undefined,
+          telemetryEmit: undefined,
+        }
       : params.command;
   if (!hasSeedCommand(appliedCommand)) return [];
 
@@ -781,6 +1672,10 @@ export async function applyE2ESeedCommand(params: {
     await applyNamedFixture(params.uid, appliedCommand.fixture);
   }
 
+  if (params.uid && appliedCommand.planning) {
+    await applyPlanningFixture(params.uid, appliedCommand.planning);
+  }
+
   if (params.uid && appliedCommand.aiConsent) {
     const aiConsent = aiConsentForSeed(appliedCommand.aiConsent);
     aiConsentSeedByUid.set(params.uid, aiConsent);
@@ -788,6 +1683,41 @@ export async function applyE2ESeedCommand(params: {
       uid: params.uid,
       aiConsent,
     });
+  }
+
+  if (params.uid && appliedCommand.smartMemory) {
+    if (appliedCommand.smartMemory === "backendPull") {
+      await pullSmartMemoryChanges(params.uid);
+    } else {
+      await applySmartMemoryFixture(params.uid, appliedCommand.smartMemory);
+    }
+  }
+
+  if (params.uid && appliedCommand.knownPattern) {
+    await applyKnownPatternFixture(params.uid);
+  }
+
+  if (params.uid && appliedCommand.historyAssert) {
+    await assertNoMealByName(
+      params.uid,
+      HISTORY_ASSERT_MEAL_NAMES[appliedCommand.historyAssert],
+    );
+  }
+
+  if (params.uid && appliedCommand.telemetryBaseline) {
+    await recordTelemetryBaseline(params.uid, appliedCommand.telemetryBaseline);
+  }
+
+  if (params.uid && appliedCommand.telemetryAssert) {
+    await assertTelemetryCountIncreased(params.uid, appliedCommand.telemetryAssert);
+  }
+
+  if (params.uid && appliedCommand.telemetryEmit) {
+    await emitTelemetryEvent(params.uid, appliedCommand.telemetryEmit);
+  }
+
+  if (appliedCommand.telemetryRuntime) {
+    assertTelemetryRuntime(appliedCommand.telemetryRuntime);
   }
 
   emit("e2e:seeded", fixtureState);
@@ -840,7 +1770,6 @@ function feature(
 
 export function getE2EAccessState(uid: string): AccessState | null {
   if (!isE2EModeEnabled()) return null;
-  if (!fixtureState.credits && !fixtureState.billing) return null;
 
   const billing = fixtureState.billing ?? "free";
   const credits = creditsStatus(uid, fixtureState.credits ?? "ok");
@@ -1352,6 +2281,8 @@ export function __resetE2EFixturesForTests(): void {
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
+  knownPatternSeedCounter = 0;
+  telemetryBaselineCounts = new Map<string, number>();
 }
 
 export async function resetE2EFixtureState(): Promise<void> {
@@ -1359,6 +2290,8 @@ export async function resetE2EFixtureState(): Promise<void> {
   fixtureState = {};
   aiConsentRevokeFailureOnceConsumed = new Set<string>();
   aiConsentSeedByUid = new Map<string, UserAiConsent>();
+  knownPatternSeedCounter = 0;
+  telemetryBaselineCounts = new Map<string, number>();
   await AsyncStorage.removeItem(E2E_FIXTURE_STATE_KEY);
   emit("e2e:seeded", fixtureState);
 }

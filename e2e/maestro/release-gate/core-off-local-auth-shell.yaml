@@ -1,0 +1,37 @@
+appId: com.lkurczab.fitaly
+---
+- stopApp
+- openLink: __E2E_EXPO_URL__
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Nie teraz|Not [Nn]ow"
+    commands:
+      - tapOn: "Nie teraz|Not [Nn]ow"
+- assertVisible:
+    id: e2e-booted
+- openLink: fitaly://e2e/reset?logout=1&theme=light
+- assertVisible:
+    id: e2e-ready-login
+- assertVisible:
+    id: login-screen
+- assertVisible:
+    id: login-email-input
+- assertVisible:
+    id: login-password-input
+- tapOn:
+    id: login-register-link
+- extendedWaitUntil:
+    visible:
+      id: register-username-input
+    timeout: 10000
+- assertVisible:
+    id: register-email-input
+- assertVisible:
+    id: register-password-input

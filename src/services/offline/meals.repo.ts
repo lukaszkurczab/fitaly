@@ -1,5 +1,5 @@
 import { getDB } from "./db";
-import type { Meal } from "@/types/meal";
+import type { Meal, MealPlanningSource } from "@/types/meal";
 import type { MealRow } from "./types";
 import { emit } from "@/services/core/events";
 import type { SQLiteBindValue } from "expo-sqlite";
@@ -32,6 +32,7 @@ export async function upsertMealLocal(meal: Meal): Promise<void> {
     Array.isArray(meal.ingredients) ? meal.ingredients : []
   );
   const aiMeta = serializeMealAiMeta(meal.aiMeta);
+  const planningSource = serializePlanningSource(meal.planningSource);
   const createdAt = meal.createdAt ?? meal.timestamp ?? meal.updatedAt;
   const syncState = normalizeMealSyncState(meal.syncState);
   const lastSyncedAt = syncState === "synced" ? toEpochMs(meal.updatedAt) : 0;
@@ -52,8 +53,8 @@ export async function upsertMealLocal(meal: Meal): Promise<void> {
       ingredients,
       photo_url, image_local, image_id,
       totals_kcal, totals_protein, totals_carbs, totals_fat,
-      deleted, created_at, updated_at, last_synced_at, sync_state, source, input_method, ai_meta, notes, tags
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      deleted, created_at, updated_at, last_synced_at, sync_state, source, input_method, ai_meta, planning_source, notes, tags
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(cloud_id) DO UPDATE SET
       meal_id=excluded.meal_id,
       timestamp=excluded.timestamp,
@@ -81,6 +82,7 @@ export async function upsertMealLocal(meal: Meal): Promise<void> {
       source=excluded.source,
       input_method=excluded.input_method,
       ai_meta=excluded.ai_meta,
+      planning_source=excluded.planning_source,
       notes=excluded.notes,
       tags=excluded.tags`,
     [
@@ -109,6 +111,7 @@ export async function upsertMealLocal(meal: Meal): Promise<void> {
       meal.source ?? null,
       normalizeMealInputMethod(meal.inputMethod),
       aiMeta,
+      planningSource,
       meal.notes ?? null,
       tags,
     ]
@@ -164,6 +167,90 @@ function parseIngredients(raw: string | null): Meal["ingredients"] {
   }
 }
 
+function serializePlanningSource(value: Meal["planningSource"]): string | null {
+  return value ? JSON.stringify(value) : null;
+}
+
+function parsePlanningSource(raw: string | null): MealPlanningSource | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<MealPlanningSource>;
+    const plannedMealId =
+      typeof parsed.plannedMealId === "string"
+        ? parsed.plannedMealId.trim()
+        : "";
+    const plannedMealVersion =
+      typeof parsed.plannedMealVersion === "number"
+        ? parsed.plannedMealVersion
+        : Number.NaN;
+    const sourceType = parsed.sourceType;
+    const nutritionEstimateState = parsed.nutritionEstimateState;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !plannedMealId ||
+      !Number.isInteger(plannedMealVersion) ||
+      plannedMealVersion < 1 ||
+      !(
+        sourceType === "manual" ||
+        sourceType === "saved_meal" ||
+        sourceType === "recipe" ||
+        sourceType === "ingredient_product_draft"
+      ) ||
+      !(
+        nutritionEstimateState === "known" ||
+        nutritionEstimateState === "partial" ||
+        nutritionEstimateState === "unknown"
+      )
+    ) {
+      return null;
+    }
+
+    const sourceRefMap =
+      parsed.sourceRef && typeof parsed.sourceRef === "object"
+        ? parsed.sourceRef
+        : null;
+    const sourceRefId =
+      typeof sourceRefMap?.sourceId === "string"
+        ? sourceRefMap.sourceId.trim()
+        : "";
+    const sourceRef =
+      sourceRefMap && sourceRefId
+        ? {
+            sourceId: sourceRefId,
+            sourceVersion:
+              typeof sourceRefMap.sourceVersion === "number"
+                ? sourceRefMap.sourceVersion
+                : null,
+            snapshotName:
+              typeof sourceRefMap.snapshotName === "string"
+                ? sourceRefMap.snapshotName
+                : null,
+          }
+        : null;
+    const missingNutritionFields = Array.isArray(parsed.missingNutritionFields)
+      ? parsed.missingNutritionFields.filter(
+          (field): field is MealPlanningSource["missingNutritionFields"][number] =>
+            field === "kcal" ||
+            field === "protein" ||
+            field === "fat" ||
+            field === "carbs",
+        )
+      : [];
+
+    return {
+      plannedMealId,
+      plannedMealVersion,
+      sourceType,
+      sourceRef,
+      nutritionEstimateState,
+      missingNutritionFields,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseMealSyncState(raw: string | null | undefined): Meal["syncState"] {
   if (
     raw === "synced" ||
@@ -198,6 +285,7 @@ function rowToMeal(r: MealRow): Meal {
     source: parseMealSource(r.source),
     inputMethod: normalizeMealInputMethod(r.input_method),
     aiMeta: parseMealAiMeta(r.ai_meta),
+    planningSource: parsePlanningSource(r.planning_source ?? null),
     imageId: r.image_id ?? null,
     photoUrl: r.photo_url ?? null,
     notes: r.notes ?? null,

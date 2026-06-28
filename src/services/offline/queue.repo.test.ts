@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Meal } from "@/types/meal";
+import type { IngredientProductSearchRow } from "@/types/foodLibrary";
 
 const mockRunSync = jest.fn<
   (sql: string, params?: unknown[]) => { changes?: number } | void
@@ -36,6 +37,30 @@ let deadOps: DeadOp[] = [];
 
 function applyQueueMutation(sql: string, params: unknown[] = []) {
   if (sql.includes("DELETE FROM op_queue_dead")) {
+    if (sql.includes("cloud_id IN")) {
+      const uid = String(params[0] ?? "");
+      const cloudIdMatch = sql.match(/cloud_id IN \(([^)]+)\)/);
+      const cloudIdCount =
+        cloudIdMatch?.[1].split(",").filter((part) => part.trim() === "?")
+          .length ?? 0;
+      const cloudIds = new Set(params.slice(1, 1 + cloudIdCount).map(String));
+      const kinds = new Set(
+        params
+          .slice(1 + cloudIdCount)
+          .filter((value): value is string => typeof value === "string"),
+      );
+      const before = deadOps.length;
+      deadOps = deadOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            cloudIds.has(op.cloudId) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - deadOps.length };
+    }
+
     if (sql.includes("user_uid=?")) {
       const uid = String(params[0] ?? "");
       const ids = new Set(
@@ -68,6 +93,56 @@ function applyQueueMutation(sql: string, params: unknown[] = []) {
   }
 
   if (sql.includes("DELETE FROM op_queue")) {
+    if (sql.includes("cloud_id IN")) {
+      const uid = String(params[0] ?? "");
+      const cloudIdMatch = sql.match(/cloud_id IN \(([^)]+)\)/);
+      const cloudIdCount =
+        cloudIdMatch?.[1].split(",").filter((part) => part.trim() === "?")
+          .length ?? 0;
+      const cloudIds = new Set(params.slice(1, 1 + cloudIdCount).map(String));
+      const kinds = new Set(
+        params
+          .slice(1 + cloudIdCount)
+          .filter((value): value is string => typeof value === "string"),
+      );
+      const before = queuedOps.length;
+      queuedOps = queuedOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            cloudIds.has(op.cloudId) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - queuedOps.length };
+    }
+
+    if (sql.includes("client_mutation_id IN")) {
+      const uid = String(params[0] ?? "");
+      const mutationIds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string")
+          .filter((value) => value.startsWith("mutation-")),
+      );
+      const kinds = new Set(
+        params
+          .slice(1)
+          .filter((value): value is string => typeof value === "string")
+          .filter((value) => !value.startsWith("mutation-")),
+      );
+      const before = queuedOps.length;
+      queuedOps = queuedOps.filter(
+        (op) =>
+          !(
+            op.uid === uid &&
+            mutationIds.has(op.clientMutationId) &&
+            (!kinds.size || kinds.has(op.kind))
+          ),
+      );
+      return { changes: before - queuedOps.length };
+    }
+
     if (sql.includes("WHERE id=?")) {
       const id = Number(params[0]);
       queuedOps = queuedOps.filter((op) => op.id !== id);
@@ -272,6 +347,48 @@ const baseMeal = (overrides: Partial<Meal> = {}): Meal => ({
   ...overrides,
 });
 
+function ingredientProductRow(
+  overrides: Partial<IngredientProductSearchRow> = {},
+): IngredientProductSearchRow {
+  return {
+    ingredientProductId: "user-product-1",
+    recordScope: "user_scoped",
+    lifecycleState: "candidate",
+    displayName: "Owsianka domowa",
+    kind: "generic_ingredient",
+    defaultServing: { quantity: 50, unit: "g" },
+    nutritionPer100: null,
+    confidence: { identity: "medium", nutrition: "unknown", profile: "unknown" },
+    sourceAttribution: {
+      sourceType: "user_created",
+      sourceId: "ingredient-product:create:user-1:mutation-1",
+      sourceName: "manual_entry",
+      provider: null,
+      license: null,
+      observedAt: null,
+      reviewedAt: null,
+      reviewedBy: null,
+    },
+    profileCompatibility: {
+      status: "unknown",
+      dietaryFlags: [],
+      allergenFlags: [],
+    },
+    warningReasonCodes: [],
+    rankingSignals: ["user_scoped"],
+    brandName: null,
+    ingredientName: null,
+    packageName: null,
+    category: null,
+    servingSizes: [],
+    dietaryFlags: [],
+    allergenFlags: [],
+    cacheState: "fresh",
+    ownerUserId: "user-1",
+    ...overrides,
+  };
+}
+
 function queuedOp(overrides: Partial<QueuedOp> = {}): QueuedOp {
   return {
     id: nextQueueId++,
@@ -450,6 +567,7 @@ describe("queue.repo", () => {
 
   it("replaces a pending meal edit with a single delete tombstone", async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const queueRepo = require("@/services/offline/queue.repo") as
       typeof import("@/services/offline/queue.repo");
     const { enqueueDelete, enqueueUpsert } = queueRepo;
@@ -492,6 +610,261 @@ describe("queue.repo", () => {
         updatedAt: "2026-02-25T12:00:00.000Z",
       }),
     ]);
+  });
+
+  it("uses Smart Memory-specific queue kinds for candidate and item controls", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueSmartMemoryCandidateUpsert("user-1", {
+      candidateId: "candidate-1",
+      memoryType: "typical_portion",
+      subject: { kind: "ingredient_alias", aliasHash: "hash-1" },
+      evidenceSummary: { observationCount: 1 },
+      sourceRefs: [{ kind: "meal_review", sourceHash: "source-1" }],
+      confidenceReasonCodes: ["single_observation"],
+      suppressionChecks: { settingsEnabled: true },
+    });
+    await queueRepo.enqueueSmartMemoryItemEdit("user-1", "memory-1", {
+      userValue: { amount: 60, unit: "g" },
+      editedFields: ["userValue"],
+    });
+    await queueRepo.enqueueSmartMemoryItemMute("user-1", "memory-1");
+    await queueRepo.enqueueSmartMemoryItemDelete("user-1", "memory-1");
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "candidate-1",
+        uid: "user-1",
+        kind: "smart_memory_candidate_upsert",
+        clientMutationId:
+          "smart-memory:candidate_upsert:user-1:candidate-1:uuid-generated",
+      }),
+      expect.objectContaining({
+        cloudId: "memory-1",
+        uid: "user-1",
+        kind: "smart_memory_item_delete",
+        clientMutationId: "smart-memory:delete:user-1:memory-1:uuid-generated",
+      }),
+    ]);
+    expect(familyOps("user-1", "memory-1", ["smart_memory_item_edit", "smart_memory_item_mute"])).toEqual(
+      [],
+    );
+  });
+
+  it("coalesces Smart Memory settings enable and disable controls", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueSmartMemorySettingsDisable("user-1");
+    await queueRepo.enqueueSmartMemorySettingsEnable("user-1");
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "settings",
+        uid: "user-1",
+        kind: "smart_memory_settings_enable",
+        payload: { enabled: true },
+        clientMutationId:
+          "smart-memory:settings_enable:user-1:settings:uuid-generated",
+      }),
+    ]);
+  });
+
+  it("uses Product/Ingredient-specific create queue kind and durable client mutation id", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueIngredientProductCreate(
+      "user-1",
+      {
+        searchQuery: "Owsianka domowa",
+        locale: "pl-PL",
+        request: {
+          clientMutationId: "ingredient-product:create:user-1:mutation-1",
+          ingredientProductId: "user-product-1",
+          displayName: "Owsianka domowa",
+          kind: "generic_ingredient",
+          defaultServing: { quantity: 50, unit: "g" },
+          nutritionPer100: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:00:00.000Z" },
+    );
+    await queueRepo.enqueueIngredientProductCreate(
+      "user-1",
+      {
+        searchQuery: "Owsianka domowa",
+        locale: "pl-PL",
+        request: {
+          clientMutationId: "ingredient-product:create:user-1:mutation-2",
+          ingredientProductId: "user-product-1",
+          displayName: "Owsianka domowa",
+          kind: "generic_ingredient",
+          defaultServing: { quantity: 60, unit: "g" },
+          nutritionPer100: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:05:00.000Z" },
+    );
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "user-product-1",
+        uid: "user-1",
+        kind: "ingredient_product_create",
+        clientMutationId: "ingredient-product:create:user-1:mutation-2",
+        updatedAt: "2026-06-16T10:05:00.000Z",
+        payload: expect.objectContaining({
+          searchQuery: "Owsianka domowa",
+          request: expect.objectContaining({
+            ingredientProductId: "user-product-1",
+            defaultServing: { quantity: 60, unit: "g" },
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it("uses Product/Ingredient-specific delete queue kind without removing queued creates", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueIngredientProductCreate(
+      "user-1",
+      {
+        searchQuery: "Owsianka domowa",
+        locale: "pl-PL",
+        request: {
+          clientMutationId: "ingredient-product:create:user-1:mutation-1",
+          ingredientProductId: "user-product-1",
+          displayName: "Owsianka domowa",
+          kind: "generic_ingredient",
+          defaultServing: { quantity: 50, unit: "g" },
+          nutritionPer100: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:00:00.000Z" },
+    );
+    await queueRepo.enqueueIngredientProductDelete("user-1", "user-product-1", {
+      updatedAt: "2026-06-16T10:05:00.000Z",
+    });
+    await queueRepo.enqueueIngredientProductDelete("user-1", "user-product-1", {
+      updatedAt: "2026-06-16T10:06:00.000Z",
+    });
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "user-product-1",
+        uid: "user-1",
+        kind: "ingredient_product_create",
+        clientMutationId: "ingredient-product:create:user-1:mutation-1",
+      }),
+      expect.objectContaining({
+        cloudId: "user-product-1",
+        uid: "user-1",
+        kind: "ingredient_product_delete",
+        clientMutationId:
+          "ingredient-product:delete:user-1:user-product-1:uuid-generated",
+        updatedAt: "2026-06-16T10:06:00.000Z",
+        payload: { ingredientProductId: "user-product-1" },
+      }),
+    ]);
+  });
+
+  it("uses Product/Ingredient-specific update queue kind and rejects invalid local context", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    await queueRepo.enqueueIngredientProductUpdate(
+      "user-1",
+      {
+        searchQuery: "Updated oats",
+        locale: "pl-PL",
+        baseItem: ingredientProductRow(),
+        request: {
+          clientMutationId: "ingredient-product:update:user-1:mutation-1",
+          ingredientProductId: "user-product-1",
+          displayName: "Updated oats",
+          brandName: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:00:00.000Z" },
+    );
+    await queueRepo.enqueueIngredientProductUpdate(
+      "user-1",
+      {
+        searchQuery: "Updated oats",
+        locale: "pl-PL",
+        baseItem: ingredientProductRow(),
+        request: {
+          clientMutationId: "ingredient-product:update:user-1:mutation-2",
+          ingredientProductId: "user-product-1",
+          displayName: "Updated oats v2",
+          servingSizes: null,
+        },
+      },
+      { updatedAt: "2026-06-16T10:05:00.000Z" },
+    );
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({
+        cloudId: "user-product-1",
+        uid: "user-1",
+        kind: "ingredient_product_update",
+        clientMutationId: "ingredient-product:update:user-1:mutation-2",
+        updatedAt: "2026-06-16T10:05:00.000Z",
+        payload: expect.objectContaining({
+          searchQuery: "Updated oats",
+          locale: "pl-PL",
+          baseItem: expect.objectContaining({
+            ingredientProductId: "user-product-1",
+            recordScope: "user_scoped",
+            ownerUserId: "user-1",
+          }),
+          request: expect.objectContaining({
+            ingredientProductId: "user-product-1",
+            displayName: "Updated oats v2",
+            servingSizes: null,
+          }),
+        }),
+      }),
+    ]);
+
+    await expect(
+      queueRepo.enqueueIngredientProductUpdate("user-1", {
+        searchQuery: "Blocked",
+        baseItem: ingredientProductRow({
+          recordScope: "global_seed",
+          ownerUserId: null,
+        }),
+        request: {
+          clientMutationId: "ingredient-product:update:user-1:mutation-3",
+          ingredientProductId: "user-product-1",
+          displayName: "Blocked",
+        },
+      }),
+    ).rejects.toThrow(
+      "Ingredient/Product update payload must target a current-user record.",
+    );
+    await expect(
+      queueRepo.enqueueIngredientProductUpdate("user-1", {
+        searchQuery: "Blocked",
+        baseItem: ingredientProductRow(),
+        request: {
+          clientMutationId: "ingredient-product:update:user-1:mutation-4",
+          ingredientProductId: " ",
+          displayName: "Blocked",
+        },
+      }),
+    ).rejects.toThrow(
+      "Ingredient/Product update payload must target a current-user record.",
+    );
   });
 
   it("surfaces dead meal ops, retries them without duplicate pending ops, and clears after success", async () => {
@@ -719,6 +1092,154 @@ describe("queue.repo", () => {
       "sync:op:discarded",
       expect.anything(),
     );
+  });
+
+  it("discards selected queued ops by client mutation id for failed local recovery", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const queueRepo = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+    const { discardQueuedOpsByClientMutationIds } = queueRepo;
+
+    queuedOps = [
+      queuedOp({
+        id: 20,
+        uid: "user-1",
+        cloudId: "memory-1",
+        kind: "smart_memory_item_mute",
+        clientMutationId: "mutation-smart-memory-1",
+      }),
+      queuedOp({
+        id: 21,
+        uid: "user-1",
+        cloudId: "meal-1",
+        kind: "upsert",
+        clientMutationId: "mutation-meal-1",
+      }),
+      queuedOp({
+        id: 22,
+        uid: "other-user",
+        cloudId: "memory-1",
+        kind: "smart_memory_item_mute",
+        clientMutationId: "mutation-smart-memory-1",
+      }),
+    ];
+
+    await expect(
+      discardQueuedOpsByClientMutationIds({
+        uid: "user-1",
+        clientMutationIds: ["mutation-smart-memory-1", ""],
+        kinds: ["smart_memory_item_mute"],
+      }),
+    ).resolves.toBe(1);
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({ id: 21, uid: "user-1", kind: "upsert" }),
+      expect.objectContaining({ id: 22, uid: "other-user" }),
+    ]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:discarded", {
+      uid: "user-1",
+      count: 1,
+      clientMutationIds: ["mutation-smart-memory-1"],
+      kinds: ["smart_memory_item_mute"],
+    });
+  });
+
+  it("discards queued and dead-letter ops by cloud id only for the requested uid and kinds", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { discardQueuedAndDeadLetterOpsByCloudIds } = require("@/services/offline/queue.repo") as
+      typeof import("@/services/offline/queue.repo");
+
+    queuedOps = [
+      queuedOp({
+        id: 30,
+        uid: "user-1",
+        cloudId: "user-product-1",
+        kind: "ingredient_product_create",
+      }),
+      queuedOp({
+        id: 31,
+        uid: "user-1",
+        cloudId: "user-product-1",
+        kind: "ingredient_product_update",
+      }),
+      queuedOp({
+        id: 32,
+        uid: "user-1",
+        cloudId: "user-product-1",
+        kind: "upsert",
+      }),
+      queuedOp({
+        id: 33,
+        uid: "user-1",
+        cloudId: "memory-1",
+        kind: "smart_memory_item_delete",
+      }),
+      queuedOp({
+        id: 34,
+        uid: "other-user",
+        cloudId: "user-product-1",
+        kind: "ingredient_product_create",
+      }),
+      queuedOp({
+        id: 35,
+        uid: "user-1",
+        cloudId: "other-product",
+        kind: "ingredient_product_delete",
+      }),
+    ];
+    deadOps = [
+      deadOp({
+        id: 40,
+        uid: "user-1",
+        cloudId: "user-product-1",
+        kind: "ingredient_product_delete",
+      }),
+      deadOp({
+        id: 41,
+        uid: "user-1",
+        cloudId: "user-product-1",
+        kind: "delete",
+      }),
+      deadOp({
+        id: 42,
+        uid: "other-user",
+        cloudId: "user-product-1",
+        kind: "ingredient_product_update",
+      }),
+    ];
+
+    await expect(
+      discardQueuedAndDeadLetterOpsByCloudIds({
+        uid: "user-1",
+        cloudIds: ["user-product-1", "user-product-1", " "],
+        kinds: [
+          "ingredient_product_create",
+          "ingredient_product_update",
+          "ingredient_product_delete",
+        ],
+      }),
+    ).resolves.toEqual({ queued: 2, dead: 1 });
+
+    expect(queuedOps).toEqual([
+      expect.objectContaining({ id: 32, kind: "upsert" }),
+      expect.objectContaining({ id: 33, kind: "smart_memory_item_delete" }),
+      expect.objectContaining({ id: 34, uid: "other-user" }),
+      expect.objectContaining({ id: 35, cloudId: "other-product" }),
+    ]);
+    expect(deadOps).toEqual([
+      expect.objectContaining({ id: 41, kind: "delete" }),
+      expect.objectContaining({ id: 42, uid: "other-user" }),
+    ]);
+    expect(mockEmit).toHaveBeenCalledWith("sync:op:discarded", {
+      uid: "user-1",
+      count: 3,
+      cloudIds: ["user-product-1"],
+      kinds: [
+        "ingredient_product_create",
+        "ingredient_product_update",
+        "ingredient_product_delete",
+      ],
+    });
   });
 
   it("replaces an existing pending avatar upload when retrying the same dead avatar reference", async () => {

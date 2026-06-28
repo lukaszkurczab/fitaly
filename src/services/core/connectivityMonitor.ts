@@ -1,16 +1,36 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import NetInfo, {
+  NetInfoStateType,
   useNetInfo,
   type NetInfoState,
 } from "@react-native-community/netinfo";
+import {
+  isE2EForcedOffline,
+  subscribeE2EConnectivityOverride,
+} from "@/services/e2e/connectivityOverride";
 
 export const CONNECTIVITY_MONITOR_POLL_MS = 5000;
+
+function withE2EForcedOffline(
+  state: NetInfoState,
+  forcedOffline: boolean,
+): NetInfoState {
+  if (!forcedOffline) return state;
+  return {
+    ...state,
+    type: NetInfoStateType.none,
+    details: null,
+    isConnected: false,
+    isInternetReachable: false,
+  };
+}
 
 export function useMonitoredNetInfo(): NetInfoState {
   const netInfo = useNetInfo();
   const [monitoredNetInfo, setMonitoredNetInfo] =
     useState<NetInfoState>(netInfo);
+  const [forcedOffline, setForcedOffline] = useState(isE2EForcedOffline());
 
   useEffect(() => {
     setMonitoredNetInfo(netInfo);
@@ -50,5 +70,12 @@ export function useMonitoredNetInfo(): NetInfoState {
     };
   }, [refreshConnectivity]);
 
-  return monitoredNetInfo;
+  useEffect(() => {
+    return subscribeE2EConnectivityOverride(setForcedOffline);
+  }, []);
+
+  return useMemo(
+    () => withE2EForcedOffline(monitoredNetInfo, forcedOffline),
+    [forcedOffline, monitoredNetInfo],
+  );
 }

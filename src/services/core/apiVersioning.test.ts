@@ -9,6 +9,13 @@ function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
     backendLoggingEnabled: false,
     telemetryEnabled: false,
     smartRemindersEnabled: true,
+    foodLibraryEnabled: false,
+    smartMemoryEnabled: false,
+    knownPatternsEnabled: false,
+    recipeCatalogEnabled: false,
+    planningEnabled: false,
+    homeNextActionEnabled: false,
+    reviewMemoryExplanationEnabled: false,
     billingDisabled: false,
     buildProfile: "",
     privacyUrl: "",
@@ -19,6 +26,8 @@ function createRuntimeConfig(apiVersion = "v1"): RuntimeConfig {
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    firebaseProjectId: "",
+    firebaseAuthEmulatorHost: "",
   };
 }
 

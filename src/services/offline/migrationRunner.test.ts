@@ -184,13 +184,24 @@ describe("offline migrationRunner", () => {
       ),
     ).toBe(false);
     expect(db.execAsync).toHaveBeenCalledWith("PRAGMA user_version=13;");
+    expect(db.execAsync).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE TABLE IF NOT EXISTS smart_memory_items"),
+    );
+    expect(db.execAsync).toHaveBeenCalledWith(
+      expect.stringContaining("PRAGMA user_version=14;"),
+    );
+    expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([
+      4,
+      5,
+      6,
+    ]);
     expect(db.runAsync).toHaveBeenCalledWith(
       "INSERT INTO _schema_migrations (version, applied_at) VALUES (?, datetime('now'))",
       [4],
     );
   });
 
-  it("does not replay duplicate client_mutation_id ALTER before async v4 in mixed bootstrap state", async () => {
+  it("does not replay duplicate client_mutation_id ALTER in mixed bootstrap state", async () => {
     const module = await loadActualRunner();
     const db = createDbMock(2, {
       op_queue: ["id", "client_mutation_id"],
@@ -220,6 +231,8 @@ describe("offline migrationRunner", () => {
     expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([
       3,
       4,
+      5,
+      6,
     ]);
   });
 
@@ -249,6 +262,31 @@ describe("offline migrationRunner", () => {
     expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([
       3,
       4,
+      5,
+      6,
     ]);
+  });
+
+  it("adds Product/Ingredient projection tables in async v6", async () => {
+    const module = await loadActualRunner();
+    const db = createDbMock(5);
+
+    await module.runMigrations(db as never);
+
+    const executedSql = db.execAsync.mock.calls.map(([sql]) => sql);
+    expect(
+      executedSql.some((sql) =>
+        sql.includes("CREATE TABLE IF NOT EXISTS ingredient_product_search_cache"),
+      ),
+    ).toBe(true);
+    expect(
+      executedSql.some((sql) =>
+        sql.includes("CREATE TABLE IF NOT EXISTS ingredient_product_user_records"),
+      ),
+    ).toBe(true);
+    expect(
+      executedSql.some((sql) => sql.includes("PRAGMA user_version=16;")),
+    ).toBe(true);
+    expect(db.runAsync.mock.calls.map(([, params]) => params?.[0])).toEqual([6]);
   });
 });

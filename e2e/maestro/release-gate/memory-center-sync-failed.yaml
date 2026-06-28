@@ -1,0 +1,47 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+- openLink: fitaly://e2e/connectivity?offline=0
+- extendedWaitUntil:
+    notVisible:
+      id: offline-banner
+    timeout: 10000
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&smartMemory=syncFailed"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-smartMemory-syncFailed
+    timeout: 10000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-memory-center-row
+    direction: DOWN
+- tapOn:
+    id: account-memory-center-row
+- assertVisible:
+    id: memory-center-screen
+- assertVisible:
+    id: memory-center-retry-button
+- assertVisible:
+    id: memory-center-discard-button
+- scrollUntilVisible:
+    element:
+      id: memory-center-item-e2e-memory-portion-yogurt
+    direction: DOWN
+- tapOn:
+    id: memory-center-item-e2e-memory-portion-yogurt
+- assertVisible:
+    id: memory-center-detail-modal
+- assertVisible:
+    id: memory-center-detail-error
+- tapOn:
+    id: memory-center-detail-close-button
+- assertVisible:
+    id: memory-center-retry-button

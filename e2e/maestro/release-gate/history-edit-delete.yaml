@@ -14,6 +14,9 @@ appId: com.lkurczab.fitaly
     element:
       id: home-view-history-button
     direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:
@@ -43,7 +46,7 @@ appId: com.lkurczab.fitaly
 - assertVisible:
     id: history-meal-details-title
 - tapOn:
-    id: back-title-header-back
+    id: history-meal-details-back-button
 - extendedWaitUntil:
     visible:
       id: history-list-screen
@@ -82,6 +85,9 @@ appId: com.lkurczab.fitaly
     element:
       id: home-view-history-button
     direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: home-view-history-button
 - tapOn:
     id: home-view-history-button
 - extendedWaitUntil:

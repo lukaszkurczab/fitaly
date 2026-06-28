@@ -14,10 +14,38 @@
   "noGoalSet": "Brak celu dziennego",
   "setDailyGoal": "Ustaw cel dzienny",
   "mealCount_one": "{{count}} posiłek",
-  "mealCount_other": "{{count}} posiłki",
+  "mealCount_few": "{{count}} posiłki",
+  "mealCount_many": "{{count}} posiłków",
+  "mealCount_other": "{{count}} posiłku",
   "methodSelector": "Metoda: {{method}}",
   "viewHistory": "Zobacz pełną historię",
   "viewHistoryShort": "Historia",
+  "nextAction": {
+    "dismiss": "Nie teraz",
+    "reviewDraft": {
+      "title": "Dokończ sprawdzanie posiłku",
+      "description": "Masz niedokończony posiłek gotowy do sprawdzenia.",
+      "cta": "Kontynuuj",
+      "unavailable": "Nie udało się otworzyć tego szkicu. Spróbuj z ekranu dodawania posiłku.",
+      "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi. Spróbuj ponownie za chwilę."
+    },
+    "plannedItem": {
+      "title": "Sprawdź kolejny zaplanowany posiłek",
+      "description": "Masz zaplanowaną pozycję na najbliższy czas. Otwórz plan i sprawdź ją przed zapisaniem.",
+      "cta": "Otwórz plan",
+      "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi planowania. Spróbuj ponownie za chwilę."
+    },
+    "knownPattern": {
+      "title": "Sprawdź ostatni wzorzec posiłku",
+      "description": "Powtarzający się posiłek czeka w dodawaniu. Sprawdź go przed zapisaniem czegokolwiek.",
+      "cta": "Otwórz dodawanie",
+      "dismissUnavailable": "Nie udało się ukryć tej podpowiedzi wzorca. Spróbuj ponownie za chwilę."
+    }
+  },
+  "planningEntry": {
+    "title": "Zaplanuj kolejne posiłki",
+    "description": "Przygotuj 1-3 dni bez zapisywania posiłku."
+  },
   "hero": {
     "greeting": {
       "morning": "Dzień dobry, {{name}}",

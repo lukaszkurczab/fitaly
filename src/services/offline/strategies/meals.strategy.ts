@@ -9,6 +9,7 @@ import {
   markMealDeletedRemote,
   saveMealRemote,
 } from "@/services/meals/mealsRepository";
+import { requirePlanningEnabledForMeal } from "@/services/meals/planningSourceGuard";
 import {
   createServiceError,
   normalizeServiceError,
@@ -234,6 +235,7 @@ export const mealsStrategy: SyncStrategy = {
         updatedAt: String(payload.updatedAt || nowISO()),
         syncState: "pending",
         source: toMealSource(typeof payload.source === "string" ? payload.source : null),
+        planningSource: payload.planningSource ?? null,
         imageId: payload.imageId ?? null,
         photoUrl: payload.photoUrl ?? null,
         notes: payload.notes ?? null,
@@ -244,6 +246,8 @@ export const mealsStrategy: SyncStrategy = {
             ? payload.totals
             : { kcal: 0, protein: 0, carbs: 0, fat: 0 },
       };
+
+      requirePlanningEnabledForMeal(mealForRemote);
 
       await saveMealRemote({
         uid,

@@ -1,0 +1,107 @@
+appId: com.lkurczab.fitaly
+---
+- runFlow: ../smoke/login.yaml
+
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&credits=ok&billing=free"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: account-screen
+- scrollUntilVisible:
+    element:
+      id: account-recipe-catalog-row
+    direction: DOWN
+- tapOn:
+    id: account-recipe-catalog-row
+- assertVisible:
+    id: recipe-catalog-screen
+- extendedWaitUntil:
+    visible:
+      id: recipe-catalog-summary
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: recipe-catalog-review-salmon-rice-plate
+    direction: DOWN
+- tapOn:
+    id: recipe-catalog-review-salmon-rice-plate
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 10000
+- assertVisible:
+    id: review-meal-save-button
+- tapOn:
+    id: review-meal-close
+- tapOn: "Wyjdź|Leave"
+- assertNotVisible:
+    id: review-meal-screen
+- openLink: "fitaly://e2e/seed?historyAssert=noRecipeReviewDraft"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-historyAssert-noRecipeReviewDraft
+    timeout: 10000
+
+- openLink: "fitaly://e2e/reset?logout=0"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-home
+    timeout: 10000
+- openLink: "fitaly://e2e/seed?fixture=activated-user-empty&planning=reviewReady&credits=ok&billing=free"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-fixture-activated-user-empty
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-planning-reviewReady
+    timeout: 10000
+- assertVisible:
+    id: home-screen
+- extendedWaitUntil:
+    visible:
+      id: home-planning-entry
+    timeout: 10000
+- tapOn:
+    id: home-planning-entry
+- assertVisible:
+    id: planning-screen
+- assertVisible:
+    id: planning-boundary
+- tapOn:
+    id: planning-refresh-button
+- extendedWaitUntil:
+    visible:
+      id: planning-boundary
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: planning-review-name-e2e-planning-bowl
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: planning-review-name-e2e-planning-bowl
+- extendedWaitUntil:
+    visible:
+      id: review-meal-screen
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: E2E Planning Bowl
+    timeout: 10000
+- assertVisible:
+    id: review-meal-save-button
+- tapOn:
+    id: review-meal-close
+- tapOn: "Wyjdź|Leave"
+- assertNotVisible:
+    id: review-meal-screen
+- openLink: "fitaly://e2e/seed?historyAssert=noPlanningReviewDraft"
+- extendedWaitUntil:
+    visible:
+      id: e2e-ready-historyAssert-noPlanningReviewDraft
+    timeout: 10000
