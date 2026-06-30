@@ -37,6 +37,8 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    sentryRelease: "",
+    sentryDist: "",
     firebaseProjectId: "",
     firebaseAuthEmulatorHost: "",
     ...overrides,

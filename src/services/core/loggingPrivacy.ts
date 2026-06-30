@@ -16,6 +16,7 @@ const SAFE_CONTEXT_KEYS = new Set([
   "feature",
   "lang",
   "messageId",
+  "networkFailureKind",
   "networkState",
   "opId",
   "operation",

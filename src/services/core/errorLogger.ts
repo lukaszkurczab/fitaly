@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import * as apiClient from "@/services/core/apiClient";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
+import { asString, isRecord } from "@/services/contracts/guards";
 import {
   sanitizeErrorStack,
   sanitizeLogContext,
@@ -13,6 +14,12 @@ type LogError = unknown;
 
 const LOG_SOURCE = "mobile";
 const LOGS_ENDPOINT = "/logs/error";
+const NON_EXCEPTION_API_ERROR_CODES = new Set([
+  "api/offline",
+  "api/dev-local-misconfig",
+  "api/backend-unavailable",
+  "api/network-error",
+]);
 
 function isBackendLoggingEnabled(): boolean {
   return getRuntimeConfig().backendLoggingEnabled;
@@ -26,6 +33,20 @@ function toExtraContext(
     return undefined;
   }
   return sanitized;
+}
+
+function shouldCaptureInSentry(error: LogError): boolean {
+  if (!isRecord(error)) {
+    return true;
+  }
+
+  const source = asString(error.source);
+  const code = asString(error.code);
+  if (source === "ApiClient" && code && NON_EXCEPTION_API_ERROR_CODES.has(code)) {
+    return false;
+  }
+
+  return true;
 }
 
 function sendToBackend(message: string, context?: LogContext, error?: LogError) {
@@ -79,9 +100,11 @@ export function captureException(
 ) {
   const sanitizedMessage = sanitizeLogMessage(message);
   const err = error instanceof Error ? error : new Error(sanitizedMessage);
-  Sentry.captureException(err, {
-    extra: toExtraContext(context),
-  });
+  if (shouldCaptureInSentry(error)) {
+    Sentry.captureException(err, {
+      extra: toExtraContext(context),
+    });
+  }
   sendToBackend(sanitizedMessage, context, error);
 }
 

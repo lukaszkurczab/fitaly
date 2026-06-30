@@ -20,6 +20,8 @@ describe("runtimeConfig", () => {
         reviewMemoryExplanationEnabled: "true",
         billingDisabled: "true",
         sentryEnvironment: "production",
+        sentryRelease: " fitaly@1.0.1 ",
+        sentryDist: " 71 ",
         firebaseProjectId: " demo-fitaly-local ",
         firebaseAuthEmulatorHost: " http://127.0.0.1:9099 ",
       }),
@@ -38,6 +40,8 @@ describe("runtimeConfig", () => {
       reviewMemoryExplanationEnabled: true,
       billingDisabled: true,
       sentryEnvironment: "production",
+      sentryRelease: "fitaly@1.0.1",
+      sentryDist: "71",
       firebaseProjectId: "demo-fitaly-local",
       firebaseAuthEmulatorHost: "http://127.0.0.1:9099",
     });
@@ -58,6 +62,8 @@ describe("runtimeConfig", () => {
       billingDisabled: false,
       apiVersion: "v1",
       sentryEnvironment: "development",
+      sentryRelease: "",
+      sentryDist: "",
       firebaseProjectId: "",
       firebaseAuthEmulatorHost: "",
     });

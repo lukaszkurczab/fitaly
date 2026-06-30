@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 const PRODUCTION_BUILD_PROFILE = "production";
+const APP_VERSION = "1.0.1";
 
 function normalizeEnvString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -43,7 +44,7 @@ export default {
     scheme: "fitaly",
     slug: "fitaly",
     owner: "lkurczab",
-    version: "1.0.1",
+    version: APP_VERSION,
     orientation: "portrait",
     userInterfaceStyle: "light",
     newArchEnabled: true,
@@ -179,6 +180,8 @@ export default {
         normalizeEnvString(process.env.SENTRY_ENVIRONMENT) || "development",
       sentryOrganization,
       sentryProject,
+      sentryRelease: normalizeEnvString(process.env.SENTRY_RELEASE),
+      sentryDist: normalizeEnvString(process.env.SENTRY_DIST),
       buildProfile,
       eas: {
         projectId: "74cb0678-596b-4dc2-bec0-cb1e3a206caa",

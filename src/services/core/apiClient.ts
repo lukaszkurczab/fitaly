@@ -1,5 +1,6 @@
 import { getApp } from "@react-native-firebase/app";
 import { getAuth, getIdToken } from "@react-native-firebase/auth";
+import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from "uuid";
 import { createServiceError } from "@/services/contracts/serviceError";
 import { asString, isRecord } from "@/services/contracts/guards";
@@ -15,6 +16,12 @@ const RETRY_BASE_DELAY_MS = 1_000;
 
 export type RequestMethod = "GET" | "POST" | "PATCH" | "DELETE";
 export type RetryMode = "none" | "idempotent";
+export type NetworkFailureKind =
+  | "offline"
+  | "timeout"
+  | "backend_unavailable"
+  | "dev_local_misconfig"
+  | "unknown_network_failure";
 
 export type RequestOptions = {
   timeout?: number;
@@ -32,6 +39,23 @@ export type ApiClientError = Error & {
   url?: string;
   method?: RequestMethod;
 };
+
+type NetworkFailureDetails = {
+  networkFailureKind: NetworkFailureKind;
+  networkState: "offline" | "online" | "unknown";
+};
+
+function isLocalDevelopmentHostname(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "10.0.2.2" ||
+    hostname.startsWith("10.") ||
+    hostname.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  );
+}
 
 function getApiBaseUrl(): string {
   const baseUrl = getRuntimeConfig().apiBaseUrl.trim();
@@ -59,14 +83,7 @@ function getApiBaseUrl(): string {
   }
 
   const hostname = parsed.hostname.toLowerCase();
-  const isDevHost =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname === "10.0.2.2" ||
-    hostname.startsWith("10.") ||
-    hostname.startsWith("192.168.") ||
-    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+  const isDevHost = isLocalDevelopmentHostname(hostname);
 
   if (parsed.protocol !== "https:" && !isDevHost) {
     throw createServiceError({
@@ -78,6 +95,100 @@ function getApiBaseUrl(): string {
   }
 
   return parsed.toString().replace(/\/+$/, "");
+}
+
+function isFetchNetworkFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    error.name === "TypeError" &&
+    (message.includes("network request failed") ||
+      message.includes("failed to fetch") ||
+      message.includes("networkerror") ||
+      message.includes("load failed"))
+  );
+}
+
+async function classifyFetchNetworkFailure(url: string): Promise<{
+  code: string;
+  message: string;
+  retryable: boolean;
+  details: NetworkFailureDetails;
+}> {
+  const net = await NetInfo.fetch().catch(() => null);
+  const networkState =
+    net?.isConnected === false || net?.isInternetReachable === false
+      ? "offline"
+      : net?.isConnected === true || net?.isInternetReachable === true
+        ? "online"
+        : "unknown";
+
+  if (networkState === "offline") {
+    return {
+      code: "api/offline",
+      message: "Device is offline",
+      retryable: true,
+      details: {
+        networkFailureKind: "offline",
+        networkState,
+      },
+    };
+  }
+
+  let hostname = "";
+  let protocol = "";
+  try {
+    const parsed = new URL(url);
+    hostname = parsed.hostname.toLowerCase();
+    protocol = parsed.protocol;
+  } catch {
+    return {
+      code: "api/network-error",
+      message: "Network request failed",
+      retryable: true,
+      details: {
+        networkFailureKind: "unknown_network_failure",
+        networkState,
+      },
+    };
+  }
+
+  if (isLocalDevelopmentHostname(hostname)) {
+    return {
+      code: "api/dev-local-misconfig",
+      message: "Local development API is unreachable from this device",
+      retryable: false,
+      details: {
+        networkFailureKind: "dev_local_misconfig",
+        networkState,
+      },
+    };
+  }
+
+  if (protocol === "https:") {
+    return {
+      code: "api/backend-unavailable",
+      message: "Backend is unavailable",
+      retryable: true,
+      details: {
+        networkFailureKind: "backend_unavailable",
+        networkState,
+      },
+    };
+  }
+
+  return {
+    code: "api/network-error",
+    message: "Network request failed",
+    retryable: true,
+    details: {
+      networkFailureKind: "unknown_network_failure",
+      networkState,
+    },
+  };
 }
 
 function buildRequestUrl(path: string): string {
@@ -374,6 +485,19 @@ async function performRequest<T = unknown>({
         code: "api/timeout",
         message: `Request timed out after ${timeoutMs}ms`,
         retryable: true,
+        url,
+        method,
+        cause: error,
+      });
+    }
+
+    if (isFetchNetworkFailure(error)) {
+      const failure = await classifyFetchNetworkFailure(url);
+      throw createApiClientError({
+        code: failure.code,
+        message: failure.message,
+        retryable: failure.retryable,
+        details: failure.details,
         url,
         method,
         cause: error,

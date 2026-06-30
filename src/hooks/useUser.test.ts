@@ -223,6 +223,8 @@ jest.mock("@/services/core/runtimeConfig", () => ({
     sentryEnvironment: "production",
     sentryOrganization: "",
     sentryProject: "",
+    sentryRelease: "",
+    sentryDist: "",
   }),
 }));
 

@@ -81,6 +81,8 @@ function createRuntimeConfig(
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    sentryRelease: "",
+    sentryDist: "",
     revenuecatIosKey: "",
     revenuecatAndroidKey: "",
     firebaseProjectId: "",

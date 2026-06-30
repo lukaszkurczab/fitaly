@@ -26,6 +26,7 @@ import {
   trackKnownPatternCandidateShown,
   trackKnownPatternReviewStarted,
 } from "@/services/telemetry/telemetryInstrumentation";
+import { logWarning } from "@/services/core/errorLogger";
 
 type MealAddMethodNavigationProp = {
   navigate: Pick<
@@ -198,6 +199,21 @@ function getMethodOptionByKey(key: MethodOption["key"]): MethodOption {
     mealAddMethodOptions.find((option) => option.key === key) ??
     mealAddMethodOptions[0]
   );
+}
+
+function getKnownPatternErrorContext(error: unknown) {
+  const record =
+    error && typeof error === "object"
+      ? (error as Record<string, unknown>)
+      : {};
+
+  return {
+    feature: "knownPatterns",
+    surface: "meal_add_method",
+    code: typeof record.code === "string" ? record.code : "unknown",
+    retryable:
+      typeof record.retryable === "boolean" ? record.retryable : undefined,
+  };
 }
 
 export function useMealAddMethodState(params: {
@@ -538,6 +554,22 @@ export function useMealAddMethodState(params: {
             : current,
         );
         openAddMeal({ start: "ReviewMeal" });
+      } catch (error) {
+        logWarning(
+          "known_pattern_review_unavailable",
+          getKnownPatternErrorContext(error),
+          error,
+        );
+        await Promise.resolve(
+          trackKnownPatternReviewStarted({
+            surface: "meal_add_method",
+            confidenceBucket: candidate.confidenceBucket,
+            sourceCountBucket: candidate.sourceCountBucket,
+            actionResult: "failed",
+            featureState: "enabled",
+          }),
+        ).catch(() => undefined);
+        setKnownPatternCandidate(null);
       } finally {
         setKnownPatternBusy(false);
       }

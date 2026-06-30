@@ -4,6 +4,10 @@ const mockGetApp = jest.fn();
 const mockGetAuth = jest.fn();
 const mockGetIdToken = jest.fn<Promise<string>, unknown[]>();
 const mockGetRuntimeConfig = jest.fn<RuntimeConfig, []>();
+const mockNetInfoFetch = jest.fn<
+  Promise<{ isConnected?: boolean | null; isInternetReachable?: boolean | null }>,
+  []
+>();
 
 function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {
@@ -29,6 +33,8 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    sentryRelease: "",
+    sentryDist: "",
     firebaseProjectId: "",
     firebaseAuthEmulatorHost: "",
     ...overrides,
@@ -48,6 +54,13 @@ jest.mock("@/services/core/runtimeConfig", () => ({
   getRuntimeConfig: () => mockGetRuntimeConfig(),
 }));
 
+jest.mock("@react-native-community/netinfo", () => ({
+  __esModule: true,
+  default: {
+    fetch: () => mockNetInfoFetch(),
+  },
+}));
+
 describe("apiClient", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -56,6 +69,10 @@ describe("apiClient", () => {
     mockGetApp.mockReturnValue({ name: "app" });
     mockGetRuntimeConfig.mockReturnValue(createRuntimeConfig());
     mockGetIdToken.mockResolvedValue("token-123");
+    mockNetInfoFetch.mockResolvedValue({
+      isConnected: true,
+      isInternetReachable: true,
+    });
   });
 
   afterEach(() => {
@@ -481,6 +498,91 @@ describe("apiClient", () => {
       retryable: false,
     });
     expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("classifies React Native network failures as backend unavailable when the device is online", async () => {
+    mockGetAuth.mockReturnValue({
+      currentUser: null,
+    });
+
+    const fetchMock = jest.fn().mockRejectedValue(
+      Object.assign(new TypeError("Network request failed"), {
+        name: "TypeError",
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await expect(get("/health", { retryMode: "none" })).rejects.toMatchObject({
+      code: "api/backend-unavailable",
+      source: "ApiClient",
+      retryable: true,
+      details: {
+        networkFailureKind: "backend_unavailable",
+        networkState: "online",
+      },
+    });
+  });
+
+  it("classifies React Native network failures as offline when NetInfo is disconnected", async () => {
+    mockGetAuth.mockReturnValue({
+      currentUser: null,
+    });
+    mockNetInfoFetch.mockResolvedValueOnce({
+      isConnected: false,
+      isInternetReachable: false,
+    });
+
+    const fetchMock = jest.fn().mockRejectedValue(
+      Object.assign(new TypeError("Network request failed"), {
+        name: "TypeError",
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await expect(get("/health", { retryMode: "none" })).rejects.toMatchObject({
+      code: "api/offline",
+      source: "ApiClient",
+      retryable: true,
+      details: {
+        networkFailureKind: "offline",
+        networkState: "offline",
+      },
+    });
+  });
+
+  it("classifies local API network failures as development misconfiguration", async () => {
+    mockGetAuth.mockReturnValue({
+      currentUser: null,
+    });
+    mockGetRuntimeConfig.mockReturnValue(
+      createRuntimeConfig({ apiBaseUrl: "http://localhost:8000" }),
+    );
+
+    const fetchMock = jest.fn().mockRejectedValue(
+      Object.assign(new TypeError("Network request failed"), {
+        name: "TypeError",
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { get } = require("@/services/core/apiClient");
+
+    await expect(get("/health", { retryMode: "none" })).rejects.toMatchObject({
+      code: "api/dev-local-misconfig",
+      source: "ApiClient",
+      retryable: false,
+      details: {
+        networkFailureKind: "dev_local_misconfig",
+        networkState: "online",
+      },
+    });
   });
 
   it("rejects insecure non-local API base URLs", async () => {

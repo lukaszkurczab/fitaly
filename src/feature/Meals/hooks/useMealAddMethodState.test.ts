@@ -25,6 +25,7 @@ const mockTrackKnownPatternReviewStarted =
   jest.fn<(input: unknown) => Promise<void>>();
 const mockTrackKnownPatternCandidateDismissed =
   jest.fn<(input: unknown) => Promise<void>>();
+const mockLogWarning = jest.fn();
 const mockRuntimeConfig = {
   apiVersion: "v1",
   foodLibraryEnabled: true,
@@ -89,6 +90,10 @@ jest.mock("@/services/telemetry/telemetryInstrumentation", () => ({
     mockTrackKnownPatternReviewStarted(input),
   trackKnownPatternCandidateDismissed: (input: unknown) =>
     mockTrackKnownPatternCandidateDismissed(input),
+}));
+
+jest.mock("@/services/core/errorLogger", () => ({
+  logWarning: (...args: unknown[]) => mockLogWarning(...args),
 }));
 
 jest.mock("@/services/core/runtimeConfig", () => ({
@@ -569,6 +574,64 @@ describe("useMealAddMethodState", () => {
       confidenceBucket: "medium",
       sourceCountBucket: "3_4",
       actionResult: "succeeded",
+      featureState: "enabled",
+    });
+  });
+
+  it("degrades known-pattern review failures without throwing from the optional card", async () => {
+    mockUseAuthContext.mockReturnValue({ uid: "user-1" });
+    mockFetchKnownPatternCandidatesRemote.mockResolvedValue({
+      items: [knownPatternCandidate],
+    });
+    mockOpenKnownPatternReviewDraftRemote.mockRejectedValueOnce(
+      Object.assign(new Error("Backend is unavailable"), {
+        code: "api/backend-unavailable",
+        source: "ApiClient",
+        retryable: true,
+      }),
+    );
+
+    const navigation = {
+      navigate: mockNavigate,
+      replace: mockReplace,
+      dispatch: mockDispatch,
+    } as const;
+
+    const { result } = renderHook(() =>
+      useMealAddMethodState({
+        navigation,
+        replaceOnStart: true,
+        loadKnownPatternCandidate: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).not.toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.handleKnownPatternReview();
+    });
+
+    await waitFor(() => {
+      expect(result.current.knownPatternCandidate).toBeNull();
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "known_pattern_review_unavailable",
+      expect.objectContaining({
+        feature: "knownPatterns",
+        surface: "meal_add_method",
+        code: "api/backend-unavailable",
+        retryable: true,
+      }),
+      expect.any(Error),
+    );
+    expect(mockTrackKnownPatternReviewStarted).toHaveBeenCalledWith({
+      surface: "meal_add_method",
+      confidenceBucket: "medium",
+      sourceCountBucket: "3_4",
+      actionResult: "failed",
       featureState: "enabled",
     });
   });

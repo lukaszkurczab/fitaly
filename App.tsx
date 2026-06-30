@@ -73,6 +73,14 @@ const sentryEnvironment =
   typeof extra?.sentryEnvironment === "string"
     ? extra.sentryEnvironment
     : "development";
+const sentryRelease =
+  typeof extra?.sentryRelease === "string" ? extra.sentryRelease.trim() : "";
+const sentryDist =
+  typeof extra?.sentryDist === "string" ? extra.sentryDist.trim() : "";
+const sentryProject =
+  typeof extra?.sentryProject === "string" ? extra.sentryProject.trim() : "";
+const buildProfile =
+  typeof extra?.buildProfile === "string" ? extra.buildProfile.trim() : "";
 const isPhysicalDevice = Device.isDevice === true;
 const shouldDisableSentryReplay = !isPhysicalDevice;
 const shouldEnableSentryDebug = sentryEnvironment !== "production" && isPhysicalDevice;
@@ -106,6 +114,8 @@ if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
     environment: sentryEnvironment,
+    ...(sentryRelease ? { release: sentryRelease } : {}),
+    ...(sentryDist ? { dist: sentryDist } : {}),
     enableNative: true,
     enableAppHangTracking: shouldTrackAppHangs,
     appHangTimeoutInterval: 5,
@@ -127,6 +137,16 @@ if (sentryDsn) {
           (!shouldDisableSentryReplay || integration.name !== "MobileReplay"),
       ),
   });
+  Sentry.setTag("buildProfile", buildProfile || "local");
+  if (sentryProject) {
+    Sentry.setTag("sentryProject", sentryProject);
+  }
+  if (sentryRelease) {
+    Sentry.setTag("releaseConfigured", "true");
+  }
+  if (sentryDist) {
+    Sentry.setTag("distConfigured", "true");
+  }
 }
 
 function Root() {

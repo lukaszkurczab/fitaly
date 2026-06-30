@@ -30,6 +30,8 @@ function createRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig 
     sentryEnvironment: "development",
     sentryOrganization: "",
     sentryProject: "",
+    sentryRelease: "",
+    sentryDist: "",
     firebaseProjectId: "",
     firebaseAuthEmulatorHost: "",
     ...overrides,
@@ -113,6 +115,47 @@ describe("errorLogger", () => {
       endpoint: "/users/me/profile",
       requestId: "railway-request-1",
     });
+  });
+
+  it("does not send expected API connectivity failures to sentry as exceptions", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { captureException } = require("@/services/core/errorLogger");
+    const error = Object.assign(new Error("Device is offline"), {
+      code: "api/offline",
+      source: "ApiClient",
+      retryable: true,
+    });
+
+    captureException("profile bootstrap failed", {
+      userUid: "user-1",
+      feature: "profile",
+      code: "api/offline",
+      networkFailureKind: "offline",
+    }, error);
+
+    expect(mockSentryCaptureException).not.toHaveBeenCalled();
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps non-connectivity API errors reportable to sentry", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { captureException } = require("@/services/core/errorLogger");
+    const error = Object.assign(new Error("Server error"), {
+      code: "api/http-error",
+      source: "ApiClient",
+      retryable: true,
+      status: 500,
+    });
+
+    captureException("profile bootstrap failed", {
+      userUid: "user-1",
+      feature: "profile",
+      code: "api/http-error",
+      status: 500,
+    }, error);
+
+    expect(mockSentryCaptureException).toHaveBeenCalledTimes(1);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
   });
 
   it("sanitizes captureMessage text and extra before sentry capture", () => {

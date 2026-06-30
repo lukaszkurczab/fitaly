@@ -24,6 +24,8 @@ export type RuntimeConfig = {
   sentryEnvironment: string;
   sentryOrganization: string;
   sentryProject: string;
+  sentryRelease: string;
+  sentryDist: string;
   revenuecatIosKey: string;
   revenuecatAndroidKey: string;
   firebaseProjectId: string;
@@ -84,6 +86,8 @@ export function getRuntimeConfigFromExtra(extra: unknown): RuntimeConfig {
       normalizeString(record.sentryEnvironment) || DEFAULT_SENTRY_ENVIRONMENT,
     sentryOrganization: normalizeString(record.sentryOrganization),
     sentryProject: normalizeString(record.sentryProject),
+    sentryRelease: normalizeString(record.sentryRelease),
+    sentryDist: normalizeString(record.sentryDist),
     revenuecatIosKey: normalizeString(record.revenuecatIosKey),
     revenuecatAndroidKey: normalizeString(record.revenuecatAndroidKey),
     firebaseProjectId: normalizeString(record.firebaseProjectId),

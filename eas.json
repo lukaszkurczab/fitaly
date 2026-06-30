@@ -21,7 +21,7 @@
         "EXPO_PUBLIC_ENABLE_REVIEW_MEMORY_EXPLANATION": "false",
         "DISABLE_BILLING": "false",
         "SENTRY_ORG": "lukaszkurczab",
-        "SENTRY_PROJECT": "fitaly",
+        "SENTRY_PROJECT": "fitaly-frontend",
         "SENTRY_ENVIRONMENT": "smoke"
       }
     },
@@ -30,17 +30,24 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_ENABLE_TELEMETRY": "false"
+        "EXPO_PUBLIC_ENABLE_TELEMETRY": "false",
+        "SENTRY_ENVIRONMENT": "development"
       }
     },
     "preview": {
       "extends": "smoke",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "SENTRY_ENVIRONMENT": "preview"
+      }
     },
     "internal": {
       "extends": "smoke",
       "distribution": "internal",
+      "env": {
+        "SENTRY_ENVIRONMENT": "internal"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -57,7 +64,8 @@
         "EXPO_PUBLIC_API_VERSION": "v1",
         "EXPO_PUBLIC_ENABLE_BACKEND_LOGGING": "true",
         "E2E": "true",
-        "E2E_MOCK_CHAT_REPLY": "E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day."
+        "E2E_MOCK_CHAT_REPLY": "E2E_MOCK_CHAT_REPLY: Keep hydration and protein consistent every day.",
+        "SENTRY_ENVIRONMENT": "e2e-test"
       },
       "android": {
         "buildType": "apk"
@@ -85,7 +93,7 @@
         "DISABLE_BILLING": "false",
         "DEBUG_OCR": "false",
         "SENTRY_ORG": "lukaszkurczab",
-        "SENTRY_PROJECT": "fitaly",
+        "SENTRY_PROJECT": "fitaly-frontend",
         "SENTRY_ENVIRONMENT": "production"
       },
       "android": {
