@@ -29,6 +29,24 @@ appId: com.lkurczab.fitaly
       id: review-meal-screen
     timeout: 15000
 - tapOn:
+    id: review-meal-ingredients-edit-button
+- assertVisible:
+    id: meal-details-form-screen
+- tapOn:
+    id: meal-name-input
+- eraseText
+- inputText: Release Photo Meal
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: meal-details-form-submit-button
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: meal-details-form-submit-button
+- assertVisible:
+    id: review-meal-screen
+- tapOn:
     id: review-meal-save-button
 - assertVisible:
     id: home-screen
@@ -49,3 +67,11 @@ appId: com.lkurczab.fitaly
     timeout: 10000
 - assertVisible:
     id: history-meal-row-0
+- tapOn:
+    id: history-meal-row-0
+- assertVisible:
+    id: history-meal-details-screen
+- assertVisible:
+    id: history-meal-details-title
+- assertVisible:
+    id: history-meal-details-kcal
