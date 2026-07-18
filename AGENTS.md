@@ -66,6 +66,16 @@ If a gate fails: fix and re-run (max 3 attempts). If still failing: stop and rep
 - Search the repo for existing patterns (navigation, hooks, services, theme, i18n) and follow them.
 - Do not introduce new dependencies or native modules unless explicitly requested.
 
+## Canonical Replacement Policy
+
+For an explicitly approved change, update the canonical implementation in place and update every direct callsite, test, and fixture in the same change-set. Remove the replaced path in that same change-set.
+
+- Do not add legacy fallbacks, compatibility adapters, translators, aliases, dual reads/writes, shadow writes, or bridge models.
+- Do not maintain parallel `V2`, `V3`, `new`, `legacy`, or `compat` implementations.
+- A kill switch must return an explicit unavailable state; it must not run the old path.
+- A required data migration is a separately approved, one-time cut-over. Runtime translators are prohibited.
+- Existing code or tests that protect old behavior are not automatically product requirements.
+
 ## TypeScript / Quality Gates
 
 - Do not weaken types to “make it compile” (avoid `any`, broad `as`, disabling rules) unless there is no alternative—then isolate and justify.
