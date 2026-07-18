@@ -127,7 +127,7 @@
     "@types/react-test-renderer": "^19.1.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "babel-jest": "^30.0.4",
     "babel-plugin-module-resolver": "^5.0.3",
     "babel-preset-expo": "^55.0.18",
