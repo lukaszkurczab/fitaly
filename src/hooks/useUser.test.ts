@@ -1752,7 +1752,7 @@ describe("useUser", () => {
     );
   });
 
-  it("exports user data for iOS and android SAF branches", async () => {
+  it("exports user data through the system share flow on every platform", async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-03-11T12:00:00.000Z"));
 
@@ -1779,56 +1779,39 @@ describe("useUser", () => {
     setPlatformOs("android");
 
     const androidResult = await result.current.exportUserData();
-    expect(androidResult).toBe("content://tree/export.pdf");
-    expect(mockFsStorageRequestPermissions).toHaveBeenCalled();
-    expect(mockFsStorageCreateFile).toHaveBeenCalled();
-    expect(mockFsWriteAsStringAsync).toHaveBeenCalledWith(
-      "content://tree/export.pdf",
-      "BASE64PDF",
-      { encoding: "base64" },
+    expect(androidResult).toBe("file:///docs/fitaly_user_data_2026-03-11.pdf");
+    expect(mockFsStorageRequestPermissions).not.toHaveBeenCalled();
+    expect(mockFsStorageCreateFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing user, fetch, print, and share failures without a fallback", async () => {
+    const missingUser = renderHook(() => useUser(""));
+    await expect(missingUser.result.current.exportUserData()).rejects.toMatchObject({
+      code: "user/export-no-user",
+    });
+
+    const { result } = renderHook(() => useUser("u1"));
+    mockExportUserDataService.mockRejectedValueOnce(new Error("api unavailable"));
+    await expect(result.current.exportUserData()).rejects.toThrow("api unavailable");
+
+    mockPrintToFileAsync.mockRejectedValueOnce(new Error("print failed"));
+    await expect(result.current.exportUserData()).rejects.toThrow("print failed");
+
+    mockShareAsync.mockRejectedValueOnce(new Error("share failed"));
+    await expect(result.current.exportUserData()).rejects.toThrow("share failed");
+  });
+
+  it("keeps a successful share successful when temporary cleanup fails", async () => {
+    const { result } = renderHook(() => useUser("u1"));
+    mockFsDeleteAsync.mockRejectedValueOnce(new Error("cleanup failed"));
+
+    await expect(result.current.exportUserData()).resolves.toMatch(
+      /^file:\/\/\/docs\/fitaly_user_data_\d{4}-\d{2}-\d{2}\.pdf$/,
     );
-  });
-
-  it("exports user data to app documents when android directory permission is denied", async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-03-12T12:00:00.000Z"));
-    mockFsStorageRequestPermissions.mockResolvedValueOnce({
-      granted: false,
-      directoryUri: null,
-    });
-    setPlatformOs("android");
-
-    const { result } = renderHook(() => useUser("u1"));
-
-    await act(async () => {
-      emitSnapshot(createUser());
-    });
-
-    const exported = await result.current.exportUserData();
-    expect(exported).toBe("file:///docs/fitaly_user_data_2026-03-12.pdf");
-    expect(mockFsCopyAsync).toHaveBeenCalledWith({
-      from: "file:///tmp/export.pdf",
-      to: "file:///docs/fitaly_user_data_2026-03-12.pdf",
-    });
-  });
-
-  it("exports user data to app documents when SAF flow throws", async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-03-13T12:00:00.000Z"));
-    mockFsStorageRequestPermissions.mockRejectedValueOnce(new Error("denied"));
-    setPlatformOs("android");
-
-    const { result } = renderHook(() => useUser("u1"));
-
-    await act(async () => {
-      emitSnapshot(createUser());
-    });
-
-    const exported = await result.current.exportUserData();
-    expect(exported).toBe("file:///docs/fitaly_user_data_2026-03-13.pdf");
-    expect(mockFsCopyAsync).toHaveBeenCalledWith({
-      from: "file:///tmp/export.pdf",
-      to: "file:///docs/fitaly_user_data_2026-03-13.pdf",
-    });
+    expect(mockLogWarning).toHaveBeenCalledWith(
+      "pdf cleanup failed",
+      null,
+      expect.any(Error),
+    );
   });
 });

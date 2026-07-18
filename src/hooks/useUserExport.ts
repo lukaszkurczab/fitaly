@@ -2,9 +2,9 @@ import { useCallback, useMemo } from "react";
 import * as FileSystem from "@/services/core/fileSystem";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import { Platform } from "react-native";
 import { exportUserData as fetchUserExportData } from "@/services/user/userService";
 import { logWarning } from "@/services/core/errorLogger";
+import { createServiceError } from "@/services/contracts/serviceError";
 
 type UseUserExportParams = {
   uid: string;
@@ -12,7 +12,7 @@ type UseUserExportParams = {
 };
 
 type UseUserExportResult = {
-  exportUserData: () => Promise<string | void>;
+  exportUserData: () => Promise<string>;
   changeLanguage: (newLang: string) => Promise<void>;
 };
 
@@ -20,10 +20,20 @@ export function useUserExport({
   uid,
   changeLanguage,
 }: UseUserExportParams): UseUserExportResult {
-  const exportUserData = useCallback(async (): Promise<string | void> => {
-    if (!uid) return;
-    const data = await fetchUserExportData();
-    const json = JSON.stringify(data, null, 2);
+  const exportUserData = useCallback(async (): Promise<string> => {
+    if (!uid.trim()) {
+      throw createServiceError({
+        code: "user/export-no-user",
+        source: "UserExport",
+        retryable: false,
+        message: "A signed-in user is required to export account data.",
+      });
+    }
+
+    let tmpPdf: string | null = null;
+    try {
+      const data = await fetchUserExportData();
+      const json = JSON.stringify(data, null, 2);
 
     const html = `
       <html>
@@ -44,55 +54,12 @@ export function useUserExport({
         </body>
       </html>`;
 
-    const { uri: tmpPdf } = await Print.printToFileAsync({ html });
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const filename = `fitaly_user_data_${yyyy}-${mm}-${dd}.pdf`;
-    try {
-      if (Platform.OS === "android" && FileSystem.StorageAccessFramework) {
-        try {
-          const perm =
-            await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-          if (perm.granted && perm.directoryUri) {
-            const fileUri =
-              await FileSystem.StorageAccessFramework.createFileAsync(
-                perm.directoryUri,
-                filename,
-                "application/pdf"
-              );
-            const pdfBase64 = await FileSystem.readAsStringAsync(tmpPdf, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-            await FileSystem.writeAsStringAsync(fileUri, pdfBase64, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-            await Sharing.shareAsync(fileUri, {
-              mimeType: "application/pdf",
-              dialogTitle: "Fitaly – PDF",
-            });
-            return fileUri;
-          }
-          const fallback = FileSystem.documentDirectory! + filename;
-          await FileSystem.copyAsync({ from: tmpPdf, to: fallback });
-          await Sharing.shareAsync(fallback, {
-            mimeType: "application/pdf",
-            dialogTitle: "Fitaly – PDF",
-          });
-          return fallback;
-        } catch (error) {
-          logWarning("pdf export saf fallback used", null, error);
-          const fallback = FileSystem.documentDirectory! + filename;
-          await FileSystem.copyAsync({ from: tmpPdf, to: fallback });
-          await Sharing.shareAsync(fallback, {
-            mimeType: "application/pdf",
-            dialogTitle: "Fitaly – PDF",
-          });
-          return fallback;
-        }
-      }
-
+      tmpPdf = (await Print.printToFileAsync({ html })).uri;
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const filename = `fitaly_user_data_${yyyy}-${mm}-${dd}.pdf`;
       const dest = FileSystem.documentDirectory! + filename;
       await FileSystem.copyAsync({ from: tmpPdf, to: dest });
       await Sharing.shareAsync(dest, {
@@ -101,9 +68,11 @@ export function useUserExport({
       });
       return dest;
     } finally {
-      FileSystem.deleteAsync(tmpPdf, { idempotent: true }).catch((error) => {
-        logWarning("pdf cleanup failed", null, error);
-      });
+      if (tmpPdf) {
+        FileSystem.deleteAsync(tmpPdf, { idempotent: true }).catch((error) => {
+          logWarning("pdf cleanup failed", null, error);
+        });
+      }
     }
   }, [uid]);
 
