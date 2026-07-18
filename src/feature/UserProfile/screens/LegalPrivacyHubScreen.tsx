@@ -59,17 +59,9 @@ export default function LegalPrivacyHubScreen({
     setExporting(true);
 
     try {
-      const fileUri = await exportUserData();
-      const outputPath = typeof fileUri === "string" ? fileUri : "";
-      const fileName = outputPath.split("/").pop() ?? "fitaly_user_data.pdf";
-
+      await exportUserData();
       setModalTitle(t("downloadYourData"));
-      setModalMessage(
-        `${t("exportSavedSuccess", { filename: fileName })}\n${t(
-          "exportSavedPathHint",
-          { path: outputPath || "-" },
-        )}`,
-      );
+      setModalMessage(t("exportShareOpened"));
     } catch {
       setModalTitle(t("downloadYourData"));
       setModalMessage(t("exportError"));

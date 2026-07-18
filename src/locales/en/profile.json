@@ -635,8 +635,7 @@
   "checkConnection": "Please check your connection and try again.",
   "error": "Error",
   "feedbackSendError": "Failed to send feedback. Try again later.",
-  "exportSavedSuccess": "Your data has been saved as a PDF: {{filename}}. A sharing window has been opened.",
-  "exportSavedPathHint": "Saved to: {{path}}",
+  "exportShareOpened": "System share opened.",
   "paywall": {
     "title": "Fitaly Premium",
     "heroEyebrow": "Premium in practice",

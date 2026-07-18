@@ -17,7 +17,7 @@ export type UserAccountContextType = {
     currentPassword: string,
     newPassword: string
   ) => Promise<void>;
-  exportUserData: () => Promise<string>;
+  exportUserData: () => Promise<void>;
 };
 
 const UserAccountContext = createContext<UserAccountContextType>({

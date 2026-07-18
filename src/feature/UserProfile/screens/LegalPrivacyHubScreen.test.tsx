@@ -7,26 +7,18 @@ import { renderWithTheme } from "@/test-utils/renderWithTheme";
 import mockEnProfile from "@/locales/en/profile.json";
 
 const mockGetTermsUrl = jest.fn(() => "");
-const mockExportUserData = jest.fn<() => Promise<string>>();
+const mockExportUserData = jest.fn<() => Promise<void>>();
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (
       key: string,
-      options?: { defaultValue?: string; filename?: string; path?: string },
+      options?: { defaultValue?: string },
     ) => {
       const profileCopy = mockEnProfile as Record<string, unknown>;
       const rawValue = profileCopy[key];
       const value =
         typeof rawValue === "string" ? rawValue : (options?.defaultValue ?? key);
-
-      if (key === "exportSavedSuccess" && options?.filename) {
-        return `Your data export was saved as ${options.filename}.`;
-      }
-
-      if (key === "exportSavedPathHint" && options?.path) {
-        return `File location: ${options.path}`;
-      }
 
       return value;
     },
@@ -163,7 +155,7 @@ describe("LegalPrivacyHubScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetTermsUrl.mockReturnValue("");
-    mockExportUserData.mockResolvedValue("/tmp/fitaly_user_data.pdf");
+    mockExportUserData.mockResolvedValue();
   });
 
   it("keeps the hub lightweight with natural privacy naming and grouped rows", () => {
@@ -224,9 +216,10 @@ describe("LegalPrivacyHubScreen", () => {
     expect(screen.getAllByText("Download your data")).toHaveLength(2);
     expect(
       screen.getByText(
-        "Your data export was saved as fitaly_user_data.pdf.\nFile location: /tmp/fitaly_user_data.pdf",
+        "System share opened.",
       ),
     ).toBeTruthy();
+    expect(screen.queryByText(/saved|file location|\/tmp\//i)).toBeNull();
   });
 
   it("uses the profile fallback when there is no back stack", () => {

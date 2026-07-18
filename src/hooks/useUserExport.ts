@@ -12,7 +12,7 @@ type UseUserExportParams = {
 };
 
 type UseUserExportResult = {
-  exportUserData: () => Promise<string>;
+  exportUserData: () => Promise<void>;
   changeLanguage: (newLang: string) => Promise<void>;
 };
 
@@ -20,7 +20,7 @@ export function useUserExport({
   uid,
   changeLanguage,
 }: UseUserExportParams): UseUserExportResult {
-  const exportUserData = useCallback(async (): Promise<string> => {
+  const exportUserData = useCallback(async (): Promise<void> => {
     if (!uid.trim()) {
       throw createServiceError({
         code: "user/export-no-user",
@@ -55,18 +55,10 @@ export function useUserExport({
       </html>`;
 
       tmpPdf = (await Print.printToFileAsync({ html })).uri;
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
-      const filename = `fitaly_user_data_${yyyy}-${mm}-${dd}.pdf`;
-      const dest = FileSystem.documentDirectory! + filename;
-      await FileSystem.copyAsync({ from: tmpPdf, to: dest });
-      await Sharing.shareAsync(dest, {
+      await Sharing.shareAsync(tmpPdf, {
         mimeType: "application/pdf",
         dialogTitle: "Fitaly – PDF",
       });
-      return dest;
     } finally {
       if (tmpPdf) {
         FileSystem.deleteAsync(tmpPdf, { idempotent: true }).catch((error) => {

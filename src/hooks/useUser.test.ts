@@ -1752,34 +1752,29 @@ describe("useUser", () => {
     );
   });
 
-  it("exports user data through the system share flow on every platform", async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-03-11T12:00:00.000Z"));
-
+  it("exports user data through the system share flow without persistent copies", async () => {
     const { result } = renderHook(() => useUser("u1"));
 
     await act(async () => {
       emitSnapshot(createUser());
     });
 
-    const iosResult = await result.current.exportUserData();
-    expect(iosResult).toBe("file:///docs/fitaly_user_data_2026-03-11.pdf");
+    await result.current.exportUserData();
     expect(mockExportUserDataService).toHaveBeenCalledWith();
-    expect(mockFsCopyAsync).toHaveBeenCalledWith({
-      from: "file:///tmp/export.pdf",
-      to: "file:///docs/fitaly_user_data_2026-03-11.pdf",
-    });
     expect(mockShareAsync).toHaveBeenCalledWith(
-      "file:///docs/fitaly_user_data_2026-03-11.pdf",
+      "file:///tmp/export.pdf",
       expect.objectContaining({
         mimeType: "application/pdf",
       }),
     );
+    expect(mockFsCopyAsync).not.toHaveBeenCalled();
+    expect(mockFsDeleteAsync).toHaveBeenCalledWith("file:///tmp/export.pdf", {
+      idempotent: true,
+    });
 
     setPlatformOs("android");
 
-    const androidResult = await result.current.exportUserData();
-    expect(androidResult).toBe("file:///docs/fitaly_user_data_2026-03-11.pdf");
+    await result.current.exportUserData();
     expect(mockFsStorageRequestPermissions).not.toHaveBeenCalled();
     expect(mockFsStorageCreateFile).not.toHaveBeenCalled();
   });
@@ -1805,9 +1800,7 @@ describe("useUser", () => {
     const { result } = renderHook(() => useUser("u1"));
     mockFsDeleteAsync.mockRejectedValueOnce(new Error("cleanup failed"));
 
-    await expect(result.current.exportUserData()).resolves.toMatch(
-      /^file:\/\/\/docs\/fitaly_user_data_\d{4}-\d{2}-\d{2}\.pdf$/,
-    );
+    await expect(result.current.exportUserData()).resolves.toBeUndefined();
     expect(mockLogWarning).toHaveBeenCalledWith(
       "pdf cleanup failed",
       null,

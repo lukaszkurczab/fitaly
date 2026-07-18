@@ -636,8 +636,7 @@
   "checkConnection": "Sprawdź swoje połączenie i spróbuj ponownie.",
   "error": "Błąd",
   "feedbackSendError": "Nie udało się wysłać opinii. Spróbuj ponownie później.",
-  "exportSavedSuccess": "Twoje dane zostały zapisane jako plik PDF: {{filename}}. Otworzono okno udostępniania.",
-  "exportSavedPathHint": "Zapisano w: {{path}}",
+  "exportShareOpened": "Otwarto systemowe udostępnianie.",
   "paywall": {
     "title": "Fitaly Premium",
     "heroEyebrow": "Premium w praktyce",
