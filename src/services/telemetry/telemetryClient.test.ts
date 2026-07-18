@@ -448,6 +448,10 @@ describe("telemetryClient", () => {
 
     await telemetryClient.track("meal_logged");
     await telemetryClient.flush();
+    const eventId = (
+      (mockPost.mock.calls[0]?.[1] as { events?: Array<{ eventId?: string }> })
+        ?.events?.[0]?.eventId
+    );
     await telemetryClient.flush();
 
     expect(mockPost).toHaveBeenCalledTimes(1);
@@ -457,11 +461,15 @@ describe("telemetryClient", () => {
 
     expect(mockPost).toHaveBeenCalledTimes(2);
     expect(
+      (mockPost.mock.calls[1]?.[1] as { events?: Array<{ eventId?: string }> })
+        ?.events?.[0]?.eventId,
+    ).toBe(eventId);
+    expect(
       await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
     ).toBeNull();
   });
 
-  it("drops a batch permanently when the backend rejects it with a non-retryable 4xx", async () => {
+  it("keeps a batch when a request-level 4xx does not identify rejected events", async () => {
     const error = Object.assign(new Error("invalid telemetry payload"), {
       status: 422,
       retryable: false,
@@ -481,14 +489,19 @@ describe("telemetryClient", () => {
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(
       await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
-    ).toBeNull();
+    ).toContain("evt_");
   });
 
-  it("drops a batch permanently when telemetry ingestion is disabled server-side", async () => {
-    const error = Object.assign(new Error("Telemetry ingestion is disabled"), {
+  it("halts automatic flush on the exact telemetry-disabled code without marking events delivered", async () => {
+    const error = Object.assign(new Error("backend unavailable"), {
       status: 503,
       retryable: true,
-      details: { detail: "Telemetry ingestion is disabled" },
+      details: {
+        detail: {
+          code: "TELEMETRY_DISABLED",
+          message: "Telemetry ingestion is disabled",
+        },
+      },
     });
     mockPost.mockRejectedValueOnce(error);
 
@@ -497,11 +510,94 @@ describe("telemetryClient", () => {
 
     await telemetryClient.track("session_start", { origin: "app_boot" });
     await telemetryClient.flush();
+    await telemetryClient.track("meal_logged", { mealInputMethod: "manual" });
+    await telemetryClient.flush();
 
     expect(mockPost).toHaveBeenCalledTimes(1);
+    const persisted = await AsyncStorage.getItem(
+      telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY,
+    );
+    expect(persisted).toContain("session_start");
+    expect(persisted).toContain("meal_logged");
+  });
+
+  it("treats duplicate results as delivered without increasing accepted events", async () => {
+    mockPost.mockResolvedValueOnce({
+      acceptedCount: 0,
+      duplicateCount: 1,
+      rejectedCount: 0,
+      rejectedEvents: [],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await telemetryClient.track("meal_logged", { mealInputMethod: "photo" });
+    await telemetryClient.flush();
+
     expect(
       await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
     ).toBeNull();
+  });
+
+  it("accepts an exact partial rejection result without treating it as whole-batch success", async () => {
+    mockPost.mockImplementationOnce((_path, data) => {
+      const events = (data as { events: Array<{ eventId: string; name: string }> }).events;
+      return Promise.resolve({
+        acceptedCount: 1,
+        duplicateCount: 0,
+        rejectedCount: 1,
+        rejectedEvents: [
+          {
+            eventId: events[1]?.eventId,
+            name: events[1]?.name,
+            reason: "event_not_allowed",
+          },
+        ],
+      });
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await telemetryClient.track("session_start", { origin: "app_boot" });
+    await telemetryClient.track("meal_logged", { mealInputMethod: "photo" });
+    await telemetryClient.flush();
+
+    expect(
+      await AsyncStorage.getItem(telemetryClient.TELEMETRY_BUFFER_STORAGE_KEY),
+    ).toBeNull();
+  });
+
+  it("retries a 429 with the same event IDs", async () => {
+    mockPost
+      .mockRejectedValueOnce(
+        Object.assign(new Error("rate limited"), { status: 429, retryable: true }),
+      )
+      .mockResolvedValueOnce({
+        acceptedCount: 1,
+        duplicateCount: 0,
+        rejectedCount: 0,
+        rejectedEvents: [],
+      });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const telemetryClient = require("@/services/telemetry/telemetryClient") as typeof import("@/services/telemetry/telemetryClient");
+
+    await telemetryClient.track("meal_logged", { mealInputMethod: "photo" });
+    await telemetryClient.flush();
+    const firstEventId = (
+      (mockPost.mock.calls[0]?.[1] as { events?: Array<{ eventId?: string }> })
+        ?.events?.[0]?.eventId
+    );
+
+    await jest.advanceTimersByTimeAsync(2_000);
+    await telemetryClient.flush();
+
+    expect(
+      (mockPost.mock.calls[1]?.[1] as { events?: Array<{ eventId?: string }> })
+        ?.events?.[0]?.eventId,
+    ).toBe(firstEventId);
   });
 
   it("is a graceful no-op for notification telemetry when telemetry is disabled", async () => {

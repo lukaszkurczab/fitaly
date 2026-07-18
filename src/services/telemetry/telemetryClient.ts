@@ -5,7 +5,6 @@ import * as Localization from "expo-localization";
 import { Platform } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 import * as apiClient from "@/services/core/apiClient";
-import { withV2 } from "@/services/core/apiVersioning";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import {
   TELEMETRY_EVENT_NAMES,
@@ -33,7 +32,8 @@ const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 const DEFAULT_MAX_BATCH_SIZE = 50;
 const DEFAULT_RETRY_BASE_MS = 2_000;
 const DEFAULT_RETRY_MAX_MS = 60_000;
-const TELEMETRY_ENDPOINT = withV2("/telemetry/events/batch");
+const TELEMETRY_ENDPOINT = "/api/v2/telemetry/events/batch";
+const TELEMETRY_DISABLED_CODE = "TELEMETRY_DISABLED";
 
 export const TELEMETRY_BUFFER_STORAGE_KEY = "telemetry:buffer:v1";
 export const TELEMETRY_ANONYMOUS_ID_STORAGE_KEY = "telemetry:anonymousId:v1";
@@ -57,6 +57,7 @@ let queue: TelemetryEvent[] = [];
 let queuedEventIds = new Set<string>();
 let retryAttempt = 0;
 let nextAllowedFlushAt = 0;
+let telemetryDisabledCode: typeof TELEMETRY_DISABLED_CODE | null = null;
 function isTelemetryEnabled(): boolean {
   return getRuntimeConfig().telemetryEnabled;
 }
@@ -81,40 +82,94 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function readErrorText(error: Record<string, unknown>): string {
-  const message = typeof error.message === "string" ? error.message : "";
+function getTelemetryDisabledCode(error: Record<string, unknown>): string | null {
   const details = error.details;
   if (isRecord(details)) {
-    const detail = typeof details.detail === "string" ? details.detail : "";
-    const errorText = typeof details.error === "string" ? details.error : "";
-    return `${message} ${detail} ${errorText}`.toLowerCase();
+    const detail = details.detail;
+    if (isRecord(detail) && typeof detail.code === "string") {
+      return detail.code;
+    }
   }
 
-  return message.toLowerCase();
+  return null;
 }
 
 function isTelemetryDisabledResponse(error: Record<string, unknown>): boolean {
   return (
     error.status === 503 &&
-    readErrorText(error).includes("telemetry ingestion is disabled")
+    getTelemetryDisabledCode(error) === TELEMETRY_DISABLED_CODE
   );
 }
 
-function shouldDropFailedBatch(error: unknown): boolean {
-  if (!isRecord(error)) {
-    return false;
+type TelemetryBatchIngestResult = {
+  acceptedCount: number;
+  duplicateCount: number;
+  rejectedCount: number;
+  rejectedEvents: Array<{
+    eventId: string;
+    name: string;
+    reason: string;
+  }>;
+};
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function parseTelemetryBatchIngestResult(
+  value: unknown,
+  batch: TelemetryEvent[],
+): TelemetryBatchIngestResult | null {
+  if (!isRecord(value)) {
+    return null;
   }
 
-  if (isTelemetryDisabledResponse(error)) {
-    return true;
+  const {
+    acceptedCount,
+    duplicateCount,
+    rejectedCount,
+    rejectedEvents,
+  } = value;
+  if (
+    !isNonNegativeInteger(acceptedCount) ||
+    !isNonNegativeInteger(duplicateCount) ||
+    !isNonNegativeInteger(rejectedCount) ||
+    !Array.isArray(rejectedEvents) ||
+    rejectedCount !== rejectedEvents.length ||
+    acceptedCount + duplicateCount + rejectedCount !== batch.length
+  ) {
+    return null;
   }
 
-  return (
-    typeof error.status === "number" &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    error.status !== 429
-  );
+  const batchById = new Map(batch.map((event) => [event.eventId, event]));
+  const rejectedIds = new Set<string>();
+  const normalizedRejectedEvents: TelemetryBatchIngestResult["rejectedEvents"] = [];
+  for (const rejectedEvent of rejectedEvents) {
+    if (
+      !isRecord(rejectedEvent) ||
+      typeof rejectedEvent.eventId !== "string" ||
+      typeof rejectedEvent.name !== "string" ||
+      typeof rejectedEvent.reason !== "string" ||
+      !rejectedEvent.reason ||
+      rejectedIds.has(rejectedEvent.eventId) ||
+      batchById.get(rejectedEvent.eventId)?.name !== rejectedEvent.name
+    ) {
+      return null;
+    }
+    rejectedIds.add(rejectedEvent.eventId);
+    normalizedRejectedEvents.push({
+      eventId: rejectedEvent.eventId,
+      name: rejectedEvent.name,
+      reason: rejectedEvent.reason,
+    });
+  }
+
+  return {
+    acceptedCount,
+    duplicateCount,
+    rejectedCount,
+    rejectedEvents: normalizedRejectedEvents,
+  };
 }
 
 function isAbortedTelemetryRequest(error: unknown): boolean {
@@ -432,6 +487,7 @@ function resetTelemetryRuntimeState(): void {
   queuedEventIds = new Set<string>();
   retryAttempt = 0;
   nextAllowedFlushAt = 0;
+  telemetryDisabledCode = null;
 }
 
 function scheduleRetry(): void {
@@ -571,7 +627,7 @@ export async function track(
 }
 
 export async function flush(): Promise<void> {
-  if (!isTelemetryEnabled()) {
+  if (!isTelemetryEnabled() || telemetryDisabledCode !== null) {
     return;
   }
 
@@ -623,12 +679,21 @@ export async function flush(): Promise<void> {
       activeFlushAbortController = controller;
 
       try {
-        await apiClient.post(TELEMETRY_ENDPOINT, buildBatchPayload(batch), {
-          timeout: 15_000,
-          retryMode: "none",
-          signal: controller.signal,
-        });
+        const response = await apiClient.post(
+          TELEMETRY_ENDPOINT,
+          buildBatchPayload(batch),
+          {
+            timeout: 15_000,
+            retryMode: "none",
+            signal: controller.signal,
+          },
+        );
         if (!isCurrentGeneration(generation)) {
+          return;
+        }
+        if (!parseTelemetryBatchIngestResult(response, batch)) {
+          scheduleRetry();
+          await persistQueueForGeneration(generation);
           return;
         }
         dropBatch(batch);
@@ -639,11 +704,11 @@ export async function flush(): Promise<void> {
           return;
         }
 
-        if (shouldDropFailedBatch(error)) {
-          dropBatch(batch);
+        if (isRecord(error) && isTelemetryDisabledResponse(error)) {
+          telemetryDisabledCode = TELEMETRY_DISABLED_CODE;
           resetRetryState();
           await persistQueueForGeneration(generation);
-          continue;
+          return;
         }
 
         scheduleRetry();
