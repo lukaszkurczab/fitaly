@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { ReminderDecisionResult } from "@/services/reminders/reminderTypes";
+import { createServiceError } from "@/services/contracts/serviceError";
 import { useReminderDecision } from "@/hooks/useReminderDecision";
 
 const mockGetReminderDecision = jest.fn<
@@ -78,7 +79,7 @@ describe("useReminderDecision", () => {
     expect(result.current.enabled).toBe(true);
   });
 
-  it("returns a stable fallback when uid is missing and skips the service", async () => {
+  it("returns a stable no-user precondition state and skips the service", async () => {
     const { result } = renderHook(() => useReminderDecision({ uid: null }));
 
     await waitFor(() => {
@@ -87,17 +88,22 @@ describe("useReminderDecision", () => {
 
     expect(mockGetReminderDecision).not.toHaveBeenCalled();
     expect(result.current.decision).toBeNull();
-    expect(result.current.source).toBe("fallback");
+    expect(result.current.source).toBe("precondition");
     expect(result.current.status).toBe("no_user");
   });
 
-  it("exposes fallback state when reminder endpoint is unavailable", async () => {
+  it("exposes an unavailable state when the reminder endpoint is unavailable", async () => {
     mockGetReminderDecision.mockResolvedValue({
       decision: null,
-      source: "fallback",
+      source: "error",
       status: "service_unavailable",
       enabled: true,
-      error: new Error("backend down"),
+      error: createServiceError({
+        code: "reminder/service-unavailable",
+        source: "ReminderService",
+        retryable: true,
+        message: "backend down",
+      }),
     });
 
     const { result } = renderHook(() =>
@@ -110,7 +116,7 @@ describe("useReminderDecision", () => {
 
     expect(result.current.decision).toBeNull();
     expect(result.current.enabled).toBe(true);
-    expect(result.current.source).toBe("fallback");
+    expect(result.current.source).toBe("error");
     expect(result.current.status).toBe("service_unavailable");
   });
 
@@ -118,10 +124,15 @@ describe("useReminderDecision", () => {
     mockGetReminderDecision
       .mockResolvedValueOnce({
         decision: null,
-        source: "fallback",
+        source: "error",
         status: "service_unavailable",
         enabled: true,
-        error: new Error("backend down"),
+        error: createServiceError({
+          code: "reminder/service-unavailable",
+          source: "ReminderService",
+          retryable: true,
+          message: "backend down",
+        }),
       })
       .mockResolvedValueOnce({
         decision: {

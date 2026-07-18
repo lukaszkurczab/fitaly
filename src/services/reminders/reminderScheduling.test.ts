@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReminderDecisionResult } from "@/services/reminders/reminderTypes";
+import { createServiceError } from "@/services/contracts/serviceError";
 
 const asyncStorageState = new Map<string, string>();
 const mockGetItem = jest.fn<(key: string) => Promise<string | null>>();
@@ -344,10 +345,15 @@ describe("reminderScheduling", () => {
   it("does not schedule on failure or invalid payload semantics", async () => {
     mockGetReminderDecision.mockResolvedValue({
       decision: null,
-      source: "fallback",
+      source: "error",
       status: "invalid_payload",
       enabled: true,
-      error: new Error("contract drift"),
+      error: createServiceError({
+        code: "reminder/invalid-contract-payload",
+        source: "ReminderService",
+        retryable: false,
+        message: "contract drift",
+      }),
     });
 
     const service =
@@ -374,10 +380,15 @@ describe("reminderScheduling", () => {
     );
     mockGetReminderDecision.mockResolvedValue({
       decision: null,
-      source: "fallback",
+      source: "error",
       status: "service_unavailable",
       enabled: true,
-      error: new Error("temporary backend outage"),
+      error: createServiceError({
+        code: "reminder/service-unavailable",
+        source: "ReminderService",
+        retryable: true,
+        message: "temporary backend outage",
+      }),
     });
 
     const service =
@@ -665,10 +676,15 @@ describe("reminderScheduling", () => {
     );
     mockGetReminderDecision.mockResolvedValue({
       decision: null,
-      source: "fallback",
+      source: "error",
       status: "invalid_payload",
       enabled: true,
-      error: new Error("contract drift"),
+      error: createServiceError({
+        code: "reminder/invalid-contract-payload",
+        source: "ReminderService",
+        retryable: false,
+        message: "contract drift",
+      }),
     });
 
     const service =

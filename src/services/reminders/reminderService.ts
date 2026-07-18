@@ -1,6 +1,8 @@
 import { get } from "@/services/core/apiClient";
-import { withV2 } from "@/services/core/apiVersioning";
-import { createServiceError } from "@/services/contracts/serviceError";
+import {
+  createServiceError,
+  isServiceError,
+} from "@/services/contracts/serviceError";
 import { isRecord } from "@/services/contracts/guards";
 import { getRuntimeConfig } from "@/services/core/runtimeConfig";
 import { trackSmartReminderDecisionFailed } from "@/services/telemetry/telemetryInstrumentation";
@@ -18,7 +20,6 @@ import type {
   NoopReminderReasonCode,
   ReminderDecision,
   ReminderDecisionResult,
-  ReminderDecisionResultStatus,
   ReminderDecisionType,
   ReminderKind,
   ReminderReasonCode,
@@ -27,7 +28,7 @@ import type {
 } from "@/services/reminders/reminderTypes";
 
 const log = debugScope("ReminderService");
-const REMINDER_ENDPOINT = withV2("/users/me/reminders/decision");
+const REMINDER_ENDPOINT = "/api/v2/users/me/reminders/decision";
 const REMINDER_SERVICE_SOURCE = "ReminderService";
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UTC_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -278,31 +279,6 @@ export function normalizeReminderDecision(
   };
 }
 
-function buildReminderDecisionResult(input: {
-  decision: ReminderDecision | null;
-  source: ReminderDecisionResult["source"];
-  status: ReminderDecisionResultStatus;
-  enabled: boolean;
-  error: unknown | null;
-}): ReminderDecisionResult {
-  return input;
-}
-
-function buildFallbackResult(input: {
-  source: ReminderDecisionResult["source"];
-  status: ReminderDecisionResultStatus;
-  enabled: boolean;
-  error: unknown | null;
-}): ReminderDecisionResult {
-  return buildReminderDecisionResult({
-    decision: null,
-    source: input.source,
-    status: input.status,
-    enabled: input.enabled,
-    error: input.error,
-  });
-}
-
 export async function getReminderDecision(
   uid: string | null | undefined,
   options?: { dayKey?: string | null; productReady?: boolean },
@@ -314,30 +290,33 @@ export async function getReminderDecision(
   const enabled = isSmartRemindersEnabled();
 
   if (!enabled) {
-    return buildFallbackResult({
+    return {
+      decision: null,
       source: "disabled",
       status: "disabled",
       enabled: false,
       error: null,
-    });
+    };
   }
 
   if (options?.productReady === false) {
-    return buildFallbackResult({
-      source: "fallback",
+    return {
+      decision: null,
+      source: "precondition",
       status: "profile_not_ready",
-      enabled,
+      enabled: true,
       error: null,
-    });
+    };
   }
 
   if (!uid) {
-    return buildFallbackResult({
-      source: "fallback",
+    return {
+      decision: null,
+      source: "precondition",
       status: "no_user",
-      enabled,
+      enabled: true,
       error: null,
-    });
+    };
   }
 
   const tzOffsetMin = getDeviceTzOffsetMin();
@@ -355,30 +334,39 @@ export async function getReminderDecision(
       );
     }
 
-    return buildReminderDecisionResult({
+    return {
       decision: normalized,
       source: "remote",
       status: "live_success",
-      enabled,
+      enabled: true,
       error: null,
-    });
+    };
   } catch (error) {
     log.warn("getReminderDecision backend error", { uid, dayKey, error });
     const isInvalidPayload =
-      error instanceof Error &&
-      "code" in error &&
-      (error as { code?: unknown }).code ===
-        "reminder/invalid-contract-payload";
+      isServiceError(error) &&
+      error.code === "reminder/invalid-contract-payload";
 
     if (!isInvalidPayload) {
       emitSmartReminderDecisionFailureTelemetry("service_unavailable");
     }
 
-    return buildFallbackResult({
-      source: "fallback",
+    const diagnosticError = isInvalidPayload
+      ? error
+      : createServiceError({
+          code: "reminder/service-unavailable",
+          source: REMINDER_SERVICE_SOURCE,
+          retryable: true,
+          message: "Reminder decision service is unavailable.",
+          cause: error,
+        });
+
+    return {
+      decision: null,
+      source: "error",
       status: isInvalidPayload ? "invalid_payload" : "service_unavailable",
-      enabled,
-      error,
-    });
+      enabled: true,
+      error: diagnosticError,
+    };
   }
 }

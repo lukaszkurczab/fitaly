@@ -1978,7 +1978,7 @@ export function resolveE2EReminderDecision(
   if (!uid) {
     return {
       decision: null,
-      source: "fallback",
+      source: "precondition",
       status: "no_user",
       enabled: true,
       error: null,

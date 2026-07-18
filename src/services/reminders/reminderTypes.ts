@@ -89,20 +89,40 @@ export type ReminderDecision =
   | SuppressReminderDecision
   | NoopReminderDecision;
 
-export type ReminderDecisionSource = "disabled" | "remote" | "fallback";
-
-export type ReminderDecisionResultStatus =
-  | "live_success"
-  | "invalid_payload"
+export type ReminderDecisionSource =
   | "disabled"
-  | "service_unavailable"
-  | "no_user"
-  | "profile_not_ready";
+  | "remote"
+  | "precondition"
+  | "error";
 
-export type ReminderDecisionResult = {
-  decision: ReminderDecision | null;
-  source: ReminderDecisionSource;
-  status: ReminderDecisionResultStatus;
-  enabled: boolean;
-  error: unknown | null;
-};
+export type ReminderDecisionResult =
+  | {
+      decision: ReminderDecision;
+      source: "remote";
+      status: "live_success";
+      enabled: true;
+      error: null;
+    }
+  | {
+      decision: null;
+      source: "disabled";
+      status: "disabled";
+      enabled: false;
+      error: null;
+    }
+  | {
+      decision: null;
+      source: "precondition";
+      status: "no_user" | "profile_not_ready";
+      enabled: true;
+      error: null;
+    }
+  | {
+      decision: null;
+      source: "error";
+      status: "invalid_payload" | "service_unavailable";
+      enabled: true;
+      error: import("@/services/contracts/serviceError").ServiceError;
+    };
+
+export type ReminderDecisionResultStatus = ReminderDecisionResult["status"];

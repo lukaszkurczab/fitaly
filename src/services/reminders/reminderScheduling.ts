@@ -46,6 +46,7 @@ export type ReminderSchedulingReason =
   | "scheduled"
   | "decision_disabled"
   | "decision_no_user"
+  | "decision_profile_not_ready"
   | "decision_service_unavailable"
   | "decision_invalid_payload"
   | "decision_suppress"
@@ -248,6 +249,9 @@ function resolveUnavailableReason(
   if (status === "no_user") {
     return "decision_no_user";
   }
+  if (status === "profile_not_ready") {
+    return "decision_profile_not_ready";
+  }
   if (status === "invalid_payload") {
     return "decision_invalid_payload";
   }
@@ -358,7 +362,7 @@ export async function reconcileReminderScheduling(
           : "unknown",
   });
 
-  if (result.status !== "live_success" || !result.decision) {
+  if (result.status !== "live_success") {
     await clearAndCancel(localKey);
     const reason = resolveUnavailableReason(result.status);
     if (
@@ -392,10 +396,7 @@ export async function reconcileReminderScheduling(
       reason,
       localKey,
       errorStage: "decision",
-      errorMessage:
-        result.status === "live_success"
-          ? "missing_decision_payload"
-          : result.status,
+      errorMessage: result.status,
     });
     return {
       outcome: "cancelled",

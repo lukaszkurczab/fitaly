@@ -6,8 +6,7 @@ import {
 import { useIsProductReady } from "@/hooks/useProductReadiness";
 import type {
   ReminderDecision,
-  ReminderDecisionSource,
-  ReminderDecisionResultStatus,
+  ReminderDecisionResult,
 } from "@/services/reminders/reminderTypes";
 
 type UseReminderDecisionParams = {
@@ -16,13 +15,8 @@ type UseReminderDecisionParams = {
   fetchEnabled?: boolean;
 };
 
-type ReminderDecisionState = {
-  decision: ReminderDecision | null;
+type ReminderDecisionState = ReminderDecisionResult & {
   loading: boolean;
-  enabled: boolean;
-  source: ReminderDecisionSource;
-  status: ReminderDecisionResultStatus;
-  error: unknown | null;
 };
 
 type UseReminderDecisionResult = ReminderDecisionState & {
@@ -33,7 +27,7 @@ const INITIAL_STATE: ReminderDecisionState = {
   decision: null,
   loading: false,
   enabled: true,
-  source: "fallback",
+  source: "precondition",
   status: "no_user",
   error: null,
 };
@@ -88,12 +82,8 @@ export function useReminderDecision({
       }
 
       setState({
-        decision: result.decision,
+        ...result,
         loading: false,
-        enabled: result.enabled,
-        source: result.source,
-        status: result.status,
-        error: result.error,
       });
     });
 
@@ -114,12 +104,8 @@ export function useReminderDecision({
       requestScopeKeyRef.current === requestScope
     ) {
       setState({
-        decision: result.decision,
+        ...result,
         loading: false,
-        enabled: result.enabled,
-        source: result.source,
-        status: result.status,
-        error: result.error,
       });
     }
     return result.decision;

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReminderSchedulingResult } from "@/services/reminders/reminderScheduling";
+import { createServiceError } from "@/services/contracts/serviceError";
 
 const mockReconcileReminderScheduling = jest.fn<
   (uid: string) => Promise<ReminderSchedulingResult>
@@ -177,10 +178,15 @@ describe("reminderRuntime", () => {
       localKey: "user-1:smart-reminder:2026-03-18",
       result: {
         decision: null,
-        source: "fallback" as const,
+        source: "error" as const,
         status: "service_unavailable" as const,
         enabled: true,
-        error: new Error("temporary outage"),
+        error: createServiceError({
+          code: "reminder/service-unavailable",
+          source: "ReminderService",
+          retryable: true,
+          message: "temporary outage",
+        }),
       },
     });
     mockHasStoredReminderScheduleForDay.mockResolvedValue(true);

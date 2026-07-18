@@ -7,6 +7,7 @@ import {
   jest,
 } from "@jest/globals";
 import type { ReminderDecisionResult } from "@/services/reminders/reminderTypes";
+import { createServiceError } from "@/services/contracts/serviceError";
 import * as reminderRuntime from "@/services/reminders/reminderRuntime";
 
 const asyncStorageState = new Map<string, string>();
@@ -157,9 +158,7 @@ jest.mock("@/utils/debug", () => ({
   }),
 }));
 
-function sendDecision(
-  overrides?: Partial<ReminderDecisionResult>,
-): ReminderDecisionResult {
+function sendDecision(): ReminderDecisionResult {
   return {
     decision: {
       dayKey: "2026-03-18",
@@ -179,7 +178,6 @@ function sendDecision(
     status: "live_success",
     enabled: true,
     error: null,
-    ...overrides,
   };
 }
 
@@ -226,10 +224,15 @@ function failedDecision(
 ): ReminderDecisionResult {
   return {
     decision: null,
-    source: "fallback",
+    source: "error",
     status,
     enabled: true,
-    error: new Error(`decision ${status}`),
+    error: createServiceError({
+      code: `reminder/${status}`,
+      source: "ReminderService",
+      retryable: status === "service_unavailable",
+      message: `decision ${status}`,
+    }),
   };
 }
 

@@ -257,7 +257,7 @@ describe("reminderService", () => {
     expect(mockGet).not.toHaveBeenCalled();
   });
 
-  it("returns a no-user fallback and skips the endpoint when uid is missing", async () => {
+  it("returns a no-user precondition state and skips the endpoint when uid is missing", async () => {
     const service = jest.requireActual(
       "@/services/reminders/reminderService",
     ) as typeof import("@/services/reminders/reminderService");
@@ -266,13 +266,13 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("precondition");
     expect(result.status).toBe("no_user");
     expect(result.decision).toBeNull();
     expect(mockGet).not.toHaveBeenCalled();
   });
 
-  it("returns profile-not-ready fallback and skips the endpoint before product readiness", async () => {
+  it("returns profile-not-ready precondition state and skips the endpoint before product readiness", async () => {
     const service = jest.requireActual(
       "@/services/reminders/reminderService",
     ) as typeof import("@/services/reminders/reminderService");
@@ -282,7 +282,7 @@ describe("reminderService", () => {
       productReady: false,
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("precondition");
     expect(result.status).toBe("profile_not_ready");
     expect(result.decision).toBeNull();
     expect(mockGet).not.toHaveBeenCalled();
@@ -302,7 +302,7 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("error");
     expect(result.status).toBe("invalid_payload");
     expect(result.decision).toBeNull();
     expect(result.error).toEqual(
@@ -326,7 +326,7 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("error");
     expect(result.status).toBe("invalid_payload");
     expect(result.decision).toBeNull();
   });
@@ -345,7 +345,7 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("error");
     expect(result.status).toBe("invalid_payload");
     expect(result.decision).toBeNull();
   });
@@ -364,7 +364,7 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("error");
     expect(result.status).toBe("invalid_payload");
     expect(result.decision).toBeNull();
   });
@@ -380,10 +380,15 @@ describe("reminderService", () => {
       dayKey: "2026-03-18",
     });
 
-    expect(result.source).toBe("fallback");
+    expect(result.source).toBe("error");
     expect(result.status).toBe("service_unavailable");
     expect(result.decision).toBeNull();
-    expect(result.error).toEqual(expect.any(Error));
+    expect(result.error).toEqual(
+      expect.objectContaining({
+        code: "reminder/service-unavailable",
+        retryable: true,
+      }),
+    );
     expect(mockWarn).toHaveBeenCalled();
     expect(mockTrackSmartReminderDecisionFailed).toHaveBeenCalled();
   });

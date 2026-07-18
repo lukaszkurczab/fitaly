@@ -41,10 +41,10 @@ describe("reminderSettings", () => {
     ]);
   });
 
-  it("builds fallback QA rows when no decision is available", () => {
+  it("builds explicit error QA rows when no decision is available", () => {
     const rows = buildSmartReminderQaRows({
       status: "invalid_payload",
-      source: "fallback",
+      source: "error",
       enabled: true,
       decision: null,
       error: new Error("contract drift"),
@@ -52,7 +52,7 @@ describe("reminderSettings", () => {
 
     expect(rows).toEqual([
       { label: "status", value: "invalid_payload" },
-      { label: "source", value: "fallback" },
+      { label: "source", value: "error" },
       { label: "enabled", value: "true" },
       { label: "decision", value: "n/a" },
       { label: "reasonCodes", value: "n/a" },
