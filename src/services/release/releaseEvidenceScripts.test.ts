@@ -395,6 +395,78 @@ async function withSmokeExportServer(
   }
 }
 
+async function withTelemetrySmokeServer(
+  options: {
+    disabled?: boolean;
+    malformedIngest?: boolean;
+    slowHealth?: boolean;
+    versionSha?: string;
+  },
+  testBody: (baseUrl: string) => Promise<void>,
+): Promise<void> {
+  let telemetryCalls = 0;
+  const server = http.createServer((request, response) => {
+    if (request.url === "/api/v1/version") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ version: "0.1.0", commitSha: options.versionSha ?? backendSha }));
+      return;
+    }
+    if (request.url === "/api/v1/health") {
+      if (options.slowHealth) {
+        return;
+      }
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ status: "ok" }));
+      return;
+    }
+    if (request.url?.startsWith("/accounts:signInWithPassword")) {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ idToken: "test-token-should-not-leak", localId: "raw-user-id-should-not-leak" }));
+      return;
+    }
+    if (request.url === "/api/v2/telemetry/events/batch") {
+      if (request.headers.authorization !== "Bearer test-token-should-not-leak") {
+        response.writeHead(401, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ detail: "UNAUTHENTICATED" }));
+        return;
+      }
+      if (options.disabled) {
+        response.writeHead(503, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ detail: { code: "TELEMETRY_DISABLED" } }));
+        return;
+      }
+      if (options.malformedIngest) {
+        response.writeHead(202, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ acceptedCount: 1 }));
+        return;
+      }
+      telemetryCalls += 1;
+      response.writeHead(202, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({
+        acceptedCount: telemetryCalls === 1 ? 1 : 0,
+        duplicateCount: telemetryCalls === 1 ? 0 : 1,
+        rejectedCount: 0,
+        rejectedEvents: [],
+      }));
+      return;
+    }
+    response.writeHead(404, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ detail: "not found" }));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  server.unref();
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Unable to resolve local telemetry server address.");
+    }
+    await testBody(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -444,6 +516,7 @@ describe("release candidate workflow evidence wiring", () => {
     );
     const releaseGateJob = workflowJob(workflow, "release-gate-e2e");
     const releaseEvidenceJob = workflowJob(workflow, "release-evidence");
+    const telemetryJob = workflowJob(workflow, "smoke-telemetry");
     const runStep = workflowStep(releaseGateJob, "Run core release gate E2E suite");
     const uploadStep = workflowStep(releaseGateJob, "Upload core release gate JUnit reports");
     const downloadStep = workflowStep(
@@ -453,6 +526,12 @@ describe("release candidate workflow evidence wiring", () => {
     const renderStep = workflowStep(releaseEvidenceJob, "Render release evidence markdown");
 
     expect(releaseGateJob).not.toContain("run: npm run e2e:release-gate");
+    expect(telemetryJob).toContain("node scripts/verify-smoke-telemetry.mjs artifacts/smoke-telemetry-summary.json");
+    expect(telemetryJob).toContain("EXPECTED_BACKEND_COMMIT_SHA: ${{ needs.validate-release-pair.outputs.backend_sha }}");
+    expect(telemetryJob).toContain("name: smoke-telemetry-summary");
+    expect(telemetryJob).not.toContain("continue-on-error");
+    expect(releaseEvidenceJob).toContain("- smoke-telemetry");
+    expect(releaseEvidenceJob).toContain("name: smoke-telemetry-summary");
     expect(releaseGateJob).toContain('E2E_SKIP_API_HEALTH: "0"');
     expect(releaseGateJob).toContain("E2E_API_BASE_URL: http://127.0.0.1:8000");
     expect(releaseGateJob).toContain("FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080");
@@ -1548,6 +1627,73 @@ describe("render-release-evidence release pair fields", () => {
 });
 
 describe("smoke runtime backend SHA verification", () => {
+  it("writes sanitized telemetry smoke evidence after accepted and duplicate ingest", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fitaly-smoke-telemetry-"));
+    const outputPath = path.join(tempDir, "summary.json");
+
+    await withTelemetrySmokeServer({}, async (baseUrl) => {
+      await execFileAsync("node", ["scripts/verify-smoke-telemetry.mjs", outputPath], {
+        cwd: rootDir,
+        env: {
+          ...process.env,
+          EXPECTED_BACKEND_COMMIT_SHA: backendSha,
+          SMOKE_API_BASE_URL: baseUrl,
+          FIREBASE_AUTH_BASE_URL: baseUrl,
+          FIREBASE_WEB_API_KEY: "unused-key",
+          SMOKE_EXPORT_TEST_EMAIL: "user@example.com",
+          SMOKE_EXPORT_TEST_PASSWORD: "unused-password",
+          SMOKE_TELEMETRY_TIMEOUT_MS: "1000",
+        },
+      });
+    });
+
+    const summary = fs.readFileSync(outputPath, "utf8");
+    expect(summary).toContain('"result": "passed"');
+    expect(summary).toContain('"acceptedCount": 1');
+    expect(summary).toContain('"duplicateCount": 1');
+    expect(summary).not.toContain("test-token-should-not-leak");
+    expect(summary).not.toContain("raw-user-id-should-not-leak");
+    expect(summary).not.toContain("user@example.com");
+  });
+
+  it("fails telemetry smoke for disabled, wrong-SHA, malformed, and timeout responses", async () => {
+    const cases = [
+      { options: { disabled: true }, expected: "ingest failed with HTTP 503" },
+      { options: { versionSha: "c".repeat(40) }, expected: "SHA did not match" },
+      { options: { malformedIngest: true }, expected: "unexpected batch counts" },
+      { options: { slowHealth: true }, expected: "request timed out" },
+    ];
+
+    for (const testCase of cases) {
+      await withTelemetrySmokeServer(testCase.options, async (baseUrl) => {
+        const outputPath = path.join(
+          os.tmpdir(),
+          `fitaly-smoke-telemetry-failure-${Date.now()}.json`,
+        );
+        const output = await expectExecFileToFail(
+          "node",
+          ["scripts/verify-smoke-telemetry.mjs", outputPath],
+          {
+            cwd: rootDir,
+            env: {
+              ...process.env,
+              EXPECTED_BACKEND_COMMIT_SHA: backendSha,
+              SMOKE_API_BASE_URL: baseUrl,
+              FIREBASE_AUTH_BASE_URL: baseUrl,
+              FIREBASE_WEB_API_KEY: "unused-key",
+              SMOKE_EXPORT_TEST_EMAIL: "user@example.com",
+              SMOKE_EXPORT_TEST_PASSWORD: "unused-password",
+              SMOKE_TELEMETRY_TIMEOUT_MS: "50",
+            },
+          },
+        );
+        expect(output).toContain(testCase.expected);
+        expect(output).not.toContain("unused-password");
+        expect(fs.existsSync(outputPath)).toBe(false);
+      });
+    }
+  });
+
   it("writes smoke export summary from backend export manifest counts", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fitaly-smoke-export-"));
     const outputPath = path.join(tempDir, "summary.json");

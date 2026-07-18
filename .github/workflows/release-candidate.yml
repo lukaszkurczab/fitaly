@@ -307,6 +307,41 @@ jobs:
           name: smoke-flow-summary
           path: artifacts/smoke-flow-summary.json
 
+  smoke-telemetry:
+    name: Smoke telemetry verification
+    needs:
+      - validate-release-pair
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify smoke telemetry ingest
+        env:
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          SMOKE_EXPORT_TEST_EMAIL: ${{ secrets.SMOKE_EXPORT_TEST_EMAIL }}
+          SMOKE_EXPORT_TEST_PASSWORD: ${{ secrets.SMOKE_EXPORT_TEST_PASSWORD }}
+          SMOKE_API_BASE_URL: https://fitaly-backend-smoke.up.railway.app
+          EXPECTED_BACKEND_COMMIT_SHA: ${{ needs.validate-release-pair.outputs.backend_sha }}
+          SMOKE_TELEMETRY_TIMEOUT_MS: "10000"
+        run: node scripts/verify-smoke-telemetry.mjs artifacts/smoke-telemetry-summary.json
+
+      - name: Upload smoke telemetry summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-telemetry-summary
+          path: artifacts/smoke-telemetry-summary.json
+
   ops-evidence:
     name: Fetch backup and restore evidence
     needs:
@@ -395,6 +430,7 @@ jobs:
       - release-gate-e2e
       - smoke-export
       - smoke-flow-contracts
+      - smoke-telemetry
       - ops-evidence
       - delete-evidence
     outputs:
@@ -413,6 +449,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: smoke-flow-summary
+          path: artifacts
+
+      - name: Download smoke telemetry summary
+        uses: actions/download-artifact@v4
+        with:
+          name: smoke-telemetry-summary
           path: artifacts
 
       - name: Download core release gate E2E reports
@@ -483,6 +525,7 @@ jobs:
       - release-gate-e2e
       - smoke-export
       - smoke-flow-contracts
+      - smoke-telemetry
       - ops-evidence
       - delete-evidence
       - release-evidence
