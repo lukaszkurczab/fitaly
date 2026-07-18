@@ -50,8 +50,7 @@ const REQUIRED_READINESS_FIELD_LABELS = [
   "Android AAB check",
   "Latest Firestore backup",
   "Latest restore drill",
-  "Delete smoke evidence",
-  "Delete smoke note",
+  "Disposable delete evidence artifact",
   "Chat integrity tests",
   "Atomic onboarding contract",
   "Weekly Report premium gate",
@@ -112,8 +111,7 @@ const EXTERNAL_EVIDENCE_FIELD_LABELS = [
   "Android AAB check",
   "Latest Firestore backup",
   "Latest restore drill",
-  "Delete smoke evidence",
-  "Delete smoke note",
+  "Disposable delete evidence artifact",
   "Chat integrity tests",
   "Atomic onboarding contract",
   "Weekly Report premium gate",
@@ -127,6 +125,107 @@ const EXTERNAL_EVIDENCE_FIELD_LABELS = [
 function value(name, fallback = "not provided") {
   const raw = process.env[name];
   return typeof raw === "string" && raw.trim() ? raw.trim() : fallback;
+}
+
+const DELETE_EVIDENCE_ENV_NAMES = [
+  "DELETE_EVIDENCE_URL",
+  "DELETE_EVIDENCE_TIMESTAMP_UTC",
+  "DELETE_EVIDENCE_TARGET_ENVIRONMENT",
+  "DELETE_EVIDENCE_MOBILE_SHA",
+  "DELETE_EVIDENCE_BACKEND_SHA",
+  "DELETE_EVIDENCE_DISPOSABLE_USER_REF",
+  "DELETE_EVIDENCE_BACKEND_DELETION",
+  "DELETE_EVIDENCE_FIREBASE_AUTH_DELETION",
+  "DELETE_EVIDENCE_STORAGE_CLEANUP",
+  "DELETE_EVIDENCE_REACCESS_RESULT",
+  "DELETE_EVIDENCE_OWNER",
+];
+const DELETE_EVIDENCE_FIELD_NAMES = {
+  url: "DELETE_EVIDENCE_URL",
+  timestampUtc: "DELETE_EVIDENCE_TIMESTAMP_UTC",
+  targetEnvironment: "DELETE_EVIDENCE_TARGET_ENVIRONMENT",
+  mobileSha: "DELETE_EVIDENCE_MOBILE_SHA",
+  backendSha: "DELETE_EVIDENCE_BACKEND_SHA",
+  disposableUserRef: "DELETE_EVIDENCE_DISPOSABLE_USER_REF",
+  backendDeletion: "DELETE_EVIDENCE_BACKEND_DELETION",
+  firebaseAuthDeletion: "DELETE_EVIDENCE_FIREBASE_AUTH_DELETION",
+  storageCleanup: "DELETE_EVIDENCE_STORAGE_CLEANUP",
+  reaccessResult: "DELETE_EVIDENCE_REACCESS_RESULT",
+  owner: "DELETE_EVIDENCE_OWNER",
+};
+
+function deleteEvidenceValue(name) {
+  return value(name, "");
+}
+
+function isDeleteEvidenceSupplied() {
+  return DELETE_EVIDENCE_ENV_NAMES.some((name) => deleteEvidenceValue(name));
+}
+
+function assertDeleteEvidence(deleteEvidence, expectedMobileSha, expectedBackendSha, expectedEnvironment) {
+  const required = Object.entries(deleteEvidence).filter(([, content]) => !content);
+  if (required.length > 0) {
+    throw new Error(
+      `Disposable delete evidence is missing required fields: ${required
+        .map(([name]) => DELETE_EVIDENCE_FIELD_NAMES[name])
+        .join(", ")}.`,
+    );
+  }
+
+  for (const [name, content] of Object.entries(deleteEvidence)) {
+    if (/\b(pending|unknown|placeholder|not provided|skipped)\b/i.test(content)) {
+      throw new Error(
+        `${DELETE_EVIDENCE_FIELD_NAMES[name]} must contain completed evidence, not a placeholder.`,
+      );
+    }
+  }
+
+  if (deleteEvidence.targetEnvironment !== expectedEnvironment) {
+    throw new Error(
+      `DELETE_EVIDENCE_TARGET_ENVIRONMENT must match TARGET_ENVIRONMENT (${expectedEnvironment}); got ${deleteEvidence.targetEnvironment}.`,
+    );
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(deleteEvidence.timestampUtc) || Number.isNaN(Date.parse(deleteEvidence.timestampUtc))) {
+    throw new Error("DELETE_EVIDENCE_TIMESTAMP_UTC must be an ISO 8601 UTC timestamp.");
+  }
+  if (!EXACT_SHA_PATTERN.test(deleteEvidence.mobileSha) || deleteEvidence.mobileSha !== expectedMobileSha) {
+    throw new Error("DELETE_EVIDENCE_MOBILE_SHA must be an exact SHA matching MOBILE_SHA.");
+  }
+  if (!EXACT_SHA_PATTERN.test(deleteEvidence.backendSha) || deleteEvidence.backendSha !== expectedBackendSha) {
+    throw new Error("DELETE_EVIDENCE_BACKEND_SHA must be an exact SHA matching BACKEND_SHA.");
+  }
+  if (!/^delete-run-[a-z0-9][a-z0-9-]{1,62}$/.test(deleteEvidence.disposableUserRef)) {
+    throw new Error("DELETE_EVIDENCE_DISPOSABLE_USER_REF must be a pseudonymous delete-run token.");
+  }
+  if (deleteEvidence.backendDeletion !== "deleted") {
+    throw new Error("DELETE_EVIDENCE_BACKEND_DELETION must be deleted.");
+  }
+  if (deleteEvidence.firebaseAuthDeletion !== "deleted") {
+    throw new Error("DELETE_EVIDENCE_FIREBASE_AUTH_DELETION must be deleted.");
+  }
+  if (deleteEvidence.storageCleanup !== "deleted") {
+    throw new Error("DELETE_EVIDENCE_STORAGE_CLEANUP must be deleted.");
+  }
+  if (deleteEvidence.reaccessResult !== "denied") {
+    throw new Error("DELETE_EVIDENCE_REACCESS_RESULT must be denied.");
+  }
+  if (!/^[a-z][a-z0-9_-]{1,63}$/.test(deleteEvidence.owner)) {
+    throw new Error("DELETE_EVIDENCE_OWNER must be a non-PII owner handle.");
+  }
+
+  let artifactUrl;
+  try {
+    artifactUrl = new URL(deleteEvidence.url);
+  } catch {
+    throw new Error("DELETE_EVIDENCE_URL must be an external HTTPS URL.");
+  }
+  if (
+    artifactUrl.protocol !== "https:" ||
+    /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i.test(artifactUrl.hostname) ||
+    /@|(?:uid|user[_-]?id)=/i.test(deleteEvidence.url)
+  ) {
+    throw new Error("DELETE_EVIDENCE_URL must be an external HTTPS URL without PII-like data.");
+  }
 }
 
 function bullet(label, content) {
@@ -685,6 +784,22 @@ const mobileSha = requireExactSha("MOBILE_SHA");
 const backendSha = requireExactSha("BACKEND_SHA");
 const targetEnvironment = value("TARGET_ENVIRONMENT", "unknown");
 const evidenceDecision = value("EVIDENCE_DECISION", "not approved");
+const deleteEvidence = {
+  url: deleteEvidenceValue("DELETE_EVIDENCE_URL"),
+  timestampUtc: deleteEvidenceValue("DELETE_EVIDENCE_TIMESTAMP_UTC"),
+  targetEnvironment: deleteEvidenceValue("DELETE_EVIDENCE_TARGET_ENVIRONMENT"),
+  mobileSha: deleteEvidenceValue("DELETE_EVIDENCE_MOBILE_SHA"),
+  backendSha: deleteEvidenceValue("DELETE_EVIDENCE_BACKEND_SHA"),
+  disposableUserRef: deleteEvidenceValue("DELETE_EVIDENCE_DISPOSABLE_USER_REF"),
+  backendDeletion: deleteEvidenceValue("DELETE_EVIDENCE_BACKEND_DELETION"),
+  firebaseAuthDeletion: deleteEvidenceValue("DELETE_EVIDENCE_FIREBASE_AUTH_DELETION"),
+  storageCleanup: deleteEvidenceValue("DELETE_EVIDENCE_STORAGE_CLEANUP"),
+  reaccessResult: deleteEvidenceValue("DELETE_EVIDENCE_REACCESS_RESULT"),
+  owner: deleteEvidenceValue("DELETE_EVIDENCE_OWNER"),
+};
+if (!READINESS_DECISIONS.has(evidenceDecision) && isDeleteEvidenceSupplied()) {
+  assertDeleteEvidence(deleteEvidence, mobileSha, backendSha, targetEnvironment);
+}
 const mobileRepoPath = process.cwd();
 const backendRepoPath = value("BACKEND_REPO", "");
 const mobileWorktreeStatus = resolvedWorktreeStatus("MOBILE_WORKTREE_STATUS", mobileRepoPath);
@@ -725,8 +840,17 @@ addEvidence(evidenceFields, "Android targetSdk check", value("TARGET_SDK_STATUS"
 addEvidence(evidenceFields, "Android AAB check", value("AAB_STATUS", "unknown"));
 addEvidence(evidenceFields, "Latest Firestore backup", value("BACKUP_RUN_URL", "missing"));
 addEvidence(evidenceFields, "Latest restore drill", value("RESTORE_RUN_URL", "missing"));
-addEvidence(evidenceFields, "Delete smoke evidence", value("DELETE_EVIDENCE_URL", "pending manual attachment"));
-addEvidence(evidenceFields, "Delete smoke note", value("DELETE_EVIDENCE_NOTE", "pending manual attachment"));
+addEvidence(evidenceFields, "Disposable delete evidence timestamp UTC", deleteEvidence.timestampUtc || "not provided");
+addEvidence(evidenceFields, "Disposable delete target environment", deleteEvidence.targetEnvironment || "not provided");
+addEvidence(evidenceFields, "Disposable delete mobile SHA", deleteEvidence.mobileSha || "not provided");
+addEvidence(evidenceFields, "Disposable delete backend SHA", deleteEvidence.backendSha || "not provided");
+addEvidence(evidenceFields, "Disposable delete user reference", deleteEvidence.disposableUserRef || "not provided");
+addEvidence(evidenceFields, "Disposable delete backend data", deleteEvidence.backendDeletion || "not provided");
+addEvidence(evidenceFields, "Disposable delete Firebase Auth", deleteEvidence.firebaseAuthDeletion || "not provided");
+addEvidence(evidenceFields, "Disposable delete Storage", deleteEvidence.storageCleanup || "not provided");
+addEvidence(evidenceFields, "Disposable delete re-access", deleteEvidence.reaccessResult || "not provided");
+addEvidence(evidenceFields, "Disposable delete evidence artifact", deleteEvidence.url || "not provided");
+addEvidence(evidenceFields, "Disposable delete owner", deleteEvidence.owner || "not provided");
 addEvidence(evidenceFields, "Chat integrity tests", value("CHAT_INTEGRITY_TEST_STATUS", "unknown"));
 addEvidence(
   evidenceFields,
@@ -764,6 +888,9 @@ addEvidence(
   value("RC_ROLLBACK_REHEARSAL_URL", "pending manual attachment"),
 );
 assertReleaseReadinessEvidence(evidenceDecision, evidenceFields, targetEnvironment);
+if (READINESS_DECISIONS.has(evidenceDecision)) {
+  assertDeleteEvidence(deleteEvidence, mobileSha, backendSha, targetEnvironment);
+}
 
 const lines = ["# Release Evidence", ""];
 for (const [label, content] of evidenceFields) {

@@ -144,6 +144,27 @@ function completeReadinessEnv(overrides: Record<string, string> = {}): Record<st
   };
 }
 
+function completeDeleteEvidenceEnv(
+  currentMobileSha: string,
+  currentBackendSha: string,
+  overrides: Record<string, string> = {},
+): Record<string, string> {
+  return {
+    DELETE_EVIDENCE_URL: "https://ops.example/runs/delete-run-abc123",
+    DELETE_EVIDENCE_TIMESTAMP_UTC: "2026-07-18T12:34:56Z",
+    DELETE_EVIDENCE_TARGET_ENVIRONMENT: "production",
+    DELETE_EVIDENCE_MOBILE_SHA: currentMobileSha,
+    DELETE_EVIDENCE_BACKEND_SHA: currentBackendSha,
+    DELETE_EVIDENCE_DISPOSABLE_USER_REF: "delete-run-abc123",
+    DELETE_EVIDENCE_BACKEND_DELETION: "deleted",
+    DELETE_EVIDENCE_FIREBASE_AUTH_DELETION: "deleted",
+    DELETE_EVIDENCE_STORAGE_CLEANUP: "deleted",
+    DELETE_EVIDENCE_REACCESS_RESULT: "denied",
+    DELETE_EVIDENCE_OWNER: "release-operator",
+    ...overrides,
+  };
+}
+
 function makeReadinessEvidenceFixture(flowIds: string[] = ["flow-one", "flow-two"]): {
   backendRepo: { repoDir: string; sha: string };
   exportSummaryPath: string;
@@ -517,6 +538,7 @@ describe("release candidate workflow evidence wiring", () => {
     const releaseGateJob = workflowJob(workflow, "release-gate-e2e");
     const releaseEvidenceJob = workflowJob(workflow, "release-evidence");
     const telemetryJob = workflowJob(workflow, "smoke-telemetry");
+    const deleteEvidenceJob = workflowJob(workflow, "delete-evidence");
     const runStep = workflowStep(releaseGateJob, "Run core release gate E2E suite");
     const uploadStep = workflowStep(releaseGateJob, "Upload core release gate JUnit reports");
     const downloadStep = workflowStep(
@@ -531,6 +553,12 @@ describe("release candidate workflow evidence wiring", () => {
     expect(telemetryJob).toContain("name: smoke-telemetry-summary");
     expect(telemetryJob).not.toContain("continue-on-error");
     expect(releaseEvidenceJob).toContain("- smoke-telemetry");
+    expect(deleteEvidenceJob).toContain("DELETE_EVIDENCE_TIMESTAMP_UTC");
+    expect(deleteEvidenceJob).toContain("DELETE_EVIDENCE_DISPOSABLE_USER_REF");
+    expect(deleteEvidenceJob).toContain("MOBILE_SHA: ${{ needs.validate-release-pair.outputs.mobile_sha }}");
+    expect(deleteEvidenceJob).toContain("BACKEND_SHA: ${{ needs.validate-release-pair.outputs.backend_sha }}");
+    expect(deleteEvidenceJob).not.toContain("DELETE_EVIDENCE_NOTE");
+    expect(deleteEvidenceJob).not.toContain("Pending manual delete evidence");
     expect(releaseEvidenceJob).toContain("name: smoke-telemetry-summary");
     expect(releaseGateJob).toContain('E2E_SKIP_API_HEALTH: "0"');
     expect(releaseGateJob).toContain("E2E_API_BASE_URL: http://127.0.0.1:8000");
@@ -560,6 +588,8 @@ describe("release candidate workflow evidence wiring", () => {
     );
     expect(renderStep).toContain("TARGET_SDK_STATUS: verified via launch-readiness gate in");
     expect(renderStep).toContain("AAB_STATUS: verified via launch-readiness gate in");
+    expect(renderStep).toContain("DELETE_EVIDENCE_TIMESTAMP_UTC: ${{ needs.delete-evidence.outputs.timestamp_utc }}");
+    expect(renderStep).toContain("DELETE_EVIDENCE_REACCESS_RESULT: ${{ needs.delete-evidence.outputs.reaccess_result }}");
     expect(renderStep).toContain("CHAT_INTEGRITY_TEST_STATUS: verified via mobile CI in");
     expect(renderStep).toContain(
       "ONBOARDING_ATOMIC_CONTRACT_STATUS: verified via backend CI in",
@@ -575,6 +605,63 @@ describe("release candidate workflow evidence wiring", () => {
     expect(renderStep).not.toMatch(
       /EVIDENCE_DECISION:\s*["']?(CORE_RC_READY|FULL_1_1_RC_READY)["']?\b/,
     );
+  });
+});
+
+describe("disposable account delete evidence", () => {
+  function renderDeleteEvidence(overrides: Record<string, string> = {}): { output: string; outputPath: string } {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fitaly-delete-evidence-"));
+    const outputPath = path.join(tempDir, "release-evidence.md");
+    const env = {
+      ...process.env,
+      MOBILE_SHA: mobileSha,
+      BACKEND_SHA: backendSha,
+      TARGET_ENVIRONMENT: "production",
+      ...completeDeleteEvidenceEnv(mobileSha, backendSha),
+      ...overrides,
+    };
+    const output = expectCommandToFail(() =>
+      execFileSync("node", [path.join(rootDir, "scripts/render-release-evidence.mjs"), outputPath], {
+        cwd: tempDir,
+        env,
+      }),
+    );
+    return { output, outputPath };
+  }
+
+  it("renders complete bounded delete evidence without PII", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fitaly-delete-evidence-"));
+    const outputPath = path.join(tempDir, "release-evidence.md");
+
+    execFileSync("node", [path.join(rootDir, "scripts/render-release-evidence.mjs"), outputPath], {
+      cwd: tempDir,
+      env: {
+        ...process.env,
+        MOBILE_SHA: mobileSha,
+        BACKEND_SHA: backendSha,
+        TARGET_ENVIRONMENT: "production",
+        FEATURE_FLAG_SNAPSHOT: JSON.stringify(productionOffFeatureSnapshot),
+        ...completeDeleteEvidenceEnv(mobileSha, backendSha),
+      },
+    });
+
+    const evidence = fs.readFileSync(outputPath, "utf8");
+    expect(evidence).toContain("- Disposable delete user reference: delete-run-abc123");
+    expect(evidence).toContain("- Disposable delete re-access: denied");
+    expect(evidence).toContain("- Disposable delete evidence artifact: https://ops.example/runs/delete-run-abc123");
+    expect(evidence).not.toContain("DELETE_EVIDENCE_");
+  });
+
+  it.each([
+    ["missing field", { DELETE_EVIDENCE_OWNER: "" }, "DELETE_EVIDENCE_OWNER"],
+    ["placeholder", { DELETE_EVIDENCE_STORAGE_CLEANUP: "pending" }, "DELETE_EVIDENCE_STORAGE_CLEANUP"],
+    ["local URL", { DELETE_EVIDENCE_URL: "http://localhost:3000/delete" }, "external HTTPS URL"],
+    ["wrong SHA", { DELETE_EVIDENCE_BACKEND_SHA: "c".repeat(40) }, "matching BACKEND_SHA"],
+    ["PII-like input", { DELETE_EVIDENCE_URL: "https://ops.example/delete?uid=raw-user-id" }, "PII-like"],
+  ])("rejects %s", (_label, overrides, expectedError) => {
+    const { output, outputPath } = renderDeleteEvidence(overrides);
+    expect(output).toContain(expectedError);
+    expect(fs.existsSync(outputPath)).toBe(false);
   });
 });
 
@@ -917,6 +1004,7 @@ describe("render-release-evidence release pair fields", () => {
         env: {
           ...process.env,
           ...completeReadinessEnv(),
+          ...completeDeleteEvidenceEnv(mobileRepo.sha, backendRepo.sha),
           MOBILE_SHA: mobileRepo.sha,
           BACKEND_SHA: backendRepo.sha,
           BACKEND_REPO: backendRepo.repoDir,
@@ -969,6 +1057,7 @@ describe("render-release-evidence release pair fields", () => {
           TARGET_ENVIRONMENT: "production",
           EVIDENCE_DECISION: "CORE_RC_READY",
           EVIDENCE_LIMITATIONS: "none",
+          ...completeDeleteEvidenceEnv(mobileRepo.sha, backendRepo.sha),
           FEATURE_FLAG_SNAPSHOT: JSON.stringify(productionOffFeatureSnapshot),
           EXPORT_SUMMARY_PATH: exportSummaryPath,
           FLOW_SUMMARY_PATH: flowSummaryPath,
@@ -1332,6 +1421,7 @@ describe("render-release-evidence release pair fields", () => {
         env: {
           ...process.env,
           ...completeReadinessEnv(),
+          ...completeDeleteEvidenceEnv(mobileRepo.sha, backendRepo.sha),
           MOBILE_SHA: mobileRepo.sha,
           BACKEND_SHA: backendRepo.sha,
           BACKEND_REPO: backendRepo.repoDir,
@@ -1683,7 +1773,7 @@ describe("smoke runtime backend SHA verification", () => {
               FIREBASE_WEB_API_KEY: "unused-key",
               SMOKE_EXPORT_TEST_EMAIL: "user@example.com",
               SMOKE_EXPORT_TEST_PASSWORD: "unused-password",
-              SMOKE_TELEMETRY_TIMEOUT_MS: "50",
+              SMOKE_TELEMETRY_TIMEOUT_MS: "250",
             },
           },
         );

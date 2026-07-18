@@ -23,12 +23,36 @@ on:
           - ios
           - android
       delete_evidence_url:
-        description: "URL to the manual disposable smoke delete log"
-        required: false
+        description: "External URL for the completed disposable-account delete evidence"
+        required: true
         default: ""
-      delete_evidence_note:
-        description: "Short note for the manual delete evidence"
-        required: false
+      delete_evidence_timestamp_utc:
+        description: "UTC timestamp of the completed disposable-account delete run (ISO 8601, Z)"
+        required: true
+        default: ""
+      delete_evidence_disposable_user_ref:
+        description: "Pseudonymous disposable user reference: delete-run-<token>"
+        required: true
+        default: ""
+      delete_evidence_backend_deletion:
+        description: "Backend account-scoped deletion result (deleted)"
+        required: true
+        default: ""
+      delete_evidence_firebase_auth_deletion:
+        description: "Firebase Auth deletion result (deleted)"
+        required: true
+        default: ""
+      delete_evidence_storage_cleanup:
+        description: "Storage cleanup result (deleted)"
+        required: true
+        default: ""
+      delete_evidence_reaccess_result:
+        description: "Re-access result after deletion (denied)"
+        required: true
+        default: ""
+      delete_evidence_owner:
+        description: "Accountable execution owner (non-PII handle)"
+        required: true
         default: ""
 
 permissions:
@@ -398,26 +422,84 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.validate.outputs.url }}
-      note: ${{ steps.validate.outputs.note }}
+      timestamp_utc: ${{ steps.validate.outputs.timestamp_utc }}
+      target_environment: ${{ steps.validate.outputs.target_environment }}
+      mobile_sha: ${{ steps.validate.outputs.mobile_sha }}
+      backend_sha: ${{ steps.validate.outputs.backend_sha }}
+      disposable_user_ref: ${{ steps.validate.outputs.disposable_user_ref }}
+      backend_deletion: ${{ steps.validate.outputs.backend_deletion }}
+      firebase_auth_deletion: ${{ steps.validate.outputs.firebase_auth_deletion }}
+      storage_cleanup: ${{ steps.validate.outputs.storage_cleanup }}
+      reaccess_result: ${{ steps.validate.outputs.reaccess_result }}
+      owner: ${{ steps.validate.outputs.owner }}
     steps:
       - name: Validate evidence input
         id: validate
         env:
           DELETE_EVIDENCE_URL: ${{ inputs.delete_evidence_url }}
-          DELETE_EVIDENCE_NOTE: ${{ inputs.delete_evidence_note }}
+          DELETE_EVIDENCE_TIMESTAMP_UTC: ${{ inputs.delete_evidence_timestamp_utc }}
+          DELETE_EVIDENCE_DISPOSABLE_USER_REF: ${{ inputs.delete_evidence_disposable_user_ref }}
+          DELETE_EVIDENCE_BACKEND_DELETION: ${{ inputs.delete_evidence_backend_deletion }}
+          DELETE_EVIDENCE_FIREBASE_AUTH_DELETION: ${{ inputs.delete_evidence_firebase_auth_deletion }}
+          DELETE_EVIDENCE_STORAGE_CLEANUP: ${{ inputs.delete_evidence_storage_cleanup }}
+          DELETE_EVIDENCE_REACCESS_RESULT: ${{ inputs.delete_evidence_reaccess_result }}
+          DELETE_EVIDENCE_OWNER: ${{ inputs.delete_evidence_owner }}
+          TARGET_ENVIRONMENT: ${{ needs.validate-release-pair.outputs.target_environment }}
+          MOBILE_SHA: ${{ needs.validate-release-pair.outputs.mobile_sha }}
+          BACKEND_SHA: ${{ needs.validate-release-pair.outputs.backend_sha }}
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ -z "${DELETE_EVIDENCE_URL}" ]]; then
-              echo "Manual delete evidence URL is required for workflow_dispatch release approvals." >&2
-              exit 1
-            fi
-            echo "url=${DELETE_EVIDENCE_URL}" >> "$GITHUB_OUTPUT"
-            echo "note=${DELETE_EVIDENCE_NOTE:-verified disposable smoke user deleted manually.}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          fail() {
+            echo "$1" >&2
+            exit 1
+          }
 
-          echo "url=" >> "$GITHUB_OUTPUT"
-          echo "note=Pending manual delete evidence attachment before production approval." >> "$GITHUB_OUTPUT"
+          reject_placeholder() {
+            local name="$1"
+            local raw="$2"
+            local normalized
+            normalized="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
+            [[ -n "${raw}" ]] || fail "${name} is required."
+            [[ "${normalized}" =~ (pending|unknown|placeholder|not[[:space:]]provided|skipped) ]] && \
+              fail "${name} must contain completed evidence, not a placeholder."
+          }
+
+          reject_placeholder "DELETE_EVIDENCE_URL" "${DELETE_EVIDENCE_URL}"
+          reject_placeholder "DELETE_EVIDENCE_TIMESTAMP_UTC" "${DELETE_EVIDENCE_TIMESTAMP_UTC}"
+          reject_placeholder "DELETE_EVIDENCE_DISPOSABLE_USER_REF" "${DELETE_EVIDENCE_DISPOSABLE_USER_REF}"
+          reject_placeholder "DELETE_EVIDENCE_BACKEND_DELETION" "${DELETE_EVIDENCE_BACKEND_DELETION}"
+          reject_placeholder "DELETE_EVIDENCE_FIREBASE_AUTH_DELETION" "${DELETE_EVIDENCE_FIREBASE_AUTH_DELETION}"
+          reject_placeholder "DELETE_EVIDENCE_STORAGE_CLEANUP" "${DELETE_EVIDENCE_STORAGE_CLEANUP}"
+          reject_placeholder "DELETE_EVIDENCE_REACCESS_RESULT" "${DELETE_EVIDENCE_REACCESS_RESULT}"
+          reject_placeholder "DELETE_EVIDENCE_OWNER" "${DELETE_EVIDENCE_OWNER}"
+
+          [[ "${TARGET_ENVIRONMENT}" == "production" ]] || fail "Delete evidence target environment must be production."
+          [[ "${MOBILE_SHA}" =~ ^[0-9a-fA-F]{40}$ ]] || fail "Delete evidence mobile SHA must be an exact 40-character commit SHA."
+          [[ "${BACKEND_SHA}" =~ ^[0-9a-fA-F]{40}$ ]] || fail "Delete evidence backend SHA must be an exact 40-character commit SHA."
+          [[ "${DELETE_EVIDENCE_TIMESTAMP_UTC}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3})?Z$ ]] || \
+            fail "DELETE_EVIDENCE_TIMESTAMP_UTC must be an ISO 8601 UTC timestamp."
+          [[ "${DELETE_EVIDENCE_DISPOSABLE_USER_REF}" =~ ^delete-run-[a-z0-9][a-z0-9-]{1,62}$ ]] || \
+            fail "DELETE_EVIDENCE_DISPOSABLE_USER_REF must be a pseudonymous delete-run token."
+          [[ "${DELETE_EVIDENCE_BACKEND_DELETION}" == "deleted" ]] || fail "DELETE_EVIDENCE_BACKEND_DELETION must be deleted."
+          [[ "${DELETE_EVIDENCE_FIREBASE_AUTH_DELETION}" == "deleted" ]] || fail "DELETE_EVIDENCE_FIREBASE_AUTH_DELETION must be deleted."
+          [[ "${DELETE_EVIDENCE_STORAGE_CLEANUP}" == "deleted" ]] || fail "DELETE_EVIDENCE_STORAGE_CLEANUP must be deleted."
+          [[ "${DELETE_EVIDENCE_REACCESS_RESULT}" == "denied" ]] || fail "DELETE_EVIDENCE_REACCESS_RESULT must be denied."
+          [[ "${DELETE_EVIDENCE_OWNER}" =~ ^[a-z][a-z0-9_-]{1,63}$ ]] || fail "DELETE_EVIDENCE_OWNER must be a non-PII owner handle."
+          [[ "${DELETE_EVIDENCE_URL}" =~ ^https:// ]] || fail "DELETE_EVIDENCE_URL must be an external HTTPS URL."
+          [[ ! "${DELETE_EVIDENCE_URL}" =~ (localhost|127\.0\.0\.1|0\.0\.0\.0|file:|/tmp/|/Users/) ]] || \
+            fail "DELETE_EVIDENCE_URL must not be a local path or host."
+          [[ ! "${DELETE_EVIDENCE_URL}" =~ (@|uid=|user_id=) ]] || fail "DELETE_EVIDENCE_URL must not contain PII-like data."
+
+          echo "url=${DELETE_EVIDENCE_URL}" >> "$GITHUB_OUTPUT"
+          echo "timestamp_utc=${DELETE_EVIDENCE_TIMESTAMP_UTC}" >> "$GITHUB_OUTPUT"
+          echo "target_environment=${TARGET_ENVIRONMENT}" >> "$GITHUB_OUTPUT"
+          echo "mobile_sha=${MOBILE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_sha=${BACKEND_SHA}" >> "$GITHUB_OUTPUT"
+          echo "disposable_user_ref=${DELETE_EVIDENCE_DISPOSABLE_USER_REF}" >> "$GITHUB_OUTPUT"
+          echo "backend_deletion=${DELETE_EVIDENCE_BACKEND_DELETION}" >> "$GITHUB_OUTPUT"
+          echo "firebase_auth_deletion=${DELETE_EVIDENCE_FIREBASE_AUTH_DELETION}" >> "$GITHUB_OUTPUT"
+          echo "storage_cleanup=${DELETE_EVIDENCE_STORAGE_CLEANUP}" >> "$GITHUB_OUTPUT"
+          echo "reaccess_result=${DELETE_EVIDENCE_REACCESS_RESULT}" >> "$GITHUB_OUTPUT"
+          echo "owner=${DELETE_EVIDENCE_OWNER}" >> "$GITHUB_OUTPUT"
 
   release-evidence:
     name: Build release evidence artifact
@@ -488,7 +570,16 @@ jobs:
           BACKUP_RUN_URL: ${{ needs.ops-evidence.outputs.backup_run_url }}
           RESTORE_RUN_URL: ${{ needs.ops-evidence.outputs.restore_run_url }}
           DELETE_EVIDENCE_URL: ${{ needs.delete-evidence.outputs.url }}
-          DELETE_EVIDENCE_NOTE: ${{ needs.delete-evidence.outputs.note }}
+          DELETE_EVIDENCE_TIMESTAMP_UTC: ${{ needs.delete-evidence.outputs.timestamp_utc }}
+          DELETE_EVIDENCE_TARGET_ENVIRONMENT: ${{ needs.delete-evidence.outputs.target_environment }}
+          DELETE_EVIDENCE_MOBILE_SHA: ${{ needs.delete-evidence.outputs.mobile_sha }}
+          DELETE_EVIDENCE_BACKEND_SHA: ${{ needs.delete-evidence.outputs.backend_sha }}
+          DELETE_EVIDENCE_DISPOSABLE_USER_REF: ${{ needs.delete-evidence.outputs.disposable_user_ref }}
+          DELETE_EVIDENCE_BACKEND_DELETION: ${{ needs.delete-evidence.outputs.backend_deletion }}
+          DELETE_EVIDENCE_FIREBASE_AUTH_DELETION: ${{ needs.delete-evidence.outputs.firebase_auth_deletion }}
+          DELETE_EVIDENCE_STORAGE_CLEANUP: ${{ needs.delete-evidence.outputs.storage_cleanup }}
+          DELETE_EVIDENCE_REACCESS_RESULT: ${{ needs.delete-evidence.outputs.reaccess_result }}
+          DELETE_EVIDENCE_OWNER: ${{ needs.delete-evidence.outputs.owner }}
           CHAT_INTEGRITY_TEST_STATUS: verified via mobile CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ONBOARDING_ATOMIC_CONTRACT_STATUS: verified via backend CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           WEEKLY_REPORT_PREMIUM_GATE_STATUS: verified via backend CI in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
